@@ -1,0 +1,147 @@
+.informationcontainer {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--padding-10);
+  box-sizing: border-box;
+  max-width: 100%;
+  text-align: center;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--Schemes-Outline);
+  font-family: var(--Static-Body-Small-Font);
+}
+.informationcontainer2,
+.priceSelection {
+  display: flex;
+  align-items: flex-start;
+  max-width: 100%;
+}
+.informationcontainer2 {
+  width: 100%;
+  height: 66px;
+  flex-direction: column;
+  gap: var(--gap-8);
+}
+.priceSelection {
+  width: 1139.5px;
+  justify-content: center;
+  padding: var(--padding-0) var(--padding-20);
+  box-sizing: border-box;
+}
+.chooseseasoncontainer {
+  padding: var(--padding-1) var(--padding-0);
+  position: relative;
+  isolation: isolate;
+}
+.chooseseasoncontainer,
+.mounthlyprice,
+.stateLayer {
+  display: flex;
+  align-items: flex-start;
+}
+.mounthlyprice {
+  cursor: pointer;
+  border: 1px solid var(--Schemes-Outline);
+  padding: var(--padding-01);
+  background-color: transparent;
+  border-radius: var(--br-100) var(--br-0) var(--br-0) var(--br-100);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.stateLayer {
+  padding: var(--padding-10) var(--padding-24);
+}
+.labelText {
+  height: var(--height-20);
+  width: 55px;
+  position: relative;
+  font-size: var(--Static-Label-Large-Size);
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  line-height: var(--Static-Label-Large-Line-Height);
+  font-weight: 500;
+  font-family: var(--Static-Label-Large-Font);
+  color: var(--Schemes-On-Surface);
+  text-align: center;
+  display: inline-block;
+}
+.annualprice {
+  cursor: pointer;
+  border: 1px solid var(--Schemes-Outline);
+  padding: var(--padding-01);
+  background-color: var(--Color);
+  border-radius: var(--br-0) var(--br-100) var(--br-100) var(--br-0);
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 1;
+  margin-left: -1.5px;
+  position: relative;
+}
+.annualprice,
+.frameInput,
+.stateLayer2 {
+  display: flex;
+  align-items: flex-start;
+}
+.stateLayer2 {
+  padding: var(--padding-10) var(--padding-16);
+  gap: var(--gap-8);
+}
+.frameInput {
+  margin: 0;
+  height: var(--height-19);
+  width: var(--width-18);
+  flex-direction: column;
+  padding: var(--padding-1) var(--padding-0) var(--padding-0);
+  box-sizing: border-box;
+}
+.priceLabel {
+  height: var(--height-20);
+  width: var(--width-45);
+  position: relative;
+  font-size: var(--Static-Label-Large-Size);
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  line-height: var(--Static-Label-Large-Line-Height);
+  font-weight: 500;
+  font-family: var(--Static-Label-Large-Font);
+  color: var(--Schemes-On-Secondary-Container);
+  text-align: center;
+  display: inline-block;
+}
+.reductionbuttonIcon,
+.reductioncontainer {
+  position: absolute;
+  margin: 0 !important;
+  flex-shrink: 0;
+}
+.reductioncontainer {
+  height: 106px;
+  width: 0;
+  top: calc(50% - 53px);
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: var(--padding-10) var(--padding-0) var(--padding-10)
+    var(--padding-10);
+  box-sizing: border-box;
+  isolation: isolate;
+  z-index: 2;
+}
+.reductionbuttonIcon {
+  height: 62.8px;
+  width: 82.4px;
+  top: 6px;
+  border-radius: var(--br-100);
+  object-fit: contain;
+}
+.description {
+  width: 1140px;
+  height: var(--height-16);
+  position: relative;
+  letter-spacing: var(--Static-Body-Small-Tracking);
+  line-height: var(--Static-Body-Small-Line-Height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

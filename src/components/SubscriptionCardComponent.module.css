@@ -1,0 +1,214 @@
+.subscriptioncardcomponent {
+  height: 580px;
+  width: 303.6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 23px var(--padding-0) var(--padding-2);
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  gap: var(--gap-2);
+  flex-shrink: 0;
+  text-align: center;
+  font-size: var(--fs-14);
+  color: var(--color-gray-100);
+  font-family: var(--Static-Title-Large-Font);
+}
+.cardpricebannerParent,
+.subscriptioncardcomponentInner {
+  height: var(--height-28);
+  display: flex;
+  align-items: flex-start;
+}
+.subscriptioncardcomponentInner {
+  width: var(--width-221);
+  padding: var(--padding-0) var(--padding-0) var(--padding-0) 41px;
+  box-sizing: border-box;
+  z-index: 0;
+  flex-shrink: 0;
+}
+.cardpricebannerParent {
+  width: var(--width-180);
+}
+.cardprice,
+.cardpricebanner {
+  height: var(--height-28);
+  position: relative;
+}
+.cardpricebanner {
+  width: var(--width-180);
+  border-radius: var(--br-50) var(--br-50) var(--br-0) var(--br-0);
+  background-color: var(--color-red);
+  z-index: 1;
+}
+.cardprice {
+  width: 90px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+  margin-left: -122px;
+}
+.cardpriceTxt {
+  width: 100%;
+}
+.span {
+  letter-spacing: 0.1px;
+  line-height: var(--lh-20);
+}
+.span2 {
+  text-decoration: line-through;
+}
+.span3 {
+  color: var(--color-black);
+}
+.span4 {
+  font-size: var(--fs-22);
+  line-height: var(--lh-28);
+  color: var(--color-white);
+}
+.pricingcard {
+  width: 262px;
+  height: 525px;
+  box-shadow: var(--shadow-drop);
+  border-radius: var(--br-32);
+  background-color: var(--color-white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--padding-26) var(--padding-8);
+  box-sizing: border-box;
+  gap: var(--gap-10);
+  z-index: 1;
+  flex-shrink: 0;
+  text-align: left;
+  font-size: var(--Static-Title-Large-Size);
+  color: var(--color-black);
+}
+.card1 {
+  margin: 0;
+  position: relative;
+  font-size: inherit;
+  line-height: var(--Static-Title-Large-Line-Height);
+  font-weight: 500;
+  font-family: inherit;
+}
+.items {
+  align-self: stretch;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--padding-0) var(--padding-10);
+  gap: var(--gap-10);
+  font-size: var(--Static-Label-Large-Size);
+  color: var(--color-silver-100);
+  font-family: var(--Static-Label-Large-Font);
+}
+.listitem,
+.stateLayer {
+  display: flex;
+  align-items: center;
+}
+.listitem {
+  width: var(--width-236);
+  height: var(--height-33);
+  border-radius: var(--br-100);
+  overflow: hidden;
+  flex-shrink: 0;
+  color: var(--Schemes-On-Surface-Variant);
+}
+.stateLayer {
+  align-self: stretch;
+  flex: 1;
+  padding: var(--padding-16) var(--padding-24) var(--padding-16)
+    var(--padding-16);
+  gap: var(--gap-12);
+}
+.detailsitem,
+.iconitem {
+  position: relative;
+  flex-shrink: 0;
+}
+.iconitem {
+  height: var(--height-9_4);
+  width: var(--width-12);
+}
+.detailsitem {
+  flex: 1;
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  line-height: var(--Static-Label-Large-Line-Height);
+  font-weight: 500;
+}
+.listitem4 {
+  width: var(--width-236);
+  border-radius: var(--br-100);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+.stateLayer4 {
+  height: var(--height-33);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: var(--padding-16) var(--padding-24) var(--padding-16)
+    var(--padding-16);
+  box-sizing: border-box;
+  gap: var(--gap-12);
+}
+.iconitem4 {
+  width: var(--width-10);
+  position: relative;
+  max-height: 100%;
+  flex-shrink: 0;
+}
+.subscriptionbutton {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-01);
+  background-color: transparent;
+  height: var(--height-48);
+}
+.content,
+.stateLayer10,
+.subscriptionbutton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.content {
+  height: var(--height-48);
+  box-shadow: var(--M3-Elevation-Light-1);
+  border-radius: var(--br-100);
+  background-color: var(--Color);
+  overflow: hidden;
+}
+.stateLayer10 {
+  padding: var(--padding-10) var(--padding-16);
+}
+.subscriptionbutton2 {
+  position: relative;
+  font-size: var(--Static-Label-Large-Size);
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  line-height: var(--Static-Label-Large-Line-Height);
+  font-weight: 500;
+  font-family: var(--Static-Label-Large-Font);
+  color: var(--color-black);
+  text-align: left;
+}
+.reductioncomponentIcon {
+  width: 77.3px;
+  height: 66.5px;
+  position: absolute;
+  margin: 0 !important;
+  top: 8px;
+  left: 189px;
+  border-radius: var(--br-100);
+  object-fit: contain;
+  z-index: 2;
+  flex-shrink: 0;
+}

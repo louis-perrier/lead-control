@@ -1,0 +1,50 @@
+.root {
+  height: var(--height-40);
+  flex: 1;
+  border-left: var(--border-13);
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--padding-10);
+  gap: var(--gap-10);
+  min-width: var(--min-w-70);
+  text-align: left;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-black);
+  font-family: var(--Static-Body-Small-Font);
+}
+.root[data-stroke="any"] {
+  border-left: unset;
+  flex-shrink: unset;
+}
+.root[data-stroke="both"] {
+  flex-shrink: unset;
+  border-right: var(--border-2);
+}
+.root[data-stroke="any"] .closetabbuttonIcon,
+.root[data-stroke="both"] .closetabbuttonIcon {
+  border: unset;
+  padding: unset;
+  background-color: unset;
+  max-height: unset;
+  margin: 0;
+  display: none;
+}
+.textheader {
+  flex: 1;
+  position: relative;
+  letter-spacing: var(--Static-Body-Small-Tracking);
+  line-height: var(--Static-Body-Small-Line-Height);
+}
+.closetabbuttonIcon {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-01);
+  background-color: transparent;
+  width: var(--width-20);
+  position: relative;
+  max-height: 100%;
+}

@@ -1,0 +1,37 @@
+.table {
+  width: 982px;
+  height: 278px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 545px;
+  min-height: 153px;
+  text-align: left;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-black);
+  font-family: var(--Static-Body-Small-Font);
+}
+.rowbody,
+.rowheader {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rowheader {
+  height: 46px;
+  border-bottom: 1px solid var(--color-black);
+  box-sizing: border-box;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.rowbody {
+  flex: 1;
+  border-bottom: var(--border-1);
+  flex-wrap: wrap;
+  align-content: center;
+  gap: var(--gap-0);
+  row-gap: var(--gap-20);
+}

@@ -1,0 +1,133 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.overlayContent {
+  width: 80vw;
+  max-width: 1100px;
+  height: 85vh;
+  min-height: 400px;
+  border-radius: var(--br-20);
+  background-color: white;
+  padding: 32px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.title {
+  margin: 0;
+  text-align: center;
+  font-size: var(--Static-Headline-Small-Size);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.body {
+  flex: 1;
+  display: flex;
+  gap: 24px;
+}
+.sidebar {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+.agentInfo {
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.agentInfo {
+  text-align: center;
+}
+.infoCard {
+  border-radius: 10%;
+  border: 1px solid #000;
+  padding: 20px;
+  background-color: rgba(231, 231, 231, 0.644);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 10px;
+  flex: 1;
+  justify-content: flex-start;
+  align-items: center;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.agentName {
+  margin: 0;
+  font-size: var(--Static-Headline-Small-Size);
+  font-weight: 700;
+}
+.agentDescription {
+  margin: 8px 0;
+  font-size: var(--Static-Label-Medium-Size);
+  color: var(--color-darkslategray);
+}
+.detailsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--Static-Body-Small-Size);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.selectButton {
+  margin-top: 12px;
+  background-color: #c3d2ff;
+  border: 1px solid #000;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: center;
+  margin: 10px 0px 20px;
+}
+.previewWrapper {
+  flex: 2;
+  position: relative;
+  border-radius: var(--br-20);
+  overflow: hidden;
+}
+.preview {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  border-radius: var(--br-20);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.iconButton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background-color: rgba(255, 255, 255, 0.65);
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.iconButton.left {
+  left: 20px;
+}
+.iconButton.right {
+  right: 20px;
+}
+.icon {
+  width: 32px;
+  height: 32px;
+}

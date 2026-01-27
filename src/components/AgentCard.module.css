@@ -1,0 +1,108 @@
+.agentDetailsContainer,
+.agentcard {
+  display: flex;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+.agentcard {
+  height: var(--height-235);
+  width: var(--width-200);
+  flex-direction: column;
+  padding: var(--padding-0) var(--padding-0) var(--padding-5);
+  position: relative;
+  isolation: isolate;
+  text-align: center;
+  font-size: var(--Static-Headline-Small-Size);
+  color: var(--color-black);
+  font-family: var(--Static-Headline-Small-Font);
+}
+.agentDetailsContainer {
+  width: 189px;
+  height: var(--height-30);
+  padding: var(--padding-0) var(--padding-0) var(--padding-0) var(--padding-3);
+  z-index: 4;
+}
+.detailsagentcard {
+  height: var(--height-30);
+  width: var(--width-186);
+  display: flex;
+  align-items: center;
+  gap: var(--gap-29);
+}
+.favoriteIcon {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-01);
+  background-color: transparent;
+  height: var(--height-24);
+  width: var(--width-24);
+  position: relative;
+}
+.agentname {
+  margin: 0;
+  height: var(--height-30);
+  width: var(--width-80);
+  position: relative;
+  font-size: inherit;
+  line-height: var(--Static-Headline-Small-Line-Height);
+  font-weight: 700;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.agentnameInput {
+  border: none;
+  background: transparent;
+  margin: 0;
+  height: var(--height-30);
+  width: var(--width-80);
+  font-size: inherit;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: var(--Static-Headline-Small-Line-Height);
+  text-align: center;
+  outline: none;
+}
+.agentdescription,
+.textsupport {
+  position: absolute;
+  margin: 0 !important;
+}
+.textsupport {
+  width: 100%;
+  height: 6.81%;
+  top: 85.53%;
+  right: 0;
+  bottom: 7.66%;
+  left: 0;
+  border-radius: var(--br-20);
+  background-color: var(--color-lightsteelblue);
+  z-index: 1;
+}
+.agentdescription {
+  width: var(--width-169);
+  height: var(--height-26);
+  top: 83.4%;
+  left: 8%;
+  font-size: var(--Static-Label-Medium-Size);
+  letter-spacing: var(--Static-Label-Medium-Tracking);
+  line-height: var(--Static-Label-Medium-Line-Height);
+  font-weight: 600;
+  font-family: var(--Static-Label-Medium-Font);
+  color: var(--color-darkslategray);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.agentimageIcon {
+  width: var(--width-200);
+  height: var(--height-200);
+  position: relative;
+  box-shadow: var(--shadow-drop-1);
+  border-radius: var(--br-20);
+  object-fit: cover;
+  cursor: pointer;
+  z-index: 1;
+}

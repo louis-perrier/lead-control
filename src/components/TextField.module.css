@@ -1,0 +1,101 @@
+.textField {
+  height: var(--height-56);
+  width: 312px;
+  align-self: center;
+  border-radius: var(--br-4) var(--br-4) var(--br-0) var(--br-0);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
+  isolation: isolate;
+  text-align: left;
+  font-size: var(--Static-Body-Large-Size);
+  color: var(--Schemes-On-Surface);
+  font-family: var(--Static-Body-Large-Font);
+}
+.textField2 {
+  align-self: stretch;
+  border-radius: var(--br-4);
+  border: 2px solid var(--color-gray-300);
+  flex-direction: column;
+  z-index: 0;
+  flex-shrink: 0;
+}
+.content,
+.stateLayer,
+.textField2 {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+}
+.stateLayer {
+  align-self: stretch;
+  border-radius: var(--br-4) var(--br-4) var(--br-0) var(--br-0);
+  padding: var(--padding-4) var(--padding-0) var(--padding-4) var(--padding-16);
+  gap: var(--gap-4);
+}
+.content {
+  height: var(--height-48);
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--padding-4) var(--padding-0);
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+}
+.inputTextContainer {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  z-index: 0;
+  flex-shrink: 0;
+}
+.inputText {
+  position: relative;
+  letter-spacing: var(--Static-Body-Large-Tracking);
+  line-height: var(--Static-Body-Large-Line-Height);
+}
+.labelTextContainer {
+  margin: 0 !important;
+  position: absolute;
+  top: -12px;
+  left: -4px;
+  background-color: var(--Schemes-Surface);
+  display: flex;
+  align-items: center;
+  padding: var(--padding-0) var(--padding-4);
+  z-index: 1;
+  flex-shrink: 0;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-gray-300);
+  font-family: var(--Static-Body-Small-Font);
+}
+.startdate {
+  position: relative;
+  letter-spacing: var(--Static-Body-Small-Tracking);
+  line-height: var(--Static-Body-Small-Line-Height);
+}
+.supportingText {
+  width: 100%;
+  height: var(--height-20);
+  margin: 0 !important;
+  position: absolute;
+  right: 0;
+  bottom: -20px;
+  left: 0;
+  display: flex;
+  align-items: flex-start;
+  padding: var(--padding-4) var(--padding-16) var(--padding-0);
+  box-sizing: border-box;
+  z-index: 1;
+  flex-shrink: 0;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--Schemes-On-Surface-Variant);
+  font-family: var(--Static-Body-Small-Font);
+}
+.supportingText2 {
+  flex: 1;
+  position: relative;
+  letter-spacing: var(--Static-Body-Small-Tracking);
+  line-height: var(--Static-Body-Small-Line-Height);
+}

@@ -1,0 +1,73 @@
+.tabcomponent {
+  position: relative;
+  height: var(--height-26);
+  width: var(--width-164);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--Static-Label-Large-Size);
+  color: var(--color-black);
+  font-family: var(--Static-Label-Large-Font);
+  cursor: pointer;
+}
+.textsupportIcon {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+.tabContent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--gap-8);
+  box-sizing: border-box;
+  z-index: 2;
+}
+.agenttabWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--height-23);
+}
+.agenttab {
+  width: 57px;
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  line-height: var(--Static-Label-Large-Line-Height);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.cancelContainer,
+.cancelIcon {
+  cursor: pointer;
+  border: 0;
+  background-color: transparent;
+  width: var(--width-20);
+}
+.cancelContainer {
+  position: absolute;
+  right: var(--gap-25);
+  top: 40%;
+  transform: translateY(-50%);
+  padding: var(--padding-1) var(--padding-0) var(--padding-0);
+  height: 21px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  z-index: 3;
+}
+.cancelIcon {
+  padding: var(--padding-01);
+  max-height: 100%;
+  flex-shrink: 0;
+}

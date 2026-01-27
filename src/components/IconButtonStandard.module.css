@@ -1,0 +1,52 @@
+.trailingIcon {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-01);
+  background-color: transparent;
+  height: var(--height-48);
+  width: var(--width-48);
+}
+.content,
+.stateLayer,
+.trailingIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.content {
+  width: var(--width-40);
+  border-radius: var(--br-8);
+  overflow: hidden;
+  flex-shrink: 0;
+  flex-direction: column;
+}
+.stateLayer {
+  width: 100%;
+  height: var(--height-40);
+  background-color: var(--State-Layers-On-Surface-Variant-Opacity-08);
+  position: relative;
+  isolation: isolate;
+  max-width: 100%;
+}
+.icon,
+.rippleIcon {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-01);
+  background-color: transparent;
+}
+.rippleIcon {
+  height: var(--height-28);
+  width: var(--width-38);
+  position: absolute;
+  margin: 0 !important;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+}
+.icon {
+  height: var(--height-24);
+  width: var(--width-24);
+  position: relative;
+  z-index: 1;
+}

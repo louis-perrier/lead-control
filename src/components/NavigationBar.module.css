@@ -1,0 +1,182 @@
+.frameParent,
+.navigationbar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.navigationbar {
+  height: var(--height-1024);
+  width: var(--width-260_3);
+  background-color: var(--color-white);
+  border-right: var(--border-11);
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
+  padding: var(--padding-12) var(--padding-12_3) var(--padding-24)
+    var(--padding-0);
+  gap: var(--gap-642);
+  text-align: left;
+  font-size: var(--Static-Label-Large-Size);
+  color: var(--Schemes-On-Secondary-Container);
+  font-family: var(--Static-Label-Large-Font);
+  transition: width 0.3s ease;
+  position: relative;
+}
+.navigationbar[data-collapsed="true"] {
+  width: 64px;
+  padding-left: var(--padding-4);
+  padding-right: var(--padding-4);
+  gap: var(--gap-20);
+}
+.frameParent {
+  width: 100%;
+  height: var(--height-290);
+  z-index: 2;
+}
+.frameWrapper,
+.optionnavigationParent {
+  height: var(--height-56);
+  display: flex;
+  align-items: flex-start;
+}
+.frameWrapper {
+  width: 100%;
+  justify-content: space-between;
+  padding: var(--padding-0) var(--padding-1) var(--padding-0) var(--padding-0);
+  box-sizing: border-box;
+}
+.menuButton {
+  background-color: transparent;
+  border: none;
+  padding: var(--padding-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: var(--br-8);
+}
+.menuButton span {
+  width: 20px;
+  height: 2px;
+  background-color: var(--Schemes-On-Secondary-Container);
+  border-radius: 2px;
+  display: block;
+}
+.navigationbar[data-collapsed="true"] .menuButton span {
+  background-color: var(--color-lightsteelblue);
+}
+.optionnavigationParent {
+  width: var(--width-247);
+  gap: var(--gap-128);
+}
+.navigationbar[data-collapsed="true"] .optionnavigationParent {
+  justify-content: center;
+  gap: var(--gap-12);
+  width: 64px;
+}
+.logoWrapper {
+  height: var(--height-51);
+  width: var(--width-45);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--padding-5) var(--padding-0) var(--padding-0);
+  box-sizing: border-box;
+}
+.logoIcon {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-01);
+  background-color: transparent;
+  width: var(--width-45);
+  position: relative;
+  max-height: 100%;
+  object-fit: cover;
+}
+.navigationbar[data-collapsed="true"] .logoWrapper {
+  display: none;
+}
+.dividerWrapper {
+  width: var(--width-221);
+  height: var(--height-10);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: var(--padding-0) var(--padding-37) var(--padding-0) var(--padding-0);
+  box-sizing: border-box;
+  z-index: 6;
+}
+.navigationbar[data-collapsed="true"] .dividerWrapper {
+  display: none;
+}
+.dividerIcon {
+  height: var(--height-10);
+  width: var(--width-184);
+}
+.helpcenterWrapper {
+  width: var(--width-183);
+  height: var(--height-56);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: var(--padding-0) var(--padding-52) var(--padding-0) var(--padding-0);
+  box-sizing: border-box;
+  z-index: 1;
+  color: var(--color-silver-300);
+}
+.navigationbar[data-collapsed="true"] .helpcenterWrapper {
+  width: 100%;
+  justify-content: center;
+  padding: var(--padding-0);
+}
+.helpcenter,
+.stateLayer {
+  display: flex;
+  align-items: center;
+}
+.helpcenter {
+  border-radius: var(--br-100);
+  overflow: hidden;
+}
+.stateLayer {
+  justify-content: center;
+  padding: var(--padding-16);
+  position: relative;
+  isolation: isolate;
+  gap: var(--gap-8);
+}
+.icon,
+.icon2 {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-01);
+  background-color: transparent;
+  width: var(--width-24);
+}
+.icon {
+  height: var(--height-24);
+  position: absolute;
+  margin: 0 !important;
+  top: 16px;
+  left: 16px;
+  z-index: 0;
+}
+.icon2 {
+  position: relative;
+  max-height: 100%;
+  z-index: 1;
+}
+.helpcenter2 {
+  position: relative;
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  line-height: var(--Static-Label-Large-Line-Height);
+  font-weight: 500;
+  z-index: 2;
+}
+@media screen and (max-width: 975px) {
+  .navigationbar {
+    display: none;
+  }
+}

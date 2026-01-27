@@ -1,0 +1,12 @@
+.datepicker {
+  height: 88px;
+  width: 360px;
+  display: flex;
+  align-items: flex-start;
+  padding: var(--padding-8) var(--padding-0) var(--padding-24);
+  box-sizing: border-box;
+  text-align: left;
+  font-size: var(--Static-Body-Large-Size);
+  color: var(--Schemes-On-Surface);
+  font-family: var(--Static-Body-Large-Font);
+}

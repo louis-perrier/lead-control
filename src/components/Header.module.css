@@ -1,0 +1,21 @@
+.header {
+  align-self: stretch;
+  height: var(--height-108_5);
+  border-bottom: var(--border-12);
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--padding-0) var(--padding-138);
+  position: relative;
+  isolation: isolate;
+  gap: var(--gap-10);
+}
+.logomarqueIcon {
+  height: var(--height-108);
+  width: var(--width-542);
+  position: relative;
+  object-fit: cover;
+  z-index: 0;
+  flex-shrink: 0;
+}

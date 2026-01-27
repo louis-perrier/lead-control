@@ -1,0 +1,267 @@
+.agentai,
+.rightcomponent {
+  display: flex;
+  align-items: flex-start;
+}
+.agentai {
+  width: 100%;
+  position: relative;
+  background-color: var(--color-white);
+  overflow: hidden;
+  line-height: normal;
+  letter-spacing: normal;
+}
+.rightcomponent {
+  height: var(--height-1024);
+  flex: 1;
+  flex-direction: column;
+  text-align: center;
+  font-size: var(--Static-Label-Large-Size);
+  color: var(--color-black);
+  font-family: var(--Static-Label-Large-Font);
+}
+.tabcomponent {
+  align-self: stretch;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: var(--padding-0) 168px var(--padding-20);
+  row-gap: var(--gap-20);
+}
+@media screen and (max-width: 975px) {
+  .tabcomponent {
+    padding-left: var(--padding-20);
+    padding-right: var(--padding-20);
+    box-sizing: border-box;
+  }
+}
+@media screen and (max-width: 450px) {
+  .rightcomponent {
+    height: var(--height-auto);
+  }
+  .tabcomponent {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding-left: 84px;
+    padding-right: 84px;
+    box-sizing: border-box;
+  }
+}
+
+.claraContainer {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: var(--padding-24);
+  box-sizing: border-box;
+}
+
+.claraBackground {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--br-32);
+  background-image: url("/CLARA-Background.png");
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-drop);
+}
+
+.cornerTopLeft {
+  top: var(--padding-30);
+  left: var(--padding-30);
+}
+
+.cornerTopRight {
+  top: var(--padding-30);
+  right: var(--padding-30);
+}
+
+.cornerBottomLeft {
+  bottom: var(--padding-30);
+  left: var(--padding-30);
+}
+
+.cornerBottomRight {
+  bottom: var(--padding-30);
+  right: var(--padding-30);
+}
+
+.cornerBlock {
+  position: absolute;
+  width: var(--width-350);
+  height: var(--height-200);
+  border-radius: var(--br-8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-drop-1);
+  font-weight: 500;
+  font-size: var(--fs-22);
+}
+
+.cornerTitle {
+  text-align: center;
+  width: 100%;
+}
+
+.blockAvailable {
+  background: var(--color-white);
+  justify-content: flex-start;
+  padding-top: var(--padding-20);
+  justify-content: center;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.blockLock {
+  background: var(--color-gainsboro);
+  color: var(--color-black);
+}
+
+.blockUnlock {
+  background: var(--color-lightsteelblue);
+  color: var(--color-black);
+  cursor: pointer;
+}
+
+.cornerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.cornerOverlayContent {
+  width: min(90vw, 420px);
+  background: var(--color-white);
+  border-radius: var(--br-16);
+  padding: var(--padding-24);
+  box-shadow: var(--shadow-drop);
+  position: relative;
+  text-align: left;
+}
+
+.cornerOverlayLabel {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--gap-6);
+}
+
+.cornerOverlayTextarea {
+  width: 100%;
+  min-height: 150px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--br-12);
+  padding: var(--padding-12);
+  font-size: var(--fs-16);
+  resize: vertical;
+  font-family: inherit;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+  background: var(--color-white);
+}
+
+.cornerOverlaySave {
+  margin-top: 12px;
+  background-color: #c3d2ff;
+  border: 1px solid #000;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: center;
+  margin: 10px 0px 20px;
+}
+.connexionSections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+  margin-top: var(--gap-16);
+}
+.connexionSection {
+  border-radius: var(--br-12);
+  padding: var(--padding-16);
+  background: rgba(196, 210, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+.connexionSection h4 {
+  margin: 0 0 var(--gap-8);
+  font-size: var(--fs-18);
+}
+.connexionSection p {
+  margin: 0;
+  font-size: var(--fs-16);
+  color: var(--color-gray-700, #494949);
+}
+.connexionCard {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-12);
+  background: var(--color-white);
+  border-radius: var(--br-12);
+  padding: var(--padding-12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+.connexionCardImage {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+.connexionCardBody h5 {
+  margin: 0;
+  font-size: var(--fs-16);
+}
+.connexionCardBody p {
+  margin: var(--gap-6) 0 0;
+  font-size: var(--fs-12);
+  color: var(--color-gray-600, #5b5b5b);
+}
+.connexionButton {
+  margin-top: var(--gap-12);
+  background-color: #c3d2ff;
+  border: 1px solid #000;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cornerOverlayClose {
+  position: absolute;
+  top: var(--padding-12);
+  right: var(--padding-12);
+  border: none;
+  background: transparent;
+  font-size: var(--fs-24);
+  cursor: pointer;
+}
+
+.cornerOverlayList {
+  margin: var(--padding-16) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-8);
+}
+
+.cornerOverlayList li {
+  font-size: var(--fs-16);
+  line-height: 1.4;
+}
+
+.cornerOverlayList strong {
+  display: inline-block;
+  width: 120px;
+  font-weight: 600;
+}
+
+.cornerOverlayEmpty {
+  margin-top: var(--padding-16);
+  color: var(--color-gray-500, #6b7280);
+}

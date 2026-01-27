@@ -1,0 +1,129 @@
+.customplan {
+  align-self: stretch;
+  height: 159px;
+  overflow: hidden;
+  flex-shrink: 0;
+  flex-direction: column;
+  padding: var(--padding-10);
+  box-sizing: border-box;
+  text-align: center;
+  font-size: var(--Static-Title-Large-Size);
+  color: var(--color-black);
+  font-family: var(--Static-Title-Large-Font);
+}
+.customplan,
+.customplan2,
+.stateLayer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+}
+.customplan2 {
+  width: 780px;
+  height: 128px;
+  border-radius: var(--br-20);
+  background-color: var(--color-whitesmoke);
+  flex-direction: column;
+  padding: var(--padding-10);
+  box-sizing: border-box;
+}
+.stateLayer {
+  width: 100%;
+  height: 124px;
+  overflow: hidden;
+  flex-shrink: 0;
+  gap: 62px;
+}
+.customplantext {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--padding-20) var(--padding-0);
+  box-sizing: border-box;
+  gap: var(--gap-19);
+  max-width: 100%;
+}
+.description,
+.planLabel {
+  align-self: stretch;
+  position: relative;
+}
+.description {
+  margin: 0;
+  font-size: inherit;
+  line-height: var(--Static-Title-Large-Line-Height);
+  font-weight: 500;
+  font-family: inherit;
+}
+.planLabel {
+  height: var(--height-32);
+  font-size: var(--Static-Body-Small-Size);
+  letter-spacing: var(--Static-Body-Small-Tracking);
+  line-height: var(--Static-Body-Small-Line-Height);
+  font-family: var(--Static-Body-Small-Font);
+  color: var(--Schemes-Outline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.customplanbutton {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-20) var(--padding-0);
+  background-color: transparent;
+  display: flex;
+  align-items: flex-start;
+}
+.content,
+.stateLayer2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.content {
+  height: var(--height-48);
+  width: var(--width-164);
+  box-shadow: var(--M3-Elevation-Light-1);
+  border-radius: var(--br-100);
+  background-color: var(--Color);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.stateLayer2 {
+  padding: var(--padding-10) var(--padding-16);
+}
+.label {
+  position: relative;
+  font-size: var(--Static-Label-Large-Size);
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  line-height: var(--Static-Label-Large-Line-Height);
+  font-weight: 500;
+  font-family: var(--Static-Label-Large-Font);
+  color: var(--color-black);
+  text-align: left;
+}
+@media screen and (max-width: 975px) {
+  .customplan,
+  .customplan2,
+  .stateLayer {
+    height: var(--height-auto);
+  }
+  .stateLayer {
+    gap: 31px;
+    flex-wrap: wrap;
+  }
+  .customplantext {
+    flex: 1;
+    min-width: 100%;
+  }
+}
+@media screen and (max-width: 725px) {
+  .stateLayer {
+    gap: var(--gap-15);
+  }
+  .description {
+    font-size: var(--fs-18);
+    line-height: var(--lh-22);
+  }
+}

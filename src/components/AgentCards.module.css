@@ -1,0 +1,38 @@
+.agentcards {
+  display: flex;
+  align-items: flex-end;
+  box-sizing: border-box;
+  align-self: stretch;
+  overflow: hidden;
+  flex-wrap: wrap;
+  align-content: flex-end;
+  padding: var(--padding-0) 70px var(--padding-20);
+  gap: 70px 50px;
+  max-height: 786px;
+  text-align: center;
+  font-size: var(--Static-Headline-Small-Size);
+  color: var(--color-black);
+  font-family: var(--Static-Headline-Small-Font);
+}
+.addagentIcon {
+  cursor: pointer;
+  border: 0;
+  padding: var(--padding-01);
+  background-color: transparent;
+  height: var(--height-200);
+  width: var(--width-200);
+  position: relative;
+  border-radius: var(--br-20);
+}
+@media screen and (max-width: 975px) {
+  .agentcards {
+    gap: var(--gap-25);
+  }
+}
+@media screen and (max-width: 450px) {
+  .agentcards {
+    padding-left: 35px;
+    padding-right: 35px;
+    box-sizing: border-box;
+  }
+}
