@@ -20,7 +20,7 @@ type CornerStatus = "available" | "lock" | "unlock";
 
 type CornerSection = "Details" | "Connexions" | "Test" | "Configurations";
 
-const CornerBlock: FunctionComponent<{ // Mettre dans fichier à part et autres composants + (CO html) + Overlay aussi !!!
+const CornerBlock: FunctionComponent<{ // Mettre fichier à part et autres composants + (CO html) + Overlay 
   className: string;
   status: CornerStatus;
   title: string;
