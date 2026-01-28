@@ -12,6 +12,8 @@
   font-size: var(--Static-Label-Large-Size);
   color: var(--Schemes-On-Secondary-Container);
   font-family: var(--Static-Label-Large-Font);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 .root[data-collapsed="true"] {
   width: 64px;
@@ -21,6 +23,12 @@
 .root[data-selected="false"][data-showIcon="true"][data-state="Enabled"] {
   background-color: unset;
   z-index: 5;
+}
+.root[data-selected="false"][data-showIcon="true"][data-state="Enabled"]:hover {
+  background-color: var(--State-Layers-On-Surface-Variant-Opacity-10);
+}
+.root[data-selected="false"][data-showIcon="true"][data-state="Enabled"]:hover .stateLayer {
+  background-color: var(--State-Layers-On-Surface-Variant-Opacity-10);
 }
 .root[data-selected="false"][data-showIcon="true"][data-state="Enabled"] .icon {
   filter: brightness(0) saturate(100%) invert(26%) sepia(7%) saturate(766%)
@@ -36,10 +44,14 @@
 .root[data-selected="true"][data-showIcon="true"][data-state="Enabled"]:hover {
   z-index: 3;
 }
-.root[data-selected="false"][data-showIcon="true"][data-state="Enabled"]:hover {
-  background-color: unset;
-  z-index: 3;
-  justify-content: center;
+.root[data-selected="true"][data-showIcon="true"][data-state="Enabled"]{
+  background-color: var(--State-Layers-On-Surface-Variant-Opacity-10);
+}
+.root[data-selected="true"][data-showIcon="true"][data-state="Enabled"] .stateLayer {
+  background-color: var(--color-lightsteelblue);
+}
+.root[data-selected="true"][data-showIcon="true"][data-state="Enabled"]:hover {
+  background-color: var(--color-lightsteelblue);
 }
 .root[data-selected="true"][data-showIcon="true"][data-state="Enabled"] .stateLayer {
   background-color: var(--color-lightsteelblue);

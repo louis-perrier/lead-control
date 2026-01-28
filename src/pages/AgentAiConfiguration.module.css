@@ -20,6 +20,25 @@
   color: var(--color-black);
   font-family: var(--Static-Label-Large-Font);
 }
+.agentTitleText {
+  font-weight: 700;
+  text-transform: uppercase;
+  display: flex;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  gap: var(--gap-20);
+  margin: 10px 0px 0px;
+}
+.agentTitleIcon {
+  width: 50px;
+  height: 50px;
+}
+.agentTitleWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
 .tabcomponent {
   align-self: stretch;
   overflow: hidden;

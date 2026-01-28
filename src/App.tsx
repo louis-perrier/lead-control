@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Subscription from "./pages/Subscription";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Connexion from "./pages/Connexion";
 
 function App() {
   const action = useNavigationType();
@@ -50,6 +51,10 @@ function App() {
         title = "";
         metaDescription = "";
         break;
+      case "/connexion":
+        title = "";
+        metaDescription = "";
+        break;
     }
 
     if (title) {
@@ -78,6 +83,7 @@ function App() {
           element={<AgentAiConfiguration />}
         />
         <Route path="/crm" element={<Crm />} />
+        <Route path="/connexion" element={<Connexion />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

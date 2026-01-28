@@ -1,0 +1,96 @@
+.connexion {
+  width: 100%;
+  position: relative;
+  background-color: var(--color-white);
+  display: flex;
+  align-items: flex-start;
+  line-height: normal;
+  letter-spacing: normal;
+}
+.rightcomponent,
+.tableWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.rightcomponent {
+  height: var(--height-1024);
+  gap: 65px;
+  width: 100%;
+  max-width: 100%;
+}
+.tableWrapper {
+  align-self: stretch;
+  overflow: hidden;
+  padding: var(--padding-20);
+}
+.connectionCard {
+  width: 100%;
+  max-width: 640px;
+  border-radius: var(--br-20);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: var(--padding-24);
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: var(--gap-12);
+  align-items: center;
+  box-shadow: var(--shadow-drop-1);
+  background: var(--color-white);
+}
+.connectionLogo img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+.connectionContent h3 {
+  margin: 0;
+  font-size: var(--fs-24);
+  color: var(--color-black);
+}
+.connectionContent p {
+  margin: var(--gap-4) 0 0;
+  color: var(--color-gray-500);
+}
+.connectionAction {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--gap-8);
+}
+.connectionLabel {
+  font-size: var(--fs-12);
+  text-transform: uppercase;
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  color: var(--color-gray-500);
+}
+.connectionButton {
+  padding: 10px 24px;
+  border-radius: var(--br-12);
+  border: 0;
+  background: #1f7aeb;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media screen and (max-width: 1200px) {
+  .rightcomponent {
+    gap: 32px;
+  }
+}
+@media screen and (max-width: 975px) {
+  .connexion {
+    padding-left: var(--padding-20);
+    padding-right: var(--padding-20);
+    box-sizing: border-box;
+  }
+  .rightcomponent {
+    height: var(--height-auto);
+    max-width: 100%;
+  }
+}
+@media screen and (max-width: 725px) {
+  .rightcomponent {
+    gap: 16px;
+  }
+}

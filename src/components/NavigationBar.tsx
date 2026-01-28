@@ -13,42 +13,13 @@ import styles from "./NavigationBar.module.css";
 export type NavigationBarType = {
   className?: string;
   divider?: string;
-  dashboardSelected?: boolean;
-  subscriptionSelected?: boolean;
-  agentIaSelected?: boolean;
-  crmSelected?: boolean;
-  dashboardShowIcon?: boolean;
-  subscriptionShowIcon?: boolean;
-  agentIaShowIcon?: boolean;
-  crmShowIcon?: boolean;
-  dashboardState?: string;
-  subscriptionState?: string;
-  agentIaState?: string;
-  crmState?: string;
-  dashboardBadgeLabelText?: string;
-  dashboardLabelText?: string;
-  subscriptionLabelText?: string;
-  agentIaLabelText?: string;
-  crmLabelText?: string;
-  dashboardIcon1?: string;
-  subscriptionIcon1?: string;
-  agentIaIcon1?: string;
-  crmIcon1?: string;
-  dashboardShowBadgeLabel?: boolean;
-  dashboardIconBorder?: CSSProperties["border"];
-  subscriptionIconBorder?: CSSProperties["border"];
-  agentIaIconBorder?: CSSProperties["border"];
   crmIconBorder?: CSSProperties["border"];
-  dashboardIconPadding?: CSSProperties["padding"];
-  subscriptionIconPadding?: CSSProperties["padding"];
-  agentIaIconPadding?: CSSProperties["padding"];
   crmIconPadding?: CSSProperties["padding"];
-  dashboardIconBackgroundColor?: CSSProperties["backgroundColor"];
-  subscriptionIconBackground?: CSSProperties["backgroundColor"];
-  agentIaIconBackgroundColor?: CSSProperties["backgroundColor"];
   crmIconBackgroundColor?: CSSProperties["backgroundColor"];
-  size?: string;
   selectedItem?: string;
+  connexionIconBorder?: CSSProperties["border"];
+  connexionIconPadding?: CSSProperties["padding"];
+  connexionIconBackgroundColor?: CSSProperties["backgroundColor"];
 
   /** Variant props */
   door?: string;
@@ -72,42 +43,13 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
   iconBorder5,
   iconPadding5,
   iconBackgroundColor5,
-  dashboardSelected,
-  subscriptionSelected,
-  agentIaSelected,
-  crmSelected,
-  dashboardShowIcon,
-  subscriptionShowIcon,
-  agentIaShowIcon,
-  crmShowIcon,
-  dashboardState,
-  subscriptionState,
-  agentIaState,
-  crmState,
-  dashboardBadgeLabelText,
-  dashboardLabelText,
-  subscriptionLabelText,
-  agentIaLabelText,
-  crmLabelText,
-  dashboardIcon1,
-  subscriptionIcon1,
-  agentIaIcon1,
-  crmIcon1,
-  dashboardShowBadgeLabel,
-  dashboardIconBorder,
-  subscriptionIconBorder,
-  agentIaIconBorder,
   crmIconBorder,
-  dashboardIconPadding,
-  subscriptionIconPadding,
-  agentIaIconPadding,
   crmIconPadding,
-  dashboardIconBackgroundColor,
-  subscriptionIconBackground,
-  agentIaIconBackgroundColor,
   crmIconBackgroundColor,
-  size,
   selectedItem = "dashboard",
+  connexionIconBorder,
+  connexionIconPadding,
+  connexionIconBackgroundColor,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   
@@ -131,36 +73,24 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
   const [navItem1Items] = useState([
     {
       selected: selectedItem === "dashboard",
-      showIcon: true,
-      state: "Enabled",
-      badgeLabelText: "",
       labelText: "Dashboard",
-      showBadgeLabel: true,
-      icon1: dashboardIcon1,
+      icon: '/dashboardIcon.svg',
       iconBorder: "none" as const,
       iconPadding: "0" as const,
       iconBackgroundColor: "transparent" as const,
     },
     {
       selected: selectedItem === "subscription",
-      showIcon: true,
-      state: "Enabled",
-      badgeLabelText: "",
       labelText: "Subscription",
-      showBadgeLabel: false,
-      icon1: subscriptionIcon1,
+      icon: '/subscriptionIcon.svg',
       iconBorder: undefined,
       iconPadding: undefined,
       iconBackgroundColor: undefined,
     },
     {
       selected: selectedItem === "agentia",
-      showIcon: true,
-      state: "Enabled",
-      badgeLabelText: "",
       labelText: "Agent IA",
-      showBadgeLabel: false,
-      icon1: agentIaIcon1,
+      icon: '/agentIaIcon.svg',
       iconBorder: undefined,
       iconPadding: undefined,
       iconBackgroundColor: undefined,
@@ -173,6 +103,10 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
 
   const onCrmContainerClick = useCallback(() => {
     navigate("/crm");
+  }, [navigate]);
+
+  const onConnexionContainerClick = useCallback(() => {
+    navigate("/connexion");
   }, [navigate]);
 
   const onDashboardContainerClick = useCallback(() => {
@@ -233,12 +167,8 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
           <NavItem1
             key={index}
             selected={item.selected}
-            showIcon={item.showIcon}
-            state={item.state}
-            badgeLabelText={item.badgeLabelText}
             labelText={item.labelText}
-            showBadgeLabel={item.showBadgeLabel}
-            icon1={item.icon1}
+            icon={item.icon}
             iconBorder={item.iconBorder}
             iconPadding={item.iconPadding}
             iconBackgroundColor={item.iconBackgroundColor}
@@ -255,17 +185,23 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
           />
         </div>
         <NavItem1
-          selected={crmSelected}
-          showIcon={crmShowIcon}
-          state={crmState}
-          badgeLabelText="100+"
-          labelText={crmLabelText}
-          showBadgeLabel={false}
+          selected={selectedItem === "crm"}
+          labelText={"CRM"}
           onLogoIconClick={onCrmContainerClick}
-          icon1={crmIcon1}
+          icon={'/crmIcon.svg'}
           iconBorder={crmIconBorder}
           iconPadding={crmIconPadding}
           iconBackgroundColor={crmIconBackgroundColor}
+          isCollapsed={isCollapsed}
+        />
+        <NavItem1
+          selected={selectedItem === "connexion"}
+          labelText={"Connexion"}
+          onLogoIconClick={onConnexionContainerClick}
+          icon={'/connexionIcon.svg'}
+          iconBorder={connexionIconBorder}
+          iconPadding={connexionIconPadding}
+          iconBackgroundColor={connexionIconBackgroundColor}
           isCollapsed={isCollapsed}
         />
       </div>

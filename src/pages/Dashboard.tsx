@@ -2,10 +2,8 @@ import { FunctionComponent } from "react";
 import {
   Select,
   InputLabel,
-  MenuItem,
   FormHelperText,
   FormControl,
-  InputAdornment,
 } from "@mui/material";
 import NavigationBar from "../components/NavigationBar";
 import Header from "../components/Header";
@@ -18,37 +16,12 @@ const Dashboard: FunctionComponent = () => {
       <NavigationBar
         door="open"
         divider="/divider.svg"
-        dashboardSelected
-        subscriptionSelected={false}
-        agentIaSelected={false}
-        crmSelected={false}
-        dashboardShowIcon
-        subscriptionShowIcon
-        agentIaShowIcon
-        crmShowIcon
-        dashboardState="Enabled"
-        subscriptionState="Enabled"
-        agentIaState="Enabled"
-        crmState="Enabled"
-        dashboardLabelText="Dashboard"
-        subscriptionLabelText="Subscription"
-        agentIaLabelText="Agent IA"
-        crmLabelText="CRM"
-        dashboardIcon1="/Icon1.svg"
-        subscriptionIcon1="/Icon.svg"
-        agentIaIcon1="/Icon3.svg"
-        crmIcon1="/Icon5.svg"
-        dashboardShowBadgeLabel
-        subscriptionIconBorder="none"
-        agentIaIconBorder="none"
-        crmIconBorder="none"
-        subscriptionIconPadding="0"
-        agentIaIconPadding="0"
-        crmIconPadding="0"
-        subscriptionIconBackground="transparent"
-        agentIaIconBackgroundColor="transparent"
-        crmIconBackgroundColor="transparent"
-        size="Small"
+        iconBorder4="none"
+        iconPadding4="0"
+        iconBackgroundColor4="transparent"
+        iconBorder5="none"
+        iconPadding5="0"
+        iconBackgroundColor5="transparent"
         selectedItem="dashboard"
       />
       <main className={styles.maincomponentright}>

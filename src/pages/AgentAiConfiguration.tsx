@@ -64,26 +64,6 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({// Componsant Con
   actionLabel,
   onAction,
 }) => {
-  const connectInstagram = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not logged in");
-      const res = await fetch("https://wxatvxfirhahjalneorq.supabase.co/functions/v1/smooth-worker", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ return_to: "http://localhost:5173/agentai/configuration" }),
-      });
-    
-      const { auth_url } = await res.json();
-      const popup = window.open(auth_url, "ig_oauth", "width=520,height=720");
-      if (!popup) alert("Popup bloquée : autorise les popups pour localhost");
-    } catch (error) {
-      console.error(error);
-    }
-  };
   return(
     <div className={styles.connexionCard}>
       <img src={imageSrc} alt={title} className={styles.connexionCardImage} />
@@ -91,7 +71,7 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({// Componsant Con
         <h5>{title}</h5>
         <p>{description}</p>
       </div>
-      <button type="button" className={styles.connexionButton} onClick={connectInstagram}>
+      <button type="button" className={styles.connexionButton} onClick={onAction}>
         {actionLabel}
       </button>
     </div>
@@ -107,6 +87,30 @@ const AgentAi: FunctionComponent = () => {
     state?.agent?.display_id
   );
 
+  const connectInstagram = async () => {// 1 connexion
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not logged in");
+      const res = await fetch("https://wxatvxfirhahjalneorq.supabase.co/functions/v1/smooth-worker/start", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+          "authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ return_to: "http://localhost:5173/agentai/configuration" }),
+      });
+
+      const { auth_url } = await res.json();
+      const popup = window.open(auth_url, "ig_oauth", "width=520,height=720");
+      if (!popup) alert("Popup bloquée : autorise les popups pour Lead Control");
+      setTimeout(() => {
+        popup?.close();// --> NICE
+      }, 4000);
+    } catch (error) {
+      console.error(error);
+    }
+  };
   const selectedAgent = state?.agent ?? displayedAgents[0];
 
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
@@ -180,46 +184,12 @@ const AgentAi: FunctionComponent = () => {
       <NavigationBar
         door="open"
         divider="/divider.svg"
-        iconBorder4="unset"
-        iconPadding4="unset"
-        iconBackgroundColor4="unset"
-        iconBorder5="unset"
-        iconPadding5="unset"
-        iconBackgroundColor5="unset"
-        dashboardSelected={false}
-        subscriptionSelected={false}
-        agentIaSelected
-        crmSelected={false}
-        dashboardShowIcon
-        subscriptionShowIcon
-        agentIaShowIcon
-        crmShowIcon
-        dashboardState="Enabled"
-        subscriptionState="Enabled"
-        agentIaState="Enabled"
-        crmState="Enabled"
-        dashboardLabelText="Dashboard"
-        subscriptionLabelText="Subscription"
-        agentIaLabelText="Agent IA"
-        crmLabelText="CRM"
-        dashboardIcon1="/Icon1.svg"
-        subscriptionIcon1="/Icon.svg"
-        agentIaIcon1="/Icon3.svg"
-        crmIcon1="/Icon5.svg"
-        dashboardShowBadgeLabel
-        dashboardIconBorder="unset"
-        subscriptionIconBorder="unset"
-        agentIaIconBorder="unset"
-        crmIconBorder="unset"
-        dashboardIconPadding="unset"
-        subscriptionIconPadding="unset"
-        agentIaIconPadding="unset"
-        crmIconPadding="unset"
-        dashboardIconBackgroundColor="unset"
-        subscriptionIconBackground="unset"
-        agentIaIconBackgroundColor="unset"
-        crmIconBackgroundColor="unset"
-        size="Small"
+        iconBorder4="none"
+        iconPadding4="0"
+        iconBackgroundColor4="transparent"
+        iconBorder5="none"
+        iconPadding5="0"
+        iconBackgroundColor5="transparent"
         selectedItem="agentia"
       />
       <main className={styles.rightcomponent}>
@@ -247,7 +217,18 @@ const AgentAi: FunctionComponent = () => {
             />
           ))}
         </div>
-        <OptionSearch1 />
+        {selectedAgent && (
+          <div className={styles.agentTitleWrapper}>
+            <div className={styles.agentTitleText}>
+              <h2>{selectedAgent.name.toUpperCase()}</h2>
+              <img
+                src="/switchOff.svg"
+                alt="Switch off icon"
+                className={styles.agentTitleIcon}
+              />
+            </div>
+          </div>
+        )}
         <div className={styles.claraContainer}>
           <div
             className={styles.claraBackground}
@@ -323,6 +304,7 @@ const AgentAi: FunctionComponent = () => {
                       description="Connecter Instagram"
                       imageSrc="/logoConnectors/instagram.webp"
                       actionLabel="Connecter"
+                      onAction={connectInstagram}
                     />
                   </div>
                   <div className={styles.connexionSection}>

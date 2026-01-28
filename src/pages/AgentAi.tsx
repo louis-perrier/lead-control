@@ -29,46 +29,12 @@ const AgentAi: FunctionComponent = () => {
       <NavigationBar
         door="open"
         divider="/divider.svg"
-        iconBorder4="unset"
-        iconPadding4="unset"
-        iconBackgroundColor4="unset"
-        iconBorder5="unset"
-        iconPadding5="unset"
-        iconBackgroundColor5="unset"
-        dashboardSelected={false}
-        subscriptionSelected={false}
-        agentIaSelected
-        crmSelected={false}
-        dashboardShowIcon
-        subscriptionShowIcon
-        agentIaShowIcon
-        crmShowIcon
-        dashboardState="Enabled"
-        subscriptionState="Enabled"
-        agentIaState="Enabled"
-        crmState="Enabled"
-        dashboardLabelText="Dashboard"
-        subscriptionLabelText="Subscription"
-        agentIaLabelText="Agent IA"
-        crmLabelText="CRM"
-        dashboardIcon1="/Icon1.svg"
-        subscriptionIcon1="/Icon.svg"
-        agentIaIcon1="/Icon3.svg"
-        crmIcon1="/Icon5.svg"
-        dashboardShowBadgeLabel
-        dashboardIconBorder="unset"
-        subscriptionIconBorder="unset"
-        agentIaIconBorder="unset"
-        crmIconBorder="unset"
-        dashboardIconPadding="unset"
-        subscriptionIconPadding="unset"
-        agentIaIconPadding="unset"
-        crmIconPadding="unset"
-        dashboardIconBackgroundColor="unset"
-        subscriptionIconBackground="unset"
-        agentIaIconBackgroundColor="unset"
-        crmIconBackgroundColor="unset"
-        size="Small"
+        iconBorder4="none"
+        iconPadding4="0"
+        iconBackgroundColor4="transparent"
+        iconBorder5="none"
+        iconPadding5="0"
+        iconBackgroundColor5="transparent"
         selectedItem="agentia"
       />
       <main className={styles.rightcomponent}>
