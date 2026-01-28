@@ -87,30 +87,6 @@ const AgentAi: FunctionComponent = () => {
     state?.agent?.display_id
   );
 
-  const connectInstagram = async () => {// 1 connexion
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not logged in");
-      const res = await fetch("https://wxatvxfirhahjalneorq.supabase.co/functions/v1/smooth-worker/start", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
-          "authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ return_to: "http://localhost:5173/agentai/configuration" }),
-      });
-
-      const { auth_url } = await res.json();
-      const popup = window.open(auth_url, "ig_oauth", "width=520,height=720");
-      if (!popup) alert("Popup bloquée : autorise les popups pour Lead Control");
-      setTimeout(() => {
-        popup?.close();// --> NICE
-      }, 4000);
-    } catch (error) {
-      console.error(error);
-    }
-  };
   const selectedAgent = state?.agent ?? displayedAgents[0];
 
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
@@ -153,6 +129,33 @@ const AgentAi: FunctionComponent = () => {
     }
   }, [selectedAgent]);
 
+
+  // ------------------------------CONFIGS---------------------------------
+  const connectInstagram = async () => {// 1 connexion
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not logged in");
+      const res = await fetch("https://wxatvxfirhahjalneorq.supabase.co/functions/v1/smooth-worker/start", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+          "authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ return_to: "http://localhost:5173/agentai/configuration" }),
+      });
+
+      const { auth_url } = await res.json();
+      const popup = window.open(auth_url, "ig_oauth", "width=520,height=720");
+      if (!popup) alert("Popup bloquée : autorise les popups pour Lead Control");
+      setTimeout(() => {
+        popup?.close();// --> NICE
+      }, 4000);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  
   const [detailsPrompt, setDetailsPrompt] = useState("");
   const [oldDetailsPrompt, setOldDetailsPrompt] = useState("");
 
