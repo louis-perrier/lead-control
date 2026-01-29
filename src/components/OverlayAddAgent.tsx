@@ -14,7 +14,7 @@ export type OverlayProps = {
 
 const Overlay: FunctionComponent<OverlayProps> = ({
   isOpen,
-  onClose,
+  onClose, 
   agent,
   availableAgentIds,
   onPrevious,

@@ -16,6 +16,7 @@ export type NavItem1Type = {
   /** Action props */
   onLogoIconClick?: () => void;
   isCollapsed?: boolean;
+  show?: boolean;
 };
 
 const NavItem1: FunctionComponent<NavItem1Type> = ({
@@ -28,6 +29,7 @@ const NavItem1: FunctionComponent<NavItem1Type> = ({
   iconPadding,
   iconBackgroundColor,
   isCollapsed = false,
+  show=true,
 }) => {
   const iconStyle: CSSProperties = useMemo(() => {
     return {
@@ -38,20 +40,22 @@ const NavItem1: FunctionComponent<NavItem1Type> = ({
   }, [iconBorder, iconPadding, iconBackgroundColor]);
 
   return (
-    <div
-      className={[styles.root, className].join(" ")}
-      data-selected={selected}
-      data-collapsed={isCollapsed}
-      data-state="Enabled"
-      data-showIcon="true"
-      onClick={onLogoIconClick}
-    >
-      <div className={styles.stateLayer}>
-        <img className={styles.icon} alt="" src={icon} style={iconStyle} />
-        <div className={styles.label}>{labelText}</div>
+    <>{show && (
+      <div
+        className={[styles.root, className].join(" ")}
+        data-selected={selected}
+        data-collapsed={isCollapsed}
+        data-state="Enabled"
+        data-showIcon="true"
+        onClick={onLogoIconClick}
+      >
+        <div className={styles.stateLayer}>
+          <img className={styles.icon} alt="" src={icon} style={iconStyle} />
+          <div className={styles.label}>{labelText}</div>
+        </div>
       </div>
-    </div>
-  );
+  )}</>
+);
 };
 
 export default NavItem1;

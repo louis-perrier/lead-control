@@ -38,6 +38,7 @@ const ConnectionCard: FunctionComponent<ConnectionCardProps> = ({
       <p>{label}</p>
     </div>
     <div className={styles.connectionAction}>
+      <img src="/linkOn.svg" alt="link icon" className={styles.connectionLinkIcon}/>
       <button type="button" className={styles.connectionButton} onClick={onClick}>
         {actionLabel}
       </button>
@@ -84,7 +85,7 @@ const Connexion: FunctionComponent = () => {
       />
       <main className={styles.rightcomponent}>
         <Header logoMarque="/logoMarque@2x.png" />
-        <OptionSearch1 />
+        <OptionSearch1 addButton={false}/>
         <section className={styles.tableWrapper}>
           {connections.map(connection=>(
             <ConnectionCard

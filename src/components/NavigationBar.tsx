@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import NavItem from "./NavItem";
 import NavItem1 from "./NavItem1";
 import styles from "./NavigationBar.module.css";
+import useAgents from "../hooks/useAgents";
 
 export type NavigationBarType = {
   className?: string;
@@ -78,6 +79,7 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
       iconBorder: "none" as const,
       iconPadding: "0" as const,
       iconBackgroundColor: "transparent" as const,
+      show: true,
     },
     {
       selected: selectedItem === "subscription",
@@ -86,6 +88,7 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
       iconBorder: undefined,
       iconPadding: undefined,
       iconBackgroundColor: undefined,
+      show: false,
     },
     {
       selected: selectedItem === "agentia",
@@ -94,8 +97,21 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
       iconBorder: undefined,
       iconPadding: undefined,
       iconBackgroundColor: undefined,
+      show: true,
     },
+    {
+      selected: selectedItem === "connexion",
+      labelText: "Connexion",
+      icon: '/connexionIcon.svg',
+      iconBorder: undefined,
+      iconPadding: undefined,
+      iconBackgroundColor: undefined,
+      show: true,
+    }
   ]);
+
+  const { displayedAgents } = useAgents();
+  const isGregAgentDisplayed = displayedAgents.map((agent) => agent.id.toLowerCase()).includes("greg");
 
   const onAgentIaContainerClick = useCallback(() => {
     navigate("/agentai");
@@ -128,6 +144,8 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
       onDashboardContainerClick();
     } else if (index === 1) {
       onSubscriptionContainerClick();
+    } else if (index === 3) {
+      onConnexionContainerClick();
     }
   }, []);
 
@@ -174,6 +192,7 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
             iconBackgroundColor={item.iconBackgroundColor}
             onLogoIconClick={() => onLogoIconItemClick(index)}
             isCollapsed={isCollapsed}
+            show={item.show}
           />
         ))}
         <div className={styles.dividerWrapper}>
@@ -193,16 +212,7 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
           iconPadding={crmIconPadding}
           iconBackgroundColor={crmIconBackgroundColor}
           isCollapsed={isCollapsed}
-        />
-        <NavItem1
-          selected={selectedItem === "connexion"}
-          labelText={"Connexion"}
-          onLogoIconClick={onConnexionContainerClick}
-          icon={'/connexionIcon.svg'}
-          iconBorder={connexionIconBorder}
-          iconPadding={connexionIconPadding}
-          iconBackgroundColor={connexionIconBackgroundColor}
-          isCollapsed={isCollapsed}
+          show={isGregAgentDisplayed}
         />
       </div>
       <div className={styles.helpcenterWrapper}>

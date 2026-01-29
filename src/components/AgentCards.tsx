@@ -28,7 +28,7 @@ const AgentCards: FunctionComponent<AgentCardsType> = ({
   } = useAgents();
 
 
-
+ 
   const availableAgentIds = useMemo( // Objet d'agent_id pour l'overlay grisé
     () => new Set(availableAgents.map((agent) => agent?.agent_id).filter(Boolean)),
     [availableAgents]

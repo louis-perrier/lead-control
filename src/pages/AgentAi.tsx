@@ -32,7 +32,7 @@ const AgentAi: FunctionComponent = () => {
         iconBorder4="none"
         iconPadding4="0"
         iconBackgroundColor4="transparent"
-        iconBorder5="none"
+        iconBorder5="none" 
         iconPadding5="0"
         iconBackgroundColor5="transparent"
         selectedItem="agentia"

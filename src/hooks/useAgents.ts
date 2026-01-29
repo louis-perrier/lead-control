@@ -9,6 +9,12 @@ type AgentConfigRow = {
   configs_id: string;
 };
 
+type AgentDisplayed = AgentInfo & {
+  name: string;
+  configs: Record<string, string>;
+  display_id: string;
+};
+
 type UserAgentRow = {
   agent_id: string;
   user_id?: string;
@@ -33,7 +39,7 @@ const mapDisplayedAgents = (
         display_id: agent.configs_id,
       };
     })
-    .filter((agent): agent is AgentInfo => Boolean(agent));
+    .filter((agent): agent is AgentDisplayed => Boolean(agent));
 
 const mapAvailableAgents = (data: UserAgentRow[], defaults: AgentInfo[]) =>
   data

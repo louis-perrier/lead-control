@@ -4,23 +4,30 @@ import {
   useCallback,
   useEffect,
   useState,
+  useMemo
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import Header from "../components/Header";
 import TabComponent from "../components/TabComponent";
-import OptionSearch1 from "../components/OptionSearch1";
 import styles from "./AgentAiConfiguration.module.css";
 import { AgentInfo } from "../data/agents";
 import supabase from "../lib/supabase";
 import useAgents from "../hooks/useAgents";
+import { useConnectors } from "../hooks/useConnexion";
 
+
+type Connexion = {
+  imageSrc: string;
+  onConnect: () => void;
+  onDisconnect: () => void;
+};
 
 type CornerStatus = "available" | "lock" | "unlock";
 
 type CornerSection = "Details" | "Connexions" | "Test" | "Configurations";
 
-const CornerBlock: FunctionComponent<{ // Mettre fichier à part et autres composants + (CO html) + Overlay 
+const CornerBlock: FunctionComponent<{ // Autres composants Décal + HTML (CO & Overlay) + fichier Connexion aussi 
   className: string;
   status: CornerStatus;
   title: string;
@@ -57,7 +64,7 @@ type ConnexionCardProps = {
   onAction?: () => void;
 };
 
-const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({// Componsant Connexion Card
+const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
   title,
   description,
   imageSrc,
@@ -78,6 +85,7 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({// Componsant Con
   );
 };
 
+
 const AgentAi: FunctionComponent = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -88,6 +96,7 @@ const AgentAi: FunctionComponent = () => {
   );
 
   const selectedAgent = state?.agent ?? displayedAgents[0];
+  console.log(selectedAgent);
 
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
 
@@ -130,7 +139,39 @@ const AgentAi: FunctionComponent = () => {
   }, [selectedAgent]);
 
 
-  // ------------------------------CONFIGS---------------------------------
+  // ------------------------------CONNEXIONS---------------------------------
+  const [activePopup, setActivePopup] = useState<Window | null>(null);
+  const {
+    connectorAvailable,
+    connectorConnected,
+    availableShow,
+    countAvailableConnector,
+    countConnectedConnector,
+    refresh: refreshConnectors,
+  } = useConnectors({
+    agentId: selectedAgent?.agent_id,
+    configsId: selectedAgent?.display_id,
+  });
+  
+  useEffect(() => {
+    const ch = supabase
+      .channel("connectors_config_agent_channel")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "connectors_config_agent" },
+        () => {
+          if (activePopup) activePopup.close();
+          refreshConnectors();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [activePopup, refreshConnectors]);
+
+
   const connectInstagram = async () => {// 1 connexion
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -142,20 +183,45 @@ const AgentAi: FunctionComponent = () => {
           "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
           "authorization": `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ return_to: "http://localhost:5173/agentai/configuration" }),
+        body: JSON.stringify({ return_to: "http://localhost:5173/agentai/configuration", configs_id: selectedAgent?.display_id }),
       });
 
       const { auth_url } = await res.json();
       const popup = window.open(auth_url, "ig_oauth", "width=520,height=720");
       if (!popup) alert("Popup bloquée : autorise les popups pour Lead Control");
-      setTimeout(() => {
-        popup?.close();// --> NICE
-      }, 4000);
+      setActivePopup(popup);
     } catch (error) {
       console.error(error);
     }
   };
-  
+
+  const disconnectInstagram = async () => {// 1 déconnexion
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not logged in");
+      const res = await fetch("https://wxatvxfirhahjalneorq.supabase.co/functions/v1/dynamic-responder/start", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
+          "authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({connector_id: connectorConnected.find((item) => item.connectors_name === "instagram")?.id})// A améliorer
+      });
+
+      const data = await res.text();
+      if (data !== "OK") throw new Error("Failed to disconnect connector");
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const connexions: Record<string, Connexion> = {
+    instagram: {imageSrc: "/logoConnectors/instagram.webp",  onConnect: connectInstagram, onDisconnect: disconnectInstagram},
+    whatsapp: {imageSrc: "/logoConnectors/whatsapp.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
+    gmail: {imageSrc: "/logoConnectors/gmail.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}}
+  };
+
+  // ------------------------------PROMPT---------------------------------
   const [detailsPrompt, setDetailsPrompt] = useState("");
   const [oldDetailsPrompt, setOldDetailsPrompt] = useState("");
 
@@ -301,23 +367,34 @@ const AgentAi: FunctionComponent = () => {
               {activeCorner === "Connexions" && (
                 <div className={styles.connexionSections}>
                   <div className={styles.connexionSection}>
-                    <h4>Connecté</h4>
-                    <ConnexionCard
-                      title="Instagram"
-                      description="Connecter Instagram"
-                      imageSrc="/logoConnectors/instagram.webp"
-                      actionLabel="Connecter"
-                      onAction={connectInstagram}
-                    />
+                    <h4>Connecté ({countConnectedConnector})</h4>
+                    <div className={styles.connexionSectionCards}>
+                      {connectorConnected.map((connector) => (
+                        <ConnexionCard
+                          key={connector.connectors_id}
+                          title={connector.connectors_name.charAt(0).toUpperCase() + connector.connectors_name.slice(1)}
+                          description={connector.connector_label ?? ""}
+                          imageSrc={connexions[connector.connectors_name].imageSrc}
+                          actionLabel="Déconnecter"
+                          onAction={connexions[connector.connectors_name].onDisconnect}
+                        />
+                      ))}
+                    </div>
                   </div>
                   <div className={styles.connexionSection}>
-                    <h4>Déconnecté</h4>
-                    <ConnexionCard
-                      title="Déconnecté"
-                      description="L’agent est déconnecté pour maintenance ou réglages."
-                      imageSrc="/logoConnectors/instagram.webp"
-                      actionLabel="Déconnecter"
-                    />
+                    <h4>Déconnecté ({countAvailableConnector-countConnectedConnector})</h4>
+                    <div className={styles.connexionSectionCards}>
+                      {availableShow.map((connector) => (
+                        <ConnexionCard
+                          key={connector.connectors_id}
+                          title={connector.connectors_name.charAt(0).toUpperCase() + connector.connectors_name.slice(1)}
+                          description={`Connecter ${connector.connectors_name}`}
+                          imageSrc={connexions[connector.connectors_name].imageSrc}
+                          actionLabel="Connecter"
+                          onAction={connexions[connector.connectors_name].onConnect}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

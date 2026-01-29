@@ -156,13 +156,15 @@
 }
 
 .cornerOverlayContent {
-  width: min(90vw, 420px);
+  width: min(50vw, 1200px);
+  height: min(70vh, 800px);
   background: var(--color-white);
   border-radius: var(--br-16);
   padding: var(--padding-24);
   box-shadow: var(--shadow-drop);
   position: relative;
   text-align: left;
+  overflow: auto;
 }
 
 .cornerOverlayLabel {
@@ -204,12 +206,19 @@
 .connexionSection {
   border-radius: var(--br-12);
   padding: var(--padding-16);
-  background: rgba(196, 210, 255, 0.4);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 2px solid rgba(0, 0, 0, 0.123);
+}
+.connexionSectionCards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-20);
+  justify-content: flex-start;
 }
 .connexionSection h4 {
-  margin: 0 0 var(--gap-8);
+  margin: 0 0 var(--gap-12);
   font-size: var(--fs-18);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.123);
+  padding-bottom: var(--padding-8);
 }
 .connexionSection p {
   margin: 0;
@@ -225,6 +234,10 @@
   padding: var(--padding-12);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.05);
+  width: 320px;
+  min-height: 50px;
+  flex-shrink: 0;
+  border-radius: 15px;
 }
 .connexionCardImage {
   width: 56px;
@@ -241,13 +254,15 @@
   color: var(--color-gray-600, #5b5b5b);
 }
 .connexionButton {
-  margin-top: var(--gap-12);
+  margin-top: 0;
   background-color: #c3d2ff;
   border: 1px solid #000;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  margin-left: auto;
+  align-self: center;
 }
 
 .cornerOverlayClose {
