@@ -1,16 +1,34 @@
-import { FunctionComponent } from "react";
+import { FunctionComponent, useEffect, useState } from "react";
 import {
   Select,
   InputLabel,
   FormHelperText,
   FormControl,
+  MenuItem,
+  SelectChangeEvent,
 } from "@mui/material";
 import NavigationBar from "../components/NavigationBar";
 import Header from "../components/Header";
 import DatePicker from "../components/DatePicker";
 import styles from "./Dashboard.module.css";
+import useAgents from "../hooks/useAgents";
 
 const Dashboard: FunctionComponent = () => {
+  const { displayedAgents } = useAgents();
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+
+  useEffect(() => {
+    if (!selectedAgentId && displayedAgents.length > 0) {
+      setSelectedAgentId(
+        displayedAgents[0].display_id || displayedAgents[0].agent_id
+      );
+    }
+  }, [displayedAgents, selectedAgentId]);
+
+  const handleAgentChange = (event: SelectChangeEvent<string>) => {
+    setSelectedAgentId(event.target.value);
+  };
+
   return (
     <div className={styles.dashboard}>
       <NavigationBar
@@ -27,48 +45,47 @@ const Dashboard: FunctionComponent = () => {
       <main className={styles.maincomponentright}>
         <Header logoMarque="/logoMarque@2x.png" />
         <section className={styles.variabledashboardcomponent}>
-          <FormControl
-            className={styles.chooseagentai}
-            variant="outlined"
-            sx={{
-              borderRadius: "0px 0px 0px 0px",
-              width: "152px",
-              height: "36px",
-              m: 0,
-              p: 0,
-              "& .MuiInputBase-root": {
-                m: 0,
-                p: 0,
-                minHeight: "36px",
-                justifyContent: "center",
-                display: "inline-flex",
-              },
-              "& .MuiInputLabel-root": {
-                m: 0,
-                p: 0,
-                minHeight: "36px",
-                display: "inline-flex",
-              },
-              "& .MuiMenuItem-root": {
-                m: 0,
-                p: 0,
-                height: "36px",
-                display: "inline-flex",
-              },
-              "& .MuiSelect-select": {
-                m: 0,
-                p: 0,
-                height: "36px",
-                alignItems: "center",
-                display: "inline-flex",
-              },
-              "& .MuiInput-input": { m: 0, p: 0 },
-              "& .MuiInputBase-input": { textAlign: "left", p: "0 !important" },
-            }}
-          >
-            <InputLabel color="primary" />
-            <Select color="primary" disableUnderline displayEmpty />
-            <FormHelperText />
+          <FormControl className={styles.chooseagentai} variant="outlined">
+            <InputLabel color="primary" id="agent-select-label">
+              Agent
+            </InputLabel>
+            <Select
+              color="primary"
+              disableUnderline
+              displayEmpty
+              id="agent-select"
+              labelId="agent-select-label"
+              value={selectedAgentId}
+              label="Agent"
+              onChange={handleAgentChange}
+              renderValue={(value) => {
+                if (!value) {
+                  return "Sélectionner";
+                }
+                const agent = displayedAgents.find(
+                  (item) =>
+                    (item.display_id || item.agent_id) === value
+                );
+                return agent?.name ?? "Agent";
+              }}
+            >
+              <MenuItem value="">
+                <em>Sélectionner</em>
+              </MenuItem>
+              {displayedAgents.map((agent) => (
+                <MenuItem
+                  key={agent.display_id ?? agent.agent_id}
+                  value={agent.display_id || agent.agent_id}
+                >
+                  {agent.name}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>
+              {displayedAgents.length === 0
+                ? "Aucun agent disponible"
+                : "Choisis un agent affiché"}
+            </FormHelperText>
           </FormControl>
           <div className={styles.datepicker}>
             <DatePicker

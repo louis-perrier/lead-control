@@ -218,7 +218,12 @@ const AgentAi: FunctionComponent = () => {
   const connexions: Record<string, Connexion> = {
     instagram: {imageSrc: "/logoConnectors/instagram.webp",  onConnect: connectInstagram, onDisconnect: disconnectInstagram},
     whatsapp: {imageSrc: "/logoConnectors/whatsapp.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
-    gmail: {imageSrc: "/logoConnectors/gmail.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}}
+    gmail: {imageSrc: "/logoConnectors/gmail.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
+    tiktok: {imageSrc: "/logoConnectors/tiktok.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
+    linkedin: {imageSrc: "/logoConnectors/linkedin.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
+    facebook: {imageSrc: "/logoConnectors/facebook.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
+    discord: {imageSrc: "/logoConnectors/discord.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
+    telegram: {imageSrc: "/logoConnectors/telegram.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}}
   };
 
   // ------------------------------PROMPT---------------------------------

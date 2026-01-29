@@ -33,6 +33,49 @@
   font-weight: 500;
   font-size: var(--fs-22);
   color: var(--color-black);
+  width: 152px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+}
+.chooseagentai :global(.MuiInputBase-root) {
+  margin: 0;
+  padding: 0;
+  min-height: 36px;
+  justify-content: center;
+  display: inline-flex;
+}
+.chooseagentai :global(.MuiInputLabel-root) {
+  margin: 0;
+  padding: 0;
+  min-height: 36px;
+  display: inline-flex;
+}
+.chooseagentai :global(.MuiMenuItem-root) {
+  margin: 0;
+  padding: 0;
+  height: 36px;
+  display: inline-flex;
+}
+.chooseagentai :global(.MuiSelect-select) {
+  margin: 0;
+  padding: 0;
+  height: 36px;
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+}
+.chooseagentai :global(.MuiInput-input) {
+  margin: 0;
+  padding: 0;
+}
+.chooseagentai :global(.MuiInputBase-input) {
+  text-align: left;
+  padding: 0 !important;
 }
 .datepicker {
   display: flex;
