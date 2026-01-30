@@ -1,0 +1,17 @@
+.button {
+  margin-top: 0;
+  background-color: #c3d2ff;
+  border: 1px solid #000;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: auto;
+  align-self: center;
+}
+.buttonDisabled {
+  background-color: #f5f5f5;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.4);
+  cursor: not-allowed;
+}

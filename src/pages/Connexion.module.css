@@ -78,6 +78,46 @@
   font-weight: 600;
   cursor: pointer;
 }
+.confirmationOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  width: 100vw;
+  height: 100vh;
+}
+.confirmationBox {
+  background: var(--color-white);
+  padding: 20px 28px;
+  border-radius: var(--br-16);
+  box-shadow: var(--shadow-drop-1);
+  max-width: 420px;
+  text-align: center;
+}
+.confirmationText {
+  margin: 0;
+  font-size: var(--fs-16);
+  color: var(--color-black);
+  line-height: 1.4;
+}
+.confirmationButtons {
+  margin-top: 16px;
+  display: flex;
+  gap: var(--gap-12);
+  justify-content: center;
+}
+.confirmationButton {
+  padding: 8px 16px;
+  border-radius: var(--br-12);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: var(--color-white);
+  font-weight: 600;
+  cursor: not-allowed;
+  color: var(--color-gray-600);
+}
 @media screen and (max-width: 1200px) {
   .rightcomponent {
     gap: 32px;

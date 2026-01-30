@@ -4,3 +4,4 @@ type Connexion = {
     onDisconnect: () => void;
   };
 
+ // data de connexion

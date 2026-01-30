@@ -12,6 +12,8 @@ type AvailableConnector = {
   connectors_id: string;
   limit_agent_connector?: number;
   connectors_name: string;
+  connectors_available: boolean;
+  connectors_special: boolean;
 };
 
 type ConnectedConnector = {
@@ -54,6 +56,8 @@ export const useConnectors = ({
       connectors_id: item.connectors_id,
       limit_agent_connector: item.limit,
       connectors_name: item.connectors.connectors_name,
+      connectors_available: item.connectors.available,
+      connectors_special: item.connectors.special
     }));
     setCountAvailableConnector(mapped.length);
     setConnectorAvailable(mapped);

@@ -1,20 +1,22 @@
 import {
   FunctionComponent,
-  KeyboardEvent,
   useCallback,
   useEffect,
   useState,
-  useMemo
+  useMemo,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import Header from "../components/Header";
 import TabComponent from "../components/TabComponent";
+import Button from "../components/Button";
 import styles from "./AgentAiConfiguration.module.css";
 import { AgentInfo } from "../data/agents";
 import supabase from "../lib/supabase";
 import useAgents from "../hooks/useAgents";
 import { useConnectors } from "../hooks/useConnexion";
+import socialComponents from "../components/Reseaux";
+import CornerSections, { CornerSection } from "../components/CornerSections";
 
 
 type Connexion = {
@@ -23,37 +25,11 @@ type Connexion = {
   onDisconnect: () => void;
 };
 
-type CornerStatus = "available" | "lock" | "unlock";
-
-type CornerSection = "Details" | "Connexions" | "Test" | "Configurations";
-
-const CornerBlock: FunctionComponent<{ // Autres composants Décal + HTML (CO & Overlay) + fichier Connexion aussi 
-  className: string;
-  status: CornerStatus;
-  title: string;
-  onClick?: () => void;
-}> = ({ className, status, title, onClick }) => {
-  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!onClick) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onClick();
-    }
-  };
-
-  return (
-    <div
-      className={`${styles.cornerBlock} ${styles[`block${statusLabel}`]} ${className}`}
-      onClick={onClick}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={handleKeyDown}
-    >
-      <span className={styles.cornerTitle}>{title}</span>
-    </div>
-  );
+type ConfigurationLogo = {
+  connectors_id: string;
+  connectors_name: string;
+  connectors_special?: boolean;
+  connected?: boolean;
 };
 
 type ConnexionCardProps = {
@@ -61,6 +37,7 @@ type ConnexionCardProps = {
   description: string;
   imageSrc: string;
   actionLabel: string;
+  isAvailable?: boolean;
   onAction?: () => void;
 };
 
@@ -69,18 +46,29 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
   description,
   imageSrc,
   actionLabel,
+  isAvailable = true,
   onAction,
 }) => {
-  return(
-    <div className={styles.connexionCard}>
+  return (
+    <div
+      className={`${styles.connexionCard} ${
+        !isAvailable ? styles.connexionCardDisabled : ""
+      }`}
+    >
       <img src={imageSrc} alt={title} className={styles.connexionCardImage} />
       <div className={styles.connexionCardBody}>
         <h5>{title}</h5>
         <p>{description}</p>
       </div>
-      <button type="button" className={styles.connexionButton} onClick={onAction}>
-        {actionLabel}
-      </button>
+      <Button
+        className={`${styles.connexionButton} ${
+          !isAvailable ? styles.connexionButtonDisabled : ""
+        }`}
+        onClick={onAction}
+        disabled={!isAvailable}
+      >
+        {isAvailable ? actionLabel : "Bientôt"}
+      </Button>
     </div>
   );
 };
@@ -99,6 +87,19 @@ const AgentAi: FunctionComponent = () => {
   console.log(selectedAgent);
 
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
+  const [detailsPrompt, setDetailsPrompt] = useState("");
+  const [oldDetailsPrompt, setOldDetailsPrompt] = useState("");
+  const [activeSocial, setActiveSocial] = useState<string | null>(null);
+
+  const ActiveSocialComponent = activeSocial
+    ? socialComponents[activeSocial as keyof typeof socialComponents] ?? null
+    : null;
+
+  useEffect(() => {
+    if (activeCorner !== "Configurations") {
+      setActiveSocial(null);
+    }
+  }, [activeCorner]);
 
   // ------------------------------Navigation---------------------------------
   const goToAgentAi = useCallback(() => {
@@ -216,6 +217,7 @@ const AgentAi: FunctionComponent = () => {
     }
   };
   const connexions: Record<string, Connexion> = {
+    appel: {imageSrc: "/logoConnectors/appel.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}}, // Special celui-là !!
     instagram: {imageSrc: "/logoConnectors/instagram.webp",  onConnect: connectInstagram, onDisconnect: disconnectInstagram},
     whatsapp: {imageSrc: "/logoConnectors/whatsapp.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
     gmail: {imageSrc: "/logoConnectors/gmail.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
@@ -226,10 +228,37 @@ const AgentAi: FunctionComponent = () => {
     telegram: {imageSrc: "/logoConnectors/telegram.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}}
   };
 
-  // ------------------------------PROMPT---------------------------------
-  const [detailsPrompt, setDetailsPrompt] = useState("");
-  const [oldDetailsPrompt, setOldDetailsPrompt] = useState("");
 
+  // ------------------------------CONFIGURATIONS---------------------------------
+  const configurationLogos = useMemo<ConfigurationLogo[]>(() => {
+
+    const availableLogos = availableShow
+      .filter((connector) => !connector.connectors_special)
+      .map((connector) => ({
+        connectors_id: connector.connectors_id,
+        connectors_name: connector.connectors_name,
+        connectors_special: connector.connectors_special,
+        connected: false,
+      }));
+
+    const specialLogos = availableShow
+      .filter((connector) => connector.connectors_special)
+      .map((connector) => ({
+        connectors_id: connector.connectors_id,
+        connectors_name: connector.connectors_name,
+        connectors_special: connector.connectors_special,
+        connected: true,
+      }));
+
+    const connectedLogos = connectorConnected.map((connector) => ({
+      connectors_id: connector.connectors_id,
+      connectors_name: connector.connectors_name,
+      connected: true,
+    }));
+
+    return [...connectedLogos, ...specialLogos, ...availableLogos];
+  }, [availableShow, connectorAvailable, connectorConnected]);
+  // ------------------------------PROMPT---------------------------------
   const handleSaveDetails = async () => { /* Un seul mais bien formaté*/
     if (!selectedAgent) return;
     setActiveCorner(null);
@@ -303,39 +332,10 @@ const AgentAi: FunctionComponent = () => {
             </div>
           </div>
         )}
-        <div className={styles.claraContainer}>
-          <div
-            className={styles.claraBackground}
-            style={{
-              backgroundImage: `url(${selectedAgent?.backgroundSrc ?? "/CLARA-Background.png"})`,
-            }}
-          >
-            <CornerBlock
-              className={styles.cornerTopLeft}
-              status="available"
-              title="Details"
-              onClick={() => setActiveCorner("Details")}
-            />
-            <CornerBlock
-              className={styles.cornerTopRight}
-              status="unlock"
-              title="Connexions"
-              onClick={() => setActiveCorner("Connexions")}
-            />
-            <CornerBlock
-              className={styles.cornerBottomLeft}
-              status="lock"
-              title="Test"
-              onClick={() => setActiveCorner("Test")}
-            />
-            <CornerBlock
-              className={styles.cornerBottomRight}
-              status="lock"
-              title="Configurations"
-              onClick={() => setActiveCorner("Configurations")}
-            />
-          </div>
-        </div>
+        <CornerSections
+          backgroundImage={selectedAgent?.backgroundSrc}
+          onSelect={(section) => setActiveCorner(section)}
+        />
         {activeCorner && selectedAgent && (
           <div
             className={styles.cornerOverlay}
@@ -345,6 +345,60 @@ const AgentAi: FunctionComponent = () => {
               className={styles.cornerOverlayContent}
               onClick={(event) => event.stopPropagation()}
             >
+              {activeCorner === "Configurations" && (
+                <>
+                  <div className={styles.availableLogosWrapper}>
+                    {configurationLogos.map((logo) => (
+                      <button
+                        key={`${logo.connectors_id}-${logo.connected ? "connected" : "available"}`}
+                        type="button"
+                        className={`${styles.availableLogoContainer} ${
+                          logo.connected ? "" : styles.availableLogoButtonDisabled
+                        }`}
+                        disabled={!logo.connected}
+                        onClick={() => {
+                          if (logo.connected) {
+                            setActiveSocial(logo.connectors_name.toLowerCase());
+                          }
+                        }}
+                      >
+                        <div
+                          className={`${styles.availableLogoTrapezoid} ${
+                            logo.connected ? "" : styles.availableLogoDisabled
+                          } ${logo.connectors_special ? styles.availableLogoSpecial : ""}`}
+                        >
+                          <img
+                            src={`/logoConnectors/${logo.connectors_name.toLowerCase()}.webp`}
+                            alt={`${logo.connectors_name} logo`}
+                            className={styles.availableLogo}
+                          />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className={styles.socialComponentPanel}>
+                    {ActiveSocialComponent ? (
+                      <ActiveSocialComponent />
+                    ) : (
+                      <p className={styles.socialComponentPlaceholder}>
+                        Aucune configuration sélectionnée.
+                      </p>
+                    )}
+                  </div>
+                  <div className={styles.configurationFooterWrapper}>
+                    {ActiveSocialComponent && 
+                    <div className={styles.configurationFooter}>
+                      <Button
+                        className={styles.configurationSaveButton}
+                        onClick={() => {}}
+                      >
+                        Enregistrer
+                      </Button>
+                    </div>
+                    }
+                  </div>
+                </>
+              )}
               {activeCorner === "Details" && (
                 <>
                   <label
@@ -389,16 +443,22 @@ const AgentAi: FunctionComponent = () => {
                   <div className={styles.connexionSection}>
                     <h4>Déconnecté ({countAvailableConnector-countConnectedConnector})</h4>
                     <div className={styles.connexionSectionCards}>
-                      {availableShow.map((connector) => (
-                        <ConnexionCard
-                          key={connector.connectors_id}
-                          title={connector.connectors_name.charAt(0).toUpperCase() + connector.connectors_name.slice(1)}
-                          description={`Connecter ${connector.connectors_name}`}
-                          imageSrc={connexions[connector.connectors_name].imageSrc}
-                          actionLabel="Connecter"
-                          onAction={connexions[connector.connectors_name].onConnect}
-                        />
-                      ))}
+                      {availableShow
+                        .filter((connector) => !connector.connectors_special)
+                        .map((connector) => (
+                          <ConnexionCard
+                            key={connector.connectors_id}
+                            title={
+                              connector.connectors_name.charAt(0).toUpperCase() +
+                              connector.connectors_name.slice(1)
+                            }
+                            description={`Connecter ${connector.connectors_name}`}
+                            imageSrc={connexions[connector.connectors_name].imageSrc}
+                            actionLabel="Connecter"
+                            isAvailable={connector.connectors_available}
+                            onAction={connexions[connector.connectors_name].onConnect}
+                          />
+                        ))}
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { FunctionComponent } from "react";
-import GenericAvatar2 from "./GenericAvatar2";
+import GenericAvatar from "./GenericAvatar";
 import styles from "./Header.module.css";
 
 export type HeaderType = {
@@ -19,7 +19,7 @@ const Header: FunctionComponent<HeaderType> = ({
         alt=""
         src={logoMarque}
       />
-      <GenericAvatar2 />
+      <GenericAvatar variant="header" />
     </div>
   );
 };
