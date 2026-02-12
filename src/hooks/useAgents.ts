@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import supabase from "../lib/supabase";
 import { AgentInfo, fetchDefaultAgentsSupa } from "../data/agents";
 
@@ -48,62 +49,68 @@ const mapAvailableAgents = (data: UserAgentRow[], defaults: AgentInfo[]) =>
     )
     .filter((agent): agent is AgentInfo => Boolean(agent));
 
-const useAgents = () => {
-  const [agentDefaultSupa, setAgentDefaultSupa] = useState<AgentInfo[]>([]);
-  const [availableAgents, setAvailableAgents] = useState<AgentInfo[]>([]);
-  const [displayedAgents, setDisplayedAgents] = useState<AgentInfo[]>([]);
+type UseAgentsResult = {
+  agentDefaultSupa: AgentInfo[];
+  availableAgents: AgentInfo[];
+  displayedAgents: AgentInfo[];
+  refreshDisplayedAgents: () => void;
+  refreshAvailableAgents: () => void;
+};
 
-  const loadDefaultAgents = useCallback(async () => {
-    const agents = await fetchDefaultAgentsSupa();
-    if (agents) {
-      setAgentDefaultSupa(agents as AgentInfo[]);
-    }
-  }, []);
+const useAgents = (): UseAgentsResult => {
+  const queryClient = useQueryClient();
 
-  const refreshDisplayedAgents = useCallback(async () => {
-    if (agentDefaultSupa.length === 0) {
-      return;
-    }
-    const { data, error } = await supabase.from("agent_configs").select("*");
-    if (error) {
-      console.error(error);
-      return;
-    }
-    setDisplayedAgents(mapDisplayedAgents(data, agentDefaultSupa));
-  }, [agentDefaultSupa]);
+  const defaultAgentsQuery = useQuery<AgentInfo[]>({
+    queryKey: ["agents", "defaults"],
+    queryFn: async () => {
+      const agents = await fetchDefaultAgentsSupa();
+      return agents ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const refreshAvailableAgents = useCallback(async () => {
-    if (agentDefaultSupa.length === 0) {
-      return;
-    }
-    const { data, error } = await supabase
-      .from("user_agent")
-      .select("agent_id,user_id");
-    if (error) {
-      console.error(error);
-      return;
-    }
-    setAvailableAgents(mapAvailableAgents(data ?? [], agentDefaultSupa));
-  }, [agentDefaultSupa]);
+  const displayedAgentsQuery = useQuery<AgentInfo[]>({
+    queryKey: ["agents", "displayed"],
+    queryFn: async () => {
+      const defaults = defaultAgentsQuery.data ?? [];
+      const { data, error } = await supabase.from("agent_configs").select("*");
+      if (error) {
+        throw error;
+      }
+      return mapDisplayedAgents(data, defaults);
+    },
+    enabled: (defaultAgentsQuery.data?.length ?? 0) > 0,
+  });
 
-  useEffect(() => {
-    if (agentDefaultSupa.length === 0) {
-      loadDefaultAgents();
-    }
-  }, [agentDefaultSupa, loadDefaultAgents]);
+  const availableAgentsQuery = useQuery<AgentInfo[]>({
+    queryKey: ["agents", "available"],
+    queryFn: async () => {
+      const defaults = defaultAgentsQuery.data ?? [];
+      const { data, error } = await supabase
+        .from("user_agent")
+        .select("agent_id,user_id");
+      if (error) {
+        throw error;
+      }
+      return mapAvailableAgents(data ?? [], defaults);
+    },
+    enabled: (defaultAgentsQuery.data?.length ?? 0) > 0,
+  });
 
-  useEffect(() => {
-    if (agentDefaultSupa.length > 0) {
-      refreshDisplayedAgents();
-      refreshAvailableAgents();
-    }
-  }, [agentDefaultSupa, refreshDisplayedAgents, refreshAvailableAgents]);
+  const refreshDisplayedAgents = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["agents", "displayed"] });
+  }, [queryClient]);
+
+  const refreshAvailableAgents = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["agents", "available"] });
+  }, [queryClient]);
 
   return {
-    agentDefaultSupa,
-    availableAgents,
-    displayedAgents,
+    agentDefaultSupa: defaultAgentsQuery.data ?? [],
+    availableAgents: availableAgentsQuery.data ?? [],
+    displayedAgents: displayedAgentsQuery.data ?? [],
     refreshDisplayedAgents,
+    refreshAvailableAgents,
   };
 };
 

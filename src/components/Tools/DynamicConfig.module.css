@@ -1,0 +1,44 @@
+.configList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-16);
+  width: 100%;
+}
+.switchWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+  padding: 10px 0;
+}
+.nested {
+  padding-left: 16px;
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.textareaWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.label {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.requiredIndicator {
+  color: #c62828;
+  margin-left: 4px;
+}
+.textarea {
+  width: 100%;
+  font-size: 16px;
+  padding: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 50px;
+  font-family: inherit;
+  resize: none;
+  overflow: hidden;
+}

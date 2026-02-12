@@ -14,6 +14,8 @@ type AvailableConnector = {
   connectors_name: string;
   connectors_available: boolean;
   connectors_special: boolean;
+  config_agent_connector?: any[];
+  current_connector_config?: any[];
 };
 
 type ConnectedConnector = {
@@ -57,7 +59,8 @@ export const useConnectors = ({
       limit_agent_connector: item.limit,
       connectors_name: item.connectors.connectors_name,
       connectors_available: item.connectors.available,
-      connectors_special: item.connectors.special
+      connectors_special: item.connectors.special,
+      config_agent_connector: item.config
     }));
     setCountAvailableConnector(mapped.length);
     setConnectorAvailable(mapped);
@@ -83,6 +86,7 @@ export const useConnectors = ({
       connectors_name: item.all_connectors_users.provider,
       expires_in: item.all_connectors_users.expires_in,
       connector_label: item.all_connectors_users.connectors_label,
+      current_connector_config: item.current_config_connexion,
     }));
     setCountConnectedConnector(mapped.length);
     setConnectorConnected(mapped);

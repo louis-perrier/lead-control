@@ -9,25 +9,39 @@ import {
   createTheme,
   StyledEngineProvider,
 } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import "./global.css";
 import { AuthProvider } from "./context/AuthContext";
 
 const muiTheme = createTheme();
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
+    },
+  },
+});
+
 const container = document.getElementById("root");
 
 const root = createRoot(container as Element);
 root.render(
   <BrowserRouter>
-    <AuthProvider>
-      <StyledEngineProvider injectFirst>
-        <ThemeProvider theme={muiTheme}>
-          <CssBaseline />
-          <App />
-        </ThemeProvider>
-      </StyledEngineProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <StyledEngineProvider injectFirst>
+          <ThemeProvider theme={muiTheme}>
+            <CssBaseline />
+            <App />
+          </ThemeProvider>
+        </StyledEngineProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   </BrowserRouter>,
 );
 

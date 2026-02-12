@@ -6,14 +6,13 @@
 }
 .navigationbar {
   height: var(--height-1024);
-  width: var(--width-260_3);
+  width: var(--width-240);
   background-color: var(--color-white);
   border-right: var(--border-11);
   box-sizing: border-box;
   overflow: hidden;
   flex-shrink: 0;
-  padding: var(--padding-12) var(--padding-12_3) var(--padding-24)
-    var(--padding-0);
+  padding: 10px 0;
   gap: var(--gap-642);
   text-align: left;
   font-size: var(--Static-Label-Large-Size);
@@ -45,36 +44,15 @@
   padding: var(--padding-0) var(--padding-1) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
 }
-.menuButton {
-  background-color: transparent;
-  border: none;
-  padding: var(--padding-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-4);
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-radius: var(--br-8);
-}
-.menuButton span {
-  width: 20px;
-  height: 2px;
-  background-color: var(--Schemes-On-Secondary-Container);
-  border-radius: 2px;
-  display: block;
-}
-.navigationbar[data-collapsed="true"] .menuButton span {
-  background-color: var(--color-lightsteelblue);
-}
 .optionnavigationParent {
-  width: var(--width-247);
-  gap: var(--gap-128);
+  width: 100%;
+  justify-content: center;
+  gap: 100px;
 }
 .navigationbar[data-collapsed="true"] .optionnavigationParent {
-  justify-content: center;
   gap: var(--gap-12);
-  width: 64px;
+  width: 100%;
+  justify-content: center;
 }
 .logoWrapper {
   height: var(--height-51);
@@ -107,6 +85,7 @@
   padding: var(--padding-0) var(--padding-37) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
   z-index: 6;
+  display: none;
 }
 .navigationbar[data-collapsed="true"] .dividerWrapper {
   display: none;
@@ -114,6 +93,67 @@
 .dividerIcon {
   height: var(--height-10);
   width: var(--width-184);
+}
+.navItemWrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  position: relative;
+}
+
+.subNavList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding-left: var(--padding-24);
+  margin-top: var(--gap-2);
+  position: relative;
+}
+
+.subNavList::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--padding-24) - 10px);
+  top: -6px;
+  bottom: -4px;
+  width: 2px;
+  background-color: var(--color-background);
+  opacity: 0.6;
+  border-radius: var(--br-4);
+}
+
+.subNavButton {
+  border: none;
+  background-color: transparent;
+  color: var(--color-silver-100);
+  text-align: left;
+  font-size: var(--Static-Body-Small-Size);
+  padding: var(--padding-5);
+  border-radius: var(--br-8);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.subNavButton:hover {
+  background-color: var(--color-primary);
+}
+
+.subNavButtonSelected {
+  color: var(--Schemes-On-Secondary-Container);
+  font-weight: 500;
+  background-color: var(--color-background);
+  border-left: 4px solid var(--color-primary);
+  padding-left: calc(var(--padding-12) - 4px);
+}
+
+.subNavLabel {
+  display: block;
+  line-height: var(--Static-Body-Small-Line-Height);
+}
+
+.navigationbar[data-collapsed="true"] .subNavList {
+  display: none;
 }
 .helpcenterWrapper {
   width: var(--width-183);

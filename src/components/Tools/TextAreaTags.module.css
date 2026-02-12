@@ -1,0 +1,55 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  text-align: center;
+  color: #000;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.requiredIndicator {
+  color: #c62828;
+  margin-left: 4px;
+}
+
+.textarea {
+  width: 100%;
+  font-size: 16px;
+  padding: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 50px;
+  font-family: inherit;
+  resize: none;
+  overflow: hidden;
+  min-height: 1.5em;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.tag {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #333;
+}
+
+.tagClose {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}

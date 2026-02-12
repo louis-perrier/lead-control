@@ -18,10 +18,10 @@ export const defaultAgents: Record<string, AgentInfo> = {
     id: "greg",
     agent_id: "greg",
     name: "GREG",
-    description: "Prospection & Conversion",
+    description: "Prospectn & Conversion",
     imageSrc: "/GREG-PP.png",
     backgroundSrc: "/GREG-Background.png",
-    details: ["bla", "bla", "bla"],
+    details: ["a", "bla", "bla"],
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   },
   clara: {

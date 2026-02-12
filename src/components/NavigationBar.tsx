@@ -5,9 +5,8 @@ import {
   type CSSProperties,
   useCallback,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import NavItem from "./NavItem";
-import NavItem1 from "./NavItem1";
 import styles from "./NavigationBar.module.css";
 import useAgents from "../hooks/useAgents";
 
@@ -18,9 +17,6 @@ export type NavigationBarType = {
   crmIconPadding?: CSSProperties["padding"];
   crmIconBackgroundColor?: CSSProperties["backgroundColor"];
   selectedItem?: string;
-  connexionIconBorder?: CSSProperties["border"];
-  connexionIconPadding?: CSSProperties["padding"];
-  connexionIconBackgroundColor?: CSSProperties["backgroundColor"];
 
   /** Variant props */
   door?: string;
@@ -48,9 +44,6 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
   crmIconPadding,
   crmIconBackgroundColor,
   selectedItem = "dashboard",
-  connexionIconBorder,
-  connexionIconPadding,
-  connexionIconBackgroundColor,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   
@@ -71,83 +64,70 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
   }, [iconBorder5, iconPadding5, iconBackgroundColor5]);
 
   const navigate = useNavigate();
-  const [navItem1Items] = useState([
-    {
-      selected: selectedItem === "dashboard",
-      labelText: "Dashboard",
-      icon: '/dashboardIcon.svg',
-      iconBorder: "none" as const,
-      iconPadding: "0" as const,
-      iconBackgroundColor: "transparent" as const,
-      show: true,
-    },
-    {
-      selected: selectedItem === "subscription",
-      labelText: "Subscription",
-      icon: '/subscriptionIcon.svg',
-      iconBorder: undefined,
-      iconPadding: undefined,
-      iconBackgroundColor: undefined,
-      show: false,
-    },
-    {
-      selected: selectedItem === "agentia",
-      labelText: "Agent IA",
-      icon: '/agentIaIcon.svg',
-      iconBorder: undefined,
-      iconPadding: undefined,
-      iconBackgroundColor: undefined,
-      show: true,
-    },
-    {
-      selected: selectedItem === "connexion",
-      labelText: "Connexion",
-      icon: '/connexionIcon.svg',
-      iconBorder: undefined,
-      iconPadding: undefined,
-      iconBackgroundColor: undefined,
-      show: true,
-    }
-  ]);
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  const navItems = useMemo(
+    () => [
+      {
+        key: "dashboard",
+        route: "/",
+        selected:
+          selectedItem === "dashboard" || currentPath === "/",
+        labelText: "Dashboard",
+        icon: "/dashboardIcon.svg",
+        iconBorder: "none" as const,
+        iconPadding: "0" as const,
+        iconBackgroundColor: "transparent" as const,
+        show: true,
+      },
+      {
+        key: "agentia",
+        route: "/agentai",
+        selected:
+          selectedItem === "agentia" || currentPath === "/agentai",
+        labelText: "Agent IA",
+        icon: "/agentIaIcon.svg",
+        iconBorder: undefined,
+        iconPadding: undefined,
+        iconBackgroundColor: undefined,
+        show: true,
+      },
+      {
+        key: "connexion",
+        route: "/connexion",
+        selected:
+          selectedItem === "connexion" || currentPath === "/connexion",
+        labelText: "Connexion",
+        icon: "/connexionIcon.svg",
+        iconBorder: undefined,
+        iconPadding: undefined,
+        iconBackgroundColor: undefined,
+        show: true,
+      },
+    ],
+    [currentPath, selectedItem],
+  );
 
   const { displayedAgents } = useAgents();
-  const isGregAgentDisplayed = displayedAgents.map((agent) => agent.id.toLowerCase()).includes("greg");
+  const isGregAgentDisplayed = displayedAgents
+    .map((agent) => agent.id.toLowerCase())
+    .includes("greg");
 
-  const onAgentIaContainerClick = useCallback(() => {
-    navigate("/agentai");
-  }, [navigate]);
+  const onNavItemClick = useCallback(
+    (route: string) => {
+      navigate(route);
+    },
+    [navigate],
+  );
 
   const onCrmContainerClick = useCallback(() => {
     navigate("/crm");
   }, [navigate]);
 
-  const onConnexionContainerClick = useCallback(() => {
-    navigate("/connexion");
-  }, [navigate]);
-
-  const onDashboardContainerClick = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
-
-  const onSubscriptionContainerClick = useCallback(() => {
-    navigate("/subscription");
-  }, [navigate]);
-
   const onLogoIconClick = useCallback(() => {
     navigate("/");
   }, [navigate]);
-
-  const onLogoIconItemClick = useCallback((index: number) => {
-    if (index === 2) {
-      onAgentIaContainerClick();
-    } else if (index === 0) {
-      onDashboardContainerClick();
-    } else if (index === 1) {
-      onSubscriptionContainerClick();
-    } else if (index === 3) {
-      onConnexionContainerClick();
-    }
-  }, []);
 
   const toggleCollapse = useCallback(() => {
     setIsCollapsed((prev) => !prev);
@@ -181,16 +161,17 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
             </div>
           </div>
         </div>
-        {navItem1Items.map((item, index) => (
-          <NavItem1
-            key={index}
+        {navItems.map((item) => (
+          <NavItem
+            key={item.key}
+            variant="link"
             selected={item.selected}
             labelText={item.labelText}
             icon={item.icon}
             iconBorder={item.iconBorder}
             iconPadding={item.iconPadding}
             iconBackgroundColor={item.iconBackgroundColor}
-            onLogoIconClick={() => onLogoIconItemClick(index)}
+            onClick={() => onNavItemClick(item.route)}
             isCollapsed={isCollapsed}
             show={item.show}
           />
@@ -203,11 +184,12 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
             src={divider}
           />
         </div>
-        <NavItem1
+        <NavItem
+          variant="link"
           selected={selectedItem === "crm"}
           labelText={"CRM"}
-          onLogoIconClick={onCrmContainerClick}
-          icon={'/crmIcon.svg'}
+          onClick={onCrmContainerClick}
+          icon={"/crmIcon.svg"}
           iconBorder={crmIconBorder}
           iconPadding={crmIconPadding}
           iconBackgroundColor={crmIconBackgroundColor}

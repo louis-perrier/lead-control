@@ -2,21 +2,31 @@ import {
   FunctionComponent,
   useCallback,
   useEffect,
-  useState,
   useMemo,
+  useState,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+
 import NavigationBar from "../components/NavigationBar";
 import Header from "../components/Header";
 import TabComponent from "../components/TabComponent";
 import Button from "../components/Button";
+import buttonStyles from "../components/Button.module.css";
+import CornerSections, {
+  CornerSection,
+  CornerStatus,
+} from "../components/CornerSections";
+import SwitchAnimated from "../components/Tools/SwitchAnimated";
+import DynamicConfig, {
+  ConfigItem,
+  ConfigValue,
+} from "../components/Tools/DynamicConfig";
 import styles from "./AgentAiConfiguration.module.css";
+
 import { AgentInfo } from "../data/agents";
 import supabase from "../lib/supabase";
 import useAgents from "../hooks/useAgents";
 import { useConnectors } from "../hooks/useConnexion";
-import socialComponents from "../components/Reseaux";
-import CornerSections, { CornerSection } from "../components/CornerSections";
 
 
 type Connexion = {
@@ -79,21 +89,29 @@ const AgentAi: FunctionComponent = () => {
   const location = useLocation();
   const state = location.state as { agent?: AgentInfo } | undefined;
   const { displayedAgents, refreshDisplayedAgents } = useAgents();
+
+  // Active agent selection
   const [activeAgentId, setActiveAgentId] = useState<string | undefined>(
     state?.agent?.display_id
   );
-
   const selectedAgent = state?.agent ?? displayedAgents[0];
   console.log(selectedAgent);
 
+  // UI state
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
+  const [headerSwitchOn, setHeaderSwitchOn] = useState(false);
+
+  // Details form state
   const [detailsPrompt, setDetailsPrompt] = useState("");
   const [oldDetailsPrompt, setOldDetailsPrompt] = useState("");
-  const [activeSocial, setActiveSocial] = useState<string | null>(null);
+  const [detailsContext, setDetailsContext] = useState("");
+  const [oldDetailsContext, setOldDetailsContext] = useState("");
 
-  const ActiveSocialComponent = activeSocial
-    ? socialComponents[activeSocial as keyof typeof socialComponents] ?? null
-    : null;
+  // Configuration state
+  const [activeSocial, setActiveSocial] = useState<string | null>(null);
+  const [configValues, setConfigValues] = useState<ConfigValue[]>([]);
+  const [initialConfigValues, setInitialConfigValues] = useState<ConfigValue[]>([]);
+  const [isConfigLoading, setIsConfigLoading] = useState(false);
 
   useEffect(() => {
     if (activeCorner !== "Configurations") {
@@ -101,7 +119,7 @@ const AgentAi: FunctionComponent = () => {
     }
   }, [activeCorner]);
 
-  // ------------------------------Navigation---------------------------------
+  // ------------------------------Navigation helpers---------------------------------
   const goToAgentAi = useCallback(() => {
     navigate("/agentai");
   }, [navigate]);
@@ -113,13 +131,15 @@ const AgentAi: FunctionComponent = () => {
     [navigate]
   );
 
-  useEffect(() => {// Set up ActiveAgentId
+  useEffect(() => {
+    // On navigation state change, sync the active agent if provided
     if (state?.agent?.display_id) {
       setActiveAgentId(state.agent.display_id);
     }
   }, [state?.agent?.display_id]);
 
-  useEffect(() => {// Set up ActiveAgentId
+  useEffect(() => {
+    // Ensure the active agent id always references an existing agent
     if (!activeAgentId && displayedAgents.length > 0) {
       setActiveAgentId(displayedAgents[0].agent_id);
     } else if (
@@ -130,12 +150,15 @@ const AgentAi: FunctionComponent = () => {
     }
   }, [activeAgentId, displayedAgents]);
 
-
-  useEffect(() => { //Initialisation New Agent
+  useEffect(() => {
+    // Initialize details inputs from the selected agent configuration
     if (selectedAgent) {
       const prompt = selectedAgent.configs.Details?.prompt ?? "";
+      const context = selectedAgent.configs.Details?.context ?? "";
       setDetailsPrompt(prompt);
       setOldDetailsPrompt(prompt);
+      setDetailsContext(context);
+      setOldDetailsContext(context);
     }
   }, [selectedAgent]);
 
@@ -153,8 +176,10 @@ const AgentAi: FunctionComponent = () => {
     agentId: selectedAgent?.agent_id,
     configsId: selectedAgent?.display_id,
   });
+
   
   useEffect(() => {
+    // Refresh connectors when Supabase broadcasts a change
     const ch = supabase
       .channel("connectors_config_agent_channel")
       .on(
@@ -173,7 +198,8 @@ const AgentAi: FunctionComponent = () => {
   }, [activePopup, refreshConnectors]);
 
 
-  const connectInstagram = async () => {// 1 connexion
+  const connectInstagram = async () => {
+    // Lancement du process OAuth pour Instagram
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not logged in");
@@ -196,7 +222,8 @@ const AgentAi: FunctionComponent = () => {
     }
   };
 
-  const disconnectInstagram = async () => {// 1 déconnexion
+  const disconnectInstagram = async () => {
+    // Déconnexion de l’utilisateur Instagram via la fonction Supabase
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not logged in");
@@ -228,8 +255,11 @@ const AgentAi: FunctionComponent = () => {
     telegram: {imageSrc: "/logoConnectors/telegram.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}}
   };
 
-
   // ------------------------------CONFIGURATIONS---------------------------------
+  /**
+   * Les logos affichés dans la zone “Configurations” sont triés pour prioriser
+   * les connecteurs déjà reliés, les spéciales puis le reste disponible.
+   */
   const configurationLogos = useMemo<ConfigurationLogo[]>(() => {
 
     const availableLogos = availableShow
@@ -258,11 +288,190 @@ const AgentAi: FunctionComponent = () => {
 
     return [...connectedLogos, ...specialLogos, ...availableLogos];
   }, [availableShow, connectorAvailable, connectorConnected]);
+
+  const activeConfigItems = useMemo<ConfigItem[]>(() => {
+    if (!activeSocial) return [];
+    const connector = connectorAvailable.find(
+      (item) => item.connectors_name.toLowerCase() === activeSocial.toLowerCase()
+    );
+    const config = connector?.config_agent_connector;
+    if (!Array.isArray(config)) return [];
+    return config as ConfigItem[];
+  }, [activeSocial, connectorAvailable]);
+
+  /**
+   * Liste à plat des identifiants marqués “required” (y compris les champs imbriqués)
+   * afin de pouvoir valider l’état “Configurations”.
+   */
+  const requiredConfigIds = useMemo(() => {
+    const ids: string[] = [];
+    const visit = (items: ConfigItem[]) => {
+      items.forEach((item) => {
+        if (item.required) {
+          ids.push(item.id);
+        }
+        if (item.enabled?.length) {
+          visit(item.enabled);
+        }
+      });
+    };
+    visit(activeConfigItems);
+    return ids;
+  }, [activeConfigItems]);
+
+  /**
+   * Vérifie si des champs “required” attendent encore une valeur valable.
+   */
+  const hasMissingRequiredConfig = useMemo(() => {
+    if (requiredConfigIds.length === 0) return false;
+    const valueMap = new Map(configValues.map(({ id, value }) => [id, value]));
+    return requiredConfigIds.some((id) => {
+      const value = valueMap.get(id);
+      if (value === undefined || value === null) return true;
+      if (typeof value === "string") {
+        return value.trim().length === 0;
+      }
+      if (Array.isArray(value)) {
+        return value.length === 0;
+      }
+      return false;
+    });
+  }, [requiredConfigIds, configValues]);
+
+  /**
+   * Indique si la section “Details” est complète et si une connexion est active,
+   * afin d’alimenter les statuts des coins.
+   */
+  const areDetailsFilled = useMemo(
+    () =>
+      !!detailsPrompt.trim().length &&
+      !!detailsContext.trim().length,
+    [detailsPrompt, detailsContext]
+  );
+
+  const hasActiveConnection = countConnectedConnector > 0;
+
+  const sectionStatuses = useMemo<Record<CornerSection, CornerStatus>>(() => {
+    const statuses: Record<CornerSection, CornerStatus> = {
+      Details: "lock",
+      Connexions: "lock",
+      BIENTÔT: "lock",
+      Configurations: "lock",
+    };
+
+    if (!areDetailsFilled) {
+      statuses.Details = "unlock";
+      return statuses;
+    }
+
+    statuses.Details = "available";
+    statuses.Connexions = hasActiveConnection ? "available" : "unlock";
+
+    if (!hasActiveConnection) {
+      return statuses;
+    }
+
+    statuses.Configurations = hasMissingRequiredConfig ? "unlock" : "available";
+    return statuses;
+  }, [areDetailsFilled, hasActiveConnection, hasMissingRequiredConfig]);
+
+  const isConfigSectionAvailable =
+    sectionStatuses.Configurations === "available";
+
+  /** Mise à jour locale des valeurs (en réponse au composant DynamicConfig). */
+  const handleConfigChange = (values: ConfigValue[]) => {
+    setConfigValues(values);
+  };
+  /**
+   * Récupère les valeurs sauvegardées dans Supabase pour pré-remplir la section
+   * lorsque l’utilisateur ouvre Configurations.
+   */
+  const fetchSavedConfig = useCallback(async () => {
+    if (!activeSocial || !selectedAgent) {
+      setInitialConfigValues([]);
+      setConfigValues([]);
+      return;
+    }
+    setIsConfigLoading(true);
+    try {
+      const target =
+        connectorConnected.find(
+          (item) => item.connectors_name.toLowerCase() === activeSocial.toLowerCase()
+        ) ?? connectorConnected[0];
+      if (!target?.id) {
+        setInitialConfigValues([]);
+        setConfigValues([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("connectors_config_agent")
+        .select("current_config_connexion")
+        .eq("configs_id", selectedAgent.display_id)
+        .eq("user_connexion_id", target.id)
+        .single();
+      console.log(data);
+      if (error || !data?.current_config_connexion) {
+        setInitialConfigValues([]);
+        setConfigValues([]);
+        return;
+      }
+      const raw = data.current_config_connexion;
+      const parsed = raw.map((item: { id: string; value: any }) => ({
+        id: item.id,
+        value: item.value,
+      }));
+      console.log(parsed);
+      setInitialConfigValues(parsed);
+      setConfigValues(parsed);
+    } finally {
+      setIsConfigLoading(false);
+    }
+  }, [activeSocial, selectedAgent, connectorConnected]);
+
+  useEffect(() => {
+    if (activeCorner === "Configurations") {
+      fetchSavedConfig();
+    }
+  }, [activeCorner, fetchSavedConfig]);
+
+  const buildPayload = () => configValues.map(({ id, value }) => ({ id, value }));
+
+  /**
+   * Envoie la configuration côté connexion vers Supabase et referme la popup.
+   */
+  const handleSaveConfig = async () => {
+    if (!selectedAgent || !activeSocial) return;
+    const target =
+      connectorConnected.find(
+        (item) => item.connectors_name.toLowerCase() === activeSocial.toLowerCase()
+      ) ?? connectorConnected[0];
+    if (!target?.id) {
+      console.warn("Pas de user_connexion_id pour le connecteur", activeSocial);
+      return;
+    }
+    const payload = buildPayload();
+    if (payload.length === 0) return;
+    const { error } = await supabase
+      .from("connectors_config_agent")
+      .update({ current_config_connexion: payload })
+      .eq("configs_id", selectedAgent.display_id)
+      .eq("user_connexion_id", target.id);
+    if (error) {
+      console.error("Erreur lors de la sauvegarde", error);
+    } else {
+      console.log("Config enregistrée");
+    }
+    setActiveCorner(null);
+  };
   // ------------------------------PROMPT---------------------------------
-  const handleSaveDetails = async () => { /* Un seul mais bien formaté*/
+  /**
+   * Sauvegarde les champs “Details” (prompt + contexte) dans Supabase.
+   */
+  const handleSaveDetails = async () => { 
     if (!selectedAgent) return;
     setActiveCorner(null);
     setOldDetailsPrompt(detailsPrompt);
+    setOldDetailsContext(detailsContext);
     const { error } = await supabase
       .from("agent_configs")
       .update({
@@ -271,6 +480,7 @@ const AgentAi: FunctionComponent = () => {
           Details: {
             ...selectedAgent.configs.Details,
             prompt: detailsPrompt,
+            context: detailsContext,
           },
         },
       })
@@ -324,10 +534,11 @@ const AgentAi: FunctionComponent = () => {
           <div className={styles.agentTitleWrapper}>
             <div className={styles.agentTitleText}>
               <h2>{selectedAgent.name.toUpperCase()}</h2>
-              <img
-                src="/switchOff.svg"
-                alt="Switch off icon"
-                className={styles.agentTitleIcon}
+              <SwitchAnimated
+                checked={headerSwitchOn}
+                onChange={setHeaderSwitchOn}
+                showLabel={false}
+                disabled={!isConfigSectionAvailable}
               />
             </div>
           </div>
@@ -335,12 +546,17 @@ const AgentAi: FunctionComponent = () => {
         <CornerSections
           backgroundImage={selectedAgent?.backgroundSrc}
           onSelect={(section) => setActiveCorner(section)}
+          statuses={sectionStatuses}
         />
         {activeCorner && selectedAgent && (
-          <div
-            className={styles.cornerOverlay}
-            onClick={() => {setActiveCorner(null); setDetailsPrompt(oldDetailsPrompt)}}
-          >
+            <div
+              className={styles.cornerOverlay}
+              onClick={() => {
+                setActiveCorner(null);
+                setDetailsPrompt(oldDetailsPrompt);
+                setDetailsContext(oldDetailsContext);
+              }}
+            >
             <div
               className={styles.cornerOverlayContent}
               onClick={(event) => event.stopPropagation()}
@@ -377,25 +593,28 @@ const AgentAi: FunctionComponent = () => {
                     ))}
                   </div>
                   <div className={styles.socialComponentPanel}>
-                    {ActiveSocialComponent ? (
-                      <ActiveSocialComponent />
+                    <div className={styles.socialComponentHeader}>
+                      <h1>
+                        {activeSocial
+                          ? `${activeSocial.toUpperCase()}`
+                          : "Configuration"}
+                      </h1>
+                    </div>
+                    {isConfigLoading ? (
+                      <div className={styles.socialComponentLoading}>
+                        Chargement des configurations...
+                      </div>
+                    ) : activeConfigItems.length > 0 ? (
+                      <DynamicConfig
+                        items={activeConfigItems}
+                        initialValues={initialConfigValues}
+                        onChange={handleConfigChange}
+                      />
                     ) : (
                       <p className={styles.socialComponentPlaceholder}>
                         Aucune configuration sélectionnée.
                       </p>
                     )}
-                  </div>
-                  <div className={styles.configurationFooterWrapper}>
-                    {ActiveSocialComponent && 
-                    <div className={styles.configurationFooter}>
-                      <Button
-                        className={styles.configurationSaveButton}
-                        onClick={() => {}}
-                      >
-                        Enregistrer
-                      </Button>
-                    </div>
-                    }
                   </div>
                 </>
               )}
@@ -405,7 +624,7 @@ const AgentAi: FunctionComponent = () => {
                     className={styles.cornerOverlayLabel}
                     htmlFor="detailsPrompt"
                   >
-                    Prompt
+                    Prompt <span className={styles.requiredAsterisk}>*</span>
                   </label>
                   <textarea
                     id="detailsPrompt"
@@ -414,10 +633,26 @@ const AgentAi: FunctionComponent = () => {
                     placeholder="Rédige ton prompt..."
                     onChange={(event) => setDetailsPrompt(event.target.value)}
                   />
+                  <label
+                    className={styles.cornerOverlayLabel}
+                    htmlFor="detailsContext"
+                  >
+                    Contexte <span className={styles.requiredAsterisk}>*</span>
+                  </label>
+                  <textarea
+                    id="detailsContext"
+                    className={styles.cornerOverlayTextarea}
+                    value={detailsContext}
+                    placeholder="Décris le contexte à prendre en compte..."
+                    onChange={(event) => setDetailsContext(event.target.value)}
+                  />
                   <button
                     type="button"
                     className={styles.cornerOverlaySave}
                     onClick={handleSaveDetails}
+                    disabled={
+                      !detailsPrompt.trim() || !detailsContext.trim()
+                    }
                   >
                     Enregistrer
                   </button>
@@ -464,6 +699,22 @@ const AgentAi: FunctionComponent = () => {
                 </div>
               )}
             </div>
+            {activeCorner === "Configurations" && activeConfigItems.length > 0 && (
+              <div className={styles.configurationFooterWrapper}>
+                <div className={styles.configurationFooter}>
+                  <Button
+                    className={buttonStyles.save}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleSaveConfig();
+                    }}
+                    disabled={hasMissingRequiredConfig}
+                  >
+                    Enregistrer
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

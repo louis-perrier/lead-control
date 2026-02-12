@@ -12,6 +12,7 @@ import Header from "../components/Header";
 import DatePicker from "../components/DatePicker";
 import styles from "./Dashboard.module.css";
 import useAgents from "../hooks/useAgents";
+import Feedback from "../components/Feedback";
 
 const Dashboard: FunctionComponent = () => {
   const { displayedAgents } = useAgents();
@@ -109,6 +110,7 @@ const Dashboard: FunctionComponent = () => {
           </div>
           <div className={styles.bottomstatistics} />
         </section>
+        <Feedback />
       </main>
     </div>
   );

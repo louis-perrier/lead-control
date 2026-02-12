@@ -1,5 +1,4 @@
-import { FunctionComponent, type CSSProperties } from "react";
-import Badges from "./Badges";
+import { FunctionComponent, useMemo, type CSSProperties } from "react";
 import styles from "./NavItem.module.css";
 
 export type NavItemType = {
@@ -13,6 +12,16 @@ export type NavItemType = {
   showLabelText?: boolean;
   state?: string;
   onClick?: () => void;
+  variant?: "toggle" | "link";
+
+  /** Nav link props */
+  labelText?: string;
+  icon?: string;
+  iconBorder?: CSSProperties["border"];
+  iconPadding?: CSSProperties["padding"];
+  iconBackgroundColor?: CSSProperties["backgroundColor"];
+  isCollapsed?: boolean;
+  show?: boolean;
 };
 
 const NavItem: FunctionComponent<NavItemType> = ({
@@ -22,9 +31,55 @@ const NavItem: FunctionComponent<NavItemType> = ({
   selected = false,
   showLabelText = false,
   state = "Enabled",
-  size,
+  size = "Large",
   onClick,
+  variant = "toggle",
+  labelText = "Dashboard",
+  icon,
+  iconBorder,
+  iconPadding,
+  iconBackgroundColor,
+  isCollapsed = false,
+  show = true,
 }) => {
+  const iconStyle: CSSProperties = useMemo(() => {
+    return {
+      border: iconBorder,
+      padding: iconPadding,
+      backgroundColor: iconBackgroundColor,
+    };
+  }, [iconBorder, iconPadding, iconBackgroundColor]);
+
+  if (!show) {
+    return null;
+  }
+
+  if (variant === "link") {
+    return (
+      <div
+        className={[styles.linkRoot, className].join(" ")}
+        data-selected={selected}
+        data-collapsed={isCollapsed}
+        data-state={state}
+        data-showIcon="true"
+        onClick={onClick}
+      >
+        <div className={styles.linkStateLayer}>
+          {icon && (
+            <img
+              className={styles.linkIcon}
+              alt={labelText}
+              src={icon}
+              style={iconStyle}
+              width={24}
+              height={24}
+            />
+          )}
+          <div className={styles.linkLabel}>{labelText}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -46,8 +101,7 @@ const NavItem: FunctionComponent<NavItemType> = ({
     >
       <div className={styles.container}>
         <div className={styles.stateLayer}>
-          <img className={styles.icon} alt="" src="/Icon2.svg" />
-          <Badges size={size} />
+          <img className={styles.icon} alt="" src={icon ?? "/navCollapse.svg"} />
         </div>
       </div>
     </div>

@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import Subscription from "./pages/Subscription";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Connexion from "./pages/Connexion";
+import Feedback from "./components/Feedback";
 
 function App() {
   const action = useNavigationType();
@@ -72,21 +73,24 @@ function App() {
   }, [pathname]);
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/subscription" element={<Subscription />} />
-        <Route path="/agentai" element={<AgentAi />} />
-        <Route
-          path="/agentai/configuration"
-          element={<AgentAiConfiguration />}
-        />
-        <Route path="/crm" element={<Crm />} />
-        <Route path="/connexion" element={<Connexion />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/subscription" element={<Subscription />} />
+          <Route path="/agentai" element={<AgentAi />} />
+          <Route
+            path="/agentai/configuration"
+            element={<AgentAiConfiguration />}
+          />
+          <Route path="/crm" element={<Crm />} />
+          <Route path="/connexion" element={<Connexion />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+      <Feedback />
+    </>
   );
 }
 export default App;
