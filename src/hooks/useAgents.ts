@@ -8,6 +8,8 @@ type AgentConfigRow = {
   name_modif: string;
   configs: Record<string, string>;
   configs_id: string;
+  is_active?: boolean;
+  is_fav?: boolean;
 };
 
 type AgentDisplayed = AgentInfo & {
@@ -38,6 +40,8 @@ const mapDisplayedAgents = (
         name: agent.name_modif,
         configs: agent.configs,
         display_id: agent.configs_id,
+        is_active: agent.is_active ?? defaultAgent.is_active ?? false,
+        is_fav: agent.is_fav ?? defaultAgent.is_fav ?? false,
       };
     })
     .filter((agent): agent is AgentDisplayed => Boolean(agent));

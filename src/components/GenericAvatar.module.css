@@ -47,3 +47,55 @@
   border-radius: 50%;
   object-fit: cover;
 }
+.container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.headerContainer {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.overlayMenu {
+  position: absolute;
+  top: calc(100% + 70px);
+  right: 0;
+  width: 150px;
+  background: linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.95),
+      rgba(243, 245, 248, 0.9)
+    )
+    0 0/cover,
+    #ffffff;
+  border-radius: var(--br-12);
+  box-shadow: 10px 16px 35px rgba(15, 23, 42, 0.15);
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  padding: 10px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-1);
+  z-index: 50;
+  align-items: stretch;
+}
+.menuButton {
+  background: transparent;
+  border: none;
+  padding: var(--gap-4) var(--gap-6);
+  border-radius: var(--br-12);
+  font-weight: 600;
+  color: var(--color-darkslategray);
+  text-align: left;
+  width: 100%;
+  cursor: default;
+}
+.logoutButton {
+  cursor: pointer;
+  color: var(--color-secondary);
+  transition: color 0.2s ease;
+}
+.logoutButton:hover {
+  color: #ff2a2a;
+}

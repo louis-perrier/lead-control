@@ -1,7 +1,7 @@
 import { FunctionComponent, useState, useEffect } from "react";
 import NavigationBar from "../components/NavigationBar";
 import Header from "../components/Header";
-import OptionSearch1 from "../components/OptionSearch1";
+import OptionSearch from "../components/OptionSearch";
 import styles from "./Connexion.module.css";
 import supabase from "../lib/supabase";
 
@@ -135,7 +135,7 @@ const Connexion: FunctionComponent = () => {
       />
       <main className={styles.rightcomponent}>
         <Header logoMarque="/logoMarque@2x.png" />
-        <OptionSearch1 addButton={false} />
+        <OptionSearch wrap={true} addButton={false} />
         <section className={styles.tableWrapper}>
           {connections.map((connection) => (
             <ConnectionCardForConnexion

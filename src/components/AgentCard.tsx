@@ -1,6 +1,7 @@
 import {
   FunctionComponent,
   KeyboardEvent,
+  MouseEvent,
   useCallback,
   useEffect,
   useRef,
@@ -14,6 +15,10 @@ export type AgentCardProps = {
   name: string;
   description: string;
   onNameChange?: (nextName: string) => void;
+  isFav?: boolean;
+  isActive?: boolean;
+  onClick?: () => void;
+  onFavClick?: () => void;
 };
 
 const AgentCard: FunctionComponent<AgentCardProps> = ({
@@ -22,14 +27,18 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
   name,
   description,
   onNameChange,
+  isFav = false,
+  isActive = false,
+  onClick,
+  onFavClick,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableName, setEditableName] = useState(name);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const onAgentImageClick = useCallback(() => {
-    // Please sync "agentAiConfiguration" to the project
-  }, []);
+  const handleCardClick = useCallback(() => {
+    onClick?.();
+  }, [onClick]);
 
   // Tout ça pour pouvoir éditer le nom
   const onEditClick = useCallback(() => {
@@ -72,11 +81,55 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
   );
   //------------------------Editer le nom---------------------------------
 
+  const handleImageClick = useCallback(
+    (event: MouseEvent<HTMLImageElement>) => {
+      event.stopPropagation();
+      handleCardClick();
+    },
+    [handleCardClick]
+  );
+
   return (
-    <div className={[styles.agentcard, className].join(" ")}>
+    <div
+      className={[
+        styles.agentcard,
+        isActive ? styles.activeAgentBorder : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          handleCardClick();
+        }
+      }}
+    >
       <div className={styles.agentDetailsContainer}>
         <div className={styles.detailsagentcard}>
-          <img className={styles.favoriteIcon} alt="" src="/favorite.svg" />
+          <button
+            className={[
+              styles.favoriteButton,
+              isFav ? styles.favoriteButtonActive : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            type="button"
+            onClick={(event: MouseEvent<HTMLButtonElement>) => {
+              event.stopPropagation();
+              onFavClick?.();
+            }}
+            aria-pressed={isFav}
+          >
+            <img
+              className={styles.favoriteIcon}
+              alt={isFav ? "Favori actif" : "Favori"}
+              src={isFav ? "/favoriteSelected.svg" : "/favorite.svg"}
+            />
+          </button>
           {isEditing ? (
           <input
             ref={inputRef}
@@ -92,22 +145,28 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
           ) : (
             <h3 className={styles.agentname}>{name}</h3>
           )}
-          <img
-            className={styles.favoriteIcon}
-            alt=""
-            src="/edit.svg"
-            onClick={onEditClick}
-          />
+          <button
+            className={styles.editButton}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEditClick();
+            }}
+          >
+            <img
+              className={styles.favoriteIcon}
+              alt="Modifier le nom"
+              src="/edit.svg"
+            />
+          </button>
         </div>
       </div>
-      <div className={styles.textsupport} />
-      <div className={styles.agentdescription}>{description}</div>
       <img
         className={styles.agentimageIcon}
         loading="lazy"
         alt={name}
         src={imageSrc}
-        onClick={onAgentImageClick}
+        onClick={handleImageClick}
       />
     </div>
   );

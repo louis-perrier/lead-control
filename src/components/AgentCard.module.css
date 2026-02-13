@@ -15,6 +15,9 @@
   font-size: var(--Static-Headline-Small-Size);
   color: var(--color-black);
   font-family: var(--Static-Headline-Small-Font);
+  border-radius: var(--br-20);
+  border: 1px solid transparent;
+  transition: border 180ms ease, box-shadow 180ms ease;
 }
 .agentDetailsContainer {
   width: 189px;
@@ -34,9 +37,31 @@
   border: 0;
   padding: var(--padding-01);
   background-color: transparent;
-  height: var(--height-24);
-  width: var(--width-24);
+  height: 28px;
+  width: 28px;
   position: relative;
+}
+.favoriteButton,
+.editButton {
+  border: none;
+  background-color: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.favoriteButtonActive {
+  background-color: #fff;
+  border-radius: var(--br-12);
+}
+.activeAgentBorder {
+  border: 2px solid transparent;
+  background-image: linear-gradient(#fff, #fff),
+    radial-gradient(circle at top left, #4ade80, #16a34a);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 10px 20px rgba(22, 163, 74, 0.25);
 }
 .agentname {
   margin: 0;
@@ -63,38 +88,6 @@
   line-height: var(--Static-Headline-Small-Line-Height);
   text-align: center;
   outline: none;
-}
-.agentdescription,
-.textsupport {
-  position: absolute;
-  margin: 0 !important;
-}
-.textsupport {
-  width: 100%;
-  height: 6.81%;
-  top: 85.53%;
-  right: 0;
-  bottom: 7.66%;
-  left: 0;
-  border-radius: var(--br-20);
-  background-color: var(--color-lightsteelblue);
-  z-index: 1;
-}
-.agentdescription {
-  width: var(--width-169);
-  height: var(--height-26);
-  top: 83.4%;
-  left: 8%;
-  font-size: var(--Static-Label-Medium-Size);
-  letter-spacing: var(--Static-Label-Medium-Tracking);
-  line-height: var(--Static-Label-Medium-Line-Height);
-  font-weight: 600;
-  font-family: var(--Static-Label-Medium-Font);
-  color: var(--color-darkslategray);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
 }
 .agentimageIcon {
   width: var(--width-200);

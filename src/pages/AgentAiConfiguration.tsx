@@ -84,18 +84,50 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
 };
 
 
+type AgentAiConfigurationState = {
+  agent?: AgentInfo;
+  tabs?: AgentInfo[];
+};
+
+const getAgentTabId = (agent: AgentInfo) =>
+  agent.display_id ?? agent.agent_id ?? agent.id;
+
 const AgentAi: FunctionComponent = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as { agent?: AgentInfo } | undefined;
+  const navigationState = location.state as AgentAiConfigurationState | undefined;
   const { displayedAgents, refreshDisplayedAgents } = useAgents();
 
-  // Active agent selection
-  const [activeAgentId, setActiveAgentId] = useState<string | undefined>(
-    state?.agent?.display_id
+  const initialTabs =
+    navigationState?.tabs ??
+    (navigationState?.agent ? [navigationState.agent] : []);
+  const [tabs, setTabs] = useState<AgentInfo[]>(initialTabs);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(
+    navigationState?.agent?.display_id ?? initialTabs[0]?.display_id
   );
-  const selectedAgent = state?.agent ?? displayedAgents[0];
-  console.log(selectedAgent);
+
+  const selectedAgent = useMemo(() => {
+    if (selectedAgentId) {
+      const fromDisplayed = displayedAgents.find(
+        (agent) => getAgentTabId(agent) === selectedAgentId
+      );
+      if (fromDisplayed) {
+        return fromDisplayed;
+      }
+      const fromTabs = tabs.find(
+        (agent) => getAgentTabId(agent) === selectedAgentId
+      );
+      if (fromTabs) {
+        return fromTabs;
+      }
+    }
+    if (tabs.length > 0) {
+      return tabs[0];
+    }
+    return displayedAgents[0];
+  }, [displayedAgents, selectedAgentId, tabs]);
+
+  const activeTabId = selectedAgent ? getAgentTabId(selectedAgent) : undefined;
 
   // UI state
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
@@ -121,34 +153,69 @@ const AgentAi: FunctionComponent = () => {
 
   // ------------------------------Navigation helpers---------------------------------
   const goToAgentAi = useCallback(() => {
-    navigate("/agentai");
-  }, [navigate]);
+    navigate("/agentai", { state: { tabs } });
+  }, [navigate, tabs]);
 
-  const goToAgentAiConfiguration = useCallback(
-    (agent?: AgentInfo) => {
-      navigate("/agentai/configuration", { state: { agent } });
+  const handleSelectTab = useCallback((agent: AgentInfo) => {
+    setSelectedAgentId(getAgentTabId(agent));
+    setTabs((prevTabs) => {
+      if (prevTabs.some((tab) => getAgentTabId(tab) === getAgentTabId(agent))) {
+        return prevTabs;
+      }
+      return [...prevTabs, agent];
+    });
+  }, []);
+
+  const handleCloseTab = useCallback((agent: AgentInfo) => {
+    setTabs((prevTabs) => {
+      const nextTabs = prevTabs.filter(
+        (tab) => getAgentTabId(tab) !== getAgentTabId(agent)
+      );
+      setSelectedAgentId((currentId) => {
+        if (currentId === getAgentTabId(agent)) {
+          return nextTabs[0]?.display_id;
+        }
+        return currentId;
+      });
+      return nextTabs;
+    });
+  }, []);
+
+  const handleHeaderSwitchChange = useCallback(
+    async (nextState: boolean) => {
+      setHeaderSwitchOn(nextState);
+      if (!selectedAgent?.display_id) {
+        return;
+      }
+      const { error } = await supabase
+        .from("agent_configs")
+        .update({ is_active: nextState })
+        .eq("configs_id", selectedAgent.display_id);
+      if (error) {
+        console.error(error);
+        return;
+      }
+      refreshDisplayedAgents();
     },
-    [navigate]
+    [refreshDisplayedAgents, selectedAgent?.display_id]
   );
 
   useEffect(() => {
-    // On navigation state change, sync the active agent if provided
-    if (state?.agent?.display_id) {
-      setActiveAgentId(state.agent.display_id);
+    if (tabs.length === 0 && displayedAgents.length > 0) {
+      setTabs([displayedAgents[0]]);
+      setSelectedAgentId(displayedAgents[0].display_id);
     }
-  }, [state?.agent?.display_id]);
+  }, [displayedAgents, tabs.length]);
 
   useEffect(() => {
-    // Ensure the active agent id always references an existing agent
-    if (!activeAgentId && displayedAgents.length > 0) {
-      setActiveAgentId(displayedAgents[0].agent_id);
-    } else if (
-      activeAgentId &&
-      !displayedAgents.some((agent) => agent.agent_id === activeAgentId)
-    ) {
-      setActiveAgentId(displayedAgents[0]?.agent_id);
+    if (!selectedAgentId && selectedAgent) {
+      setSelectedAgentId(getAgentTabId(selectedAgent));
     }
-  }, [activeAgentId, displayedAgents]);
+  }, [selectedAgent, selectedAgentId]);
+
+  useEffect(() => {
+    setHeaderSwitchOn(Boolean(selectedAgent?.is_active));
+  }, [selectedAgent?.is_active]);
 
   useEffect(() => {
     // Initialize details inputs from the selected agent configuration
@@ -509,26 +576,23 @@ const AgentAi: FunctionComponent = () => {
         <Header logoMarque="/logoMarque@2x.png" />
         <div className={styles.tabcomponent}>
           <TabComponent onClick={goToAgentAi} iconSrc="/tabComponentNotSelect.svg" />
-          {displayedAgents.map((agent) => (
-            <TabComponent
-              key={agent.id}
-              label={agent.name.toUpperCase()}
-              iconSrc={
-                selectedAgent?.name.toUpperCase() === agent.name.toUpperCase()
-                  ? "/tabComponentSelect.svg"
-                  : "/tabComponentNotSelect.svg"
-              }
-              closable
-              onClick={() => {
-                setActiveAgentId(agent.display_id);
-                goToAgentAiConfiguration(agent);
-              }}
-              onClose={() => {
-                setActiveAgentId(agent.display_id);
-                goToAgentAiConfiguration(agent);
-              }}
-            />
-          ))}
+          {tabs.map((agent) => {
+            const tabId = getAgentTabId(agent);
+            return (
+              <TabComponent
+                key={tabId}
+                label={agent.name.toUpperCase()}
+                iconSrc={
+                  activeTabId === tabId
+                    ? "/tabComponentSelect.svg"
+                    : "/tabComponentNotSelect.svg"
+                }
+                closable
+                onClick={() => handleSelectTab(agent)}
+                onClose={() => handleCloseTab(agent)}
+              />
+            );
+          })}
         </div>
         {selectedAgent && (
           <div className={styles.agentTitleWrapper}>
@@ -536,7 +600,7 @@ const AgentAi: FunctionComponent = () => {
               <h2>{selectedAgent.name.toUpperCase()}</h2>
               <SwitchAnimated
                 checked={headerSwitchOn}
-                onChange={setHeaderSwitchOn}
+                onChange={handleHeaderSwitchChange}
                 showLabel={false}
                 disabled={!isConfigSectionAvailable}
               />

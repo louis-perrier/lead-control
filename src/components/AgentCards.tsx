@@ -4,52 +4,54 @@ import styles from "./AgentCards.module.css";
 import Overlay from "./OverlayAddAgent";
 import { AgentInfo } from "../data/agents";
 import supabase from "../lib/supabase";
-import useAgents from "../hooks/useAgents";
 
 export type AgentCardsType = {
   className?: string;
-  onDisplayedAgentsChange?: (agents: AgentInfo[]) => void;
+  agents: AgentInfo[];
+  agentDefaultSupa: AgentInfo[];
+  availableAgents: AgentInfo[];
+  refreshDisplayedAgents: () => void;
+  refreshAvailableAgents: () => void;
+  onAgentClick?: (agent: AgentInfo) => void;
+  onToggleFav?: (agent: AgentInfo) => void;
 };
-
-// Optimiser les fetch --> useState et les UseEffect Condition / MEMOIRE pour opti
-// Optimiser dans l'HTML + Code dans saous-fichier
 
 const AgentCards: FunctionComponent<AgentCardsType> = ({
   className = "",
-  onDisplayedAgentsChange,
+  agents = [],
+  agentDefaultSupa = [],
+  availableAgents = [],
+  refreshDisplayedAgents,
+  refreshAvailableAgents,
+  onAgentClick,
+  onToggleFav,
 }) => {
   const [isOverlayOpen, setOverlayOpen] = useState(false);
   const [selectedAgentIndex, setSelectedAgentIndex] = useState(0);
-  const {
-    agentDefaultSupa,
-    availableAgents,
-    displayedAgents,
-    refreshDisplayedAgents,
-    refreshAvailableAgents,
-  } = useAgents();
-
-
- 
-  const availableAgentIds = useMemo( // Objet d'agent_id pour l'overlay grisé
+  const availableAgentIds = useMemo(
     () => new Set(availableAgents.map((agent) => agent.agent_id)),
     [availableAgents]
   );
-  useEffect(() => {
-    onDisplayedAgentsChange?.(displayedAgents);
-  }, [displayedAgents, onDisplayedAgentsChange]);
 
-  // --------------Update Name---------------------------------
-  const handleNameChange = async (index: number, nextName: string) => {
+  const handleNameChange = async (targetAgent: AgentInfo, nextName: string) => {
     const normalized = nextName.trim();
-    if (
-      displayedAgents.some(
-        (agent, idx) =>
-          idx !== index && agent.name.replace(/\s+/g,"").toUpperCase() === normalized.replace(/\s+/g,"").toUpperCase()
-      )
-    ) {
+    if (!targetAgent.display_id) {
       return;
     }
-    const { data, error } = await supabase.from("agent_configs").update({ name_modif: normalized }).eq("configs_id", displayedAgents[index].display_id);
+    const isDuplicate = agents.some(
+      (agent) =>
+        agent.display_id !== targetAgent.display_id &&
+        agent.name.replace(/\s+/g, "").toUpperCase() ===
+          normalized.replace(/\s+/g, "").toUpperCase()
+    );
+    if (isDuplicate) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("agent_configs")
+      .update({ name_modif: normalized })
+      .eq("configs_id", targetAgent.display_id);
     if (error) {
       console.error(error);
     } else {
@@ -58,7 +60,6 @@ const AgentCards: FunctionComponent<AgentCardsType> = ({
     }
   };
 
-  // --------------Add Agent---------------------------------
   useEffect(() => {
     const handleOpenAddAgent = () => setOverlayOpen(true);
     window.addEventListener("openAddAgentOverlay", handleOpenAddAgent);
@@ -68,7 +69,10 @@ const AgentCards: FunctionComponent<AgentCardsType> = ({
   }, []);
 
   const handleSelectAgent = async (agent: AgentInfo) => {
-    const { data, error } = await supabase.from("agent_configs").insert({ agent_id: agent.agent_id, name_modif: agent.name });
+    const { error } = await supabase.from("agent_configs").insert({
+      agent_id: agent.agent_id,
+      name_modif: agent.name,
+    });
     if (error) {
       console.error(error);
     } else {
@@ -80,18 +84,22 @@ const AgentCards: FunctionComponent<AgentCardsType> = ({
 
   return (
     <section className={[styles.agentcards, className].join(" ")}>
-      {displayedAgents.map((agent, index) => (
+      {agents.map((agent) => (
         <AgentCard
-          key={`${agent.id}-${index}`}
+          key={agent.display_id ?? agent.id}
           imageSrc={agent.imageSrc}
           name={agent.name.toUpperCase()}
           description={agent.description}
-          onNameChange={(nextName) => handleNameChange(index, nextName)}
+          isFav={Boolean(agent.is_fav)}
+          isActive={Boolean(agent.is_active)}
+          onClick={() => onAgentClick?.(agent)}
+          onFavClick={() => onToggleFav?.(agent)}
+          onNameChange={(nextName) => handleNameChange(agent, nextName)}
         />
       ))}
       <img
         className={styles.addagentIcon}
-        alt=""
+        alt="Ajouter un agent"
         src="/addAgent.svg"
         onClick={() => setOverlayOpen(true)}
       />

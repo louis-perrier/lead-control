@@ -35,9 +35,14 @@
   position: relative;
   letter-spacing: var(--Static-Body-Small-Tracking);
   line-height: var(--Static-Body-Small-Line-Height);
+  color: var(--color-black);
+  text-align: left;
+  justify-content: flex-start;
+  padding: 0 10px;
+}
+
+.searchtext::placeholder {
   color: var(--color-gray-200);
-  text-align: center;
-  justify-content: center;
 }
 .searchlogoIcon {
   height: var(--height-24);
@@ -56,8 +61,138 @@
   align-items: flex-start;
   box-sizing: border-box;
 }
+.optionActionsActive {
+  background-color: rgba(30, 136, 229, 0.08);
+  border-radius: var(--br-14);
+}
 .sortbuttonIcon {
   width: var(--width-24);
   position: relative;
   max-height: 100%;
+}
+.filterbuttonIcon {
+  width: var(--width-24);
+  position: relative;
+  max-height: 100%;
+}
+.searchButton {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.wrapper {
+  align-self: stretch;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: var(--padding-0) 320px var(--padding-0) var(--padding-10);
+}
+
+@media screen and (max-width: 975px) {
+  .wrapper {
+    padding-right: var(--padding-20);
+    box-sizing: border-box;
+  }
+}
+
+@media screen and (max-width: 450px) {
+  .wrapper {
+    padding-right: 160px;
+    box-sizing: border-box;
+  }
+}
+
+.sortButtonContainer {
+  position: relative;
+  display: inline-flex;
+}
+
+.sortPopover {
+  position: absolute;
+  top: calc(100% + var(--gap-10));
+  left: -90px;
+  padding: var(--gap-10) var(--gap-15);
+  border-radius: var(--br-20);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.25);
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-8);
+  z-index: 5;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.sortPopoverLabel {
+  margin: 0;
+  font-size: var(--fs-12);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-darkslategray);
+  text-align: center;
+  font-weight: 700;
+}
+
+.sortOptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-6);
+}
+
+.sortOption {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: var(--gap-4) var(--gap-6);
+  cursor: pointer;
+  border-radius: var(--br-12);
+  font-weight: 600;
+  color: var(--color-darkslategray);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sortOptionActive {
+  background-color: rgba(30, 136, 229, 0.12);
+  color: #0f172a;
+}
+
+.sortOption:hover {
+  background-color: rgba(15, 23, 42, 0.08);
+}
+
+.sortPopover::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid rgba(255, 255, 255, 0.99);
+  filter: drop-shadow(0 -2px 4px rgba(15, 23, 42, 0.2));
+}
+
+.sortOptionArrow {
+  font-size: var(--fs-12);
+  color: #0f172a;
+  margin-left: var(--gap-6);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

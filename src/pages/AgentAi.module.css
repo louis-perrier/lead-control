@@ -119,3 +119,64 @@
     box-sizing: border-box;
   }
 }
+
+.optionSearchWrapper {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 32px;
+}
+
+.filterPopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 48px;
+  width: 280px;
+  padding: 12px;
+  border-radius: 18px;
+  background-color: var(--color-white);
+  box-shadow: 0 20px 30px rgba(15, 23, 42, 0.2);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 20;
+}
+
+.filterSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filterHeading {
+  font-size: var(--Static-Label-Medium-Size);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-darkslategray);
+}
+
+.filterToggle,
+.filterOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-darkslategray);
+}
+
+.filterCheckboxList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-6);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.filterEmpty {
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-gray-200);
+}
