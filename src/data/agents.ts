@@ -12,7 +12,7 @@ export type AgentInfo = {
   display_id?: string;
   is_active?: boolean;
   is_fav?: boolean;
-};
+}; 
 
 // --------------Agents Référence---------------------------------
 export const defaultAgents: Record<string, AgentInfo> = { 
