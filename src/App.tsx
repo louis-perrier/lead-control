@@ -15,6 +15,9 @@ import Subscription from "./pages/Subscription";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Connexion from "./pages/Connexion";
 import Feedback from "./components/Feedback";
+import PolicyDataDeletion from "./pages/PolicyDataDeletion";
+import PolicyPrivacy from "./pages/PolicyPrivacy";
+import PolicyTerms from "./pages/PolicyTerms";
 
 function App() {
   const action = useNavigationType();
@@ -56,6 +59,21 @@ function App() {
         title = "";
         metaDescription = "";
         break;
+      case "/policy/data-deletion":
+        title = "Suppression des données utilisateurs — LeadControl";
+        metaDescription =
+          "Préconisations LeadControl pour demander la suppression complète ou partielle de vos données.";
+        break;
+      case "/policy/privacy-policy":
+        title = "Privacy Policy — LeadControl";
+        metaDescription =
+          "Politique de confidentialité LeadControl décrivant les traitements, partages et droits des utilisateurs.";
+        break;
+      case "/policy/terms-et-conditions":
+        title = "Terms & Conditions — LeadControl";
+        metaDescription =
+          "Conditions générales LeadControl détaillant les droits, obligations, responsabilités et contacts.";
+        break;
     }
 
     if (title) {
@@ -75,6 +93,9 @@ function App() {
   return (
     <>
       <Routes>
+        <Route path="/policy/terms-et-conditions" element={<PolicyTerms />} />
+        <Route path="/policy/privacy-policy" element={<PolicyPrivacy />} />
+        <Route path="/policy/data-deletion" element={<PolicyDataDeletion />} />
         <Route path="/login" element={<Login />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Dashboard />} />
