@@ -1,0 +1,57 @@
+.tableWrapper {
+  margin-top: var(--gap-24);
+  border-radius: var(--br-15);
+  background: var(--color-surface);
+  padding: var(--gap-16);
+  box-shadow: var(--M3-Elevation-Light-1);
+}
+
+.validationTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-16);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(244, 246, 251, 0.95)
+  );
+  border-radius: var(--br-20);
+  overflow: hidden;
+}
+
+.validationTable th,
+.validationTable td {
+  text-align: left;
+  padding: var(--gap-10) var(--gap-12);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.validationTable thead tr {
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.validationTable tbody tr {
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.validationTable tbody tr:hover {
+  background: rgba(24, 144, 255, 0.08);
+  transform: translateX(2px);
+}
+
+.validationTable th {
+  font-weight: 600;
+  font-size: var(--fs-14);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+}
+
+.validationStatus {
+  padding: var(--gap-2) var(--gap-6);
+  border-radius: var(--br-12);
+  background: rgba(0, 0, 0, 0.04);
+  display: inline-flex;
+  color: var(--color-secondary);
+  font-weight: 600;
+}

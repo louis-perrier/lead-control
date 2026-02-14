@@ -62,34 +62,41 @@
   position: absolute;
   top: calc(100% + 70px);
   right: 0;
-  width: 150px;
+  min-width: 150px;
   background: linear-gradient(
-      150deg,
+      160deg,
       rgba(255, 255, 255, 0.95),
-      rgba(243, 245, 248, 0.9)
+      rgba(248, 250, 253, 0.9)
     )
     0 0/cover,
     #ffffff;
-  border-radius: var(--br-12);
-  box-shadow: 10px 16px 35px rgba(15, 23, 42, 0.15);
+  border-radius: 24px;
+  box-shadow: 10px 16px 40px rgba(15, 23, 42, 0.2);
   border: 1px solid rgba(15, 23, 42, 0.15);
-  padding: 10px 20px;
+  padding: 8px 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--gap-1);
+  gap: var(--gap-2);
   z-index: 50;
-  align-items: stretch;
+  align-items: center;
+  text-align: center;
 }
 .menuButton {
   background: transparent;
   border: none;
-  padding: var(--gap-4) var(--gap-6);
+  padding: var(--gap-3) var(--gap-6);
   border-radius: var(--br-12);
   font-weight: 600;
   color: var(--color-darkslategray);
-  text-align: left;
+  text-align: center;
   width: 100%;
-  cursor: default;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  font-size: var(--fs-12);
+}
+.menuButton:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
 }
 .logoutButton {
   cursor: pointer;
@@ -98,4 +105,15 @@
 }
 .logoutButton:hover {
   color: #ff2a2a;
+  transform: translateY(-1px);
+}
+.linkButton {
+  cursor: pointer;
+  color: rgba(15, 23, 42, 0.9);
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+  text-decoration: none;
+}
+.linkButton:hover {
+  text-decoration: none;
+  color: rgba(15, 23, 42, 0.8);
 }

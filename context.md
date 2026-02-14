@@ -1,0 +1,16 @@
+# Contexte
+
+- 2026-02-14 : alignement de la page CRM sur la grille définie dans `src/styles/TableStyles.module.css` (nouvelle structure, données factices et conteneur partagé).
+- 2026-02-14 : ajout de liens vers `policy/PolicyTerms` et `policy/PolicyPrivacy` dans `src/components/GenericAvatar.tsx` pour permettre l'accès rapide aux conditions et à la politique utilisateur, avec des liens `react-router-dom` désormais utilisés pour être bien cliquables.
+- 2026-02-14 : refonte du menu avatar pour ne présenter que les deux liens politiques centrés ainsi que le bouton “Se déconnecter”, avec un overlay plus compact, aligné et interactif (fond, hover, focus, texte centré, taille réduite, suppression du soulignement, rayon arrondi renforcé, largeur adaptative au contenu).
+- 2026-02-14 : ajout d’un flux d’ajout d’agent en double overlay afin de saisir le nom final avant l’appel Supabase, avec validation anti-doublon et message d’erreur rouge pour empêcher les noms identiques.
+- 2026-02-14 : remplacement du cadre vert “actif” par un badge flottant « Actif » situé au-dessus de la carte pour les agents activés.
+- 2026-02-14 : ajout d’un contrôle de quota via `limit_agent_user` dans `user_agent` pour bloquer l’ajout quand la limite est atteinte et afficher un message.
+- 2026-02-14 : ajustement de la logique de `AgentAiConfiguration` pour que la section Configurations reste en statut « unlock » tant que les champs `required` d’un connecteur connecté ne sont pas remplis (statuts basés sur un connecteur « actif » même sans sélection manuelle).
+- 2026-02-14 : validation globale des champs `required` des connecteurs dans `AgentAiConfiguration` pour que le statut du bloc Configurations reflète l’état consolidé (« blanc » uniquement quand toutes les configs enregistrées sont complètes) et ne bouge plus quand on change de config ouverte.
+- 2026-02-14 : correction du type `ConnectedConnector` pour exposer `current_connector_config`, ce qui permet d’exploiter la configuration enregistrée sans déclencher de TS2322.
+ - 2026-02-14 : refonte de `Connexion.tsx` pour présenter les connexions via un tableau inspiré de `TableStyles.module.css`, ajouter un overlay détaillant les configurations liées et proposer les boutons “Déconnexion”/“Rafraîchir” ciblés.
+- 2026-02-14 : simplification de `Dashboard.tsx` pour ne conserver que le sélecteur d’agent sous le header ainsi que le feedback, ce qui clarifie l’espace principal en attendant d’autres blocs.
+- 2026-02-14 : centrage du sélecteur d’agent de `Dashboard.tsx` sous le header avec une option blanche « Aucun agent » pour désélectionner, et suppression de la ligne « Sélectionner » dans le menu afin de garder la case vide.
+- 2026-02-14 : refonte des couleurs du `Select` pour coller au fond blanc (dégradés lumineux doux, bordures grisées, ombres pâles) tout en gardant l’allure futuriste.
+- 2026-02-14 : ajustement du `Select` pour masquer la flèche native et permettre à la largeur de suivre dynamiquement le texte de l’agent sélectionné, gardant une apparence épurée quelle que soit la longueur du nom.

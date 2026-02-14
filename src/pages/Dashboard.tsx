@@ -9,17 +9,17 @@ import {
 } from "@mui/material";
 import NavigationBar from "../components/NavigationBar";
 import Header from "../components/Header";
-import DatePicker from "../components/DatePicker";
 import styles from "./Dashboard.module.css";
 import useAgents from "../hooks/useAgents";
 import Feedback from "../components/Feedback";
 
 const Dashboard: FunctionComponent = () => {
+  const noneOptionValue = "none";
   const { displayedAgents } = useAgents();
-  const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedAgentId && displayedAgents.length > 0) {
+    if (selectedAgentId === null && displayedAgents.length > 0) {
       setSelectedAgentId(
         displayedAgents[0].display_id || displayedAgents[0].agent_id
       );
@@ -56,12 +56,12 @@ const Dashboard: FunctionComponent = () => {
               displayEmpty
               id="agent-select"
               labelId="agent-select-label"
-              value={selectedAgentId}
+              value={selectedAgentId ?? ""}
               label="Agent"
               onChange={handleAgentChange}
               renderValue={(value) => {
-                if (!value) {
-                  return "Sélectionner";
+                if (!value || value === noneOptionValue) {
+                  return "";
                 }
                 const agent = displayedAgents.find(
                   (item) =>
@@ -70,8 +70,8 @@ const Dashboard: FunctionComponent = () => {
                 return agent?.name ?? "Agent";
               }}
             >
-              <MenuItem value="">
-                <em>Sélectionner</em>
+              <MenuItem value={noneOptionValue} title="Aucun agent">
+                {"\u00A0"}
               </MenuItem>
               {displayedAgents.map((agent) => (
                 <MenuItem
@@ -82,33 +82,7 @@ const Dashboard: FunctionComponent = () => {
                 </MenuItem>
               ))}
             </Select>
-            <FormHelperText>
-              {displayedAgents.length === 0
-                ? "Aucun agent disponible"
-                : "Choisis un agent affiché"}
-            </FormHelperText>
           </FormControl>
-          <div className={styles.datepicker}>
-            <DatePicker
-              size="Small"
-              state="Enabled"
-              type="Round"
-              width="Default"
-            />
-            <DatePicker
-              size="Small"
-              state="Enabled"
-              type="Round"
-              width="Default"
-            />
-          </div>
-        </section>
-        <section className={styles.allstatistics}>
-          <div className={styles.topstatistics}>
-            <div className={styles.lefttopstatistics} />
-            <div className={styles.lefttopstatistics} />
-          </div>
-          <div className={styles.bottomstatistics} />
         </section>
         <Feedback />
       </main>

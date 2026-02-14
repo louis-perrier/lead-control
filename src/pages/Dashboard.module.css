@@ -18,64 +18,89 @@
   max-width: 100%;
 }
 .variabledashboardcomponent {
-  width: 1124px;
-  overflow: hidden;
+  width: 100%;
+  max-width: 1124px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--padding-0) 25px;
+  justify-content: center;
+  padding: var(--padding-0) 0;
   box-sizing: border-box;
   gap: var(--gap-20);
-  max-width: 100%;
 }
 .chooseagentai {
-  font-family: Roboto;
-  font-weight: 500;
-  font-size: var(--fs-22);
-  color: var(--color-black);
-  width: 152px;
-  height: 36px;
+  font-family: "Orbitron", "Space Grotesk", Roboto, sans-serif;
+  font-size: 22px;
+  color: #0a1220;
+  width: fit-content;
+  min-width: 152px;
+  height: 58px;
   margin: 0;
   padding: 0;
-  border-radius: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f7f9ff, #e8edff);
+  box-shadow:
+    0 0 35px rgba(90, 108, 255, 0.25),
+    inset 0 0 20px rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(10, 18, 32, 0.15);
+}
+.chooseagentai :global(.MuiOutlinedInput-root) {
+  background: transparent;
+  border-radius: 999px;
+  min-height: 58px;
+  padding: 0 4px;
+  box-shadow: none;
+}
+.chooseagentai :global(.MuiOutlinedInput-notchedOutline) {
+  border-color: transparent;
+  border-width: 0;
+}
+.chooseagentai :global(.Mui-focused .MuiOutlinedInput-notchedOutline) {
+  border-color: rgba(10, 18, 32, 0.45);
 }
 .chooseagentai :global(.MuiInputBase-root) {
-  margin: 0;
-  padding: 0;
-  min-height: 36px;
+  min-height: 58px;
+  padding: 0 10px;
   justify-content: center;
   display: inline-flex;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  width: auto;
+  align-items: center;
 }
 .chooseagentai :global(.MuiInputLabel-root) {
-  margin: 0;
-  padding: 0;
-  min-height: 36px;
-  display: inline-flex;
+  display: none;
 }
 .chooseagentai :global(.MuiMenuItem-root) {
   margin: 0;
-  padding: 0;
-  height: 36px;
+  min-height: 40px;
   display: inline-flex;
+  color: #0a1220;
+  background: #f4f7ff;
+  border-radius: 12px;
+  transition: background 0.2s ease;
+}
+.chooseagentai :global(.MuiMenuItem-root:hover) {
+  background: #e0e6ff;
 }
 .chooseagentai :global(.MuiSelect-select) {
   margin: 0;
   padding: 0;
-  height: 36px;
+  height: 58px;
   align-items: center;
-  display: inline-flex;
+  display: flex;
   justify-content: center;
   text-align: center;
   font-size: 22px;
   font-weight: 700;
-}
-.chooseagentai :global(.MuiInput-input) {
-  margin: 0;
-  padding: 0;
+  color: #0a1220;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 .chooseagentai :global(.MuiInputBase-input) {
-  text-align: left;
-  padding: 0 !important;
+  text-align: center;
+}
+.chooseagentai :global(.MuiSelect-icon) {
+  display: none;
 }
 .datepicker {
   display: flex;

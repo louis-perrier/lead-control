@@ -1,0 +1,80 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1105;
+}
+.content {
+  width: min(520px, 90vw);
+  padding: 24px;
+  border-radius: var(--br-20);
+  background-color: white;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.title {
+  margin: 0;
+  font-size: var(--Static-Headline-Small-Size);
+  font-weight: 700;
+  text-align: center;
+}
+.description {
+  margin: 0;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-darkslategray);
+  text-align: center;
+}
+.label {
+  font-size: var(--Static-Label-Medium-Size);
+  font-weight: 600;
+}
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #c7c7c7;
+  border-radius: 10px;
+  font-size: var(--Static-Body-Medium-Size);
+  box-sizing: border-box;
+}
+.input:focus {
+  outline: 2px solid #5c6ac4;
+  border-color: transparent;
+}
+.errorText {
+  margin: 0;
+  color: #d93025;
+  font-size: var(--Static-Body-Small-Size);
+  min-height: 20px;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.secondaryButton {
+  background: transparent;
+  border: 1px solid #5c6ac4;
+  color: #5c6ac4;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.primaryButton {
+  background-color: #5c6ac4;
+  border: none;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.primaryButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

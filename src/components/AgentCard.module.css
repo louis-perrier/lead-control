@@ -55,13 +55,25 @@
   background-color: #fff;
   border-radius: var(--br-12);
 }
-.activeAgentBorder {
-  border: 2px solid transparent;
-  background-image: linear-gradient(#fff, #fff),
-    radial-gradient(circle at top left, #4ade80, #16a34a);
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-  box-shadow: 0 10px 20px rgba(22, 163, 74, 0.25);
+.statusBadgeWrapper {
+  position: absolute;
+  inset: 38px 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  pointer-events: none;
+  z-index: 5;
+  padding-right: 0px;
+}
+.statusTag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: var(--Static-Body-Small-Size);
+  font-weight: 600;
+  background-color: rgba(74, 222, 128, 0.15);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  box-shadow: 0 4px 20px rgba(22, 163, 74, 0.25);
 }
 .agentname {
   margin: 0;

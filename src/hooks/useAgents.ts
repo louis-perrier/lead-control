@@ -16,11 +16,13 @@ type AgentDisplayed = AgentInfo & {
   display_id: string;
   is_active: boolean;
   is_fav: boolean;
+  agent_default_name: string;
 };
 
 type UserAgentRow = {
   agent_id: string;
   user_id?: string;
+  limit_agent_user?: number | null;
 };
 
 const mapDisplayedAgents = (
@@ -35,26 +37,37 @@ const mapDisplayedAgents = (
       if (!defaultAgent) {
         return null;
       }
-      return {
-        ...defaultAgent,
-        name: agent.name_modif,
-        configs: agent.configs,
-        display_id: agent.configs_id,
-        is_active: agent.is_active ?? defaultAgent.is_active ?? false,
-        is_fav: agent.is_fav ?? defaultAgent.is_fav ?? false,
-      };
+    return {
+      ...defaultAgent,
+      name: agent.name_modif,
+      agent_default_name: defaultAgent.name,
+      configs: agent.configs,
+      display_id: agent.configs_id,
+      is_active: agent.is_active ?? defaultAgent.is_active ?? false,
+      is_fav: agent.is_fav ?? defaultAgent.is_fav ?? false,
+    };
     })
     .filter((agent): agent is AgentDisplayed => Boolean(agent));
 
 const mapAvailableAgents = (
   data: UserAgentRow[],
   defaults: AgentInfo[]
-): AgentInfo[] =>
-  data
-    .map((agent) =>
-      defaults.find((availableAgent) => availableAgent.agent_id === agent.agent_id)
-    )
-    .filter((agent): agent is AgentInfo => Boolean(agent));
+): AgentInfo[] => {
+  const result: AgentInfo[] = [];
+  data.forEach((agent) => {
+    const availableAgent = defaults.find(
+      (defaultAgent) => defaultAgent.agent_id === agent.agent_id
+    );
+    if (!availableAgent) {
+      return;
+    }
+    result.push({
+      ...availableAgent,
+      limit_agent_user: agent.limit_agent_user ?? null,
+    });
+  });
+  return result;
+};
 
 type UseAgentsResult = {
   agentDefaultSupa: AgentInfo[];
@@ -93,13 +106,23 @@ const useAgents = (): UseAgentsResult => {
     queryKey: ["agents", "available"],
     queryFn: async () => {
       const defaults = defaultAgentsQuery.data ?? [];
-      const { data, error } = await supabase
+    const { data, error } = await supabase
+      .from("user_agent")
+      .select("agent_id,user_id,limit_agent_user");
+    if (error) {
+      console.warn(
+        "Impossible de récupérer limit_agent_user, retour au comportement précédent.",
+        error
+      );
+      const { data: fallbackData, error: fallbackError } = await supabase
         .from("user_agent")
         .select("agent_id,user_id");
-      if (error) {
-        throw error;
+      if (fallbackError) {
+        throw fallbackError;
       }
-      return mapAvailableAgents(data ?? [], defaults);
+      return mapAvailableAgents(fallbackData ?? [], defaults);
+    }
+    return mapAvailableAgents(data ?? [], defaults);
     },
     enabled: (defaultAgentsQuery.data?.length ?? 0) > 0,
   });

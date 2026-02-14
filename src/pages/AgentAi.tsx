@@ -173,11 +173,11 @@ const AgentAi: FunctionComponent = () => {
     });
   }, []);
 
-  const typeOptions = useMemo(() => {
+  const typeOptions = useMemo(() => { 
     const map = new Map<string, string>();
     displayedAgents.forEach((agent) => {
       if (!map.has(agent.agent_id)) {
-        map.set(agent.agent_id, agent.name);
+        map.set(agent.agent_id, agent.agent_default_name);
       }
     });
     return Array.from(map.entries()).map(([agent_id, label]) => ({

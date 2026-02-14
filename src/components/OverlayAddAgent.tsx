@@ -1,4 +1,4 @@
-import { FunctionComponent } from "react";
+import { FunctionComponent, MouseEvent } from "react";
 import styles from "./OverlayAddAgent.module.css";
 import { AgentInfo } from "../data/agents";
 
@@ -10,25 +10,30 @@ export type OverlayProps = {
   onPrevious: () => void;
   onNext: () => void;
   onSelect: (agent: AgentInfo) => void;
+  limitReached?: boolean;
+  limitMessage?: string;
 };
 
 const Overlay: FunctionComponent<OverlayProps> = ({
   isOpen,
-  onClose, 
+  onClose,
   agent,
   availableAgentIds,
   onPrevious,
   onNext,
   onSelect,
+  limitReached = false,
+  limitMessage,
 }) => {
   if (!isOpen || !agent) {
     return null;
   }
 
-  const stopPropagation = (event: React.MouseEvent<HTMLDivElement>) => {
+  const stopPropagation = (event: MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
   };
   const isAvailable = availableAgentIds.has(agent.agent_id);
+  const canSelect = isAvailable && !limitReached;
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -71,15 +76,7 @@ const Overlay: FunctionComponent<OverlayProps> = ({
                   ))}
                 </ul>
               </div>
-              {isAvailable ? (
-                <button
-                  type="button"
-                  className={styles.selectButton}
-                  onClick={() => onSelect(agent)}
-                >
-                  Sélectionner
-                </button>
-              ) : (
+              {!isAvailable ? (
                 <button
                   type="button"
                   className={styles.selectButton}
@@ -88,6 +85,25 @@ const Overlay: FunctionComponent<OverlayProps> = ({
                 >
                   Bloqué
                 </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={styles.selectButton}
+                    onClick={() => canSelect && onSelect(agent)}
+                    disabled={!canSelect}
+                    style={
+                      !canSelect
+                        ? { opacity: 0.6, cursor: "not-allowed" }
+                        : undefined
+                    }
+                  >
+                    {limitReached ? "Limite atteinte" : "Sélectionner"}
+                  </button>
+                  {limitReached && limitMessage && (
+                    <p className={styles.limitMessage}>{limitMessage}</p>
+                  )}
+                </>
               )}
             </div>
           </div>

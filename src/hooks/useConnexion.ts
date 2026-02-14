@@ -24,6 +24,7 @@ type ConnectedConnector = {
   connectors_name: string;
   expires_in?: string;
   connector_label?: string;
+  current_connector_config?: any[];
 };
 
 export type UseConnectorsOptions = {

@@ -1,4 +1,5 @@
 import { FunctionComponent, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationDialog from "./ConfirmationDialog";
 import styles from "./GenericAvatar.module.css";
@@ -9,15 +10,26 @@ export type GenericAvatarType = {
   className?: string;
   style?: string;
   variant?: GenericAvatarVariant;
-  menuItems?: string[];
   onSignOut?: () => void | Promise<void>;
 };
+
+const policyLinks = [
+  {
+    label: "Terms & Conditions",
+    route: "/policy/terms-et-conditions",
+  },
+  {
+    label: "Politique Utilisateur",
+    route: "/policy/privacy-policy",
+  },
+];
+
+const logoutLabel = "Se déconnecter";
 
 const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
   className = "",
   style = "Avatar",
   variant = "default",
-  menuItems = ["Paramètres", "Préférences", "Aide", "Se déconnecter"],
   onSignOut,
 }) => {
   const { signOut } = useAuth();
@@ -68,6 +80,10 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
     }
   };
 
+  const closeMenu = () => {
+    setOpen(false);
+  };
+
   const containerClass = [
     styles.container,
     variant === "header" ? styles.headerContainer : "",
@@ -93,22 +109,23 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
       </button>
       {open && (
         <div className={styles.overlayMenu} role="menu" aria-label="Avatar menu">
-          {menuItems.slice(0, -1).map((label) => (
-            <button
-              key={label}
-              type="button"
-              className={styles.menuButton}
-              disabled
+          {policyLinks.map((link) => (
+            <Link
+              key={link.route}
+              to={link.route}
+              role="menuitem"
+              className={[styles.menuButton, styles.linkButton].join(" ")}
+              onClick={closeMenu}
             >
-              {label}
-            </button>
+              {link.label}
+            </Link>
           ))}
           <button
             type="button"
             className={[styles.menuButton, styles.logoutButton].join(" ")}
             onClick={handleLogoutClick}
           >
-            {menuItems.at(-1)}
+            {logoutLabel}
           </button>
           <ConfirmationDialog
             open={confirmOpen}

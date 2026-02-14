@@ -356,7 +356,7 @@ const AgentAi: FunctionComponent = () => {
     return [...connectedLogos, ...specialLogos, ...availableLogos];
   }, [availableShow, connectorAvailable, connectorConnected]);
 
-  const activeConfigItems = useMemo<ConfigItem[]>(() => {
+  const selectedConfigItems = useMemo<ConfigItem[]>(() => {
     if (!activeSocial) return [];
     const connector = connectorAvailable.find(
       (item) => item.connectors_name.toLowerCase() === activeSocial.toLowerCase()
@@ -366,25 +366,77 @@ const AgentAi: FunctionComponent = () => {
     return config as ConfigItem[];
   }, [activeSocial, connectorAvailable]);
 
+  const collectRequiredConfigIds = (items: ConfigItem[]) => {
+    const ids: string[] = [];
+    const visit = (entries: ConfigItem[]) => {
+      entries.forEach((entry) => {
+        if (entry.required) {
+          ids.push(entry.id);
+        }
+        if (entry.enabled?.length) {
+          visit(entry.enabled);
+        }
+      });
+    };
+    visit(items);
+    return ids;
+  };
+
   /**
    * Liste à plat des identifiants marqués “required” (y compris les champs imbriqués)
    * afin de pouvoir valider l’état “Configurations”.
    */
   const requiredConfigIds = useMemo(() => {
-    const ids: string[] = [];
-    const visit = (items: ConfigItem[]) => {
-      items.forEach((item) => {
-        if (item.required) {
-          ids.push(item.id);
+    return collectRequiredConfigIds(selectedConfigItems);
+  }, [selectedConfigItems]);
+
+  const hasGlobalMissingRequiredConfig = useMemo(() => {
+    if (connectorConnected.length === 0) return false;
+    const checkMissing = (configItems: ConfigItem[], values: ConfigValue[]) => {
+      const requiredIds = collectRequiredConfigIds(configItems);
+      if (requiredIds.length === 0) return false;
+      const valueMap = new Map(values.map(({ id, value }) => [id, value]));
+      return requiredIds.some((id) => {
+        const value = valueMap.get(id);
+        if (value === undefined || value === null) return true;
+        if (typeof value === "string") {
+          return value.trim().length === 0;
         }
-        if (item.enabled?.length) {
-          visit(item.enabled);
+        if (Array.isArray(value)) {
+          return value.length === 0;
         }
+        return false;
       });
     };
-    visit(activeConfigItems);
-    return ids;
-  }, [activeConfigItems]);
+    return connectorConnected.some((connector) => {
+      const blueprint = connectorAvailable.find(
+        (item) =>
+          item.connectors_name.toLowerCase() ===
+          connector.connectors_name.toLowerCase()
+      );
+      if (!blueprint?.config_agent_connector) {
+        return true;
+      }
+      const rawConfig = connector.current_connector_config ?? [];
+      let normalizedConfig: unknown[] | null = null;
+      if (Array.isArray(rawConfig)) {
+        normalizedConfig = rawConfig;
+      } else if (typeof rawConfig === "string") {
+        try {
+          normalizedConfig = JSON.parse(rawConfig) as unknown[];
+        } catch {
+          normalizedConfig = null;
+        }
+      }
+      const savedValues: ConfigValue[] = (
+        (Array.isArray(normalizedConfig) ? normalizedConfig : []) as ConfigValue[]
+      ).map((item) => ({
+        id: item.id,
+        value: item.value,
+      }));
+      return checkMissing(blueprint.config_agent_connector as ConfigItem[], savedValues);
+    });
+  }, [connectorAvailable, connectorConnected]);
 
   /**
    * Vérifie si des champs “required” attendent encore une valeur valable.
@@ -438,9 +490,9 @@ const AgentAi: FunctionComponent = () => {
       return statuses;
     }
 
-    statuses.Configurations = hasMissingRequiredConfig ? "unlock" : "available";
+    statuses.Configurations = hasGlobalMissingRequiredConfig ? "unlock" : "available";
     return statuses;
-  }, [areDetailsFilled, hasActiveConnection, hasMissingRequiredConfig]);
+  }, [areDetailsFilled, hasActiveConnection, hasGlobalMissingRequiredConfig]);
 
   const isConfigSectionAvailable =
     sectionStatuses.Configurations === "available";
@@ -668,9 +720,9 @@ const AgentAi: FunctionComponent = () => {
                       <div className={styles.socialComponentLoading}>
                         Chargement des configurations...
                       </div>
-                    ) : activeConfigItems.length > 0 ? (
+                    ) : selectedConfigItems.length > 0 ? (
                       <DynamicConfig
-                        items={activeConfigItems}
+                        items={selectedConfigItems}
                         initialValues={initialConfigValues}
                         onChange={handleConfigChange}
                       />
@@ -763,7 +815,7 @@ const AgentAi: FunctionComponent = () => {
                 </div>
               )}
             </div>
-            {activeCorner === "Configurations" && activeConfigItems.length > 0 && (
+            {activeCorner === "Configurations" && selectedConfigItems.length > 0 && (
               <div className={styles.configurationFooterWrapper}>
                 <div className={styles.configurationFooter}>
                   <Button

@@ -12,6 +12,7 @@ export type AgentInfo = {
   display_id?: string;
   is_active?: boolean;
   is_fav?: boolean; 
+  limit_agent_user?: number | null;
 }; 
 
 // --------------Agents Référence---------------------------------

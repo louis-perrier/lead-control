@@ -69,6 +69,7 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
 
   const onInputKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>) => {
+      event.stopPropagation();
       if (event.key === "Enter") {
         event.preventDefault();
         commitName();
@@ -91,13 +92,7 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
 
   return (
     <div
-      className={[
-        styles.agentcard,
-        isActive ? styles.activeAgentBorder : "",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className={[styles.agentcard, className].filter(Boolean).join(" ")}
       role="button"
       tabIndex={0}
       onClick={handleCardClick}
@@ -168,6 +163,11 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
         src={imageSrc}
         onClick={handleImageClick}
       />
+      {isActive && (
+        <div className={styles.statusBadgeWrapper}>
+          <span className={styles.statusTag}>Actif</span>
+        </div>
+      )}
     </div>
   );
 };
