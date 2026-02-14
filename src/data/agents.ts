@@ -11,7 +11,7 @@ export type AgentInfo = {
   configs: {Details: Record<string, string>, Configurations: Record<string, string>, Connexions: Record<string, string>, Test: Record<string, string>};
   display_id?: string;
   is_active?: boolean;
-  is_fav?: boolean;
+  is_fav?: boolean; 
 }; 
 
 // --------------Agents Référence---------------------------------
