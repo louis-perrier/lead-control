@@ -15,9 +15,9 @@ import Subscription from "./pages/Subscription";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Connexion from "./pages/Connexion";
 import Feedback from "./components/Feedback";
-import PolicyDataDeletion from "./pages/PolicyDataDeletion";
-import PolicyPrivacy from "./pages/PolicyPrivacy";
-import PolicyTerms from "./pages/PolicyTerms";
+import PolicyDataDeletion from "./pages/policy/PolicyDataDeletion";
+import PolicyPrivacy from "./pages/policy/PolicyPrivacy";
+import PolicyTerms from "./pages/policy/PolicyTerms";
 
 function App() {
   const action = useNavigationType();
