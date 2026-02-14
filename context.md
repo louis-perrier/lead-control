@@ -14,3 +14,4 @@
 - 2026-02-14 : centrage du sélecteur d’agent de `Dashboard.tsx` sous le header avec une option blanche « Aucun agent » pour désélectionner, et suppression de la ligne « Sélectionner » dans le menu afin de garder la case vide.
 - 2026-02-14 : refonte des couleurs du `Select` pour coller au fond blanc (dégradés lumineux doux, bordures grisées, ombres pâles) tout en gardant l’allure futuriste.
 - 2026-02-14 : ajustement du `Select` pour masquer la flèche native et permettre à la largeur de suivre dynamiquement le texte de l’agent sélectionné, gardant une apparence épurée quelle que soit la longueur du nom.
+- 2026-02-14 : ajout d’un lien vers `/policy/data-deletion` dans les politiques utilisateur (`PolicyTerms` et `PolicyPrivacy`) pour faciliter les demandes de suppression de données.

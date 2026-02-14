@@ -250,6 +250,18 @@ const PolicyPrivacy = () => {
         ))}
 
         <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>DATA DELETION</h2>
+          <p className={styles.sectionText}>
+            To exercise your rights and request the deletion of your data, visit the dedicated
+            <a className={styles.link} href="/policy/data-deletion">
+              {" "}
+              data deletion page
+            </a>
+            .
+          </p>
+        </section>
+
+        <section className={styles.section}>
           <p className={styles.noteFooter}>
             This Privacy Policy was created using Termly’s{" "}
             <a

@@ -289,6 +289,18 @@ const PolicyTerms = () => {
         ))}
 
         <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>EXERCER VOS DROITS</h2>
+          <p className={styles.sectionText}>
+            Vous pouvez consulter, corriger ou demander la suppression de vos données en passant par
+            <a className={styles.link} href="/policy/data-deletion">
+              {" "}
+              la page de suppression dédiée
+            </a>
+            .
+          </p>
+        </section>
+
+        <section className={styles.section}>
           <p className={styles.noteFooter}>
             Cette page a été inspirée du modèle Termly mais reste entièrement statique dans le code source.
           </p>
