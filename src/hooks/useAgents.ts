@@ -6,16 +6,16 @@ import { AgentInfo, fetchDefaultAgentsSupa } from "../data/agents";
 type AgentConfigRow = {
   agent_id: string;
   name_modif: string;
-  configs: Record<string, string>;
+  configs: AgentInfo["configs"];
   configs_id: string;
   is_active?: boolean;
   is_fav?: boolean;
 };
 
 type AgentDisplayed = AgentInfo & {
-  name: string;
-  configs: Record<string, string>;
   display_id: string;
+  is_active: boolean;
+  is_fav: boolean;
 };
 
 type UserAgentRow = {
@@ -26,7 +26,7 @@ type UserAgentRow = {
 const mapDisplayedAgents = (
   data: AgentConfigRow[] | undefined,
   defaults: AgentInfo[]
-) =>
+): AgentDisplayed[] =>
   (data ?? [])
     .map((agent) => {
       const defaultAgent = defaults.find(
@@ -46,7 +46,10 @@ const mapDisplayedAgents = (
     })
     .filter((agent): agent is AgentDisplayed => Boolean(agent));
 
-const mapAvailableAgents = (data: UserAgentRow[], defaults: AgentInfo[]) =>
+const mapAvailableAgents = (
+  data: UserAgentRow[],
+  defaults: AgentInfo[]
+): AgentInfo[] =>
   data
     .map((agent) =>
       defaults.find((availableAgent) => availableAgent.agent_id === agent.agent_id)
@@ -56,7 +59,7 @@ const mapAvailableAgents = (data: UserAgentRow[], defaults: AgentInfo[]) =>
 type UseAgentsResult = {
   agentDefaultSupa: AgentInfo[];
   availableAgents: AgentInfo[];
-  displayedAgents: AgentInfo[];
+  displayedAgents: AgentDisplayed[];
   refreshDisplayedAgents: () => void;
   refreshAvailableAgents: () => void;
 };
@@ -73,7 +76,7 @@ const useAgents = (): UseAgentsResult => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const displayedAgentsQuery = useQuery<AgentInfo[]>({
+  const displayedAgentsQuery = useQuery<AgentDisplayed[]>({
     queryKey: ["agents", "displayed"],
     queryFn: async () => {
       const defaults = defaultAgentsQuery.data ?? [];
