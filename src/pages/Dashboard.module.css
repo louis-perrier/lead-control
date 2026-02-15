@@ -1,181 +1,495 @@
-.dashboard {
-  width: 100%;
-  position: relative;
-  background-color: var(--color-white);
+.claraWrapper {
   display: flex;
-  align-items: flex-start;
-  line-height: normal;
-  letter-spacing: normal;
+  min-height: 100vh;
 }
-.maincomponentright {
-  height: var(--height-1024);
+.claraDashboardArea {
   flex: 1;
+}
+.claraDashboard {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  color: #0f172a;
+  min-height: 100vh;
+  background: #f1f5f9;
+  padding: 24px 16px 40px;
+  box-sizing: border-box;
+}
+.claraDashboardContent {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.claraHeader {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--gap-25);
-  width: 100%;
-  max-width: 100%;
+  gap: 12px;
 }
-.variabledashboardcomponent {
-  width: 100%;
-  max-width: 1124px;
+.claraHeaderTitle {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0;
+}
+.claraHeaderSubtitle {
+  color: #475569;
+  font-size: 15px;
+  margin: 0;
+}
+.claraHeaderControls {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-start;
   align-items: center;
-  justify-content: center;
-  padding: var(--padding-0) 0;
-  box-sizing: border-box;
-  gap: var(--gap-20);
 }
-.chooseagentai {
-  font-family: "Orbitron", "Space Grotesk", Roboto, sans-serif;
-  font-size: 22px;
-  color: #0a1220;
-  width: fit-content;
-  min-width: 152px;
-  height: 58px;
+.claraPeriodButtons {
+  display: flex;
+  gap: 6px;
+}
+.claraPeriodButton {
+  border: 1px solid #cbd5f5;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.claraPeriodButtonActive {
+  background: #0f172a;
+  color: white;
+  border-color: #0f172a;
+}
+.claraSearch {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  min-width: 220px;
+  font-size: 14px;
+  outline: none;
+  flex: 1;
+}
+.claraTabRow {
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+  margin-top: 12px;
+}
+.claraTabButton {
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: #475569;
+  border-radius: 6px 6px 0 0;
+}
+.claraTabButtonActive {
+  color: #0f172a;
+  font-weight: 600;
+  border-bottom: 3px solid #0f172a;
+}
+.claraStatsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
+}
+.claraKpiRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.claraKpiCard {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+.claraKpiCardValue {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.claraKpiCardLabel {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #475569;
+}
+.claraKpiCardDelta {
+  font-size: 13px;
+  color: #15803d;
+}
+.claraPanelRow {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.claraPanel {
+  background: white;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  padding: 18px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+}
+.claraPanel h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #0f172a;
+}
+.claraPanelList {
+  list-style: none;
   margin: 0;
   padding: 0;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #f7f9ff, #e8edff);
-  box-shadow:
-    0 0 35px rgba(90, 108, 255, 0.25),
-    inset 0 0 20px rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(10, 18, 32, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.chooseagentai :global(.MuiOutlinedInput-root) {
-  background: transparent;
-  border-radius: 999px;
-  min-height: 58px;
-  padding: 0 4px;
-  box-shadow: none;
+.channelBarRow {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
 }
-.chooseagentai :global(.MuiOutlinedInput-notchedOutline) {
-  border-color: transparent;
-  border-width: 0;
+.channelBarRowLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
 }
-.chooseagentai :global(.Mui-focused .MuiOutlinedInput-notchedOutline) {
-  border-color: rgba(10, 18, 32, 0.45);
-}
-.chooseagentai :global(.MuiInputBase-root) {
-  min-height: 58px;
-  padding: 0 10px;
-  justify-content: center;
-  display: inline-flex;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  width: auto;
+.channelBar {
+  display: flex;
   align-items: center;
+  gap: 10px;
 }
-.chooseagentai :global(.MuiInputLabel-root) {
-  display: none;
+.channelBarTrack {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  position: relative;
+  overflow: hidden;
 }
-.chooseagentai :global(.MuiMenuItem-root) {
-  margin: 0;
-  min-height: 40px;
+.channelBarFill {
+  position: absolute;
+  height: 100%;
+  left: 0;
+  top: 0;
+  border-radius: inherit;
+}
+.claraSparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 100px;
+}
+.claraSparklineBar {
+  flex: 1;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+}
+.topConversationItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.topConversationItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.topConversationItemMeta {
+  font-size: 12px;
+  color: #475569;
+}
+.channelBadge {
   display: inline-flex;
-  color: #0a1220;
-  background: #f4f7ff;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+.claraDetailsLayout {
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.conversationPanel {
+  background: white;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+.conversationPanel h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+.conversationList {
+  max-height: 52vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.conversationItem {
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  padding: 10px 12px;
   border-radius: 12px;
   transition: background 0.2s ease;
 }
-.chooseagentai :global(.MuiMenuItem-root:hover) {
-  background: #e0e6ff;
+.conversationItem:hover {
+  background: #f8fafc;
 }
-.chooseagentai :global(.MuiSelect-select) {
-  margin: 0;
-  padding: 0;
-  height: 58px;
-  align-items: center;
-  display: flex;
-  justify-content: center;
-  text-align: center;
-  font-size: 22px;
-  font-weight: 700;
-  color: #0a1220;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+.conversationItemActive {
+  background: #e0f2fe;
 }
-.chooseagentai :global(.MuiInputBase-input) {
-  text-align: center;
-}
-.chooseagentai :global(.MuiSelect-icon) {
-  display: none;
-}
-.datepicker {
-  display: flex;
+.conversationAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: white;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--padding-0) var(--padding-10);
-  box-sizing: border-box;
-  gap: 102px;
-  max-width: 100%;
+  font-weight: 600;
 }
-.allstatistics,
-.topstatistics {
-  align-self: stretch;
-  overflow: hidden;
+.conversationDetails {
+  flex: 1;
   display: flex;
-  align-items: center;
-}
-.allstatistics {
-  height: 778px;
-  flex-shrink: 0;
   flex-direction: column;
-  padding: var(--padding-0) 40px var(--padding-20);
-  box-sizing: border-box;
-  gap: 51px;
+  gap: 2px;
 }
-.topstatistics {
-  justify-content: center;
+.conversationTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.conversationPreview {
+  color: #475569;
+  font-size: 13px;
+}
+.conversationBottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.conversationTime {
+  font-size: 12px;
+  color: #94a3b8;
+}
+.unreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+.conversationFilters {
+  display: flex;
   flex-wrap: wrap;
-  align-content: center;
-  padding: var(--padding-0) var(--padding-20);
-  gap: 178px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-.bottomstatistics,
-.lefttopstatistics {
-  height: 348px;
-  width: 412px;
+.channelChip,
+.statusChip {
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  background: white;
+  transition: all 0.2s ease;
+}
+.channelChipActive,
+.statusChipActive {
+  background: #0f172a;
+  color: white;
+  border-color: #0f172a;
+}
+.chatPanel {
+  background: white;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.chatHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.chatHeaderMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chatHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chatHeaderActions button {
+  border: 1px solid #cbd5f5;
+  background: white;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.chatMessages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+.chatBubble {
+  max-width: 80%;
+  padding: 12px 14px;
+  border-radius: 16px;
   position: relative;
-  background-color: var(--color-gainsboro);
+  font-size: 14px;
+  line-height: 1.4;
 }
-.bottomstatistics {
-  width: 755px;
+.chatBubbleInbound {
+  background: #e0f2fe;
+  align-self: flex-start;
 }
-@media screen and (max-width: 1050px) {
-  .topstatistics {
-    gap: 89px;
-  }
+.chatBubbleOutbound {
+  background: #0f172a;
+  color: white;
+  align-self: flex-end;
 }
-@media screen and (max-width: 975px) {
-  .dashboard {
-    padding-left: var(--padding-20);
-    padding-right: var(--padding-20);
-    box-sizing: border-box;
-  }
-  .maincomponentright {
-    height: var(--height-auto);
-    max-width: 100%;
-  }
-  .datepicker {
-    gap: 51px;
-    flex-wrap: wrap;
-  }
+.chatBubbleSender {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
 }
-@media screen and (max-width: 725px) {
-  .allstatistics {
-    gap: var(--gap-25);
-  }
-  .topstatistics {
-    gap: 44px;
-  }
+.chatBubbleTimestamp {
+  font-size: 11px;
+  color: rgba(15, 23, 42, 0.65);
+  position: absolute;
+  bottom: -16px;
+  right: 12px;
 }
-@media screen and (max-width: 450px) {
-  .datepicker {
-    gap: var(--gap-25);
+.attachmentChip {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  display: inline-flex;
+  gap: 6px;
+}
+.chatEmpty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  font-size: 15px;
+  text-align: center;
+}
+.chatComposer {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chatComposer textarea {
+  width: 100%;
+  min-height: 80px;
+  border-radius: 14px;
+  border: 1px solid #cbd5f5;
+  padding: 10px 14px;
+  resize: none;
+  font-size: 14px;
+}
+.chatComposerActions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+}
+.chatComposerSend {
+  background: #0f172a;
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+.quickReplies {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.quickReplies button {
+  border-radius: 999px;
+  border: 1px solid #cbd5f5;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: white;
+  cursor: pointer;
+}
+.tagChip {
+  display: inline-flex;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #a16207;
+  border: 1px solid #facc15;
+}
+.channelFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+@media (min-width: 1024px) {
+  .claraHeader {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
   }
-  .topstatistics {
-    gap: var(--gap-22);
+  .claraHeaderControls {
+    flex: 0 0 60%;
+    justify-content: flex-end;
+  }
+  .claraDetailsLayout {
+    flex-direction: row;
+  }
+  .conversationPanel {
+    flex: 0 0 42%;
+  }
+  .chatPanel {
+    flex: 1;
   }
 }

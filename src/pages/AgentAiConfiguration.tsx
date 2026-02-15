@@ -277,7 +277,7 @@ const AgentAi: FunctionComponent = () => {
           "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
           "authorization": `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ return_to: "http://localhost:5173/agentai/configuration", configs_id: selectedAgent?.display_id }),
+        body: JSON.stringify({ return_to: "https://leadcontrol.com/agentai", configs_id: selectedAgent?.display_id }),
       });
 
       const { auth_url } = await res.json();
