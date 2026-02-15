@@ -15,3 +15,11 @@
 - 2026-02-14 : refonte des couleurs du `Select` pour coller au fond blanc (dégradés lumineux doux, bordures grisées, ombres pâles) tout en gardant l’allure futuriste.
 - 2026-02-14 : ajustement du `Select` pour masquer la flèche native et permettre à la largeur de suivre dynamiquement le texte de l’agent sélectionné, gardant une apparence épurée quelle que soit la longueur du nom.
 - 2026-02-14 : ajout d’un lien vers `/policy/data-deletion` dans les politiques utilisateur (`PolicyTerms` et `PolicyPrivacy`) pour faciliter les demandes de suppression de données.
+- 2026-02-15 : documentation des tables Supabase utilisées pour gérer les agents, leur quota et les connexions :
+  - `agents` stocke les définitions de base (`id`, `name_default`, `description`) utilisées par `fetchDefaultAgentsSupa`.
+  - `agent_configs` contient les instances utilisateur (`configs_id`, `agent_id`, `name_modif`, `configs` JSON structuré en sections `Details/Configurations/Connexions/Test`, `is_active`, `is_fav`) et alimente les cartes/configurations affichées.
+  - `user_agent` relie un `user_id` à chaque `agent_id` avec un `limit_agent_user` pour contrôler combien d’agents un utilisateur peut instancier.
+  - `connectors` définit les connecteurs disponibles (`connectors_name`, `available`, `special`) réutilisés dans `connectors_agent`.
+  - `connectors_agent` lie un agent (`agent_id`) aux connecteurs (`connectors_id`, `limit`, `config`) et récupère la métadonnée `connectors` pour calculer les logos disponibles.
+  - `connectors_config_agent` conserve les liaisons actives (`configs_id`, `user_connexion_id`, `current_config_connexion`) et référence `all_connectors_users` pour afficher les labels/fournisseurs et écouter via `postgres_changes`.
+  - `all_connectors_users` liste les comptes tiers (`id`, `provider`, `connectors_label`, `connector_id`, `connector_label`, `expires_in`, `updated_at`) et est joint aux configs pour composer les tableaux de connexion.
