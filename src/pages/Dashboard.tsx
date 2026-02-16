@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { useSearchParams } from "react-router-dom";
+import NavigationBar from "../components/NavigationBar";
 import styles from "./Dashboard.module.css";
 
 type ChannelOption = "Instagram" | "WhatsApp" | "Telegram";

@@ -21,28 +21,27 @@ export const defaultAgents: Record<string, AgentInfo> = {
     id: "greg",
     agent_id: "greg",
     name: "GREG",
-    description: "Prospectn & Conversion",
+    description: "Optimisation Tunnel de Vente",
     imageSrc: "/GREG-PP.png",
     backgroundSrc: "/GREG-Background.png",
-    details: ["a", "bla", "bla"],
+    details: ["Insta", "Gmail", "Agents Setteurs & Closeurs", "Contrôle de leads", "Classification de vos leads", "Personnalisation"],
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   },
   clara: {
     id: "clara",
     agent_id: "clara",
     name: "CLARA",
-    description: "Réponse Automatique",
+    description: "Support Client",
     imageSrc: "/CLARA-PP.png",
     backgroundSrc: "/CLARA-Background.png",
     details: [
-      "bla",
-      "bla",
-      "bla",
-      "bla",
-      "bla",
-      "bla",
-      "bla",
-      "bla",
+      "Gmail",
+      "Instagram",
+      "Whatsapp",
+      "Telegram",
+      "Marge de sureté",
+      "Contrôle des messages",
+      "Basé sur vos données"
     ],
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   },
@@ -53,7 +52,17 @@ export const defaultAgents: Record<string, AgentInfo> = {
     description: "Réactivation de leads",
     imageSrc: "/EMMA-PP.png",
     backgroundSrc: "/EMMA-Background.png",
-    details: ["bla", "bla", "bla"],
+    details: ["Basé sur vos données", "Campagnes de mails", "Réponse automatique", "Classification des leads"],
+    configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
+  }, 
+  rick: {
+    id: "rick",
+    agent_id: "rick",
+    name: "RICK",
+    description: "Scraping de leads",
+    imageSrc: "/RICK-PP.png",
+    backgroundSrc: "/RICK-Background.png",
+    details: ["Leads Insta", "Leads Tiktok", "Emails", "Quelques minutes"],
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   }
 };
