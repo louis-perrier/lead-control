@@ -21,38 +21,38 @@ export const defaultAgents: Record<string, AgentInfo> = {
     id: "greg",
     agent_id: "greg",
     name: "GREG",
-    description: "Optimisation Tunnel de Vente",
+    description: "Réactivation de leads",
     imageSrc: "/GREG-PP.png",
     backgroundSrc: "/GREG-Background.png",
-    details: ["Insta", "Gmail", "Agents Setteurs & Closeurs", "Contrôle de leads", "Classification de vos leads", "Personnalisation"],
+    details: ["Basé sur vos données", "Campagnes de mails", "Réponse automatique", "Classification des leads"],
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   },
   clara: {
     id: "clara",
     agent_id: "clara",
     name: "CLARA",
-    description: "Support Client",
+    description: "Optimisation Tunnel de Vente",
     imageSrc: "/CLARA-PP.png",
     backgroundSrc: "/CLARA-Background.png",
-    details: [
-      "Gmail",
-      "Instagram",
-      "Whatsapp",
-      "Telegram",
-      "Marge de sureté",
-      "Contrôle des messages",
-      "Basé sur vos données"
-    ],
+    details: ["Insta", "Gmail", "Agents Setteurs & Closeurs", "Contrôle de leads", "Classification de vos leads", "Personnalisation"],
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   },
   emma: {
     id: "emma",
     agent_id: "emma",
     name: "EMMA",
-    description: "Réactivation de leads",
+    description: "Support Client",
     imageSrc: "/EMMA-PP.png",
     backgroundSrc: "/EMMA-Background.png",
-    details: ["Basé sur vos données", "Campagnes de mails", "Réponse automatique", "Classification des leads"],
+    details: [
+          "Gmail",
+          "Instagram",
+          "Whatsapp",
+          "Telegram",
+          "Marge de sureté",
+          "Contrôle des messages",
+          "Basé sur vos données"
+        ],    
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   }, 
   rick: {

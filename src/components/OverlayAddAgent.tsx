@@ -70,9 +70,15 @@ const Overlay: FunctionComponent<OverlayProps> = ({
               <p className={styles.agentName}>{agent.name}</p>
               <div className={styles.infoCard}>
                 <p className={styles.agentDescription}>{agent.description}</p>
+                <div className={styles.detailsHeader}>
+                  <span>Détails clés</span>
+                </div>
                 <ul className={styles.detailsList}>
                   {agent.details.map((detail, index) => (
-                    <li key={`${detail}-${index}`}>{detail}</li>
+                    <li key={`${detail}-${index}`} className={styles.detailItem}>
+                      <span className={styles.detailDot} aria-hidden="true" />
+                      <span>{detail}</span>
+                    </li>
                   ))}
                 </ul>
               </div>

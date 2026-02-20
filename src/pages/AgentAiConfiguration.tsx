@@ -153,7 +153,7 @@ const AgentAi: FunctionComponent = () => {
 
   // ------------------------------Navigation helpers---------------------------------
   const goToAgentAi = useCallback(() => {
-    navigate("/agentai", { state: { tabs } });
+    navigate("/app/agentai", { state: { tabs } });
   }, [navigate, tabs]);
 
   const handleSelectTab = useCallback((agent: AgentInfo) => {
@@ -277,7 +277,7 @@ const AgentAi: FunctionComponent = () => {
           "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
           "authorization": `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ return_to: "https://leadcontrol.com/agentai", configs_id: selectedAgent?.display_id }),
+        body: JSON.stringify({ return_to: "https://leadcontrol.com/app/agentai", configs_id: selectedAgent?.display_id }),
       });
 
       const { auth_url } = await res.json();
@@ -469,6 +469,8 @@ const AgentAi: FunctionComponent = () => {
   );
 
   const hasActiveConnection = countConnectedConnector > 0;
+  const hasAnyConnectors =
+    countAvailableConnector + countConnectedConnector > 0;
 
   const sectionStatuses = useMemo<Record<CornerSection, CornerStatus>>(() => {
     const statuses: Record<CornerSection, CornerStatus> = {
@@ -484,6 +486,12 @@ const AgentAi: FunctionComponent = () => {
     }
 
     statuses.Details = "available";
+    if (!hasAnyConnectors) {
+      statuses.Connexions = "available";
+      statuses.Configurations = "available";
+      return statuses;
+    }
+
     statuses.Connexions = hasActiveConnection ? "available" : "unlock";
 
     if (!hasActiveConnection) {
@@ -492,10 +500,19 @@ const AgentAi: FunctionComponent = () => {
 
     statuses.Configurations = hasGlobalMissingRequiredConfig ? "unlock" : "available";
     return statuses;
-  }, [areDetailsFilled, hasActiveConnection, hasGlobalMissingRequiredConfig]);
+  }, [
+    areDetailsFilled,
+    hasActiveConnection,
+    hasGlobalMissingRequiredConfig,
+    hasAnyConnectors,
+  ]);
 
   const isConfigSectionAvailable =
     sectionStatuses.Configurations === "available";
+  const isHeaderSwitchDisabled = !isConfigSectionAvailable;
+  const displayedHeaderSwitchChecked = isHeaderSwitchDisabled
+    ? false
+    : headerSwitchOn;
 
   /** Mise à jour locale des valeurs (en réponse au composant DynamicConfig). */
   const handleConfigChange = (values: ConfigValue[]) => {
@@ -651,10 +668,10 @@ const AgentAi: FunctionComponent = () => {
             <div className={styles.agentTitleText}>
               <h2>{selectedAgent.name.toUpperCase()}</h2>
               <SwitchAnimated
-                checked={headerSwitchOn}
+                checked={displayedHeaderSwitchChecked}
                 onChange={handleHeaderSwitchChange}
                 showLabel={false}
-                disabled={!isConfigSectionAvailable}
+                disabled={isHeaderSwitchDisabled}
               />
             </div>
           </div>

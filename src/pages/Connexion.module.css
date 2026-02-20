@@ -1,9 +1,10 @@
 .connexion {
   width: 100%;
+  min-height: 100vh;
   position: relative;
-  background-color: var(--color-white);
+  background-color: var(--app-bg);
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   line-height: normal;
   letter-spacing: normal;
 }
@@ -15,15 +16,33 @@
   align-items: center;
 }
 .rightcomponent {
-  height: var(--height-1024);
-  gap: 65px;
+  min-height: 100vh;
+  gap: 32px;
   width: 100%;
   max-width: 100%;
 }
 .tableWrapper {
   align-self: stretch;
   overflow: hidden;
-  padding: var(--padding-20);
+  padding: 32px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tableWrapper table {
+  width: min(100%, 1200px);
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+
+.optionSearchWrapper {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  padding-right: 24px;
+  box-sizing: border-box;
 }
 .tableIcon {
   width: 40px;
@@ -33,7 +52,7 @@
 .linkButton {
   border: none;
   background: transparent;
-  color: var(--color-secondary);
+  color: var(--app-primary);
   font-weight: 600;
   cursor: pointer;
 }
@@ -51,13 +70,13 @@
   cursor: pointer;
 }
 .actionButton {
-  background: #1f7aeb;
-  color: #ffffff;
+  background: var(--app-primary);
+  color: white;
 }
 .actionButtonSecondary {
-  background: rgba(31, 122, 235, 0.1);
-  color: #1f7aeb;
-  border: 1px solid rgba(31, 122, 235, 0.3);
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--app-primary);
+  border: 1px solid rgba(37, 99, 235, 0.4);
 }
 .configurationOverlay {
   position: fixed;
@@ -69,7 +88,7 @@
   z-index: 20;
 }
 .configurationOverlayContent {
-  background: var(--color-white);
+  background: var(--app-surface);
   border-radius: var(--br-16);
   padding: var(--padding-24);
   width: min(90vw, 500px);
@@ -104,31 +123,31 @@
   align-items: center;
   padding: var(--gap-12);
   border-radius: var(--br-12);
-  background: rgba(31, 122, 235, 0.04);
+  background: rgba(37, 99, 235, 0.08);
 }
 .configurationAgent {
   margin: 4px 0 0;
   font-size: var(--fs-12);
-  color: var(--color-gray-600);
+  color: var(--app-text-secondary);
 }
 .configurationStatus {
   font-size: var(--fs-12);
   padding: 4px 8px;
   border-radius: var(--br-12);
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(15, 23, 42, 0.08);
 }
 .connectionCard {
   width: 100%;
   max-width: 640px;
   border-radius: var(--br-20);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--app-border);
   padding: var(--padding-24);
   display: grid;
   grid-template-columns: 80px 1fr auto;
   gap: var(--gap-12);
   align-items: center;
   box-shadow: var(--shadow-drop-1);
-  background: var(--color-white);
+  background: var(--app-surface);
 }
 .connectionLogo img {
   width: 64px;
@@ -138,11 +157,11 @@
 .connectionContent h3 {
   margin: 0;
   font-size: var(--fs-24);
-  color: var(--color-black);
+  color: var(--app-text-primary);
 }
 .connectionContent p {
   margin: var(--gap-4) 0 0;
-  color: var(--color-gray-500);
+  color: var(--app-text-secondary);
 }
 .connectionAction {
   display: flex;
@@ -159,13 +178,13 @@
   font-size: var(--fs-12);
   text-transform: uppercase;
   letter-spacing: var(--Static-Label-Large-Tracking);
-  color: var(--color-gray-500);
+  color: var(--app-text-secondary);
 }
 .connectionButton {
   padding: 10px 24px;
   border-radius: var(--br-12);
   border: 0;
-  background: #1f7aeb;
+  background: var(--app-primary);
   color: #fff;
   font-weight: 600;
   cursor: pointer;
@@ -182,7 +201,7 @@
   height: 100vh;
 }
 .confirmationBox {
-  background: var(--color-white);
+  background: var(--app-surface);
   padding: 20px 28px;
   border-radius: var(--br-16);
   box-shadow: var(--shadow-drop-1);
@@ -192,7 +211,7 @@
 .confirmationText {
   margin: 0;
   font-size: var(--fs-16);
-  color: var(--color-black);
+  color: var(--app-text-primary);
   line-height: 1.4;
 }
 .confirmationButtons {
@@ -204,11 +223,11 @@
 .confirmationButton {
   padding: 8px 16px;
   border-radius: var(--br-12);
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  background: var(--color-white);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
   font-weight: 600;
   cursor: not-allowed;
-  color: var(--color-gray-600);
+  color: var(--app-text-secondary);
 }
 @media screen and (max-width: 1200px) {
   .rightcomponent {

@@ -5,10 +5,10 @@
   align-items: flex-end;
 }
 .navigationbar {
-  height: var(--height-1024);
+  min-height: 100vh;
   width: var(--width-240);
-  background-color: var(--color-white);
-  border-right: var(--border-11);
+  background-color: var(--app-surface);
+  border-right: 1px solid var(--app-border);
   box-sizing: border-box;
   overflow: hidden;
   flex-shrink: 0;
@@ -16,9 +16,10 @@
   gap: var(--gap-642);
   text-align: left;
   font-size: var(--Static-Label-Large-Size);
-  color: var(--Schemes-On-Secondary-Container);
+  color: var(--app-text-secondary);
   font-family: var(--Static-Label-Large-Font);
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, transform 0.3s ease;
+  transform: translateX(0);
   position: relative;
 }
 .navigationbar[data-collapsed="true"] {
@@ -26,6 +27,7 @@
   padding-left: var(--padding-4);
   padding-right: var(--padding-4);
   gap: var(--gap-20);
+  transform: translateX(calc(64px - var(--width-240)));
 }
 .frameParent {
   width: 100%;
@@ -43,6 +45,28 @@
   justify-content: space-between;
   padding: var(--padding-0) var(--padding-1) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
+}
+.menuButton {
+  background-color: transparent;
+  border: none;
+  padding: var(--padding-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: var(--br-8);
+}
+.menuButton span {
+  width: 20px;
+  height: 2px;
+  background-color: var(--app-border);
+  border-radius: 2px;
+  display: block;
+}
+.navigationbar[data-collapsed="true"] .menuButton span {
+  background-color: var(--app-text-secondary);
 }
 .optionnavigationParent {
   width: 100%;
@@ -85,7 +109,7 @@
   padding: var(--padding-0) var(--padding-37) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
   z-index: 6;
-  display: none;
+  display: none; 
 }
 .navigationbar[data-collapsed="true"] .dividerWrapper {
   display: none;
@@ -118,7 +142,7 @@
   top: -6px;
   bottom: -4px;
   width: 2px;
-  background-color: var(--color-background);
+  background-color: var(--app-border);
   opacity: 0.6;
   border-radius: var(--br-4);
 }
@@ -126,7 +150,7 @@
 .subNavButton {
   border: none;
   background-color: transparent;
-  color: var(--color-silver-100);
+  color: var(--app-text-secondary);
   text-align: left;
   font-size: var(--Static-Body-Small-Size);
   padding: var(--padding-5);
@@ -136,14 +160,14 @@
 }
 
 .subNavButton:hover {
-  background-color: var(--color-primary);
+  background-color: var(--app-primary-hover);
 }
 
 .subNavButtonSelected {
-  color: var(--Schemes-On-Secondary-Container);
+  color: var(--app-text-primary);
   font-weight: 500;
-  background-color: var(--color-background);
-  border-left: 4px solid var(--color-primary);
+  background-color: var(--app-bg);
+  border-left: 4px solid var(--app-primary);
   padding-left: calc(var(--padding-12) - 4px);
 }
 
@@ -154,66 +178,6 @@
 
 .navigationbar[data-collapsed="true"] .subNavList {
   display: none;
-}
-.helpcenterWrapper {
-  width: var(--width-183);
-  height: var(--height-56);
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: var(--padding-0) var(--padding-52) var(--padding-0) var(--padding-0);
-  box-sizing: border-box;
-  z-index: 1;
-  color: var(--color-silver-300);
-}
-.navigationbar[data-collapsed="true"] .helpcenterWrapper {
-  width: 100%;
-  justify-content: center;
-  padding: var(--padding-0);
-}
-.helpcenter,
-.stateLayer {
-  display: flex;
-  align-items: center;
-}
-.helpcenter {
-  border-radius: var(--br-100);
-  overflow: hidden;
-}
-.stateLayer {
-  justify-content: center;
-  padding: var(--padding-16);
-  position: relative;
-  isolation: isolate;
-  gap: var(--gap-8);
-}
-.icon,
-.icon2 {
-  cursor: pointer;
-  border: 0;
-  padding: var(--padding-01);
-  background-color: transparent;
-  width: var(--width-24);
-}
-.icon {
-  height: var(--height-24);
-  position: absolute;
-  margin: 0 !important;
-  top: 16px;
-  left: 16px;
-  z-index: 0;
-}
-.icon2 {
-  position: relative;
-  max-height: 100%;
-  z-index: 1;
-}
-.helpcenter2 {
-  position: relative;
-  letter-spacing: var(--Static-Label-Large-Tracking);
-  line-height: var(--Static-Label-Large-Line-Height);
-  font-weight: 500;
-  z-index: 2;
 }
 @media screen and (max-width: 975px) {
   .navigationbar {

@@ -8,16 +8,18 @@ import {
 } from "react-router-dom";
 import AgentAi from "./pages/AgentAi";
 import AgentAiConfiguration from "./pages/AgentAiConfiguration";
+import Connexion from "./pages/Connexion";
 import Crm from "./pages/Crm";
 import Dashboard from "./pages/Dashboard";
-import Login from "./pages/Login";
-import Subscription from "./pages/Subscription";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Connexion from "./pages/Connexion";
 import Feedback from "./components/Feedback";
+import Landing from "./pages/Landing";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./pages/Login";
 import PolicyDataDeletion from "./pages/policy/PolicyDataDeletion";
 import PolicyPrivacy from "./pages/policy/PolicyPrivacy";
 import PolicyTerms from "./pages/policy/PolicyTerms";
+import Scraping from "./pages/Scraping";
+import Subscription from "./pages/Subscription";
 
 function App() {
   const action = useNavigationType();
@@ -36,28 +38,37 @@ function App() {
 
     switch (pathname) {
       case "/":
-        title = "";
-        metaDescription = "";
+        title = "LeadControl";
+        metaDescription =
+          "LeadControl répond à tes DM Instagram, qualifie les leads et propose un lien Calendly configuré en quelques minutes.";
         break;
-      case "/subscription":
-        title = "";
-        metaDescription = "";
+      case "/app":
+        title = "LeadControl — Dashboard";
+        metaDescription = "Pilote tes agents LeadControl, supervise les conversations et analyse les KPIs.";
         break;
-      case "/agentai":
-        title = "";
-        metaDescription = "";
+      case "/app/subscription":
+        title = "LeadControl — Abonnement";
+        metaDescription = "Gère ton plan LeadControl et découvre les fonctionnalités disponibles selon ton offre.";
         break;
-      case "/agentai/configuration":
-        title = "";
-        metaDescription = "";
+      case "/app/agentai":
+        title = "LeadControl — Agents AI";
+        metaDescription = "Liste et contrôle de tes agents, statu s des inbox et accès aux overlays.";
         break;
-      case "/crm":
-        title = "";
-        metaDescription = "";
+      case "/app/agentai/configuration":
+        title = "LeadControl — Configuration d’agent";
+        metaDescription = "Paramètre les connexions, limites et tests de ton agent LeadControl.";
         break;
-      case "/connexion":
-        title = "";
-        metaDescription = "";
+      case "/app/scraping":
+        title = "LeadControl — Scraping";
+        metaDescription = "Orchestration des runs de scraping, collecte des leads et suivi des quotas.";
+        break;
+      case "/app/crm":
+        title = "LeadControl — CRM";
+        metaDescription = "Accède au CRM, filtre les conversations et prépare les handoffs.";
+        break;
+      case "/app/connexion":
+        title = "LeadControl — Connexions";
+        metaDescription = "Gère tes connexions tierces (Google, LinkedIn, etc.) et recharge les tokens.";
         break;
       case "/policy/data-deletion":
         title = "Suppression des données utilisateurs — LeadControl";
@@ -90,27 +101,32 @@ function App() {
     }
   }, [pathname]);
 
+  const showFeedback = pathname.startsWith("/app");
+
   return (
     <>
       <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/policy/terms-et-conditions" element={<PolicyTerms />} />
         <Route path="/policy/privacy-policy" element={<PolicyPrivacy />} />
         <Route path="/policy/data-deletion" element={<PolicyDataDeletion />} />
-        <Route path="/login" element={<Login />} />
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/subscription" element={<Subscription />} />
-          <Route path="/agentai" element={<AgentAi />} />
+          <Route path="/app" element={<Dashboard />} />
+          <Route path="/app/subscription" element={<Subscription />} />
+          <Route path="/app/agentai" element={<AgentAi />} />
           <Route
-            path="/agentai/configuration"
+            path="/app/agentai/configuration"
             element={<AgentAiConfiguration />}
           />
-          <Route path="/crm" element={<Crm />} />
-          <Route path="/connexion" element={<Connexion />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/app/crm" element={<Crm />} />
+          <Route path="/app/connexion" element={<Connexion />} />
+          <Route path="/app/scraping" element={<Scraping />} />
+          <Route path="/app/*" element={<Navigate to="/app" replace />} />
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <Feedback />
+      {showFeedback && <Feedback />}
     </>
   );
 }

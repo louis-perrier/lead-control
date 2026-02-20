@@ -6,12 +6,12 @@
 
 .label {
   text-align: center;
-  color: #000;
+  color: var(--app-text-primary);
   font-size: 1.1rem;
   font-weight: 700;
 }
 .requiredIndicator {
-  color: #c62828;
+  color: var(--app-error);
   margin-left: 4px;
 }
 
@@ -42,7 +42,7 @@
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #333;
+  color: var(--app-text-secondary);
 }
 
 .tagClose {

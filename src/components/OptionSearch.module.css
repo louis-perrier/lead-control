@@ -15,8 +15,8 @@
 .searchbar {
   width: var(--width-385);
   border-radius: var(--br-20);
-  background-color: var(--color-white);
-  border: var(--border-1);
+  background-color: var(--app-surface);
+  border: 1px solid var(--app-border);
   box-sizing: border-box;
   overflow: hidden;
   flex-shrink: 0;
@@ -35,14 +35,14 @@
   position: relative;
   letter-spacing: var(--Static-Body-Small-Tracking);
   line-height: var(--Static-Body-Small-Line-Height);
-  color: var(--color-black);
+  color: var(--app-text-primary);
   text-align: left;
   justify-content: flex-start;
   padding: 0 10px;
 }
 
 .searchtext::placeholder {
-  color: var(--color-gray-200);
+  color: var(--app-text-secondary);
 }
 .searchlogoIcon {
   height: var(--height-24);
@@ -62,7 +62,7 @@
   box-sizing: border-box;
 }
 .optionActionsActive {
-  background-color: rgba(30, 136, 229, 0.08);
+  background-color: rgba(37, 99, 235, 0.08);
   border-radius: var(--br-14);
 }
 .sortbuttonIcon {
@@ -111,6 +111,11 @@
   display: inline-flex;
 }
 
+.filterButtonContainer {
+  position: relative;
+  display: inline-flex;
+}
+
 .sortPopover {
   position: absolute;
   top: calc(100% + var(--gap-10));
@@ -134,7 +139,7 @@
   font-size: var(--fs-12);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--color-darkslategray);
+  color: var(--app-text-secondary);
   text-align: center;
   font-weight: 700;
 }
@@ -153,15 +158,15 @@
   cursor: pointer;
   border-radius: var(--br-12);
   font-weight: 600;
-  color: var(--color-darkslategray);
+  color: var(--app-text-secondary);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .sortOptionActive {
-  background-color: rgba(30, 136, 229, 0.12);
-  color: #0f172a;
+  background-color: rgba(37, 99, 235, 0.12);
+  color: var(--app-text-primary);
 }
 
 .sortOption:hover {
@@ -182,8 +187,125 @@
 
 .sortOptionArrow {
   font-size: var(--fs-12);
-  color: #0f172a;
+  color: var(--app-text-primary);
   margin-left: var(--gap-6);
+}
+
+.filterPopover {
+  position: absolute;
+  top: calc(100% + var(--gap-10));
+  right: -12px;
+  padding: var(--gap-10) var(--gap-15);
+  border-radius: var(--br-20);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.25);
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-8);
+  z-index: 5;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.filterPopover::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 18px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid rgba(255, 255, 255, 0.99);
+  filter: drop-shadow(0 -2px 4px rgba(15, 23, 42, 0.2));
+}
+
+.filterSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filterHeading {
+  font-size: var(--Static-Label-Medium-Size);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-darkslategray);
+}
+
+.filterToggle,
+.filterOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-darkslategray);
+}
+
+.filterCheckboxList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-6);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.filterEmpty {
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-gray-200);
+}
+
+.filterPopoverHeader {
+  margin: 0;
+  font-size: var(--Static-Label-Medium-Size);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-text-secondary);
+  text-align: center;
+}
+
+.filterPopoverList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-8);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.filterPopoverItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--color-darkslategray);
+  cursor: pointer;
+}
+
+.filterPopoverItem input {
+  accent-color: var(--app-primary);
+}
+
+.filterPopoverEmpty {
+  font-size: var(--Static-Body-Small-Size);
+  color: var(--app-text-secondary);
+}
+
+.filterPopoverReset {
+  border: none;
+  background: transparent;
+  color: var(--app-primary);
+  font-weight: 600;
+  align-self: flex-start;
+  cursor: pointer;
+  padding: 4px 0;
+  border-bottom: 1px solid transparent;
+}
+
+.filterPopoverReset:hover {
+  border-bottom-color: var(--app-primary);
 }
 
 @keyframes fadeIn {

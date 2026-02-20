@@ -11,7 +11,7 @@
 
 .dialog {
   width: min(360px, calc(100% - 64px));
-  background-color: #ffffff;
+  background-color: var(--app-surface);
   border-radius: var(--br-12);
   border: 1px solid rgba(15, 23, 42, 0.12);
   padding: calc(var(--gap-5) + 4px);
@@ -27,12 +27,12 @@
 .title {
   margin: 0;
   font-size: var(--fs-20);
-  color: var(--color-secondary);
+  color: var(--app-primary);
 }
 
 .message {
   margin: 0;
-  color: var(--color-darkslategray);
+  color: var(--app-text-secondary);
   line-height: 1.6;
   font-size: 0.95rem;
 }
@@ -54,12 +54,12 @@
 }
 
 .secondary {
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--app-surface);
+  color: var(--app-text-primary);
 }
 
 .primary {
-  background: linear-gradient(135deg, #ff7a18, #ff3d00);
+  background: linear-gradient(135deg, var(--app-primary), var(--app-primary-hover));
   color: #fff;
   border-color: transparent;
 }

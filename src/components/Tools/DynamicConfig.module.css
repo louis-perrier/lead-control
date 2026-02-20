@@ -29,7 +29,7 @@
   font-weight: 700;
 }
 .requiredIndicator {
-  color: #c62828;
+  color: var(--app-error);
   margin-left: 4px;
 }
 .textarea {

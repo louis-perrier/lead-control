@@ -6,7 +6,7 @@
 }
 .switchLabel {
   text-align: center;
-  color: #000;
+  color: var(--app-text-primary);
   font-size: 16px;
   font-weight: 700;
   }
@@ -16,7 +16,7 @@
   border-radius: 30px;
   border: none;
   padding: 2px;
-  background: #d0d0d0;
+  background: var(--app-border);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -24,7 +24,7 @@
   transition: background 0.3s ease;
 }
 .switchButtonOn {
-  background: linear-gradient(135deg, #1db954, #2ed47a);
+  background: linear-gradient(135deg, var(--app-success), var(--app-primary-hover));
 }
 .switchHandle {
   width: 26px;

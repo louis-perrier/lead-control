@@ -163,9 +163,18 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
         src={imageSrc}
         onClick={handleImageClick}
       />
-      {isActive && (
+      {isActive !== undefined && (
         <div className={styles.statusBadgeWrapper}>
-          <span className={styles.statusTag}>Actif</span>
+          <span
+            className={[
+              styles.statusTag,
+              isActive ? styles.statusTagActive : styles.statusTagInactive,
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {isActive ? "Actif" : "Inactif"}
+          </span>
         </div>
       )}
     </div>

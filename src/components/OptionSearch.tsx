@@ -1,7 +1,8 @@
 import {
   FunctionComponent,
   KeyboardEvent,
-  MouseEvent,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
   useEffect,
   useRef,
   useState,
@@ -31,7 +32,75 @@ export type OptionSearchType = {
   sortColumn?: string;
   sortOrder?: "asc" | "desc";
   onSortChange?: (payload: { key: string; order: "asc" | "desc" }) => void;
+  filterPopover?: ReactNode;
 };
+
+export type AgentFilterOption = {
+  agent_id: string;
+  label: string;
+};
+
+export type AgentFiltersPopoverProps = {
+  favOnly: boolean;
+  activeOnly: boolean;
+  selectedAgentIds: Set<string>;
+  typeOptions: AgentFilterOption[];
+  onToggleFavorite: () => void;
+  onToggleActive: () => void;
+  onToggleAgentType: (agentId: string) => void;
+};
+
+const FilterPopover: FunctionComponent<AgentFiltersPopoverProps> = ({
+  favOnly,
+  activeOnly,
+  selectedAgentIds,
+  typeOptions,
+  onToggleFavorite,
+  onToggleActive,
+  onToggleAgentType,
+}) => (
+  <div className={styles.filterPopover}>
+    <div className={styles.filterSection}>
+      <span className={styles.filterHeading}>Filtres rapides</span>
+      <label className={styles.filterToggle}>
+        <input
+          type="checkbox"
+          checked={favOnly}
+          onChange={() => onToggleFavorite()}
+        />
+        Favoris uniquement
+      </label>
+      <label className={styles.filterToggle}>
+        <input
+          type="checkbox"
+          checked={activeOnly}
+          onChange={() => onToggleActive()}
+        />
+        Actifs uniquement
+      </label>
+    </div>
+    <div className={styles.filterSection}>
+      <span className={styles.filterHeading}>Types d’agent</span>
+      <div className={styles.filterCheckboxList}>
+        {typeOptions.map((option) => (
+          <label key={option.agent_id} className={styles.filterOption}>
+            <input
+              type="checkbox"
+              checked={selectedAgentIds.has(option.agent_id)}
+              onChange={() => onToggleAgentType(option.agent_id)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+        {typeOptions.length === 0 && (
+          <span className={styles.filterEmpty}>Aucun agent enregistré</span>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+export const AgentFiltersPopover = FilterPopover;
 
 const OptionSearch: FunctionComponent<OptionSearchType> = ({
   className = "",
@@ -56,9 +125,12 @@ const OptionSearch: FunctionComponent<OptionSearchType> = ({
   sortColumn,
   sortOrder = "asc",
   onSortChange,
+  filterPopover,
 }) => {
   const [isSortOpen, setSortOpen] = useState(false);
   const sortContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isFilterOpen, setFilterOpen] = useState(false);
+  const filterContainerRef = useRef<HTMLDivElement | null>(null);
   const effectiveSearchValue = searchValue ?? "";
 
   useEffect(() => {
@@ -71,9 +143,27 @@ const OptionSearch: FunctionComponent<OptionSearchType> = ({
     };
   }, []);
 
+  useEffect(() => {
+    const handleWindowClick = (event: globalThis.MouseEvent) => {
+      if (!filterContainerRef.current?.contains(event.target as Node)) {
+        setFilterOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handleWindowClick);
+    return () => {
+      window.removeEventListener("mousedown", handleWindowClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!filterPopover) {
+      setFilterOpen(false);
+    }
+  }, [filterPopover]);
+
   const hasSortOptions = Array.isArray(sortOptions) && sortOptions.length > 0 && typeof onSortChange === "function";
 
-  const handleSortButtonClick = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleSortButtonClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (hasSortOptions) {
       setSortOpen((prev) => !prev);
@@ -81,6 +171,14 @@ const OptionSearch: FunctionComponent<OptionSearchType> = ({
     }
 
     onSortClick?.();
+  };
+
+  const handleFilterButtonClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (filterPopover) {
+      setFilterOpen((prev) => !prev);
+    }
+    onFilterClick?.();
   };
 
   const handleSortSelection = (optionKey: string) => {
@@ -197,18 +295,24 @@ const OptionSearch: FunctionComponent<OptionSearchType> = ({
         )
       )}
       {filterButton && (
-        <button
-          className={[
-            styles.optionActions,
-            filterActive ? styles.optionActionsActive : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          type="button"
-          onClick={onFilterClick}
+        <div
+          className={styles.filterButtonContainer}
+          ref={filterContainerRef}
         >
-          <img className={styles.filterbuttonIcon} alt="Filtrer" src="/filterButton.svg" />
-        </button>
+          <button
+            className={[
+              styles.optionActions,
+              filterActive ? styles.optionActionsActive : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            type="button"
+            onClick={handleFilterButtonClick}
+          >
+            <img className={styles.filterbuttonIcon} alt="Filtrer" src="/filterButton.svg" />
+          </button>
+          {isFilterOpen && filterPopover}
+        </div>
       )}
       {detailsButton && (
         <button

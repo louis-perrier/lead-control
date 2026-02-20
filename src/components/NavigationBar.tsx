@@ -67,13 +67,20 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
   const location = useLocation();
   const currentPath = location.pathname;
 
+  const { displayedAgents } = useAgents();
+  const normalizedDisplayedAgentIds = displayedAgents.map((agent) =>
+    agent.id.toLowerCase()
+  );
+  const isGregAgentDisplayed = normalizedDisplayedAgentIds.includes("greg");
+  const isRickAgentDisplayed = normalizedDisplayedAgentIds.includes("rick");
+
   const navItems = useMemo(
     () => [
       {
         key: "dashboard",
-        route: "/",
+        route: "/app",
         selected:
-          selectedItem === "dashboard" || currentPath === "/",
+          selectedItem === "dashboard" || currentPath === "/app",
         labelText: "Dashboard",
         icon: "/dashboardIcon.svg",
         iconBorder: "none" as const,
@@ -83,9 +90,9 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
       },
       {
         key: "agentia",
-        route: "/agentai",
+        route: "/app/agentai",
         selected:
-          selectedItem === "agentia" || currentPath === "/agentai",
+          selectedItem === "agentia" || currentPath === "/app/agentai",
         labelText: "Agent IA",
         icon: "/agentIaIcon.svg",
         iconBorder: undefined,
@@ -95,9 +102,9 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
       },
       {
         key: "connexion",
-        route: "/connexion",
+        route: "/app/connexion",
         selected:
-          selectedItem === "connexion" || currentPath === "/connexion",
+          selectedItem === "connexion" || currentPath === "/app/connexion",
         labelText: "Connexion",
         icon: "/connexionIcon.svg",
         iconBorder: undefined,
@@ -105,14 +112,22 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
         iconBackgroundColor: undefined,
         show: true,
       },
+      {
+        key: "scraping",
+        route: "/app/scraping",
+        selected:
+          selectedItem === "scraping" || currentPath === "/app/scraping",
+        labelText: "Scraping",
+        icon: "/scrapingIcon.svg",
+        iconBorder: undefined,
+        iconPadding: undefined,
+        iconBackgroundColor: undefined,
+        show: isRickAgentDisplayed,
+      },
     ],
-    [currentPath, selectedItem],
+    [currentPath, selectedItem, isRickAgentDisplayed],
   );
 
-  const { displayedAgents } = useAgents();
-  const isGregAgentDisplayed = displayedAgents
-    .map((agent) => agent.id.toLowerCase())
-    .includes("greg");
 
   const onNavItemClick = useCallback(
     (route: string) => {
@@ -122,11 +137,11 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
   );
 
   const onCrmContainerClick = useCallback(() => {
-    navigate("/crm");
+    navigate("/app/crm");
   }, [navigate]);
 
   const onLogoIconClick = useCallback(() => {
-    navigate("/");
+    navigate("/app");
   }, [navigate]);
 
   const toggleCollapse = useCallback(() => {
@@ -196,25 +211,6 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
           isCollapsed={isCollapsed}
           show={isGregAgentDisplayed}
         />
-      </div>
-      <div className={styles.helpcenterWrapper}>
-        <div className={styles.helpcenter}>
-          <div className={styles.stateLayer}>
-            <img
-              className={styles.icon}
-              alt=""
-              src="/Icon6.svg"
-              style={icon1Style}
-            />
-            <img
-              className={styles.icon2}
-              alt=""
-              src="/Icon7.svg"
-              style={icon2Style}
-            />
-            <div className={styles.helpcenter2}>{`Need Help `}</div>
-          </div>
-        </div>
       </div>
     </section>
   );

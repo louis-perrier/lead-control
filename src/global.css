@@ -4,8 +4,25 @@
 body {
   margin: 0;
   line-height: normal;
+  background-color: var(--app-bg, #F6F8FC);
+  color: var(--app-text-primary, #0B1220);
 }
 :root {
+  /* Palette dédiée à l’application (dashboard, CRM, modales internes) */
+  --app-bg: #F6F8FC;
+  --app-surface: #FFFFFF;
+  --app-border: #E6EBF2;
+  --app-text-primary: #0B1220;
+  --app-text-secondary: #5B667A;
+  --app-primary: #2563EB;
+  --app-primary-hover: #1D4ED8;
+  --app-accent: #22D3EE;
+  /* Accent à garder rare (~10 %) : focus, progress, highlight */
+  --app-success: #16A34A;
+  --app-warning: #F59E0B;
+  --app-error: #EF4444;
+  --app-chip-bg: #EEF2FF;
+  --app-chip-text: #3730A3;
   /* Figma Variables */
 
   /* Spacing */
@@ -53,22 +70,22 @@ body {
   /* Common Style Variables */
 
   /* Color */
-  --color-black: #000;
-  --color-darkslategray: rgba(55, 55, 55, 0.62);
-  --color-gainsboro: #d9d9d9;
-  --color-gray-100: #fafafa;
-  --color-gray-200: #8d8d8d;
-  --color-gray-300: rgba(0, 0, 0, 0.51);
-  --color-lightgray: #d4d3d4;
-  --color-lightsteelblue: rgba(195, 210, 255, 0.65);
-  --color-red: #ff1010;
-  --color-silver-100: #cac4d0;
-  --color-silver-200: #ccc4c4;
-  --color-silver-300: #b5b5b5;
-  --color-silver-400: rgba(181, 181, 181, 0.7);
-  --color-white: #fff;
-  --color-whitesmoke: #f7f7f7;
-  --M3-sys-light-outline: #79747e;
+  --color-black: var(--app-text-primary);
+  --color-darkslategray: var(--app-text-secondary);
+  --color-gainsboro: var(--app-border);
+  --color-gray-100: var(--app-bg);
+  --color-gray-200: var(--app-text-secondary);
+  --color-gray-300: var(--app-border);
+  --color-lightgray: var(--app-border);
+  --color-lightsteelblue: var(--app-primary-hover);
+  --color-red: var(--app-error);
+  --color-silver-100: var(--app-border);
+  --color-silver-200: var(--app-border);
+  --color-silver-300: var(--app-border);
+  --color-silver-400: rgba(37, 99, 235, 0.5);
+  --color-white: var(--app-surface);
+  --color-whitesmoke: var(--app-bg);
+  --M3-sys-light-outline: var(--app-border);
 
   /* Gap */
   --gap-0: 0px;

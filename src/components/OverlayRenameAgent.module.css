@@ -11,7 +11,7 @@
   width: min(520px, 90vw);
   padding: 24px;
   border-radius: var(--br-20);
-  background-color: white;
+  background-color: var(--app-surface);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
@@ -26,7 +26,7 @@
 .description {
   margin: 0;
   font-size: var(--Static-Body-Small-Size);
-  color: var(--color-darkslategray);
+  color: var(--app-text-secondary);
   text-align: center;
 }
 .label {
@@ -36,18 +36,18 @@
 .input {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #c7c7c7;
+  border: 1px solid var(--app-border);
   border-radius: 10px;
   font-size: var(--Static-Body-Medium-Size);
   box-sizing: border-box;
 }
 .input:focus {
-  outline: 2px solid #5c6ac4;
+  outline: 2px solid var(--app-primary);
   border-color: transparent;
 }
 .errorText {
   margin: 0;
-  color: #d93025;
+  color: var(--app-error);
   font-size: var(--Static-Body-Small-Size);
   min-height: 20px;
 }
@@ -58,15 +58,15 @@
 }
 .secondaryButton {
   background: transparent;
-  border: 1px solid #5c6ac4;
-  color: #5c6ac4;
+  border: 1px solid var(--app-primary);
+  color: var(--app-primary);
   padding: 10px 18px;
   border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
 }
 .primaryButton {
-  background-color: #5c6ac4;
+  background-color: var(--app-primary);
   border: none;
   color: white;
   padding: 10px 20px;

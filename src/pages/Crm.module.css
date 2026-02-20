@@ -1,7 +1,7 @@
 .crm {
   width: 100%;
   position: relative;
-  background-color: var(--color-white);
+  background-color: var(--app-bg);
   display: flex;
   align-items: flex-start;
   line-height: normal;

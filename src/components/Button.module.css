@@ -1,7 +1,7 @@
 .button {
   margin-top: 0;
-  background-color: #c3d2ff;
-  border: 1px solid #000;
+  background-color: var(--app-primary);
+  border: 1px solid var(--app-primary);
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
@@ -10,8 +10,8 @@
   align-self: center;
 }
 .buttonDisabled {
-  background-color: #f5f5f5;
-  border-color: rgba(0, 0, 0, 0.1);
-  color: rgba(0, 0, 0, 0.4);
+  background-color: var(--app-bg);
+  border-color: var(--app-border);
+  color: var(--app-text-secondary);
   cursor: not-allowed;
 }

@@ -1,0 +1,36 @@
+.footer {
+  padding: 2.5rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.links a {
+  color: #22d3ee;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.links a:focus-visible,
+.links a:hover {
+  text-decoration: underline;
+}
+
+.bottom {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}

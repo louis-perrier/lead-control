@@ -1,7 +1,14 @@
-import { FunctionComponent, useState, useEffect } from "react";
+import {
+  FunctionComponent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import NavigationBar from "../components/NavigationBar";
 import Header from "../components/Header";
 import OptionSearch from "../components/OptionSearch";
+import optionSearchStyles from "../components/OptionSearch.module.css";
 import styles from "./Connexion.module.css";
 import tableStyles from "../styles/TableStyles.module.css";
 import supabase from "../lib/supabase";
@@ -21,6 +28,13 @@ type Connection = {
   connector_nb_liaison: number;
   configurations: ConfigurationDetail[];
 };
+
+const CONNECTION_SORT_OPTIONS: Array<{ key: keyof Connection; label: string }> = [
+  { key: "connectors_label", label: "Titre" },
+  { key: "provider", label: "Plateforme" },
+  { key: "connector_nb_liaison", label: "Liaisons" },
+  { key: "updated_at", label: "Dernière connexion" },
+];
 
 const formatDate = (value?: string) => {
   if (!value) return "-";
@@ -42,8 +56,15 @@ const Connexion: FunctionComponent = () => {
     null
   );
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortColumn, setSortColumn] = useState<keyof Connection>(
+    "connectors_label"
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [providerFilters, setProviderFilters] = useState<string[]>([]);
+  const providerFiltersActive = providerFilters.length > 0;
 
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
     const { data, error } = await supabase
       .from("all_connectors_users")
       .select(
@@ -82,24 +103,184 @@ const Connexion: FunctionComponent = () => {
         };
       })
     );
-  };
+  }, []);
 
   useEffect(() => {
     fetchConnections();
   }, []);
+
+  const uniqueProviders = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          connections
+            .map((connection) => connection.provider)
+            .filter(Boolean)
+        )
+      ).sort(),
+    [connections]
+  );
+
+  const displayedConnections = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const filtered = connections.filter((connection) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        connection.connectors_label.toLowerCase().includes(normalizedQuery) ||
+        connection.provider.toLowerCase().includes(normalizedQuery);
+      const matchesProvider =
+        providerFilters.length === 0 ||
+        providerFilters.includes(connection.provider);
+      return matchesQuery && matchesProvider;
+    });
+    const sorted = [...filtered].sort((a, b) => {
+      const resolveValue = (item: Connection) => {
+        if (sortColumn === "connector_nb_liaison") {
+          return item.connector_nb_liaison;
+        }
+        if (sortColumn === "updated_at") {
+          return item.updated_at
+            ? new Date(item.updated_at).getTime()
+            : Number.NEGATIVE_INFINITY;
+        }
+        const value = item[sortColumn];
+        return typeof value === "string"
+          ? value.toLowerCase()
+          : String(value).toLowerCase();
+      };
+      const valueA = resolveValue(a);
+      const valueB = resolveValue(b);
+      if (typeof valueA === "number" && typeof valueB === "number") {
+        return sortOrder === "desc" ? valueB - valueA : valueA - valueB;
+      }
+      const comparison = String(valueA).localeCompare(String(valueB));
+      return sortOrder === "desc" ? -comparison : comparison;
+    });
+    return sorted;
+  }, [connections, searchQuery, providerFilters, sortColumn, sortOrder]);
+
+  const handleSortChange = (payload: {
+    key: keyof Connection | string;
+    order: "asc" | "desc";
+  }) => {
+    setSortColumn(payload.key as keyof Connection);
+    setSortOrder(payload.order);
+  };
+
+  const toggleProviderFilter = (provider: string) => {
+    setProviderFilters((prev) =>
+      prev.includes(provider)
+        ? prev.filter((current) => current !== provider)
+        : [...prev, provider]
+    );
+  };
+
+  const resetProviderFilters = () => {
+    setProviderFilters([]);
+  };
+
+  const connectionFilterPopover = (
+    <div className={optionSearchStyles.filterPopover}>
+      <p className={optionSearchStyles.filterPopoverHeader}>
+        Filtrer par plateforme
+      </p>
+      <div className={optionSearchStyles.filterPopoverList}>
+        {uniqueProviders.map((provider) => (
+          <label key={provider} className={optionSearchStyles.filterPopoverItem}>
+            <input
+              type="checkbox"
+              checked={providerFilters.includes(provider)}
+              onChange={() => toggleProviderFilter(provider)}
+            />
+            <span>{provider}</span>
+          </label>
+        ))}
+        {uniqueProviders.length === 0 && (
+          <span className={optionSearchStyles.filterPopoverEmpty}>
+            Aucune donnée
+          </span>
+        )}
+      </div>
+      {providerFiltersActive && (
+        <button
+          type="button"
+          className={optionSearchStyles.filterPopoverReset}
+          onClick={resetProviderFilters}
+        >
+          Réinitialiser
+        </button>
+      )}
+    </div>
+  );
 
   const handleShowConfiguration = (connection: Connection) => {
     setActiveConfigs(connection.configurations);
     setSelectedAccount(connection.connectors_label);
   };
 
-  const handleDisconnectClick = (connectorUserId: string) => {
+  const handleDisconnectClick = useCallback((connectorUserId: string) => {
     console.log("Déconnexion", connectorUserId);
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    fetchConnections();
+  }, [fetchConnections]);
+
+  type ConnectionAction = {
+    onConnect: (connection: Connection) => void;
+    onDisconnect: (connection: Connection) => void;
   };
 
-  const handleRefresh = () => {
-    fetchConnections();
-  };
+  const connectionActions = useMemo<Record<string, ConnectionAction>>(
+    () => ({
+      instagram: {
+        onConnect: () => handleRefresh(),
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+      whatsapp: {
+        onConnect: handleRefresh,
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+      gmail: {
+        onConnect: handleRefresh,
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+      tiktok: {
+        onConnect: handleRefresh,
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+      linkedin: {
+        onConnect: handleRefresh,
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+      facebook: {
+        onConnect: handleRefresh,
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+      discord: {
+        onConnect: handleRefresh,
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+      telegram: {
+        onConnect: handleRefresh,
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+      appel: {
+        onConnect: handleRefresh,
+        onDisconnect: (connection) =>
+          handleDisconnectClick(connection.connector_user_id),
+      },
+    }),
+    [handleDisconnectClick, handleRefresh]
+  );
 
   const closeConfigurationOverlay = () => {
     setActiveConfigs(null);
@@ -121,7 +302,22 @@ const Connexion: FunctionComponent = () => {
       />
       <main className={styles.rightcomponent}>
         <Header logoMarque="/logoMarque@2x.png" />
-        <OptionSearch wrap={true} addButton={false} />
+        <div className={styles.optionSearchWrapper}>
+          <OptionSearch
+            wrap={true}
+            addButton={false}
+            detailsButton={false}
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearchSubmit={() => undefined}
+            filterActive={providerFiltersActive}
+            sortOptions={CONNECTION_SORT_OPTIONS}
+            sortColumn={sortColumn}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
+            filterPopover={connectionFilterPopover}
+          />
+        </div>
         <section
           className={`${styles.tableWrapper} ${tableStyles.tableWrapper}`}
         >
@@ -137,7 +333,7 @@ const Connexion: FunctionComponent = () => {
               </tr>
             </thead>
             <tbody>
-              {connections.map((connection) => (
+              {displayedConnections.map((connection) => (
                 <tr key={connection.connector_user_id}>
                   <td>
                     <img
@@ -158,24 +354,39 @@ const Connexion: FunctionComponent = () => {
                       {connection.connector_nb_liaison}
                     </button>
                   </td>
-                  <td className={styles.actionsCell}>
-                    <button
-                      type="button"
-                      className={styles.actionButton}
-                      onClick={() =>
-                        handleDisconnectClick(connection.connector_user_id)
-                      }
-                    >
-                      Déconnexion
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.actionButtonSecondary}
-                      onClick={handleRefresh}
-                    >
-                      Rafraîchir
-                    </button>
-                  </td>
+                <td className={styles.actionsCell}>
+                  {(() => {
+                    const providerKey = (connection.provider ?? "").toLowerCase();
+                    const actions = connectionActions[providerKey];
+                    const handleDisconnect =
+                      actions?.onDisconnect ??
+                      ((conn: Connection) =>
+                        handleDisconnectClick(conn.connector_user_id));
+                    const handleConnect =
+                      actions?.onConnect ??
+                      ((conn: Connection) => {
+                        handleRefresh();
+                      });
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.actionButton}
+                          onClick={() => handleDisconnect(connection)}
+                        >
+                          Déconnexion
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.actionButtonSecondary}
+                          onClick={() => handleConnect(connection)}
+                        >
+                          Rafraîchir
+                        </button>
+                      </>
+                    );
+                  })()}
+                </td>
                 </tr>
               ))}
             </tbody>

@@ -8,7 +8,11 @@ import {
 } from "react";
 import { useSearchParams } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import ConfirmationDialog from "../components/ConfirmationDialog";
 import styles from "./Dashboard.module.css";
+import useAgents from "../hooks/useAgents";
+import useClaraConversations from "../hooks/useClaraConversations";
+import supabase from "../lib/supabase";
 
 type ChannelOption = "Instagram" | "WhatsApp" | "Telegram";
 type ChannelFilterOption = ChannelOption | "All";
@@ -29,6 +33,7 @@ type Message = {
   text: string;
   sentAt: string;
   attachment?: Attachment;
+  authorType?: "agent" | "human" | "customer";
 };
 
 type Conversation = {
@@ -41,17 +46,7 @@ type Conversation = {
   status: StatusOption;
   messages: Message[];
   tags: string[];
-};
-
-type ConversationSeed = {
-  contactName: string;
-  channel: ChannelOption;
-  status: StatusOption;
-  unreadCount: number;
-  lastMessage: string;
-  lastMessageMinutesAgo: number;
-  tags?: string[];
-  attachment?: Attachment;
+  metadata?: Record<string, unknown>;
 };
 
 const channelFilterOptions: ChannelFilterOption[] = [
@@ -69,17 +64,10 @@ const periodOptions: { label: string; value: PeriodOption }[] = [
 
 const statusFilterOptions = ["Tous", "Ouvert", "Clos", "Handoff"] as const;
 
-const quickReplies = [
-  "Oui, je m’en occupe dans l’heure.",
-  "Je reviens vers vous avec les détails.",
-  "Je dois vérifier, je vous redis.",
-  "Laissez-moi un instant, je vous envoie un tag.",
-];
-
 const channelColors: Record<ChannelOption, string> = {
-  Instagram: "#c026d3",
-  WhatsApp: "#10b981",
-  Telegram: "#2563eb",
+  Instagram: "var(--app-primary)",
+  WhatsApp: "var(--app-success)",
+  Telegram: "var(--app-accent)",
 };
 
 const periodMultipliers: Record<PeriodOption, number> = {
@@ -88,132 +76,7 @@ const periodMultipliers: Record<PeriodOption, number> = {
   "90": 1.75,
 };
 
-const baseTimestamp = Date.UTC(2026, 1, 15, 11, 30, 0);
-
-const names = [
-  "Anaïs Dupont",
-  "Léo Martin",
-  "Maya Leclerc",
-  "Ruben Silvestre",
-  "Sara Benali",
-  "Noé Roux",
-  "Sophie Tran",
-  "Yara Petit",
-  "Camille Vasseur",
-  "Adam Gauthier",
-  "Inès Courtois",
-  "Maé Boucher",
-  "Lina Dubois",
-  "Nolan Chartier",
-  "Zara Vidal",
-  "Elias Fontaine",
-  "Elia Lefebvre",
-  "Théo Lemaire",
-  "Anaëlle Roche",
-  "Romain Durand",
-  "Léna Perrot",
-  "Maxime Laurent",
-  "Clara Moreau",
-  "Jade Roche",
-  "Chloé Bernard",
-];
-
-const lastMessages = [
-  "Merci pour la démo !",
-  "Tu peux me rappeler sur le projet ?",
-  "Je souhaite revoir la séquence.",
-  "On se cale un rendez-vous à 14h.",
-  "Les leads tiennent encore.",
-  "Je veux activer WhatsApp.",
-  "Est-ce que tout est sauvegardé ?",
-  "Le canal Telegram reste ouvert.",
-  "Ton dernier message est bloqué.",
-  "Je veux tester un nouveau tag.",
-  "Où en est la configuration ?",
-  "Je passe en mode manuel.",
-];
-
 const channelCycle: ChannelOption[] = ["Instagram", "WhatsApp", "Telegram"];
-const statusCycle: StatusOption[] = ["Ouvert", "Ouvert", "Clos", "Handoff"];
-
-const conversationSeeds: ConversationSeed[] = names.map((name, index) => {
-  return {
-    contactName: name,
-    channel: channelCycle[index % channelCycle.length],
-    status: statusCycle[index % statusCycle.length],
-    unreadCount: index % 4 === 0 ? 0 : (index % 3) + 1,
-    lastMessage: lastMessages[index % lastMessages.length],
-    lastMessageMinutesAgo: 5 + (index % 10) * 3,
-    tags:
-      index % 5 === 0
-        ? ["À relancer"]
-        : index % 7 === 0
-        ? ["VIP"]
-        : undefined,
-    attachment:
-      index % 6 === 0
-        ? { type: "image", label: "capture-écran.png" }
-        : index % 9 === 0
-        ? { type: "file", label: "devis.pdf" }
-        : undefined,
-  };
-});
-
-const buildConversation = (seed: ConversationSeed, index: number): Conversation => {
-  const firstName = seed.contactName.split(" ")[0];
-  const baseOffset = seed.lastMessageMinutesAgo + index * 2;
-  const templateMessages: Array<{
-    direction: MessageDirection;
-    text: string;
-    minutesAgo: number;
-    attachment?: Attachment;
-  }> = [
-    {
-      direction: "inbound",
-      text: `Bonjour ${firstName}, je reviens vers vous pour valider la configuration ${seed.channel}.`,
-      minutesAgo: baseOffset + 12,
-    },
-    {
-      direction: "outbound",
-      text: `Merci ${firstName}, voici le retour rapide demandé.`,
-      minutesAgo: baseOffset + 8,
-      attachment: seed.attachment,
-    },
-    {
-      direction: "inbound",
-      text: "Parfait, je bloque un créneau pendant que vous préparez les documents.",
-      minutesAgo: baseOffset + 4,
-    },
-    {
-      direction: "outbound",
-      text: seed.lastMessage,
-      minutesAgo: baseOffset,
-    },
-  ];
-  const messages = templateMessages.map((entry, messageIndex) => ({
-    id: `${seed.contactName.replace(/\s+/g, "")}-${index}-${messageIndex}`,
-    direction: entry.direction,
-    text: entry.text,
-    sentAt: new Date(baseTimestamp - entry.minutesAgo * 60000).toISOString(),
-    attachment: entry.attachment,
-  }));
-
-  return {
-    id: `clara-${seed.channel}-${index}`,
-    contactName: seed.contactName,
-    channel: seed.channel,
-    lastMessage: seed.lastMessage,
-    lastAt: new Date(baseTimestamp - baseOffset * 60000).toISOString(),
-    unreadCount: seed.unreadCount,
-    status: seed.status,
-    messages,
-    tags: seed.tags ?? [],
-  };
-};
-
-const mockConversations: Conversation[] = conversationSeeds.map((seed, index) =>
-  buildConversation(seed, index)
-);
 
 const formatRelativeTime = (iso: string) => {
   const now = Date.now();
@@ -226,6 +89,110 @@ const formatRelativeTime = (iso: string) => {
     return `il y a ${Math.floor(diffMinutes / 60)} h`;
   }
   return `il y a ${Math.floor(diffMinutes / 1440)} j`;
+};
+
+const normalizeChannel = (platform?: string): ChannelOption => {
+  const normalized = platform?.toLowerCase();
+  if (normalized === "instagram") {
+    return "Instagram";
+  }
+  if (normalized === "whatsapp") {
+    return "WhatsApp";
+  }
+  if (normalized === "telegram") {
+    return "Telegram";
+  }
+  return "Instagram";
+};
+
+const mapConversationRecord = (record: any): Conversation => {
+  const channel = normalizeChannel(record.platform);
+  const messages =
+    (record.conversation_messages ?? [])
+      .map((message: any) => {
+        const firstAttachment = Array.isArray(message.attachments)
+          ? message.attachments[0]
+          : null;
+        return {
+          id: `${record.id}-${message.id}`,
+          direction: message.direction === "out" ? "outbound" : "inbound",
+          text: message.body_text ?? "",
+          sentAt: message.sent_at ?? message.created_at ?? new Date().toISOString(),
+          attachment: firstAttachment
+            ? {
+                type:
+                  firstAttachment.type === "file" ? "file" : "image",
+                label: firstAttachment.label ?? "Pièce jointe",
+              }
+            : undefined,
+          authorType:
+            message.author_type === "human"
+              ? "human"
+              : message.author_type === "customer"
+              ? "customer"
+              : "agent",
+        };
+      })
+      .sort(
+        (a: Message, b: Message) =>
+          new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+      ) ?? [];
+  const lastMessage = record.last_message_preview ?? messages[messages.length - 1]?.text ?? "";
+  return {
+    id: String(record.id),
+    contactName: record.contact_display_name ?? record.contact_handle ?? "Contact",
+    channel,
+    lastMessage,
+    lastAt:
+      record.last_message_at ??
+      record.updated_at ??
+      record.created_at ??
+      new Date().toISOString(),
+    unreadCount: record.unread_count ?? 0,
+    status:
+      record.automation_state === "stopped"
+        ? "Clos"
+        : record.automation_state === "scheduled"
+        ? "Handoff"
+        : "Ouvert",
+    messages,
+    tags: record.heat_tag ? [record.heat_tag] : [],
+    metadata: record.metadata ?? {},
+  };
+};
+
+const heatTagStyles: Record<
+  string,
+  { background: string; border: string; color: string }
+> = {
+  cold: {
+    background: "rgba(37, 99, 235, 0.12)",
+    border: "rgba(37, 99, 235, 0.4)",
+    color: "var(--app-primary)",
+  },
+  warm: {
+    background: "rgba(245, 158, 11, 0.15)",
+    border: "rgba(245, 158, 11, 0.4)",
+    color: "var(--app-warning)",
+  },
+  hot: {
+    background: "rgba(239, 68, 68, 0.12)",
+    border: "rgba(239, 68, 68, 0.4)",
+    color: "var(--app-error)",
+  },
+  unknown: {
+    background: "var(--app-bg)",
+    border: "var(--app-border)",
+    color: "var(--app-text-secondary)",
+  },
+};
+
+const getHeatTagStyle = (tag?: string) => {
+  if (!tag) {
+    return {};
+  }
+  const normalized = tag.toLowerCase();
+  return heatTagStyles[normalized] ?? heatTagStyles.unknown;
 };
 
 const ChannelBadge: FunctionComponent<{ channel: ChannelOption }> = ({
@@ -243,10 +210,12 @@ const KpiCard: FunctionComponent<{
   label: string;
   value: string;
   delta: string;
-}> = ({ label, value, delta }) => (
+  note?: string;
+}> = ({ label, value, delta, note }) => (
   <article className={styles.claraKpiCard}>
     <div className={styles.claraKpiCardValue}>{value}</div>
     <div className={styles.claraKpiCardLabel}>{label}</div>
+    {note && <div className={styles.claraKpiCardNote}>{note}</div>}
     <div className={styles.claraKpiCardDelta}>{delta}</div>
   </article>
 );
@@ -324,7 +293,12 @@ const ConversationItem: FunctionComponent<{
         </div>
       </div>
       {conversation.tags.length > 0 && (
-        <span className={styles.tagChip}>{conversation.tags.join(" • ")}</span>
+        <span
+          className={styles.tagChip}
+          style={getHeatTagStyle(conversation.tags[0])}
+        >
+          {conversation.tags.join(" • ")}
+        </span>
       )}
     </button>
   );
@@ -332,14 +306,20 @@ const ConversationItem: FunctionComponent<{
 
 const ChatBubble: FunctionComponent<{ message: Message }> = ({ message }) => {
   const isOutbound = message.direction === "outbound";
+  const label =
+    message.authorType === "human"
+      ? "Humain"
+      : message.authorType === "agent"
+      ? "Agent"
+      : "Client";
   return (
     <div
       className={`${styles.chatBubble} ${
         isOutbound ? styles.chatBubbleOutbound : styles.chatBubbleInbound
       }`}
     >
-      {isOutbound && (
-        <span className={styles.chatBubbleSender}>Agent Clara</span>
+      {label && (
+        <span className={styles.chatBubbleSender}>{label}</span>
       )}
       <p>{message.text}</p>
       {message.attachment && (
@@ -371,19 +351,79 @@ const Dashboard: FunctionComponent = () => {
   const [sortOption, setSortOption] = useState<SortOption>("recent");
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterOptions)[number]>("Tous");
-  const [conversationData, setConversationData] =
-    useState<Conversation[]>(mockConversations);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
-    mockConversations[0]?.id ?? null
+    null
   );
   const [composerText, setComposerText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
+  const { displayedAgents } = useAgents();
+  const agentConfigOptions = useMemo(
+    () =>
+      displayedAgents.map((agent) => {
+        const value = agent.display_id ?? agent.agent_id;
+        return {
+          value,
+          label: agent.name,
+          agentDefaultName: agent.agent_default_name ?? agent.name,
+        };
+      }),
+    [displayedAgents],
+  );
+
+  const {
+    data: rawConversations = [],
+    isLoading: conversationsLoading,
+    isError: conversationsError,
+    error: conversationsErrorDetails,
+  } = useClaraConversations(selectedConfigId ?? undefined);
+  const conversationData = useMemo(
+    () => rawConversations.map(mapConversationRecord),
+    [rawConversations],
+  );
+  const [isStopDialogOpen, setStopDialogOpen] = useState(false);
+  const [isDetailsOverlayOpen, setDetailsOverlayOpen] = useState(false);
+
+  const handleConfigChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setSelectedConfigId(event.target.value);
+  };
 
   useEffect(() => {
-    if (selectedConversationId === null && conversationData.length > 0) {
+    if (agentConfigOptions.length === 0) {
+      if (selectedConfigId !== null) {
+        setSelectedConfigId(null);
+      }
+      return;
+    }
+    if (
+      !selectedConfigId ||
+      !agentConfigOptions.some((option) => option.value === selectedConfigId)
+    ) {
+      setSelectedConfigId(agentConfigOptions[0].value);
+    }
+  }, [agentConfigOptions, selectedConfigId]);
+
+  const activeConfigOption = agentConfigOptions.find(
+    (option) => option.value === selectedConfigId,
+  );
+
+  useEffect(() => {
+    if (conversationsLoading) {
+      return;
+    }
+    if (conversationData.length === 0) {
+      setSelectedConversationId(null);
+      return;
+    }
+    if (
+      !selectedConversationId ||
+      !conversationData.some(
+        (conversation) => conversation.id === selectedConversationId,
+      )
+    ) {
       setSelectedConversationId(conversationData[0].id);
     }
-  }, [conversationData, selectedConversationId]);
+  }, [conversationData, conversationsLoading, selectedConversationId]);
 
   const updateTab = (value: TabOption) => {
     if (value === currentTab) {
@@ -429,6 +469,8 @@ const Dashboard: FunctionComponent = () => {
     return copy;
   }, [filteredConversations, sortOption]);
 
+  const visibleConversationCount = filteredConversations.length;
+
   useEffect(() => {
     if (
       selectedConversationId &&
@@ -446,41 +488,80 @@ const Dashboard: FunctionComponent = () => {
     ) ?? sortedConversations[0] ??
     null;
 
+  const previousConversationRef = useRef<{
+    id: string | null;
+    messagesLength: number;
+  }>({ id: null, messagesLength: 0 });
+
   useEffect(() => {
     if (!activeConversation) {
       return;
     }
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeConversation?.messages.length, activeConversation]);
+    const previous = previousConversationRef.current;
+    const currentId = activeConversation.id;
+    const currentLength = activeConversation.messages.length;
+
+    if (
+      previous.id === currentId &&
+      previous.messagesLength !== currentLength
+    ) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+
+    previousConversationRef.current = {
+      id: currentId,
+      messagesLength: currentLength,
+    };
+  }, [activeConversation]);
 
   const stats = useMemo(() => {
-    const messagesCount = filteredConversations.reduce(
-      (total, conversation) => total + conversation.messages.length,
-      0
-    );
     const periodMultiplier = periodMultipliers[period];
-    const responses = Math.max(
-      40,
-      Math.round(
-        (90 + filteredConversations.length * 6) * periodMultiplier * 0.92
-      )
-    );
-    const messagesReceived = Math.max(
-      80,
-      Math.round((140 + messagesCount * 1.1) * periodMultiplier * 0.85)
+    let totalResponseMs = 0;
+    let responsePairs = 0;
+    const responses = filteredConversations.reduce((acc, conversation) => {
+      acc += conversation.messages.filter(
+        (message) => message.authorType === "agent",
+      ).length;
+      for (let i = 0; i < conversation.messages.length; i += 1) {
+        const current = conversation.messages[i];
+        if (current.direction !== "inbound") {
+          continue;
+        }
+        const nextOutbound = conversation.messages.slice(i + 1).find(
+          (message) => message.direction === "outbound",
+        );
+        if (nextOutbound) {
+          const diff =
+            new Date(nextOutbound.sentAt).getTime() -
+            new Date(current.sentAt).getTime();
+          if (diff > 0) {
+            totalResponseMs += diff;
+            responsePairs += 1;
+          }
+        }
+      }
+      return acc;
+    }, 0);
+    const messagesReceived = filteredConversations.reduce(
+      (acc, conversation) =>
+        acc +
+        conversation.messages.filter(
+          (message) => message.direction === "inbound",
+        ).length,
+      0,
     );
     const activeConversations = filteredConversations.filter(
-      (conversation) => conversation.status === "Ouvert"
+      (conversation) => conversation.status === "Ouvert",
     ).length;
-    const responseTime = Math.max(
-      2,
-      Math.round((5 - filteredConversations.length * 0.05) * 10) / 10
-    );
+    const averageResponseMinutes =
+      responsePairs === 0
+        ? 3
+        : Math.round((totalResponseMs / responsePairs) / 6000) / 10;
     return {
-      responses,
-      messages: messagesReceived,
-      active: activeConversations || 1,
-      responseTime,
+      responses: Math.round(responses * periodMultiplier * 0.95),
+      messages: Math.round(messagesReceived * periodMultiplier * 0.9),
+      active: activeConversations,
+      responseTime: averageResponseMinutes,
     };
   }, [filteredConversations, period]);
 
@@ -498,9 +579,10 @@ const Dashboard: FunctionComponent = () => {
 
   const kpiCards = [
     {
-      label: "Réponses envoyées",
+      label: "Réponses envoyées de l'agent",
       value: `${stats.responses.toLocaleString("fr-FR")}`,
       delta: deltas.responses,
+      note: "Agent uniquement",
     },
     {
       label: "Messages reçus",
@@ -526,25 +608,21 @@ const Dashboard: FunctionComponent = () => {
       Telegram: 0,
     };
     filteredConversations.forEach((conversation) => {
-      bucket[conversation.channel] += 1;
+      const agentMessages = conversation.messages.filter(
+        (message) => message.direction === "outbound" && message.authorType === "agent",
+      ).length;
+      bucket[conversation.channel] += agentMessages;
     });
-    return channelCycle.map((channel) => {
-      const base = 30 + bucket[channel] * 6;
-      const multiplier =
-        periodMultipliers[period] *
-        (channelFilter === "All"
-          ? 1
-          : channelFilter === channel
-          ? 1.15
-          : 0.5);
-      return {
-        channel,
-        count: Math.max(14, Math.round(base * multiplier)),
-      };
-    });
-  }, [filteredConversations, period, channelFilter]);
+    const maxBucket = Math.max(...Object.values(bucket), 1);
+    return channelCycle.map((channel) => ({
+      channel,
+      count: bucket[channel],
+      normalized: Math.round((bucket[channel] / maxBucket) * 100),
+    }));
+  }, [filteredConversations]);
 
-  const maxChannelCount = Math.max(...channelStats.map((stat) => stat.count));
+  const maxChannelCount =
+    Math.max(...channelStats.map((stat) => stat.count)) || 1;
 
   const sparklinePoints = useMemo(() => {
     const length = period === "7" ? 7 : period === "30" ? 30 : 30;
@@ -571,75 +649,58 @@ const Dashboard: FunctionComponent = () => {
     setSortOption(event.target.value as SortOption);
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!composerText.trim() || !activeConversation) {
       return;
     }
-    const newMessage: Message = {
-      id: `${activeConversation.id}-out-${Date.now()}`,
-      direction: "outbound",
-      text: composerText.trim(),
-      sentAt: new Date().toISOString(),
-    };
-    setConversationData((prev) =>
-      prev.map((conversation) => {
-        if (conversation.id !== activeConversation.id) {
-          return conversation;
-        }
-        return {
-          ...conversation,
-          messages: [...conversation.messages, newMessage],
-          lastMessage: newMessage.text,
-          lastAt: newMessage.sentAt,
-          unreadCount: 0,
-        };
-      })
-    );
+    const { error } = await supabase.from("conversation_messages").insert({
+      conversation_id: Number(activeConversation.id),
+      platform: activeConversation.channel,
+      direction: "out",
+      author_type: "agent",
+      author_ref: "clara-dashboard",
+      body_text: composerText.trim(),
+      send_state: "sent",
+      sent_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error("Impossible d'envoyer le message", error);
+      return;
+    }
     setComposerText("");
   };
 
-  const handleQuickReply = (value: string) => {
-    setComposerText(value);
+  const updateConversation = async (updates: Record<string, unknown>) => {
+    if (!activeConversation) {
+      return;
+    }
+    const { error } = await supabase
+      .from("conversations")
+      .update(updates)
+      .eq("id", Number(activeConversation.id));
+    if (error) {
+      console.error("Impossible de mettre à jour la conversation", error);
+    }
   };
 
-  const handleMarkClosed = () => {
-    if (!activeConversation) return;
-    setConversationData((prev) =>
-      prev.map((conversation) =>
-        conversation.id === activeConversation.id
-          ? { ...conversation, status: "Clos" }
-          : conversation
-      )
-    );
+  const handleDetailsClick = () => {
+    setDetailsOverlayOpen(true);
   };
 
-  const handleHandoff = () => {
-    if (!activeConversation) return;
-    setConversationData((prev) =>
-      prev.map((conversation) =>
-        conversation.id === activeConversation.id
-          ? { ...conversation, status: "Handoff" }
-          : conversation
-      )
-    );
+  const closeDetailsOverlay = () => {
+    setDetailsOverlayOpen(false);
   };
 
-  const handleAddTag = () => {
-    if (!activeConversation) return;
-    setConversationData((prev) =>
-      prev.map((conversation) => {
-        if (conversation.id !== activeConversation.id) {
-          return conversation;
-        }
-        const hasTag = conversation.tags.includes("Suivi Clara");
-        return {
-          ...conversation,
-          tags: hasTag
-            ? conversation.tags
-            : [...conversation.tags, "Suivi Clara"],
-        };
-      })
-    );
+  const handleStopClick = () => {
+    setStopDialogOpen(true);
+  };
+
+  const closeStopDialog = () => {
+    setStopDialogOpen(false);
+  };
+
+  const confirmStopDialog = () => {
+    setStopDialogOpen(false);
   };
 
   return (
@@ -660,7 +721,9 @@ const Dashboard: FunctionComponent = () => {
           <div className={styles.claraDashboardContent}>
         <header className={styles.claraHeader}>
           <div>
-            <h1 className={styles.claraHeaderTitle}>Dashboard — Clara</h1>
+            <h1 className={styles.claraHeaderTitle}>
+              DASHBOARD — {(activeConfigOption?.label ?? "Clara").toUpperCase()}
+            </h1>
             <p className={styles.claraHeaderSubtitle}>
               Période :{" "}
               {
@@ -698,6 +761,27 @@ const Dashboard: FunctionComponent = () => {
             />
           </div>
         </header>
+        {agentConfigOptions.length > 0 && (
+          <div className={styles.claraConfigFocus}>
+            <div className={styles.claraConfigFocusGroup}>
+              <span className={styles.claraConfigLabel}>
+                Configuration active
+              </span>
+              <select
+                className={styles.claraConfigSelect}
+                value={selectedConfigId ?? ""}
+                onChange={handleConfigChange}
+                aria-label="Choisir une configuration d'agent"
+              >
+                {agentConfigOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         <div className={styles.claraTabRow}>
           <TabButton
             label="Statistiques"
@@ -724,7 +808,7 @@ const Dashboard: FunctionComponent = () => {
             </div>
             <div className={styles.claraPanelRow}>
               <section className={styles.claraPanel}>
-                <h3>Réponses par canal</h3>
+                <h3>Réponses par canal de l'agent</h3>
                 <div className={styles.channelBarRow}>
                   {channelStats.map((item) => {
                     const barWidth = Math.max(
@@ -793,26 +877,30 @@ const Dashboard: FunctionComponent = () => {
           <section className={styles.claraDetailsLayout}>
             <div className={styles.conversationPanel}>
               <h3>Conversations</h3>
-              <div className={styles.conversationFilters}>
-                <ChannelFilterGroup
-                  active={channelFilter}
-                  onChange={setChannelFilter}
-                />
-                {statusFilterOptions.map((statusOption) => (
-                  <button
-                    key={statusOption}
-                    type="button"
-                    className={`${styles.statusChip} ${
-                      statusFilter === statusOption
-                        ? styles.statusChipActive
-                        : ""
-                    }`}
-                    onClick={() => setStatusFilter(statusOption)}
-                  >
-                    {statusOption}
-                  </button>
-                ))}
-              </div>
+            <div className={styles.conversationCountBadge}>
+              <span className={styles.conversationCountBadgeLabel}>
+                Conversations visibles
+              </span>
+              <span className={styles.conversationCountBadgeValue}>
+                {visibleConversationCount.toLocaleString("fr-FR")}
+              </span>
+            </div>
+            <div className={styles.conversationFilters}>
+              {statusFilterOptions.map((statusOption) => (
+                <button
+                  key={statusOption}
+                  type="button"
+                  className={`${styles.statusChip} ${
+                    statusFilter === statusOption
+                      ? styles.statusChipActive
+                      : ""
+                  }`}
+                  onClick={() => setStatusFilter(statusOption)}
+                >
+                  {statusOption}
+                </button>
+              ))}
+            </div>
               <div className={styles.conversationFilters}>
                 <select
                   value={sortOption}
@@ -822,43 +910,165 @@ const Dashboard: FunctionComponent = () => {
                 >
                   <option value="recent">Récent</option>
                   <option value="unread">Non lus</option>
-                  <option value="messages">Plus de messages</option>
+                  <option value="messages">Plus de messages envoyés</option>
                 </select>
               </div>
-              <div className={styles.conversationList}>
-                {sortedConversations.map((conversation) => (
-                  <ConversationItem
-                    key={conversation.id}
-                    conversation={conversation}
-                    isActive={conversation.id === activeConversation?.id}
-                    onSelect={() => setSelectedConversationId(conversation.id)}
-                  />
-                ))}
-              </div>
+              {!selectedConfigId ? (
+                <div className={styles.conversationEmpty}>
+                  Sélectionne une configuration pour charger les conversations.
+                </div>
+              ) : conversationsLoading ? (
+                <div className={styles.conversationLoading}>Chargement...</div>
+              ) : conversationsError ? (
+                <div className={styles.conversationError}>
+                  {conversationsErrorDetails?.message ??
+                    "Impossible de charger les conversations."}
+                </div>
+              ) : (
+                <div className={styles.conversationList}>
+                  {sortedConversations.map((conversation) => (
+                    <ConversationItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      isActive={conversation.id === activeConversation?.id}
+                      onSelect={() => setSelectedConversationId(conversation.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
             <div className={styles.chatPanel}>
               {activeConversation ? (
                 <>
                   <div className={styles.chatHeader}>
-                    <div className={styles.chatHeaderMeta}>
-                      <h3 style={{ margin: 0 }}>{activeConversation.contactName}</h3>
-                      <ChannelBadge channel={activeConversation.channel} />
-                      <span className={styles.topConversationItemMeta}>
-                        Statut : {activeConversation.status}
-                      </span>
-                    </div>
-                    <div className={styles.chatHeaderActions}>
-                      <button type="button" onClick={handleMarkClosed}>
-                        Marquer comme clos
-                      </button>
-                      <button type="button" onClick={handleHandoff}>
-                        Handoff humain
-                      </button>
-                      <button type="button" onClick={handleAddTag}>
-                        Ajouter tag
-                      </button>
+                    <div className={styles.chatHeaderTop}>
+                      <div className={styles.chatHeaderMeta}>
+                        <h3 style={{ margin: 0 }}>{activeConversation.contactName}</h3>
+                        <ChannelBadge channel={activeConversation.channel} />
+                        <span className={styles.topConversationItemMeta}>
+                          Statut : {activeConversation.status}
+                        </span>
+                      </div>
+                      <div className={styles.chatHeaderTools}>
+                        <button
+                          type="button"
+                          className={styles.chatToolButton}
+                          data-tooltip="Ajouter des détails sur l'utilisateur"
+                          onClick={handleDetailsClick}
+                        >
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <circle cx="9" cy="6" r="4" stroke="var(--app-text-primary)" strokeWidth="1.5" />
+                            <path
+                              d="M4 15C4 12.2386 6.23858 10 9 10C11.7614 10 14 12.2386 14 15"
+                              stroke="var(--app-text-primary)"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d="M14 6H17M15.5 4.5V7.5"
+                              stroke="var(--app-text-primary)"
+                              strokeWidth="1.2"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.chatToolButton}
+                          data-tooltip="Arrêter l'envoi sur cette conversation"
+                          onClick={handleStopClick}
+                        >
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <rect
+                              x="3.5"
+                              y="3.5"
+                              width="11"
+                              height="11"
+                              rx="2"
+                              stroke="var(--app-text-primary)"
+                              strokeWidth="1.5"
+                            />
+                            <path
+                              d="M7 7L11 11M11 7L7 11"
+                              stroke="var(--app-text-primary)"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                        <button type="button" className={styles.chatToolButton}>
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <circle cx="9" cy="9" r="1.25" fill="var(--app-text-primary)" />
+                            <circle cx="4.5" cy="9" r="1.25" fill="var(--app-text-primary)" />
+                            <circle cx="13.5" cy="9" r="1.25" fill="var(--app-text-primary)" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
+                  {isDetailsOverlayOpen && (
+                    <div
+                      className={styles.detailsOverlayBackdrop}
+                      role="presentation"
+                      onClick={closeDetailsOverlay}
+                    >
+                      <div
+                        className={styles.detailsOverlay}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className={styles.detailsOverlayHeader}>
+                          <h4>Détails utilisateur</h4>
+                          <button
+                            type="button"
+                            className={styles.detailsOverlayClose}
+                            onClick={closeDetailsOverlay}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <p className={styles.detailsOverlayLead}>
+                          Ajoute des informations contextualisées pour cette conversation afin d’aider l'agent à répondre.
+                        </p>
+                        <label>
+                          <span>Note rapide</span>
+                          <textarea
+                            rows={3}
+                            placeholder="Par ex. 22 ans, intéressé par ma formation mais se reçoit sa paye le 22/10"
+                          />
+                        </label>
+                        <div className={styles.detailsOverlayActions}>
+                          <button
+                            type="button"
+                            className={styles.detailsOverlaySecondary}
+                            onClick={closeDetailsOverlay}
+                          >
+                            Annuler
+                          </button>
+                          <button type="button" className={styles.detailsOverlayPrimary}>
+                            Enregistrer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className={styles.chatMessages}>
                     {(activeConversation.messages ?? []).map((message) => (
                       <ChatBubble key={message.id} message={message} />
@@ -866,24 +1076,13 @@ const Dashboard: FunctionComponent = () => {
                     <div ref={messagesEndRef} />
                   </div>
                   <div className={styles.chatComposer}>
-                    <div className={styles.quickReplies}>
-                      {quickReplies.map((reply) => (
-                        <button
-                          key={reply}
-                          type="button"
-                          onClick={() => handleQuickReply(reply)}
-                        >
-                          {reply}
-                        </button>
-                      ))}
-                    </div>
                     <textarea
                       value={composerText}
                       onChange={(event) => setComposerText(event.target.value)}
                       placeholder="Écrire un message…"
                     />
                     <div className={styles.chatComposerActions}>
-                      <span style={{ color: "#94a3b8", fontSize: "12px" }}>
+                      <span style={{ color: "var(--app-text-secondary)", fontSize: "12px" }}>
                         Canal actif : {activeConversation.channel}
                       </span>
                       <button
@@ -904,10 +1103,19 @@ const Dashboard: FunctionComponent = () => {
             </div>
           </section>
         )}
-          </div>
-        </div>
+        <ConfirmationDialog
+          open={isStopDialogOpen}
+          title="Confirmation"
+          message="Voulez-vous vraiment arrêter l’envoi sur cette conversation ? Vous ne pourrez plus la réactiver."
+          onClose={closeStopDialog}
+          onConfirm={confirmStopDialog}
+          confirmLabel="Arrêter"
+          cancelLabel="Annuler"
+        />
       </div>
     </div>
+  </div>
+</div>
   );
 };
 

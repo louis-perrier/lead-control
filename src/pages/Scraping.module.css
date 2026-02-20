@@ -1,0 +1,525 @@
+.scrapingPage {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--app-bg);
+}
+
+.content {
+  flex: 1;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--app-bg);
+}
+
+.section {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.sectionHeader h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.sectionHeader p {
+  margin: 4px 0 0;
+  color: var(--color-gray);
+}
+
+.sectionTag {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--app-primary);
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.launchArea {
+  width: 100%;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.launchCard {
+  background: var(--app-surface);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 25px 60px rgba(11, 18, 32, 0.12);
+  border: 1px solid rgba(11, 18, 32, 0.05);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.cardLabel {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  font-size: 11px;
+  color: var(--app-text-secondary);
+}
+
+.cardTitle {
+  margin: 4px 0 0;
+  font-size: 1.4rem;
+  color: var(--app-text-primary);
+}
+
+.badgeSoft {
+  align-self: flex-start;
+  background: var(--app-chip-bg);
+  color: var(--app-primary);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cardDescription {
+  margin: 0;
+  color: var(--app-text-secondary);
+  line-height: 1.5;
+}
+
+.cardBody {
+  min-height: auto;
+}
+
+.comingSoon {
+  border: 1px dashed var(--app-border);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  color: var(--app-text-secondary);
+  background: var(--app-bg);
+}
+
+.configToggle {
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--app-surface);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--app-text-primary);
+  width: fit-content;
+}
+
+.configPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.segmentedControl {
+  display: flex;
+  gap: 8px;
+  background: var(--app-bg);
+  border-radius: 999px;
+  padding: 4px;
+}
+
+.segmentButton {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.segmentButtonActive {
+  background: var(--app-primary);
+  color: white;
+}
+
+.platformIcon {
+  border-radius: 12px;
+}
+
+.smallPlatformIcon {
+  border-radius: 999px;
+}
+
+.fieldLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.textField {
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.checkboxOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.primaryAction {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  background: linear-gradient(120deg, var(--app-primary), var(--app-primary-hover));
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
+}
+
+.primaryAction:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.smallText {
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  margin: 0;
+}
+
+.errorText {
+  color: var(--app-error);
+  font-size: 13px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.progressContainer {
+  background: var(--app-surface);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 25px 80px rgba(15, 23, 42, 0.1);
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.progressBar {
+  margin-top: 12px;
+  height: 8px;
+  background: var(--app-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressMeter {
+  height: 100%;
+  background: linear-gradient(120deg, var(--app-primary), var(--app-primary-hover));
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.tabsContainer {
+  background: var(--app-surface);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 25px 80px rgba(15, 23, 42, 0.12);
+}
+
+.tabStrip {
+  display: flex;
+  gap: 24px;
+}
+
+.tabButton {
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 16px;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tabButtonActive {
+  color: var(--app-text-primary);
+  border-bottom-color: var(--app-primary);
+  font-weight: 600;
+}
+
+.tabPanel {
+  margin-top: 20px;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.runCard {
+  border: 1px solid var(--app-border);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.runCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+}
+
+.runMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.platformRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.runTitle {
+  margin: 0;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.runSubtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.statusBadgeSuccess,
+.statusBadgePending,
+.statusBadgeError {
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusBadgeSuccess {
+  background: rgba(22, 163, 74, 0.15);
+  color: var(--app-success);
+}
+
+.statusBadgePending {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--app-warning);
+}
+
+.statusBadgeError {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--app-error);
+}
+
+.runFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badgeText {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: var(--app-chip-bg);
+  color: var(--app-primary);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.showMoreButton {
+  margin: 14px auto 0;
+  border: none;
+  background: transparent;
+  color: var(--app-primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.showMoreButton:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.allLeadsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leadCard {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leadRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.leadUsername {
+  font-weight: 600;
+  color: var(--app-text-primary);
+  text-decoration: none;
+}
+
+.leadDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.badgeOccurrences {
+  background: rgba(37, 99, 235, 0.15);
+  color: var(--app-primary-hover);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.badgeVerified {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(22, 163, 74, 0.2);
+  color: var(--app-success);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modalContent {
+  background: var(--app-surface);
+  border-radius: 20px;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: 0 25px 80px rgba(15, 23, 42, 0.25);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modalBody {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modalClose {
+  border: none;
+  background: var(--app-bg);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.leadRowModal {
+  border-bottom: 1px solid var(--app-border);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.leadRowModal:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}

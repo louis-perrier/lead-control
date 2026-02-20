@@ -18,6 +18,7 @@
   border-radius: var(--br-20);
   border: 1px solid transparent;
   transition: border 180ms ease, box-shadow 180ms ease;
+  background: var(--app-surface);
 }
 .agentDetailsContainer {
   width: 189px;
@@ -65,15 +66,39 @@
   z-index: 5;
   padding-right: 0px;
 }
+.statusBadgeWrapper {
+  position: absolute;
+  inset: 38px 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  pointer-events: none;
+  z-index: 5;
+  padding-right: 0px;
+}
 .statusTag {
   padding: 4px 12px;
   border-radius: 999px;
   font-size: var(--Static-Body-Small-Size);
   font-weight: 600;
-  background-color: rgba(74, 222, 128, 0.15);
-  color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+.statusTagActive {
+  background-color: rgba(22, 163, 74, 0.15);
+  color: var(--app-success);
+  border: 1px solid rgba(22, 163, 74, 0.4);
   box-shadow: 0 4px 20px rgba(22, 163, 74, 0.25);
+}
+.statusTagInactive {
+  background-color: rgba(91, 102, 122, 0.15);
+  color: var(--app-text-secondary);
+  border: 1px solid rgba(91, 102, 122, 0.35);
+  box-shadow: none;
+}
+
+.agentcard:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 20px 40px rgba(11, 18, 32, 0.15);
+  transform: translateY(-2px);
 }
 .agentname {
   margin: 0;
