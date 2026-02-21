@@ -47,6 +47,7 @@ type Conversation = {
   messages: Message[];
   tags: string[];
   metadata?: Record<string, unknown>;
+  automationState: string;
 };
 
 const channelFilterOptions: ChannelFilterOption[] = [
@@ -158,6 +159,7 @@ const mapConversationRecord = (record: any): Conversation => {
     messages,
     tags: record.heat_tag ? [record.heat_tag] : [],
     metadata: record.metadata ?? {},
+    automationState: record.automation_state ?? "idle",
   };
 };
 
@@ -280,7 +282,17 @@ const ConversationItem: FunctionComponent<{
       <div className={styles.conversationDetails}>
         <div className={styles.conversationTop}>
           <span>{conversation.contactName}</span>
-          <ChannelBadge channel={conversation.channel} />
+          <div className={styles.conversationTopMeta}>
+            <ChannelBadge channel={conversation.channel} />
+            {conversation.automationState === "pending" && (
+              <span className={styles.pendingBadge}>
+                <span className={styles.pendingDot} />
+                <span className={styles.pendingDot} />
+                <span className={styles.pendingDot} />
+                Automatisation en attente
+              </span>
+            )}
+          </div>
         </div>
         <p className={styles.conversationPreview}>{conversation.lastMessage}</p>
         <div className={styles.conversationBottom}>
@@ -972,6 +984,12 @@ const Dashboard: FunctionComponent = () => {
                         <span className={styles.topConversationItemMeta}>
                           Statut : {activeConversation.status}
                         </span>
+                    {activeConversation.automationState === "pending" && (
+                      <span className={styles.chatPendingLabel}>
+                        <span className={styles.pendingDot} />
+                        En attente
+                      </span>
+                    )}
                       </div>
                       <div className={styles.chatHeaderTools}>
                         <button
