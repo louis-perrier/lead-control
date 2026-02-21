@@ -76,7 +76,17 @@ const useClaraConversations = (agentConfigId?: string) => {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
+          schema: "public",
+          table: "conversations",
+          filter: `agent_config_id=eq.${agentConfigId}`,
+        },
+        handleConversationChange,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
           schema: "public",
           table: "conversations",
           filter: `agent_config_id=eq.${agentConfigId}`,

@@ -653,21 +653,45 @@ const Dashboard: FunctionComponent = () => {
     if (!composerText.trim() || !activeConversation) {
       return;
     }
-    const { error } = await supabase.from("conversation_messages").insert({
-      conversation_id: Number(activeConversation.id),
-      platform: activeConversation.channel,
-      direction: "out",
-      author_type: "agent",
-      author_ref: "clara-dashboard",
-      body_text: composerText.trim(),
-      send_state: "sent",
-      sent_at: new Date().toISOString(),
-    });
-    if (error) {
-      console.error("Impossible d'envoyer le message", error);
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+    if (sessionError) {
+      console.error("Impossible de récupérer la session", sessionError);
       return;
     }
-    setComposerText("");
+    const accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+      console.error("Token d'accès manquant pour envoyer le message");
+      return;
+    }
+    try {
+      const response = await fetch(
+        "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/callback-relay/send-message",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            conversation_id: Number(activeConversation.id),
+            platform: activeConversation.channel,
+            text: composerText.trim(),
+          }),
+        }
+      );
+      const payload = await response.json();
+      if (!response.ok || payload?.ok !== true) {
+        console.error(
+          "Impossible d'envoyer le message via la fonction callback",
+          payload
+        );
+        return;
+      }
+      setComposerText("");
+    } catch (error) {
+      console.error("Erreur lors de l'appel à la fonction callback", error);
+    }
   };
 
   const updateConversation = async (updates: Record<string, unknown>) => {
