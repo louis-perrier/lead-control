@@ -289,7 +289,7 @@ const ConversationItem: FunctionComponent<{
                 <span className={styles.pendingDot} />
                 <span className={styles.pendingDot} />
                 <span className={styles.pendingDot} />
-                Automatisation en attente
+                Agent en attente
               </span>
             )}
           </div>
@@ -565,15 +565,13 @@ const Dashboard: FunctionComponent = () => {
     const activeConversations = filteredConversations.filter(
       (conversation) => conversation.status === "Ouvert",
     ).length;
-    const averageResponseMinutes =
-      responsePairs === 0
-        ? 3
-        : Math.round((totalResponseMs / responsePairs) / 6000) / 10;
+    const averageResponseSeconds =
+      responsePairs === 0 ? 0 : Math.round((totalResponseMs / responsePairs) / 1000);
     return {
       responses: Math.round(responses * periodMultiplier * 0.95),
       messages: Math.round(messagesReceived * periodMultiplier * 0.9),
       active: activeConversations,
-      responseTime: averageResponseMinutes,
+      responseTime: averageResponseSeconds,
     };
   }, [filteredConversations, period]);
 
@@ -583,10 +581,10 @@ const Dashboard: FunctionComponent = () => {
     active: period === "7" ? "+3% vs précédent" : "+1% vs précédent",
     responseTime:
       period === "7"
-        ? "-0,4 min vs précédent"
+        ? "-24 s vs précédent"
         : period === "30"
-        ? "-0,6 min vs précédent"
-        : "-0,9 min vs précédent",
+        ? "-36 s vs précédent"
+        : "-54 s vs précédent",
   };
 
   const kpiCards = [
@@ -606,11 +604,11 @@ const Dashboard: FunctionComponent = () => {
       value: `${stats.active}`,
       delta: deltas.active,
     },
-    {
-      label: "Temps de réponse moyen",
-      value: `${stats.responseTime.toFixed(1)} min`,
-      delta: deltas.responseTime,
-    },
+      {
+        label: "Temps de réponse moyen",
+        value: `${stats.responseTime.toLocaleString("fr-FR")} s`,
+        delta: deltas.responseTime,
+      },
   ];
 
   const channelStats = useMemo(() => {
@@ -678,7 +676,7 @@ const Dashboard: FunctionComponent = () => {
     }
     try {
       const response = await fetch(
-        "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/callback-relay/send-message",
+        "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/callback-relay/insta/send-message",
         {
           method: "POST",
           headers: {
@@ -874,6 +872,9 @@ const Dashboard: FunctionComponent = () => {
                 </div>
               </section>
               <section className={styles.claraPanel}>
+                <div className={styles.panelComingSoonOverlay}>
+                  BIENTÔT DISPONIBLE
+                </div>
                 <h3>Évolution sur la période</h3>
                 <div className={styles.claraSparkline}>
                   {sparklinePoints.map((value, index) => {
@@ -890,22 +891,28 @@ const Dashboard: FunctionComponent = () => {
               </section>
               <section className={styles.claraPanel}>
                 <h3>Top conversations</h3>
-                <ul className={styles.claraPanelList}>
-                  {topConversations.map((conversation) => (
-                    <li key={conversation.id} className={styles.topConversationItem}>
-                      <div>
-                        <strong>{conversation.contactName}</strong>
-                        <div className={styles.topConversationItemMeta}>
-                          {formatRelativeTime(conversation.lastAt)} ·{" "}
-                          <ChannelBadge channel={conversation.channel} />
+                {topConversations.length === 0 ? (
+                  <div className={styles.topConversationEmpty}>
+                    Aucune conversation disponible.
+                  </div>
+                ) : (
+                  <ul className={styles.claraPanelList}>
+                    {topConversations.map((conversation) => (
+                      <li key={conversation.id} className={styles.topConversationItem}>
+                        <div>
+                          <strong>{conversation.contactName}</strong>
+                          <div className={styles.topConversationItemMeta}>
+                            {formatRelativeTime(conversation.lastAt)} ·{" "}
+                            <ChannelBadge channel={conversation.channel} />
+                          </div>
                         </div>
-                      </div>
-                      <span className={styles.topConversationItemMeta}>
-                        {conversation.messages.length} messages
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                        <span className={styles.topConversationItemMeta}>
+                          {conversation.messages.length} messages
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             </div>
           </section>

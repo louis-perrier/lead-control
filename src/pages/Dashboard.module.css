@@ -192,6 +192,7 @@
   border: 1px solid rgba(11, 18, 32, 0.08);
   padding: 20px;
   box-shadow: 0 12px 30px rgba(11, 18, 32, 0.06);
+  position: relative;
 }
 .claraPanel h3 {
   margin: 0 0 12px;
@@ -205,6 +206,17 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.topConversationEmpty {
+  min-height: 120px;
+  border-radius: 12px;
+  border: 1px dashed var(--app-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
 }
 .channelBarRow {
   display: flex;
@@ -242,6 +254,39 @@
   align-items: flex-end;
   gap: 6px;
   height: 100px;
+  position: relative;
+}
+.sparklineLabelOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  color: white;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+.panelComingSoonOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  color: white;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
 }
 .claraSparklineBar {
   flex: 1;
