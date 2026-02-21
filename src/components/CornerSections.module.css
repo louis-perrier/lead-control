@@ -46,9 +46,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--padding-24);
   box-shadow: var(--shadow-drop-1);
   font-weight: 500;
   font-size: var(--fs-22);
+}
+
+.cornerOrderBadge {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--app-primary), var(--app-accent));
+  color: var(--color-white);
+  font-size: var(--fs-16);
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(34, 211, 238, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  text-transform: none;
+}
+
+.cornerOrderBadgeNumber {
+  line-height: 1;
 }
 
 .cornerTitle {

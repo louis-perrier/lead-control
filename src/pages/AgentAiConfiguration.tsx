@@ -4,6 +4,8 @@ import {
   useEffect,
   useMemo,
   useState,
+  ChangeEvent,
+  DragEvent,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -83,6 +85,81 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
   );
 };
 
+type ToneOption = "normal" | "friendly" | "funny" | "pro" | "direct";
+type ActiveDays = {
+  mon: boolean;
+  tue: boolean;
+  wed: boolean;
+  thu: boolean;
+  fri: boolean;
+  sat: boolean;
+  sun: boolean;
+};
+type DetailErrors = {
+  context?: string;
+  contextPdf?: string;
+  activeDays?: string;
+  timeRange?: string;
+  stopText?: string;
+  stopLink?: string;
+};
+type DetailsSnapshot = {
+  contextText: string;
+  tone: ToneOption;
+  activeDays: ActiveDays;
+  timeStart: string;
+  timeEnd: string;
+  stopText: string;
+  stopLink: string;
+};
+
+const defaultActiveDays: ActiveDays = {
+  mon: true,
+  tue: true,
+  wed: true,
+  thu: true,
+  fri: true,
+  sat: true,
+  sun: true,
+};
+const defaultTimeRange = { start: "09:00", end: "20:00" };
+const PDF_SIZE_LIMIT = 20 * 1024 * 1024;
+const toneOptions: { value: ToneOption; label: string; description: string }[] = [
+  {
+    value: "normal",
+    label: "Normal",
+    description: "Factuel et neutre pour la majorité des conversations.",
+  },
+  {
+    value: "friendly",
+    label: "Amical",
+    description: "Ton chaleureux pour rassurer vos interlocuteurs.",
+  },
+  {
+    value: "funny",
+    label: "Drôle",
+    description: "Une approche légère et détendue (à utiliser avec parcimonie).",
+  },
+  {
+    value: "pro",
+    label: "Pro",
+    description: "Langage formel, précis et rassurant.",
+  },
+  {
+    value: "direct",
+    label: "Direct",
+    description: "Aller à l’essentiel avec un ton actif.",
+  },
+];
+const dayLabels: { key: keyof ActiveDays; label: string }[] = [
+  { key: "mon", label: "Lun" },
+  { key: "tue", label: "Mar" },
+  { key: "wed", label: "Mer" },
+  { key: "thu", label: "Jeu" },
+  { key: "fri", label: "Ven" },
+  { key: "sat", label: "Sam" },
+  { key: "sun", label: "Dim" },
+];
 
 type AgentAiConfigurationState = {
   agent?: AgentInfo;
@@ -133,11 +210,23 @@ const AgentAi: FunctionComponent = () => {
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
   const [headerSwitchOn, setHeaderSwitchOn] = useState(false);
 
-  // Details form state
-  const [detailsPrompt, setDetailsPrompt] = useState("");
-  const [oldDetailsPrompt, setOldDetailsPrompt] = useState("");
-  const [detailsContext, setDetailsContext] = useState("");
-  const [oldDetailsContext, setOldDetailsContext] = useState("");
+  // Etat de la popup “Details”
+  const [contextText, setContextText] = useState("");
+  const [contextPdf, setContextPdf] = useState<File | null>(null);
+  const [contextPdfError, setContextPdfError] = useState<string | undefined>(
+    undefined
+  );
+  const [tone, setTone] = useState<ToneOption>("normal");
+  const [activeDays, setActiveDays] = useState<ActiveDays>({
+    ...defaultActiveDays,
+  });
+  const [timeStart, setTimeStart] = useState(defaultTimeRange.start);
+  const [timeEnd, setTimeEnd] = useState(defaultTimeRange.end);
+  const [stopText, setStopText] = useState("");
+  const [stopLink, setStopLink] = useState("");
+  const [errors, setErrors] = useState<DetailErrors>({});
+  const [lastSavedDetails, setLastSavedDetails] =
+    useState<DetailsSnapshot | null>(null);
 
   // Configuration state
   const [activeSocial, setActiveSocial] = useState<string | null>(null);
@@ -217,17 +306,147 @@ const AgentAi: FunctionComponent = () => {
     setHeaderSwitchOn(Boolean(selectedAgent?.is_active));
   }, [selectedAgent?.is_active]);
 
-  useEffect(() => {
-    // Initialize details inputs from the selected agent configuration
-    if (selectedAgent) {
-      const prompt = selectedAgent.configs.Details?.prompt ?? "";
-      const context = selectedAgent.configs.Details?.context ?? "";
-      setDetailsPrompt(prompt);
-      setOldDetailsPrompt(prompt);
-      setDetailsContext(context);
-      setOldDetailsContext(context);
+  const buildSnapshotFromDetails = useCallback(
+    (details: Record<string, any> | undefined): DetailsSnapshot => {
+      const savedDays = (details?.activeDays ?? {}) as Partial<ActiveDays>;
+      return {
+        contextText: details?.context ?? "",
+        tone: (details?.tone as ToneOption) ?? "normal",
+        activeDays: {
+          ...defaultActiveDays,
+          ...savedDays,
+        },
+        timeStart: details?.timeStart ?? defaultTimeRange.start,
+        timeEnd: details?.timeEnd ?? defaultTimeRange.end,
+        stopText: details?.stopText ?? "",
+        stopLink: details?.stopLink ?? "",
+      };
+    },
+    []
+  );
+
+  const applySnapshot = useCallback((snapshot: DetailsSnapshot | null) => {
+    if (!snapshot) {
+      setContextText("");
+      setTone("normal");
+      setActiveDays({ ...defaultActiveDays });
+      setTimeStart(defaultTimeRange.start);
+      setTimeEnd(defaultTimeRange.end);
+      setStopText("");
+      setStopLink("");
+      return;
     }
-  }, [selectedAgent]);
+    setContextText(snapshot.contextText);
+    setTone(snapshot.tone);
+    setActiveDays({ ...snapshot.activeDays });
+    setTimeStart(snapshot.timeStart);
+    setTimeEnd(snapshot.timeEnd);
+    setStopText(snapshot.stopText);
+    setStopLink(snapshot.stopLink);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedAgent) return;
+    const savedDetails = (selectedAgent.configs as Record<string, any>)?.Details;
+    const snapshot = buildSnapshotFromDetails(savedDetails);
+    applySnapshot(snapshot);
+    setLastSavedDetails(snapshot);
+    setContextPdf(null);
+    setContextPdfError(undefined);
+    setErrors({});
+  }, [applySnapshot, buildSnapshotFromDetails, selectedAgent]);
+
+  const handleCloseDetailsOverlay = useCallback(() => {
+    setActiveCorner(null);
+  }, []);
+
+  const validateForm = useCallback((): DetailErrors => {
+    const nextErrors: DetailErrors = {};
+    if (!contextText.trim() && !contextPdf) {
+      nextErrors.context = "Ajoute du texte ou un PDF pour décrire ton contexte.";
+    }
+    if (contextPdfError) {
+      nextErrors.contextPdf = contextPdfError;
+    }
+    const hasActiveDay = Object.values(activeDays).some(Boolean);
+    if (!hasActiveDay) {
+      nextErrors.activeDays = "Sélectionne au moins un jour actif.";
+    }
+    if (timeStart >= timeEnd) {
+      nextErrors.timeRange =
+        "L’horaire de début doit être antérieur à l’horaire de fin.";
+    }
+    const trimmedLink = stopLink.trim();
+    if (trimmedLink) {
+      const normalizedLink =
+        trimmedLink.startsWith("http://") ||
+        trimmedLink.startsWith("https://")
+          ? trimmedLink
+          : trimmedLink.startsWith("www.")
+          ? `https://${trimmedLink}`
+          : `https://${trimmedLink}`;
+      try {
+        new URL(normalizedLink);
+      } catch {
+        nextErrors.stopLink =
+          "Le lien doit être valide (https:// ou www.).";
+      }
+      if (!stopText.trim()) {
+        nextErrors.stopText =
+          "Décris le rôle du lien pour que l’agent sache quand s’arrêter.";
+      }
+    }
+    return nextErrors;
+  }, [
+    contextText,
+    contextPdf,
+    contextPdfError,
+    activeDays,
+    timeStart,
+    timeEnd,
+    stopText,
+    stopLink,
+  ]);
+
+  useEffect(() => {
+    setErrors(validateForm());
+  }, [validateForm]);
+
+  const handleFileSelection = useCallback((file: File | null) => {
+    if (!file) {
+      setContextPdf(null);
+      setContextPdfError(undefined);
+      return;
+    }
+    if (file.type !== "application/pdf") {
+      setContextPdf(null);
+      setContextPdfError("Seuls les PDF sont autorisés.");
+      return;
+    }
+    if (file.size > PDF_SIZE_LIMIT) {
+      setContextPdf(null);
+      setContextPdfError("Taille max 20 Mo.");
+      return;
+    }
+    setContextPdf(file);
+    setContextPdfError(undefined);
+  }, []);
+
+  const handlePdfInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    handleFileSelection(event.target.files?.[0] ?? null);
+    event.target.value = "";
+  };
+
+  const handlePdfDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    if (event.dataTransfer.files.length > 0) {
+      handleFileSelection(event.dataTransfer.files[0]);
+    }
+  };
+
+  const toggleDay = (day: keyof ActiveDays) => {
+    setActiveDays((prev) => ({ ...prev, [day]: !prev[day] }));
+  };
 
 
   // ------------------------------CONNEXIONS---------------------------------
@@ -461,12 +680,9 @@ const AgentAi: FunctionComponent = () => {
    * Indique si la section “Details” est complète et si une connexion est active,
    * afin d’alimenter les statuts des coins.
    */
-  const areDetailsFilled = useMemo(
-    () =>
-      !!detailsPrompt.trim().length &&
-      !!detailsContext.trim().length,
-    [detailsPrompt, detailsContext]
-  );
+  const areDetailsFilled = useMemo(() => {
+    return contextText.trim().length > 0 || contextPdf !== null;
+  }, [contextText, contextPdf]);
 
   const hasActiveConnection = countConnectedConnector > 0;
   const hasAnyConnectors =
@@ -599,15 +815,32 @@ const AgentAi: FunctionComponent = () => {
     }
     setActiveCorner(null);
   };
+  const getCurrentDetailsSnapshot = useCallback(
+    (): DetailsSnapshot => ({
+      contextText,
+      tone,
+      activeDays: { ...activeDays },
+      timeStart,
+      timeEnd,
+      stopText,
+      stopLink,
+    }),
+    [contextText, tone, activeDays, timeStart, timeEnd, stopText, stopLink]
+  );
+
+  const hasValidationErrors = Object.values(errors).some(Boolean);
+
   // ------------------------------PROMPT---------------------------------
   /**
    * Sauvegarde les champs “Details” (prompt + contexte) dans Supabase.
    */
-  const handleSaveDetails = async () => { 
-    if (!selectedAgent) return;
-    setActiveCorner(null);
-    setOldDetailsPrompt(detailsPrompt);
-    setOldDetailsContext(detailsContext);
+  const handleSaveDetails = async () => {
+    const nextErrors = validateForm();
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean) || !selectedAgent) {
+      return;
+    }
+    const snapshot = getCurrentDetailsSnapshot();
     const { error } = await supabase
       .from("agent_configs")
       .update({
@@ -615,8 +848,13 @@ const AgentAi: FunctionComponent = () => {
           ...selectedAgent.configs,
           Details: {
             ...selectedAgent.configs.Details,
-            prompt: detailsPrompt,
-            context: detailsContext,
+            context: contextText,
+            tone,
+            activeDays: { ...activeDays },
+            timeStart,
+            timeEnd,
+            stopText,
+            stopLink: stopLink.trim(),
           },
         },
       })
@@ -626,6 +864,11 @@ const AgentAi: FunctionComponent = () => {
       return;
     }
     await refreshDisplayedAgents();
+    setLastSavedDetails(snapshot);
+    setContextPdf(null);
+    setContextPdfError(undefined);
+    setErrors({});
+    setActiveCorner(null);
   };
 
   return (
@@ -685,9 +928,11 @@ const AgentAi: FunctionComponent = () => {
             <div
               className={styles.cornerOverlay}
               onClick={() => {
-                setActiveCorner(null);
-                setDetailsPrompt(oldDetailsPrompt);
-                setDetailsContext(oldDetailsContext);
+                if (activeCorner === "Details") {
+                  handleCloseDetailsOverlay();
+                } else {
+                  setActiveCorner(null);
+                }
               }}
             >
             <div
@@ -752,44 +997,191 @@ const AgentAi: FunctionComponent = () => {
                 </>
               )}
               {activeCorner === "Details" && (
-                <>
-                  <label
-                    className={styles.cornerOverlayLabel}
-                    htmlFor="detailsPrompt"
-                  >
-                    Prompt <span className={styles.requiredAsterisk}>*</span>
-                  </label>
-                  <textarea
-                    id="detailsPrompt"
-                    className={styles.cornerOverlayTextarea}
-                    value={detailsPrompt}
-                    placeholder="Rédige ton prompt..."
-                    onChange={(event) => setDetailsPrompt(event.target.value)}
-                  />
-                  <label
-                    className={styles.cornerOverlayLabel}
-                    htmlFor="detailsContext"
-                  >
-                    Contexte <span className={styles.requiredAsterisk}>*</span>
-                  </label>
-                  <textarea
-                    id="detailsContext"
-                    className={styles.cornerOverlayTextarea}
-                    value={detailsContext}
-                    placeholder="Décris le contexte à prendre en compte..."
-                    onChange={(event) => setDetailsContext(event.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className={styles.cornerOverlaySave}
-                    onClick={handleSaveDetails}
-                    disabled={
-                      !detailsPrompt.trim() || !detailsContext.trim()
-                    }
-                  >
-                    Enregistrer
-                  </button>
-                </>
+                <div className={styles.detailsLayout}>
+                  <div className={styles.detailsHeader}>
+                    <div>
+                      <h3>Configuration de l’agent</h3>
+                      <p className={styles.detailsSubtitle}>
+                        Donne suffisamment d’éléments pour guider la prise de parole de ton agent IA.
+                      </p>
+                    </div>
+                  </div>
+                  <div className={styles.detailsGrid}>
+                    <section className={`${styles.detailsCard} ${styles.detailsCardWide}`}>
+                      <div className={styles.cardHeader}>
+                        <h4 className={styles.cardTitle}>Contexte</h4>
+                        <p className={styles.cardDescription}>
+                          Texte libre et/ou PDF pour expliquer le ton, le produit et les limites à respecter.
+                        </p>
+                      </div>
+                      <textarea
+                        value={contextText}
+                        onChange={(event) => setContextText(event.target.value)}
+                        placeholder="Décris le contexte à prendre en compte..."
+                        className={styles.detailsTextarea}
+                      />
+                      <div className={styles.dropzoneWrapper}>
+                        <label
+                          htmlFor="contextPdfInput"
+                          className={styles.dropzone}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={handlePdfDrop}
+                        >
+                          <span>Importer un PDF (max 20 Mo)</span>
+                        </label>
+                        <input
+                          id="contextPdfInput"
+                          type="file"
+                          accept="application/pdf"
+                          className={styles.dropzoneInput}
+                          onChange={handlePdfInputChange}
+                        />
+                        {contextPdf && (
+                          <div className={styles.pdfPreview}>
+                            <div>
+                              <span className={styles.pdfName}>{contextPdf.name}</span>
+                              <span className={styles.pdfSize}>
+                                {(contextPdf.size / 1024 / 1024).toFixed(1)} Mo
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className={styles.pdfRemove}
+                              onClick={() => handleFileSelection(null)}
+                            >
+                              Retirer
+                            </button>
+                          </div>
+                        )}
+                        {errors.context && (
+                          <p className={styles.fieldError}>{errors.context}</p>
+                        )}
+                        {errors.contextPdf && (
+                          <p className={styles.fieldError}>{errors.contextPdf}</p>
+                        )}
+                      </div>
+                    </section>
+                    <section className={styles.detailsCard}>
+                      <div className={styles.cardHeader}>
+                        <h4 className={styles.cardTitle}>Ton</h4>
+                        <p className={styles.cardDescription}>
+                          Choisis la personnalité par défaut que l’agent utilisera à l’écrit.
+                        </p>
+                      </div>
+                      <select
+                        value={tone}
+                        onChange={(event) =>
+                          setTone(event.target.value as ToneOption)
+                        }
+                        className={styles.toneSelect}
+                      >
+                        {toneOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className={styles.toneMeta}>
+                        {
+                          toneOptions.find((option) => option.value === tone)
+                            ?.description
+                        }
+                      </p>
+                    </section>
+                    <section className={styles.detailsCard}>
+                      <div className={styles.cardHeader}>
+                        <h4 className={styles.cardTitle}>Horaires d’activation</h4>
+                        <p className={styles.cardDescription}>
+                          Défini les jours et la plage horaire à respecter pour ce contexte.
+                        </p>
+                      </div>
+                      <div className={styles.dayToggles}>
+                        {dayLabels.map((day) => (
+                          <button
+                            key={day.key}
+                            type="button"
+                            className={`${styles.dayToggle} ${
+                              activeDays[day.key] ? styles.dayToggleActive : ""
+                            }`}
+                            aria-pressed={activeDays[day.key]}
+                            onClick={() => toggleDay(day.key)}
+                          >
+                            {day.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className={styles.timeFields}>
+                        <div className={styles.timeField}>
+                          <label htmlFor="timeStart" className={styles.fieldLabel}>
+                            De
+                          </label>
+                          <input
+                            id="timeStart"
+                            type="time"
+                            value={timeStart}
+                            onChange={(event) => setTimeStart(event.target.value)}
+                            className={styles.timeInput}
+                          />
+                        </div>
+                        <div className={styles.timeField}>
+                          <label htmlFor="timeEnd" className={styles.fieldLabel}>
+                            À
+                          </label>
+                          <input
+                            id="timeEnd"
+                            type="time"
+                            value={timeEnd}
+                            onChange={(event) => setTimeEnd(event.target.value)}
+                            className={styles.timeInput}
+                          />
+                        </div>
+                      </div>
+                      {errors.activeDays && (
+                        <p className={styles.fieldError}>{errors.activeDays}</p>
+                      )}
+                      {errors.timeRange && (
+                        <p className={styles.fieldError}>{errors.timeRange}</p>
+                      )}
+                    </section>
+                    <section className={styles.detailsCard}>
+                      <div className={styles.cardHeader}>
+                        <h4 className={styles.cardTitle}>Condition d’arrêt</h4>
+                        <p className={styles.cardDescription}>
+                          Si vous mettez un lien (ex: Calendly), décrivez à quoi il sert pour que l’agent comprenne quand s’arrêter.
+                        </p>
+                      </div>
+                      <textarea
+                        value={stopText}
+                        onChange={(event) => setStopText(event.target.value)}
+                        placeholder="Décris ce qui doit déclencher l’arrêt."
+                        className={styles.stopTextarea}
+                      />
+                      {errors.stopText && (
+                        <p className={styles.fieldError}>{errors.stopText}</p>
+                      )}
+                      <input
+                        type="text"
+                        value={stopLink}
+                        onChange={(event) => setStopLink(event.target.value)}
+                        placeholder="https://"
+                        className={styles.detailsInput}
+                      />
+                      {errors.stopLink && (
+                        <p className={styles.fieldError}>{errors.stopLink}</p>
+                      )}
+                    </section>
+                  </div>
+                  <div className={styles.detailsFooter}>
+                    <button
+                      type="button"
+                      className={styles.cornerOverlaySave}
+                      onClick={handleSaveDetails}
+                      disabled={hasValidationErrors}
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
               )}
               {activeCorner === "Connexions" && (
                 <div className={styles.connexionSections}>

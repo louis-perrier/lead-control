@@ -13,6 +13,7 @@ type CornerBlockProps = {
   className: string;
   status: CornerStatus;
   title: string;
+  order?: number;
   onClick?: () => void;
 };
 
@@ -20,6 +21,7 @@ const CornerBlock: FunctionComponent<CornerBlockProps> = ({
   className,
   status,
   title,
+  order,
   onClick,
 }) => {
   const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
@@ -40,6 +42,11 @@ const CornerBlock: FunctionComponent<CornerBlockProps> = ({
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={handleKeyDown}
     >
+      {order != null && (
+        <span className={styles.cornerOrderBadge} aria-label={`Ordre ${order}`}>
+          <span className={styles.cornerOrderBadgeNumber}>{order}</span>
+        </span>
+      )}
       {status === "lock" && (
         <div className={styles.lockIconWrapper}>
           <img src="/lockIcon.svg" alt="Verrouillé" />
@@ -85,27 +92,43 @@ const CornerSections: FunctionComponent<CornerSectionsProps> = ({
       statuses?.Configurations ?? defaultStatuses.Configurations,
   };
 
-  const blocks: { section: CornerSection; status: CornerStatus; position: string }[] =
+  const orderMap: Record<CornerSection, number | undefined> = {
+    Details: 1,
+    Connexions: 2,
+    BIENTÔT: undefined,
+    Configurations: 3,
+  };
+
+  const blocks: {
+    section: CornerSection;
+    status: CornerStatus;
+    position: string;
+    order?: number;
+  }[] =
     [
       {
         section: "Details",
         status: effectiveStatuses.Details,
         position: styles.cornerTopLeft,
+        order: orderMap.Details,
       },
       {
         section: "Connexions",
         status: effectiveStatuses.Connexions,
         position: styles.cornerTopRight,
+        order: orderMap.Connexions,
       },
       {
         section: "BIENTÔT",
         status: effectiveStatuses.BIENTÔT,
         position: styles.cornerBottomLeft,
+        order: orderMap.BIENTÔT,
       },
       {
         section: "Configurations",
         status: effectiveStatuses.Configurations,
         position: styles.cornerBottomRight,
+        order: orderMap.Configurations,
       },
     ];
 
@@ -146,6 +169,7 @@ const CornerSections: FunctionComponent<CornerSectionsProps> = ({
               className={`${block.position} ${shakeClass}`}
               status={block.status}
               title={block.section}
+            order={block.order}
               onClick={handleClick}
             />
           );

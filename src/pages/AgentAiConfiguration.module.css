@@ -78,8 +78,9 @@
 }
 
 .cornerOverlayContent {
-  width: min(50vw, 1200px);
-  height: min(70vh, 800px);
+  width: min(90vw, 1100px);
+  max-width: 1100px;
+  max-height: min(92vh, 920px);
   background: var(--app-surface);
   border-radius: var(--br-16);
   padding: var(--padding-24);
@@ -87,6 +88,238 @@
   position: relative;
   text-align: left;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-20);
+}
+
+.detailsLayout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-20);
+}
+
+.detailsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.detailsHeader h3 {
+  margin: 0;
+  font-size: var(--fs-24);
+}
+
+.detailsSubtitle {
+  margin: 4px 0 0;
+  color: var(--app-text-secondary);
+  font-size: var(--fs-14);
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--gap-16);
+}
+
+.detailsCard {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-12);
+  padding: var(--padding-20);
+  box-shadow: var(--shadow-drop-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+}
+
+.detailsCardWide {
+  grid-column: 1 / -1;
+}
+
+.cardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--fs-18);
+  font-weight: 600;
+}
+
+.cardDescription {
+  margin: 0;
+  font-size: var(--fs-13);
+  color: var(--app-text-secondary);
+}
+
+.detailsTextarea,
+.stopTextarea {
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-12);
+  padding: var(--padding-12);
+  font-size: var(--fs-15);
+  font-family: inherit;
+  background: var(--app-surface);
+  resize: vertical;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+.dropzoneWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dropzone {
+  border: 1px dashed var(--app-border);
+  border-radius: var(--br-12);
+  padding: var(--padding-16);
+  text-align: center;
+  cursor: pointer;
+  background: rgba(34, 211, 238, 0.06);
+  color: var(--app-text-primary);
+  font-weight: 600;
+}
+
+.dropzoneInput {
+  display: none;
+}
+
+.pdfPreview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--padding-12);
+  border-radius: var(--br-12);
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid var(--app-border);
+  gap: 12px;
+  font-size: var(--fs-14);
+}
+
+.pdfName {
+  font-weight: 600;
+}
+
+.pdfSize {
+  font-size: var(--fs-12);
+  color: var(--app-text-secondary);
+}
+
+.pdfRemove {
+  border: none;
+  background: transparent;
+  color: var(--app-error);
+  cursor: pointer;
+  font-size: var(--fs-12);
+  text-decoration: underline;
+}
+
+.toneSelect {
+  width: 100%;
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-12);
+  padding: 10px 12px;
+  background: var(--app-surface);
+  font-size: var(--fs-15);
+  font-family: inherit;
+}
+
+.toneMeta {
+  margin: 0;
+  font-size: var(--fs-13);
+  color: var(--app-text-secondary);
+}
+
+.dayToggles {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dayToggle {
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-12);
+  padding: 10px 0;
+  font-weight: 600;
+  background: var(--app-bg);
+  color: var(--app-text-primary);
+  cursor: pointer;
+}
+
+.dayToggleActive {
+  background: var(--app-primary);
+  color: #fff;
+  border-color: var(--app-primary);
+  box-shadow: var(--shadow-drop-1);
+}
+
+.timeFields {
+  display: flex;
+  gap: var(--gap-12);
+  flex-wrap: wrap;
+}
+
+.timeField {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: var(--fs-12);
+  letter-spacing: 0.05em;
+  color: var(--app-text-secondary);
+  text-transform: uppercase;
+}
+
+.timeInput {
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-12);
+  padding: 10px;
+  background: var(--app-surface);
+  font-size: var(--fs-15);
+}
+
+.detailsInput {
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-12);
+  padding: 10px;
+  background: var(--app-surface);
+  font-size: var(--fs-15);
+  font-family: inherit;
+}
+
+.detailsFooter {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--app-error);
+  font-size: var(--fs-12);
+}
+
+@media screen and (max-width: 760px) {
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dayToggles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .timeFields {
+    flex-direction: column;
+  }
 }
 .availableLogosWrapper {
   display: flex;
