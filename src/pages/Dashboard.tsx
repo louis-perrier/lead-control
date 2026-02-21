@@ -367,6 +367,7 @@ const Dashboard: FunctionComponent = () => {
     null
   );
   const [composerText, setComposerText] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
   const { displayedAgents } = useAgents();
@@ -660,21 +661,22 @@ const Dashboard: FunctionComponent = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!composerText.trim() || !activeConversation) {
+    if (isSending || !composerText.trim() || !activeConversation) {
       return;
     }
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.getSession();
-    if (sessionError) {
-      console.error("Impossible de récupérer la session", sessionError);
-      return;
-    }
-    const accessToken = sessionData?.session?.access_token;
-    if (!accessToken) {
-      console.error("Token d'accès manquant pour envoyer le message");
-      return;
-    }
+    setIsSending(true);
     try {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+      if (sessionError) {
+        console.error("Impossible de récupérer la session", sessionError);
+        return;
+      }
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) {
+        console.error("Token d'accès manquant pour envoyer le message");
+        return;
+      }
       const response = await fetch(
         "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/callback-relay/insta/send-message",
         {
@@ -701,6 +703,8 @@ const Dashboard: FunctionComponent = () => {
       setComposerText("");
     } catch (error) {
       console.error("Erreur lors de l'appel à la fonction callback", error);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -1134,13 +1138,21 @@ const Dashboard: FunctionComponent = () => {
                       <span style={{ color: "var(--app-text-secondary)", fontSize: "12px" }}>
                         Canal actif : {activeConversation.channel}
                       </span>
-                      <button
-                        type="button"
-                        className={styles.chatComposerSend}
-                        onClick={handleSendMessage}
-                      >
-                        Envoyer
-                      </button>
+                    <button
+                      type="button"
+                      className={styles.chatComposerSend}
+                      onClick={handleSendMessage}
+                      disabled={isSending || !composerText.trim()}
+                      aria-busy={isSending}
+                    >
+                      {isSending && (
+                        <span
+                          className={styles.chatComposerSpinner}
+                          aria-hidden="true"
+                        />
+                      )}
+                      Envoyer
+                    </button>
                     </div>
                   </div>
                 </>
