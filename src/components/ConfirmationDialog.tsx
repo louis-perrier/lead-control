@@ -1,5 +1,7 @@
 import { FunctionComponent } from "react";
+import { createPortal } from "react-dom";
 import styles from "./ConfirmationDialog.module.css";
+import Button from "./Button";
 
 type ConfirmationDialogProps = {
   open: boolean;
@@ -17,36 +19,40 @@ const ConfirmationDialog: FunctionComponent<ConfirmationDialogProps> = ({
   message,
   onClose,
   onConfirm,
-  confirmLabel = "Oui",
-  cancelLabel = "Non",
+  confirmLabel = "Continuer",
+  cancelLabel = "Annuler",
 }) => {
   if (!open) {
     return null;
   }
 
+  if (typeof document === "undefined") {
+    return null;
+  }
+
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
-      <div className={styles.dialog} onClick={(event) => event.stopPropagation()}>
-        {title && <h2 className={styles.title}>{title}</h2>}
-        <p className={styles.message}>{message}</p>
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={[styles.button, styles.secondary].join(" ")}
-            onClick={onClose}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className={[styles.button, styles.primary].join(" ")}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </button>
+    createPortal(
+      <div className={styles.backdrop} role="presentation" onClick={onClose}>
+        <div
+          className={styles.dialog}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {title && <h2 className={styles.title}>{title}</h2>}
+          <div className={styles.messageWrapper}>
+            <p className={styles.message}>{message}</p>
+          </div>
+          <div className={styles.actions}>
+            <Button type="button" variant="secondary" onClick={onClose} align="none">
+              {cancelLabel}
+            </Button>
+            <Button type="button" variant="primary" onClick={onConfirm} align="none">
+              {confirmLabel}
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </div>,
+      document.body
+    )
   );
 };
 

@@ -230,6 +230,28 @@
   font-family: inherit;
 }
 
+.toneComingSoon {
+  position: relative;
+}
+
+.toneComingSoonOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-surface);
+  font-weight: 700;
+  font-size: var(--fs-13);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  z-index: 1;
+  pointer-events: all;
+  cursor: not-allowed;
+}
+
 .toneMeta {
   margin: 0;
   font-size: var(--fs-13);

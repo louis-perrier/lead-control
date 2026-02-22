@@ -12,6 +12,9 @@ import optionSearchStyles from "../components/OptionSearch.module.css";
 import styles from "./Connexion.module.css";
 import tableStyles from "../styles/TableStyles.module.css";
 import supabase from "../lib/supabase";
+import { buildConnectorActions } from "../connectors/actions";
+import ConfirmationDialog from "../components/ConfirmationDialog";
+import Button from "../components/Button";
 
 type ConfigurationDetail = {
   configId: string;
@@ -108,6 +111,23 @@ const Connexion: FunctionComponent = () => {
   useEffect(() => {
     fetchConnections();
   }, []);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("connectors_config_agent_channel")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "connectors_config_agent" },
+        () => {
+          fetchConnections();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchConnections]);
 
   const uniqueProviders = useMemo(
     () =>
@@ -226,61 +246,52 @@ const Connexion: FunctionComponent = () => {
     fetchConnections();
   }, [fetchConnections]);
 
-  type ConnectionAction = {
-    onConnect: (connection: Connection) => void;
-    onDisconnect: (connection: Connection) => void;
-  };
+const connectorActions = useMemo(() => {
+  const connectorConnected = connections.map((connection) => ({
+    connectors_name: (connection.provider ?? "").toLowerCase(),
+    id: connection.connector_user_id,
+  }));
+  return buildConnectorActions({
+    connectorConnected,
+  });
+}, [connections]);
+const [confirmationOpen, setConfirmationOpen] = useState(false);
+const [pendingDisconnect, setPendingDisconnect] = useState<{
+  action: () => Promise<void> | void;
+  label: string;
+  providerKey: string;
+} | null>(null);
+const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(
+  null
+);
 
-  const connectionActions = useMemo<Record<string, ConnectionAction>>(
-    () => ({
-      instagram: {
-        onConnect: () => handleRefresh(),
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-      whatsapp: {
-        onConnect: handleRefresh,
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-      gmail: {
-        onConnect: handleRefresh,
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-      tiktok: {
-        onConnect: handleRefresh,
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-      linkedin: {
-        onConnect: handleRefresh,
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-      facebook: {
-        onConnect: handleRefresh,
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-      discord: {
-        onConnect: handleRefresh,
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-      telegram: {
-        onConnect: handleRefresh,
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-      appel: {
-        onConnect: handleRefresh,
-        onDisconnect: (connection) =>
-          handleDisconnectClick(connection.connector_user_id),
-      },
-    }),
-    [handleDisconnectClick, handleRefresh]
-  );
+const requestDisconnect = (
+  action: () => Promise<void> | void,
+  label: string,
+  providerKey: string
+) => {
+  setPendingDisconnect({ action, label, providerKey });
+  setConfirmationOpen(true);
+};
+
+const handleConfirmDisconnect = async () => {
+  if (!pendingDisconnect) {
+    return;
+  }
+  setDisconnectingProvider(pendingDisconnect.providerKey);
+  setConfirmationOpen(false);
+  try {
+    await Promise.resolve(pendingDisconnect.action());
+  } finally {
+    setDisconnectingProvider(null);
+    setPendingDisconnect(null);
+  }
+};
+
+const handleCancelDisconnect = () => {
+  setPendingDisconnect(null);
+  setConfirmationOpen(false);
+};
 
   const closeConfigurationOverlay = () => {
     setActiveConfigs(null);
@@ -357,33 +368,50 @@ const Connexion: FunctionComponent = () => {
                 <td className={styles.actionsCell}>
                   {(() => {
                     const providerKey = (connection.provider ?? "").toLowerCase();
-                    const actions = connectionActions[providerKey];
-                    const handleDisconnect =
+                    const actions = connectorActions[providerKey];
+                    const disconnectAction =
                       actions?.onDisconnect ??
-                      ((conn: Connection) =>
-                        handleDisconnectClick(conn.connector_user_id));
+                      (() => handleDisconnectClick(connection.connector_user_id));
                     const handleConnect =
-                      actions?.onConnect ??
-                      ((conn: Connection) => {
-                        handleRefresh();
-                      });
+                      actions?.onConnect ?? (() => handleRefresh());
+                    const providerLabel =
+                      connection.connectors_label ??
+                      connection.provider ??
+                      "cette connexion";
+                    const request = () =>
+                      requestDisconnect(
+                        disconnectAction,
+                        providerLabel,
+                        providerKey
+                      );
                     return (
-                      <>
-                        <button
+                      <div className={styles.actionGroup}>
+                        <Button
                           type="button"
-                          className={styles.actionButton}
-                          onClick={() => handleDisconnect(connection)}
+                          variant="primary"
+                          align="none"
+                          onClick={request}
+                          disabled={disconnectingProvider === providerKey}
                         >
-                          Déconnexion
-                        </button>
-                        <button
+                          <span className={styles.actionButtonInner}>
+                            {disconnectingProvider === providerKey && (
+                              <span
+                                className={styles.loadingSpinner}
+                                aria-hidden="true"
+                              />
+                            )}
+                            Déconnexion
+                          </span>
+                        </Button>
+                        <Button
                           type="button"
-                          className={styles.actionButtonSecondary}
-                          onClick={() => handleConnect(connection)}
+                          variant="secondary"
+                          align="none"
+                          onClick={handleConnect}
                         >
                           Rafraîchir
-                        </button>
-                      </>
+                        </Button>
+                      </div>
                     );
                   })()}
                 </td>
@@ -392,6 +420,13 @@ const Connexion: FunctionComponent = () => {
             </tbody>
           </table>
         </section>
+        <ConfirmationDialog
+          open={confirmationOpen}
+          title="Confirmer la déconnexion"
+          message={`Voulez-vous vraiment déconnecter ${pendingDisconnect?.label ?? "cette connexion"} ?`}
+          onClose={handleCancelDisconnect}
+          onConfirm={handleConfirmDisconnect}
+        />
         {activeConfigs && (
           <div
             className={styles.configurationOverlay}

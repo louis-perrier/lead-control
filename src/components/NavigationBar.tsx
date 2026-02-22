@@ -73,6 +73,12 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
   );
   const isGregAgentDisplayed = normalizedDisplayedAgentIds.includes("greg");
   const isRickAgentDisplayed = normalizedDisplayedAgentIds.includes("rick");
+  const hasActiveGregAgentDisplayed = displayedAgents.some(
+    (agent) => agent.id.toLowerCase() === "greg" && agent.is_active
+  );
+  const hasActiveRickAgentDisplayed = displayedAgents.some(
+    (agent) => agent.id.toLowerCase() === "rick" && agent.is_active
+  );
 
   const navItems = useMemo(
     () => [
@@ -111,21 +117,26 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
         iconPadding: undefined,
         iconBackgroundColor: undefined,
         show: true,
-      },
-      {
-        key: "scraping",
-        route: "/app/scraping",
-        selected:
-          selectedItem === "scraping" || currentPath === "/app/scraping",
-        labelText: "Scraping",
-        icon: "/scrapingIcon.svg",
-        iconBorder: undefined,
-        iconPadding: undefined,
-        iconBackgroundColor: undefined,
-        show: isRickAgentDisplayed,
-      },
+        },
+        {
+          key: "scraping",
+          route: "/app/scraping",
+          selected:
+            selectedItem === "scraping" || currentPath === "/app/scraping",
+          labelText: "Scraping",
+          icon: "/scrapingIcon.svg",
+          iconBorder: undefined,
+          iconPadding: undefined,
+          iconBackgroundColor: undefined,
+          show: isRickAgentDisplayed && hasActiveRickAgentDisplayed,
+        },
     ],
-    [currentPath, selectedItem, isRickAgentDisplayed],
+    [
+      currentPath,
+      selectedItem,
+      isRickAgentDisplayed,
+      hasActiveRickAgentDisplayed,
+    ],
   );
 
 
@@ -209,7 +220,7 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
           iconPadding={crmIconPadding}
           iconBackgroundColor={crmIconBackgroundColor}
           isCollapsed={isCollapsed}
-          show={isGregAgentDisplayed}
+          show={isGregAgentDisplayed && hasActiveGregAgentDisplayed}
         />
       </div>
     </section>

@@ -1,33 +1,66 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.45);
+  background: radial-gradient(
+      circle at top,
+      rgba(15, 23, 42, 0.22),
+      rgba(2, 6, 23, 0.48)
+    ),
+    rgba(15, 23, 42, 0.05);
   display: flex;
   justify-content: center;
   align-items: center;
   padding: var(--gap-8);
-  z-index: 40;
+  z-index: 9999;
+  backdrop-filter: blur(1px);
 }
 
 .dialog {
-  width: min(360px, calc(100% - 64px));
+  width: min(380px, calc(100% - 56px));
   background-color: var(--app-surface);
-  border-radius: var(--br-12);
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  padding: calc(var(--gap-5) + 4px);
-  box-shadow: 0 30px 55px rgba(15, 23, 42, 0.2);
+  border-radius: var(--br-20);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  padding: var(--gap-6) var(--gap-4) var(--gap-5);
+  box-shadow:
+    0 30px 60px rgba(15, 23, 42, 0.35),
+    0 8px 16px rgba(59, 130, 246, 0.18);
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-4);
-  height: 100px;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  row-gap: var(--gap-4);
+  min-height: 150px;
+  position: relative;
+  z-index: 1;
+}
+.dialog::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--br-20) + 4px);
+  background: linear-gradient(
+    130deg,
+    rgba(59, 130, 246, 0.22),
+    rgba(14, 165, 233, 0.15)
+  );
+  filter: blur(4px);
+  z-index: -1;
 }
 
 .title {
   margin: 0;
-  font-size: var(--fs-20);
+  font-size: var(--fs-22);
   color: var(--app-primary);
+  padding-top: var(--gap-18);
+}
+
+.messageWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 100%;
+  padding: var(--gap-2) 0;
 }
 
 .message {
@@ -38,10 +71,10 @@
 }
 
 .actions {
-  margin-top: var(--gap-2);
+  margin-bottom: 18px;
   display: flex;
   justify-content: center;
-  gap: var(--gap-10);
+  gap: var(--gap-50);
 }
 
 .button {

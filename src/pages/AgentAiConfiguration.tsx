@@ -29,13 +29,8 @@ import { AgentInfo } from "../data/agents";
 import supabase from "../lib/supabase";
 import useAgents from "../hooks/useAgents";
 import { useConnectors } from "../hooks/useConnexion";
+import { buildConnectorActions } from "../connectors/actions";
 
-
-type Connexion = {
-  imageSrc: string;
-  onConnect: () => void;
-  onDisconnect: () => void;
-};
 
 type ConfigurationLogo = {
   connectors_id: string;
@@ -484,62 +479,15 @@ const AgentAi: FunctionComponent = () => {
   }, [activePopup, refreshConnectors]);
 
 
-  const connectInstagram = async () => {
-    // Lancement du process OAuth pour Instagram
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not logged in");
-      const res = await fetch("https://wxatvxfirhahjalneorq.supabase.co/functions/v1/smooth-worker/start", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
-          "authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ return_to: "https://leadcontrol.com/app/agentai", configs_id: selectedAgent?.display_id }),
-      });
-
-      const { auth_url } = await res.json();
-      const popup = window.open(auth_url, "ig_oauth", "width=520,height=720");
-      if (!popup) alert("Popup bloquée : autorise les popups pour Lead Control");
-      setActivePopup(popup);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const disconnectInstagram = async () => {
-    // Déconnexion de l’utilisateur Instagram via la fonction Supabase
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not logged in");
-      const res = await fetch("https://wxatvxfirhahjalneorq.supabase.co/functions/v1/dynamic-responder/start", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY,
-          "authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({connector_id: connectorConnected.find((item) => item.connectors_name === "instagram")?.id})// A améliorer
-      });
-
-      const data = await res.text();
-      if (data !== "OK") throw new Error("Failed to disconnect connector");
-    } catch (error) {
-      console.error(error);
-    }
-  };
-  const connexions: Record<string, Connexion> = {
-    appel: {imageSrc: "/logoConnectors/appel.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}}, // Special celui-là !!
-    instagram: {imageSrc: "/logoConnectors/instagram.webp",  onConnect: connectInstagram, onDisconnect: disconnectInstagram},
-    whatsapp: {imageSrc: "/logoConnectors/whatsapp.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
-    gmail: {imageSrc: "/logoConnectors/gmail.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
-    tiktok: {imageSrc: "/logoConnectors/tiktok.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
-    linkedin: {imageSrc: "/logoConnectors/linkedin.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
-    facebook: {imageSrc: "/logoConnectors/facebook.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
-    discord: {imageSrc: "/logoConnectors/discord.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}},
-    telegram: {imageSrc: "/logoConnectors/telegram.webp",  onConnect: ()=>{}, onDisconnect: ()=>{}}
-  };
+  const connexions = useMemo(
+    () =>
+      buildConnectorActions({
+        configsId: selectedAgent?.display_id ?? null,
+        connectorConnected,
+        setActivePopup,
+      }),
+    [selectedAgent?.display_id, connectorConnected, setActivePopup]
+  );
 
   // ------------------------------CONFIGURATIONS---------------------------------
   /**
@@ -1061,7 +1009,7 @@ const AgentAi: FunctionComponent = () => {
                         )}
                       </div>
                     </section>
-                    <section className={styles.detailsCard}>
+                    <section className={`${styles.detailsCard} ${styles.toneComingSoon}`}>
                       <div className={styles.cardHeader}>
                         <h4 className={styles.cardTitle}>Ton</h4>
                         <p className={styles.cardDescription}>
@@ -1087,6 +1035,9 @@ const AgentAi: FunctionComponent = () => {
                             ?.description
                         }
                       </p>
+                      <div className={styles.toneComingSoonOverlay}>
+                        Bientôt disponible
+                      </div>
                     </section>
                     <section className={styles.detailsCard}>
                       <div className={styles.cardHeader}>

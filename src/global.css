@@ -95,11 +95,13 @@ body {
   --gap-10: 10px;
   --gap-12: 12px;
   --gap-15: 15px;
+  --gap-18: 18px;
   --gap-19: 19px;
   --gap-20: 20px;
   --gap-22: 22px;
   --gap-25: 25px;
   --gap-29: 29px;
+  --gap-50: 50px;
   --gap-100: 100px;
   --gap-128: 128px;
   --gap-642: 642px;
@@ -136,6 +138,7 @@ body {
   --br-4: 4px;
   --br-8: 8px;
   --br-10: 10px;
+  --br-14: 14px;
   --br-20: 20px;
   --br-32: 32px;
   --br-50: 50px;
@@ -147,6 +150,8 @@ body {
   --fs-16: 16px;
   --fs-18: 18px;
   --fs-22: 22px;
+  --fs-24: 24px;
+  --fs-28: 28px;
 
   /* Borders */
   --border-1: 2px solid var(--color-silver-100);
