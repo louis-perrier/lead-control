@@ -59,6 +59,8 @@
   cursor: pointer;
   transition: background-color 0.2s ease;
   margin: 0 auto;
+  --label-delay: 140ms;
+  --icon-delay: 40ms;
 }
 
 .linkRoot[data-selected="true"] {
@@ -96,7 +98,9 @@
   box-sizing: border-box;
   gap: var(--gap-8);
   position: relative;
-  transition: padding-inline 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    padding-inline 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    gap 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .linkRoot[data-collapsed="true"] .linkStateLayer {
@@ -110,36 +114,39 @@
   line-height: var(--Static-Label-Large-Line-Height);
   font-weight: 600;
   color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 140px;
   opacity: 1;
-  visibility: visible;
   transform: translateX(0);
   transition:
-    opacity 220ms ease,
-    transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
-    visibility 0s linear 0ms;
+    opacity 260ms ease var(--label-delay),
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1) var(--label-delay),
+    max-width 360ms cubic-bezier(0.22, 1, 0.36, 1) var(--label-delay);
 }
 
 .linkRoot[data-collapsed="true"] .linkLabel,
 .linkRoot[data-collapsed="true"] .linkBadgeLabelText {
+  max-width: 0;
   opacity: 0;
-  visibility: hidden;
-  transform: translateX(-8px);
+  transform: translateX(-6px);
   pointer-events: none;
-  transition:
-    opacity 220ms ease 140ms,
-    transform 300ms cubic-bezier(0.22, 1, 0.36, 1) 120ms,
-    visibility 0s linear 360ms;
+}
+
+.linkRoot[data-collapsed="true"] {
+  --label-delay: 0ms;
+  --icon-delay: 0ms;
 }
 
 .linkRoot:not([data-collapsed="true"]) .linkLabel,
 .linkRoot:not([data-collapsed="true"]) .linkBadgeLabelText {
-  transition-delay: 120ms;
+  transition-delay: var(--label-delay), var(--label-delay), var(--label-delay);
 }
 
 .linkRoot[data-collapsed="true"] .linkIcon {
   position: absolute;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate3d(-50%, -50%, 0);
   top: 50%;
   margin: 0;
 }
@@ -151,12 +158,12 @@
   position: absolute;
   left: var(--padding-24);
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate3d(0, -50%, 0);
   z-index: 2;
   transition:
-    left 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    top 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--icon-delay),
+    top 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--icon-delay),
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--icon-delay),
     filter 180ms ease;
 }
 
