@@ -92,8 +92,6 @@
 }
 .navigationbar[data-collapsed="true"] .optionnavigationParent > *:first-child {
   width: 56px;
-  margin-left: auto;
-  margin-right: auto;
 }
 .logoWrapper {
   height: var(--height-51);
