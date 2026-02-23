@@ -59,8 +59,6 @@
   cursor: pointer;
   transition: background-color 0.2s ease;
   margin: 0 auto;
-  --label-delay: 0ms;
-  --icon-delay: 0ms;
 }
 
 .linkRoot[data-selected="true"] {
@@ -99,12 +97,15 @@
   gap: var(--gap-8);
   position: relative;
   transition:
-    padding-inline 460ms cubic-bezier(0.22, 1, 0.36, 1),
-    gap 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    padding-inline 560ms cubic-bezier(0.32, 0, 0.2, 1),
+    gap 380ms cubic-bezier(0.32, 0, 0.2, 1);
 }
 
 .linkRoot[data-collapsed="true"] .linkStateLayer {
   padding-inline: 12px;
+  transition:
+    padding-inline 240ms cubic-bezier(0.4, 0, 1, 1),
+    gap 180ms cubic-bezier(0.4, 0, 1, 1);
 }
 
 .linkLabel,
@@ -115,36 +116,23 @@
   font-weight: 600;
   color: inherit;
   white-space: nowrap;
-  overflow: hidden;
-  max-width: 140px;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
   opacity: 1;
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
   transition:
-    opacity 300ms ease var(--label-delay),
-    transform 440ms cubic-bezier(0.22, 1, 0.36, 1) var(--label-delay),
-    max-width 440ms cubic-bezier(0.22, 1, 0.36, 1) var(--label-delay);
+    opacity 420ms cubic-bezier(0.32, 0, 0.2, 1) 320ms,
+    transform 520ms cubic-bezier(0.32, 0, 0.2, 1) 280ms;
 }
 
 .linkRoot[data-collapsed="true"] .linkLabel,
 .linkRoot[data-collapsed="true"] .linkBadgeLabelText {
-  max-width: 0;
   opacity: 0;
-  transform: translateX(-6px);
+  transform: translate3d(-8px, 0, 0);
   pointer-events: none;
   transition:
     opacity 140ms ease 0ms,
-    transform 200ms cubic-bezier(0.4, 0, 1, 1) 0ms,
-    max-width 200ms cubic-bezier(0.4, 0, 1, 1) 0ms;
-}
-
-.linkRoot[data-collapsed="true"] {
-  --label-delay: 0ms;
-  --icon-delay: 0ms;
-}
-
-.linkRoot:not([data-collapsed="true"]) {
-  --label-delay: 240ms;
-  --icon-delay: 70ms;
+    transform 200ms cubic-bezier(0.4, 0, 1, 1) 0ms;
 }
 
 .linkRoot[data-collapsed="true"] .linkIcon {
@@ -153,6 +141,11 @@
   transform: translate3d(-50%, -50%, 0);
   top: 50%;
   margin: 0;
+  transition:
+    left 260ms cubic-bezier(0.4, 0, 1, 1) 0ms,
+    top 260ms cubic-bezier(0.4, 0, 1, 1) 0ms,
+    transform 260ms cubic-bezier(0.4, 0, 1, 1) 0ms,
+    filter 180ms ease;
 }
 
 .linkIcon {
@@ -165,9 +158,9 @@
   transform: translate3d(0, -50%, 0);
   z-index: 2;
   transition:
-    left 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--icon-delay),
-    top 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--icon-delay),
-    transform 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--icon-delay),
+    left 640ms cubic-bezier(0.32, 0, 0.2, 1) 180ms,
+    top 640ms cubic-bezier(0.32, 0, 0.2, 1) 180ms,
+    transform 640ms cubic-bezier(0.32, 0, 0.2, 1) 180ms,
     filter 180ms ease;
 }
 
