@@ -65,8 +65,8 @@
 }
 
 .linkRoot {
-  --link-width-duration: 920ms;
-  --link-width-delay: 180ms;
+  --link-width-duration: 800ms;
+  --link-width-delay: 90ms;
   width: 100%;
   max-width: var(--nav-item-open-width, var(--width-221));
   height: var(--height-56);
@@ -111,8 +111,8 @@
 }
 
 .linkStateLayer {
-  --link-inner-duration: 900ms;
-  --link-inner-delay: 180ms;
+  --link-inner-duration: 780ms;
+  --link-inner-delay: 90ms;
   width: 100%;
   height: 100%;
   display: flex;
