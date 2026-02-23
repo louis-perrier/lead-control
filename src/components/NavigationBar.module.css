@@ -54,6 +54,7 @@
   justify-content: space-between;
   padding: var(--padding-0) var(--padding-1) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
+  margin-bottom: 22px;
 }
 .menuButton {
   background-color: transparent;
