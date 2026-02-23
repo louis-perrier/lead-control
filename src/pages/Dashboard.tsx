@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useSearchParams } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import GenericAvatar from "../components/GenericAvatar";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import styles from "./Dashboard.module.css";
 import useAgents from "../hooks/useAgents";
@@ -756,6 +757,7 @@ const Dashboard: FunctionComponent = () => {
       />
       <div className={styles.claraDashboardArea}>
         <div className={styles.claraDashboard}>
+          <GenericAvatar variant="header" />
           <div className={styles.claraDashboardContent}>
         <header className={styles.claraHeader}>
           <div>

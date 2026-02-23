@@ -1,14 +1,18 @@
 .subscription {
   width: 100%;
+  min-height: 100vh;
+  height: 100vh;
   position: relative;
   background-color: var(--app-bg);
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  overflow: hidden;
   line-height: normal;
   letter-spacing: normal;
 }
 .maincomponent {
-  height: var(--height-1024);
+  height: 100vh;
+  min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -16,6 +20,8 @@
   gap: var(--gap-15);
   width: 100%;
   max-width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .pricecards {
   align-self: stretch;

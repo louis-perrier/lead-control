@@ -1,28 +1,34 @@
 .claraWrapper {
   display: flex;
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 .claraDashboardArea {
   flex: 1;
   display: flex;
-  min-height: 100vh;
+  min-height: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .claraDashboard {
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   color: var(--app-text-primary);
-  min-height: 100vh;
+  min-height: 100%;
   background: var(--app-bg);
   padding: 24px 16px 40px;
   box-sizing: border-box;
   flex: 1;
   display: flex;
+  position: relative;
 }
 .claraDashboardContent {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100%;
   flex: 1;
 }
 .claraHeader {

@@ -2,6 +2,7 @@ import {
   FunctionComponent,
   useState,
   useMemo,
+  useEffect,
   type CSSProperties,
   useCallback,
 } from "react";
@@ -45,7 +46,19 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
   crmIconBackgroundColor,
   selectedItem = "dashboard",
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return window.localStorage.getItem("leadcontrol.navCollapsed") === "true";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem("leadcontrol.navCollapsed", String(isCollapsed));
+  }, [isCollapsed]);
   
   const icon1Style: CSSProperties = useMemo(() => {
     return {
@@ -151,10 +164,6 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
     navigate("/app/crm");
   }, [navigate]);
 
-  const onLogoIconClick = useCallback(() => {
-    navigate("/app");
-  }, [navigate]);
-
   const toggleCollapse = useCallback(() => {
     setIsCollapsed((prev) => !prev);
   }, []);
@@ -182,7 +191,6 @@ const NavigationBar: FunctionComponent<NavigationBarType> = ({
                 className={styles.logoIcon}
                 alt=""
                 src="/logo@2x.png"
-                onClick={onLogoIconClick}
               />
             </div>
           </div>

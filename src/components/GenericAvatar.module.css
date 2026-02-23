@@ -21,9 +21,9 @@
   height: 100%;
 }
 .header {
-  position: absolute;
-  top: 30px;
-  right: 30px;
+  position: relative;
+  top: auto;
+  right: auto;
   width: 40px;
   height: 40px;
   background-color: var(--Color);
@@ -52,47 +52,70 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  z-index: 20;
 }
 .headerContainer {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 30px;
+  right: 30px;
+  width: 40px;
+  height: 40px;
 }
 .overlayMenu {
   position: absolute;
-  top: calc(100% + 70px);
+  top: calc(100% + 12px);
   right: 0;
-  min-width: 150px;
-  background: linear-gradient(
-      160deg,
-      rgba(255, 255, 255, 0.95),
-      rgba(248, 250, 253, 0.9)
-    )
-    0 0/cover,
-    var(--app-surface);
-  border-radius: 24px;
-  box-shadow: 10px 16px 40px rgba(15, 23, 42, 0.2);
-  border: 1px solid rgba(15, 23, 42, 0.15);
-  padding: 8px 16px;
+  min-width: 260px;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: var(--gap-2);
+  gap: 6px;
   z-index: 50;
-  align-items: center;
-  text-align: center;
+  align-items: stretch;
+  text-align: left;
+  animation: menuFadeIn 180ms ease-out;
+}
+
+.menuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 4px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.menuTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--app-text-secondary);
+}
+
+.menuMeta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+  word-break: break-all;
 }
 .menuButton {
   background: transparent;
   border: none;
-  padding: var(--gap-3) var(--gap-6);
-  border-radius: var(--br-12);
+  padding: 10px 12px;
+  border-radius: 10px;
   font-weight: 600;
-  color: var(--app-text-secondary);
-  text-align: center;
+  color: var(--app-text-primary);
+  text-align: left;
   width: 100%;
   cursor: pointer;
-  transition: transform 0.2s ease;
-  font-size: var(--fs-12);
+  transition: background-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+  font-size: 13px;
+  line-height: 1.2;
 }
 .menuButton:focus-visible {
   outline: 2px solid var(--app-primary);
@@ -100,20 +123,36 @@
 }
 .logoutButton {
   cursor: pointer;
-  color: var(--app-primary);
-  transition: color 0.2s ease;
-}
-.logoutButton:hover {
   color: var(--app-error);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.menuButton:hover {
+  background: rgba(37, 99, 235, 0.08);
   transform: translateY(-1px);
+}
+
+.logoutButton:hover {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
 }
 .linkButton {
   cursor: pointer;
   color: var(--app-text-primary);
-  transition: color 0.2s ease, text-decoration 0.2s ease;
   text-decoration: none;
 }
 .linkButton:hover {
   text-decoration: none;
-  color: rgba(11, 18, 32, 0.8);
+  color: rgba(11, 18, 32, 0.95);
+}
+
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

@@ -82,7 +82,8 @@
     transform 0.24s ease,
     max-width var(--link-width-duration) cubic-bezier(0.32, 0, 0.2, 1)
       var(--link-width-delay);
-  margin: 0 auto;
+  margin: 0;
+  margin-left: 10px;
 }
 
 .linkRoot[data-selected="true"] {
@@ -99,14 +100,14 @@
   color: var(--app-surface);
 }
 
-.linkRoot:hover {
+.linkRoot:not([data-selected="true"]):hover {
   color: var(--app-text-primary);
   background-color: rgba(37, 99, 235, 0.08);
   box-shadow: 0 8px 28px rgba(37, 99, 235, 0.15);
   transform: translateY(-1px);
 }
 
-.linkRoot:hover .linkStateLayer {
+.linkRoot:not([data-selected="true"]):hover .linkStateLayer {
   background-color: rgba(37, 99, 235, 0.05);
 }
 
@@ -131,8 +132,8 @@
 .linkRoot[data-collapsed="true"] .linkStateLayer {
   --link-inner-duration: 460ms;
   --link-inner-delay: 0ms;
-  justify-content: center;
-  padding: 0;
+  justify-content: flex-start;
+  padding: 0 var(--padding-16);
   gap: 0;
 }
 
@@ -186,6 +187,6 @@
     filter 180ms ease;
 }
 
-.linkRoot:hover .linkIcon {
+.linkRoot:not([data-selected="true"]):hover .linkIcon {
   filter: brightness(0) saturate(0);
 }

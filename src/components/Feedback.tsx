@@ -13,6 +13,7 @@ const Feedback: FunctionComponent = () => {
     const [overlayOpen, setOverlayOpen] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const bubbleRef = useRef<HTMLDivElement | null>(null);
     const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -48,6 +49,24 @@ const Feedback: FunctionComponent = () => {
         }
     }, [overlayOpen]);
 
+    useEffect(() => {
+        if (!overlayOpen) {
+            return;
+        }
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                bubbleRef.current &&
+                !bubbleRef.current.contains(event.target as Node)
+            ) {
+                setOverlayOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [overlayOpen]);
+
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         try {
@@ -81,7 +100,7 @@ const Feedback: FunctionComponent = () => {
     };
 
     return (
-        <div className={styles.bubble}>
+        <div className={styles.bubble} ref={bubbleRef}>
             {showMessage && (
                 <span className={styles.message}>Laissez un feedback</span>
             )}
@@ -95,6 +114,7 @@ const Feedback: FunctionComponent = () => {
                 type="button"
             >
                 <img className={styles.icon} src="/feedbackChat.svg" alt="Feedback Chat" />
+                <span className={styles.buttonLabel}>Feedback</span>
             </button>
 
             <div
@@ -103,6 +123,12 @@ const Feedback: FunctionComponent = () => {
                 aria-label="Formulaire de feedback"
             >
                 <form className={styles.form} onSubmit={handleSubmit}>
+                    <div className={styles.overlayHeader}>
+                        <p className={styles.overlayTitle}>Ton feedback</p>
+                        <p className={styles.overlayHint}>
+                            Dis-nous ce qu'on peut ameliorer.
+                        </p>
+                    </div>
                     <div className={styles.textareaWrapper}>
                         <textarea
                             id="feedbackMessage"

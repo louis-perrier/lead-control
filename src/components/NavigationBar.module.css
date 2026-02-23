@@ -1,12 +1,17 @@
-.frameParent,
 .navigationbar {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
 }
+.frameParent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
 .navigationbar {
   --nav-open-width: 228px;
   --nav-item-open-width: 206px;
+  --nav-open-duration: 980ms;
   min-height: 100vh;
   width: var(--nav-open-width);
   background-color: var(--app-surface);
@@ -21,7 +26,7 @@
   color: var(--app-text-secondary);
   font-family: var(--Static-Label-Large-Font);
   transition:
-    width 980ms cubic-bezier(0.32, 0, 0.2, 1),
+    width var(--nav-open-duration) cubic-bezier(0.32, 0, 0.2, 1),
     padding 820ms cubic-bezier(0.32, 0, 0.2, 1),
     gap 820ms cubic-bezier(0.32, 0, 0.2, 1);
   transform: none;
@@ -53,13 +58,9 @@
 .frameWrapper {
   width: 100%;
   justify-content: space-between;
-  padding: var(--padding-0) var(--padding-1) var(--padding-0) 16px;
+  padding: var(--padding-0) var(--padding-1) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
   margin-bottom: 34px;
-  transition: padding 760ms cubic-bezier(0.32, 0, 0.2, 1);
-}
-.navigationbar[data-collapsed="true"] .frameWrapper {
-  padding: 0;
 }
 .menuButton {
   background-color: transparent;
@@ -84,20 +85,28 @@
   background-color: var(--app-text-secondary);
 }
 .optionnavigationParent {
+  position: relative;
   width: 100%;
-  justify-content: center;
-  gap: 100px;
-  transition: gap 720ms cubic-bezier(0.32, 0, 0.2, 1);
+  justify-content: flex-start;
+  padding-left: 22px;
+  gap: 0;
+  transition:
+    gap 720ms cubic-bezier(0.32, 0, 0.2, 1),
+    padding-left 760ms cubic-bezier(0.32, 0, 0.2, 1);
 }
 .navigationbar[data-collapsed="true"] .optionnavigationParent {
   gap: 0;
   width: 100%;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-left: 10px;
 }
 .navigationbar[data-collapsed="true"] .optionnavigationParent > *:first-child {
   width: 56px;
 }
 .logoWrapper {
+  position: absolute;
+  right: 12px;
+  top: 0;
   height: var(--height-51);
   width: var(--width-45);
   display: flex;
@@ -105,16 +114,12 @@
   align-items: flex-start;
   padding: var(--padding-5) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
-  max-width: var(--width-45);
-  opacity: 1;
-  transform: translateX(0);
-  transition:
-    opacity 420ms cubic-bezier(0.32, 0, 0.2, 1) 300ms,
-    transform 520ms cubic-bezier(0.32, 0, 0.2, 1) 260ms,
-    max-width 520ms cubic-bezier(0.32, 0, 0.2, 1) 260ms;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms linear;
 }
 .logoIcon {
-  cursor: pointer;
+  cursor: default;
   border: 0;
   padding: var(--padding-01);
   background-color: transparent;
@@ -122,24 +127,33 @@
   position: relative;
   max-height: 100%;
   object-fit: cover;
+  opacity: 0;
+  filter: blur(6px) brightness(1.22) drop-shadow(0 0 10px rgba(37, 99, 235, 0.45));
+  transition:
+    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .navigationbar[data-collapsed="true"] .logoWrapper {
   opacity: 0;
-  max-width: 0;
-  transform: translateX(-8px);
   pointer-events: none;
-  overflow: hidden;
-  transition:
-    opacity 160ms linear 0ms,
-    transform 260ms cubic-bezier(0.32, 0, 0.2, 1) 0ms,
-    max-width 260ms cubic-bezier(0.32, 0, 0.2, 1) 0ms;
+  transition-delay: 0ms;
 }
 
 .navigationbar:not([data-collapsed="true"]) .logoWrapper {
-  transition:
-    opacity 420ms cubic-bezier(0.32, 0, 0.2, 1) 300ms,
-    transform 520ms cubic-bezier(0.32, 0, 0.2, 1) 260ms,
-    max-width 520ms cubic-bezier(0.32, 0, 0.2, 1) 260ms;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.navigationbar:not([data-collapsed="true"]) .logoIcon {
+  opacity: 1;
+  filter: blur(0) brightness(1) drop-shadow(0 0 0 rgba(37, 99, 235, 0));
+  transition-delay: 640ms, 640ms;
+}
+
+.navigationbar[data-collapsed="true"] .logoIcon {
+  opacity: 0;
+  filter: blur(3px) brightness(1.08) drop-shadow(0 0 6px rgba(37, 99, 235, 0.25));
+  transition-delay: 0ms, 0ms;
 }
 .dividerWrapper {
   width: var(--width-221);

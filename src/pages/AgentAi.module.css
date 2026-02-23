@@ -5,6 +5,8 @@
 }
 .agentai {
   width: 100%;
+  min-height: 100vh;
+  height: 100vh;
   position: relative;
   background-color: var(--app-bg);
   overflow: hidden;
@@ -12,9 +14,12 @@
   letter-spacing: normal;
 }
 .rightcomponent {
-  height: var(--height-1024);
+  height: 100vh;
+  min-height: 0;
   flex: 1;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
   text-align: center;
   font-size: var(--Static-Label-Large-Size);
   color: var(--color-black);

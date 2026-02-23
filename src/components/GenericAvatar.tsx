@@ -32,7 +32,7 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
   variant = "default",
   onSignOut,
 }) => {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +75,7 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
   const handleConfirmLogout = async () => {
     setConfirmOpen(false);
     await signOut();
+    setOpen(false);
     if (onSignOut) {
       await onSignOut();
     }
@@ -109,6 +110,10 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
       </button>
       {open && (
         <div className={styles.overlayMenu} role="menu" aria-label="Avatar menu">
+          <div className={styles.menuHeader}>
+            <span className={styles.menuTitle}>Mon compte</span>
+            {user?.email && <span className={styles.menuMeta}>{user.email}</span>}
+          </div>
           {policyLinks.map((link) => (
             <Link
               key={link.route}
