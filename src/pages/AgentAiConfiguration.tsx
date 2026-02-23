@@ -884,62 +884,82 @@ const AgentAi: FunctionComponent = () => {
               }}
             >
             <div
-              className={styles.cornerOverlayContent}
+              className={`${styles.cornerOverlayContent} ${
+                activeCorner === "Configurations" ? styles.configurationOverlayContent : ""
+              }`}
               onClick={(event) => event.stopPropagation()}
             >
               {activeCorner === "Configurations" && (
                 <>
-                  <div className={styles.availableLogosWrapper}>
-                    {configurationLogos.map((logo) => (
-                      <button
-                        key={`${logo.connectors_id}-${logo.connected ? "connected" : "available"}`}
-                        type="button"
-                        className={`${styles.availableLogoContainer} ${
-                          logo.connected ? "" : styles.availableLogoButtonDisabled
-                        }`}
-                        disabled={!logo.connected}
-                        onClick={() => {
-                          if (logo.connected) {
-                            setActiveSocial(logo.connectors_name.toLowerCase());
-                          }
-                        }}
-                      >
-                        <div
-                          className={`${styles.availableLogoTrapezoid} ${
-                            logo.connected ? "" : styles.availableLogoDisabled
-                          } ${logo.connectors_special ? styles.availableLogoSpecial : ""}`}
+                  <div className={styles.configurationContent}>
+                    <div className={styles.availableLogosWrapper}>
+                      {configurationLogos.map((logo) => (
+                        <button
+                          key={`${logo.connectors_id}-${logo.connected ? "connected" : "available"}`}
+                          type="button"
+                          className={`${styles.availableLogoContainer} ${
+                            logo.connected ? "" : styles.availableLogoButtonDisabled
+                          }`}
+                          disabled={!logo.connected}
+                          onClick={() => {
+                            if (logo.connected) {
+                              setActiveSocial(logo.connectors_name.toLowerCase());
+                            }
+                          }}
                         >
-                          <img
-                            src={`/logoConnectors/${logo.connectors_name.toLowerCase()}.webp`}
-                            alt={`${logo.connectors_name} logo`}
-                            className={styles.availableLogo}
-                          />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <div className={styles.socialComponentPanel}>
-                    <div className={styles.socialComponentHeader}>
-                      <h1>
-                        {activeSocial
-                          ? `${activeSocial.toUpperCase()}`
-                          : "Configuration"}
-                      </h1>
+                          <div
+                            className={`${styles.availableLogoTrapezoid} ${
+                              logo.connected ? "" : styles.availableLogoDisabled
+                            } ${logo.connectors_special ? styles.availableLogoSpecial : ""}`}
+                          >
+                            <img
+                              src={`/logoConnectors/${logo.connectors_name.toLowerCase()}.webp`}
+                              alt={`${logo.connectors_name} logo`}
+                              className={styles.availableLogo}
+                            />
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                    {isConfigLoading ? (
-                      <div className={styles.socialComponentLoading}>
-                        Chargement des configurations...
+                    <div className={styles.socialComponentPanel}>
+                      <div className={styles.socialComponentHeader}>
+                        <h1>
+                          {activeSocial
+                            ? `${activeSocial.toUpperCase()}`
+                            : "Configuration"}
+                        </h1>
                       </div>
-                    ) : selectedConfigItems.length > 0 ? (
-                      <DynamicConfig
-                        items={selectedConfigItems}
-                        initialValues={initialConfigValues}
-                        onChange={handleConfigChange}
-                      />
-                    ) : (
-                      <p className={styles.socialComponentPlaceholder}>
-                        Aucune configuration sélectionnée.
-                      </p>
+                      {isConfigLoading ? (
+                        <div className={styles.socialComponentLoading}>
+                          Chargement des configurations...
+                        </div>
+                      ) : selectedConfigItems.length > 0 ? (
+                        <DynamicConfig
+                          items={selectedConfigItems}
+                          initialValues={initialConfigValues}
+                          onChange={handleConfigChange}
+                        />
+                      ) : (
+                        <p className={styles.socialComponentPlaceholder}>
+                          Aucune configuration sélectionnée.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.configurationFooterWrapper}>
+                    {selectedConfigItems.length > 0 && (
+                      <div className={styles.configurationFooter}>
+                        <Button
+                          className={buttonStyles.save}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSaveConfig();
+                          }}
+                          disabled={hasMissingRequiredConfig}
+                        >
+                          Enregistrer
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </>
@@ -1175,22 +1195,6 @@ const AgentAi: FunctionComponent = () => {
                 </div>
               )}
             </div>
-            {activeCorner === "Configurations" && selectedConfigItems.length > 0 && (
-              <div className={styles.configurationFooterWrapper}>
-                <div className={styles.configurationFooter}>
-                  <Button
-                    className={buttonStyles.save}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleSaveConfig();
-                    }}
-                    disabled={hasMissingRequiredConfig}
-                  >
-                    Enregistrer
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </main>

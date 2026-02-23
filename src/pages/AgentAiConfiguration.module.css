@@ -72,8 +72,10 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.35);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--gap-16);
   z-index: 50;
 }
 
@@ -93,10 +95,26 @@
   gap: var(--gap-20);
 }
 
+.configurationOverlayContent {
+  height: 560px;
+  max-height: 560px;
+  min-height: 560px;
+  overflow: hidden;
+}
+
 .detailsLayout {
   display: flex;
   flex-direction: column;
   gap: var(--gap-20);
+}
+
+.configurationContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: calc(var(--padding-24) + 64px);
 }
 
 .detailsHeader {
@@ -348,7 +366,7 @@
   flex-wrap: nowrap;
   gap: var(--gap-16);
   justify-content: flex-start;
-  margin-bottom: var(--gap-20);
+  margin-bottom: 0;
   overflow-x: auto;
   padding-bottom: 4px;
   scrollbar-width: thin;
@@ -400,7 +418,7 @@
   border: 1px dashed rgba(0, 0, 0, 0.1);
   border-radius: var(--br-12);
   padding: var(--padding-16);
-  margin-top: var(--gap-12);
+  margin-top: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -431,21 +449,23 @@
 }
 .configurationFooterWrapper {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--padding-24);
   display: flex;
   justify-content: flex-end;
-  align-items: flex-end;
-  padding: var(--gap-16);
+  padding: 0 var(--padding-24);
+  box-sizing: border-box;
   pointer-events: none;
 }
 
-.configurationFooter {
-  position: relative;
-  z-index: 10;
+.configurationFooterWrapper > .configurationFooter {
   pointer-events: auto;
-  padding: 20px;
-  bottom: 88px; 
-  right: 230px;
+}
+
+.configurationFooter {
+  margin: 0;
+  padding: 0;
 }
 .configurationSaveButton {
   background: var(--app-primary);
