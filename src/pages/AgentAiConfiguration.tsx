@@ -119,6 +119,9 @@ const defaultActiveDays: ActiveDays = {
 };
 const defaultTimeRange = { start: "09:00", end: "20:00" };
 const PDF_SIZE_LIMIT = 20 * 1024 * 1024;
+const CONTEXT_STORAGE_BUCKET = "agent-context";
+const CONTEXT_DOCUMENT_FUNCTION_URL =
+  "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/context-document-chunk-embeddings";
 const toneOptions: { value: ToneOption; label: string; description: string }[] = [
   {
     value: "normal",
@@ -787,6 +790,72 @@ const AgentAi: FunctionComponent = () => {
     setErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean) || !selectedAgent) {
       return;
+    }
+    if (contextPdf) {
+      const agentConfigId =
+        selectedAgent.display_id ?? selectedAgent.agent_id ?? selectedAgent.id;
+      if (!agentConfigId) {
+        setContextPdfError("Impossible de traiter le PDF pour le moment.");
+        return;
+      }
+      const {
+        data: sessionData,
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session) {
+        console.error("Erreur de session Supabase", sessionError);
+        setContextPdfError("Impossible d’uploader le PDF : session invalide.");
+        return;
+      }
+      const session = sessionData.session;
+      const userId = session.user?.id;
+      const accessToken = session.access_token;
+      if (!userId || !accessToken) {
+        setContextPdfError("Impossible d’uploader le PDF : token manquant.");
+        return;
+      }
+      const storagePath = `user/${userId}/agent_config/${agentConfigId}/context.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from(CONTEXT_STORAGE_BUCKET)
+        .upload(storagePath, contextPdf, { upsert: true });
+      if (uploadError) {
+        console.error("Erreur upload PDF", uploadError);
+        setContextPdfError(
+          "Impossible d’envoyer le PDF. Vérifie ta connexion puis réessaie."
+        );
+        return;
+      }
+      try {
+        const response = await fetch(CONTEXT_DOCUMENT_FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            storage_path: storagePath,
+            agent_config_id: agentConfigId,
+          }),
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Erreur edge function", errorText);
+          setContextPdfError("La fonction context document a échoué.");
+          return;
+        }
+        const json = await response.json();
+        if (!json.ok) {
+          console.error("Fonction context document retourne ok=false", json);
+          setContextPdfError(
+            json.error ?? "Le traitement du PDF a échoué côté edge function."
+          );
+          return;
+        }
+      } catch (error) {
+        console.error("Erreur lors de l’appel edge function", error);
+        setContextPdfError("La fonction context document n’a pas répondu.");
+        return;
+      }
     }
     const snapshot = getCurrentDetailsSnapshot();
     const { error } = await supabase
