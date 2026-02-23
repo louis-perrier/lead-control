@@ -55,6 +55,10 @@
   padding: var(--padding-0) var(--padding-1) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
 }
+.navigationbar[data-collapsed="true"] .frameWrapper {
+  justify-content: center;
+  padding: 0;
+}
 .menuButton {
   background-color: transparent;
   border: none;
@@ -85,6 +89,7 @@
 }
 .navigationbar[data-collapsed="true"] .optionnavigationParent {
   gap: 0;
+  max-width: 56px;
   width: 100%;
   justify-content: center;
 }

@@ -101,7 +101,11 @@ const NavItem: FunctionComponent<NavItemType> = ({
     >
       <div className={styles.container}>
         <div className={styles.stateLayer}>
-          <img className={styles.icon} alt="" src={icon ?? "/navCollapse.svg"} />
+          <span className={styles.menuHamburger} aria-hidden="true">
+            <span className={styles.menuHamburgerBar} />
+            <span className={styles.menuHamburgerBar} />
+            <span className={styles.menuHamburgerBar} />
+          </span>
         </div>
       </div>
     </div>
