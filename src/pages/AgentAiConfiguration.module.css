@@ -27,13 +27,111 @@
 }
 .agentTitleText {
   font-weight: 700;
-  text-transform: uppercase;
   display: flex;
-  text-align: center;
+  flex-wrap: nowrap;
   justify-content: center;
   align-items: center;
   gap: var(--gap-20);
   margin: 10px 0px 0px;
+}
+.agentNameBlock {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.agentActivationSwitch {
+  margin-top: 0;
+  align-self: center;
+}
+.agentNameDisplay {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.agentNameDisplay h2 {
+  margin: 0;
+  max-width: min(60vw, 640px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  font-size: clamp(1.1rem, 1.6vw, 1.45rem);
+  line-height: 1.2;
+}
+.renameAgentButton {
+  border: 1px solid rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.renameAgentButton:hover {
+  background: rgba(37, 99, 235, 0.14);
+}
+.renameEditor {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: min(74vw, 720px);
+}
+.renameInput {
+  height: 38px;
+  min-width: 260px;
+  max-width: 460px;
+  width: min(56vw, 460px);
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--app-text-primary);
+  background: var(--app-surface);
+  font-weight: 600;
+}
+.renameInput:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.45);
+  border-color: transparent;
+}
+.renameActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.renamePrimaryButton,
+.renameSecondaryButton {
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.renameSecondaryButton {
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  background: var(--app-surface);
+  color: var(--app-text-primary);
+}
+.renamePrimaryButton {
+  border: 1px solid transparent;
+  background: var(--app-primary);
+  color: #fff;
+}
+.renamePrimaryButton:disabled,
+.renameSecondaryButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.renameErrorText {
+  margin: 0;
+  min-height: 16px;
+  font-size: 12px;
+  color: var(--app-error);
 }
 .agentTitleIcon {
   width: 50px;
@@ -46,17 +144,32 @@
 }
 .tabcomponent {
   align-self: stretch;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   display: flex;
   align-items: center;
-  padding: var(--padding-0) 168px var(--padding-20);
-  row-gap: var(--gap-20);
+  gap: 10px;
+  margin: 20px 24px 18px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(240, 247, 255, 0.92)
+  );
+  box-shadow:
+    0 16px 30px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
 }
 @media screen and (max-width: 975px) {
   .tabcomponent {
-    padding-left: var(--padding-20);
-    padding-right: var(--padding-20);
-    box-sizing: border-box;
+    margin-top: 14px;
+    margin-left: 16px;
+    margin-right: 16px;
   }
 }
 @media screen and (max-width: 450px) {
@@ -64,11 +177,10 @@
     height: var(--height-auto);
   }
   .tabcomponent {
-    flex-wrap: wrap;
-    justify-content: center;
-    padding-left: 84px;
-    padding-right: 84px;
-    box-sizing: border-box;
+    margin-left: 12px;
+    margin-right: 12px;
+    border-radius: 14px;
+    padding: 8px;
   }
 }
 
@@ -354,6 +466,25 @@
 }
 
 @media screen and (max-width: 760px) {
+  .agentTitleText {
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .agentNameDisplay h2 {
+    max-width: calc(100vw - 80px);
+  }
+
+  .renameEditor {
+    max-width: calc(100vw - 64px);
+  }
+
+  .renameInput {
+    width: 100%;
+    min-width: 0;
+  }
+
   .detailsGrid {
     grid-template-columns: 1fr;
   }

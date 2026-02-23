@@ -72,6 +72,12 @@ const AgentAi: FunctionComponent = () => {
     setActiveOnly((prev) => !prev);
   }, []);
 
+  const handleResetFilters = useCallback(() => {
+    setFavOnly(false);
+    setActiveOnly(false);
+    setSelectedAgentIds(new Set());
+  }, []);
+
   const handleToggleAgentType = useCallback((agentId: string) => {
     setSelectedAgentIds((prev) => {
       const next = new Set(prev);
@@ -144,6 +150,8 @@ const AgentAi: FunctionComponent = () => {
   ]);
 
   const filterActive = favOnly || activeOnly || selectedAgentIds.size > 0;
+  const filterCount =
+    (favOnly ? 1 : 0) + (activeOnly ? 1 : 0) + selectedAgentIds.size;
 
   const handleToggleFav = useCallback(
     async (agent: AgentInfo) => {
@@ -217,7 +225,8 @@ const AgentAi: FunctionComponent = () => {
         <Header logoMarque="/logoMarque@2x.png" />
         <div className={styles.tabcomponent}>
           <TabComponent
-            label="Agents"
+            label="Mes agents"
+            active={activeTab === "agents"}
             iconSrc={getTabIconSrc(activeTab === "agents")}
             onClick={goToAgentsTab}
           />
@@ -227,6 +236,7 @@ const AgentAi: FunctionComponent = () => {
               <TabComponent
                 key={tabId}
                 label={agent.name.toUpperCase()}
+                active={activeTab === tabId}
                 iconSrc={getTabIconSrc(activeTab === tabId)}
                 closable
                 onClick={() => openAgentTab(agent)}
@@ -238,6 +248,8 @@ const AgentAi: FunctionComponent = () => {
         <div className={styles.optionSearchWrapper}>
           <OptionSearch
             wrap={true}
+            centeredLayout={true}
+            enlargedSearch={true}
             sortOptions={sortOptions}
             sortColumn={sortColumn}
             sortOrder={sortOrder}
@@ -248,6 +260,7 @@ const AgentAi: FunctionComponent = () => {
               // search already live
             }}
             filterActive={filterActive}
+            filterCount={filterCount}
             onDetailsClick={() => undefined}
             detailsButton={false}
             filterPopover={
@@ -259,6 +272,7 @@ const AgentAi: FunctionComponent = () => {
                 onToggleFavorite={handleToggleFavorite}
                 onToggleActive={handleToggleActive}
                 onToggleAgentType={handleToggleAgentType}
+                onResetAll={handleResetFilters}
               />
             }
           />

@@ -1,20 +1,10 @@
-import {
-  FunctionComponent,
-  KeyboardEvent,
-  MouseEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { FunctionComponent, KeyboardEvent, MouseEvent, useCallback } from "react";
 import styles from "./AgentCard.module.css";
 
 export type AgentCardProps = {
   className?: string;
   imageSrc: string;
   name: string;
-  description: string;
-  onNameChange?: (nextName: string) => void;
   isFav?: boolean;
   isActive?: boolean;
   onClick?: () => void;
@@ -25,65 +15,17 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
   className = "",
   imageSrc,
   name,
-  description,
-  onNameChange,
   isFav = false,
   isActive = false,
   onClick,
   onFavClick,
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editableName, setEditableName] = useState(name);
-  const inputRef = useRef<HTMLInputElement>(null);
-
   const handleCardClick = useCallback(() => {
     onClick?.();
   }, [onClick]);
 
-  // Tout ça pour pouvoir éditer le nom
-  const onEditClick = useCallback(() => {
-    setIsEditing(true);
-  }, []);
-
-  useEffect(() => {
-    setEditableName(name);
-  }, [name]);
-
-  useEffect(() => {
-    if (isEditing) {
-      inputRef.current?.focus();
-    }
-  }, [isEditing]);
-
-  const commitName = useCallback(() => {
-    const trimmed = editableName.trim();
-    if (trimmed.length > 0 && trimmed !== name) {
-      onNameChange?.(trimmed);
-    }
-    setIsEditing(false);
-  }, [editableName, name, onNameChange]);
-
-  const onInputBlur = useCallback(() => {
-    commitName();
-  }, [commitName]);
-
-  const onInputKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
-      event.stopPropagation();
-      if (event.key === "Enter") {
-        event.preventDefault();
-        commitName();
-        inputRef.current?.blur();
-      } else if (event.key === "Escape") {
-        setIsEditing(false);
-      }
-    },
-    [commitName]
-  );
-  //------------------------Editer le nom---------------------------------
-
   const handleImageClick = useCallback(
-    (event: MouseEvent<HTMLImageElement>) => {
+    (event: MouseEvent<HTMLDivElement>) => {
       event.stopPropagation();
       handleCardClick();
     },
@@ -125,44 +67,20 @@ const AgentCard: FunctionComponent<AgentCardProps> = ({
               src={isFav ? "/favoriteSelected.svg" : "/favorite.svg"}
             />
           </button>
-          {isEditing ? (
-          <input
-            ref={inputRef}
-            className={styles.agentnameInput}
-            value={editableName}
-            onChange={(event) =>
-              setEditableName(event.target.value.slice(0, 8))
-            }
-            maxLength={8}
-            onBlur={onInputBlur}
-            onKeyDown={onInputKeyDown}
-          />
-          ) : (
-            <h3 className={styles.agentname}>{name}</h3>
-          )}
-          <button
-            className={styles.editButton}
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onEditClick();
-            }}
-          >
-            <img
-              className={styles.favoriteIcon}
-              alt="Modifier le nom"
-              src="/edit.svg"
-            />
-          </button>
+          <h3 className={styles.agentname} title={name}>
+            {name}
+          </h3>
         </div>
       </div>
-      <img
-        className={styles.agentimageIcon}
-        loading="lazy"
-        alt={name}
-        src={imageSrc}
-        onClick={handleImageClick}
-      />
+      <div className={styles.agentimageFrame} onClick={handleImageClick}>
+        <img
+          className={styles.agentimageIcon}
+          loading="lazy"
+          alt={name}
+          src={imageSrc}
+        />
+        <span className={styles.agentWinkEye} aria-hidden="true" />
+      </div>
       {isActive !== undefined && (
         <div className={styles.statusBadgeWrapper}>
           <span

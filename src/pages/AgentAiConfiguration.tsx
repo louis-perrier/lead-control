@@ -6,6 +6,7 @@ import {
   useState,
   ChangeEvent,
   DragEvent,
+  KeyboardEvent,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -118,6 +119,7 @@ const defaultActiveDays: ActiveDays = {
   sun: true,
 };
 const defaultTimeRange = { start: "09:00", end: "20:00" };
+const AGENT_NAME_MAX_LENGTH = 11;
 const PDF_SIZE_LIMIT = 20 * 1024 * 1024;
 const CONTEXT_STORAGE_BUCKET = "agent-context";
 const CONTEXT_DOCUMENT_FUNCTION_URL =
@@ -176,9 +178,14 @@ const AgentAi: FunctionComponent = () => {
   const initialTabs =
     navigationState?.tabs ??
     (navigationState?.agent ? [navigationState.agent] : []);
+  const initialSelectedAgentId = navigationState?.agent
+    ? getAgentTabId(navigationState.agent)
+    : initialTabs[0]
+    ? getAgentTabId(initialTabs[0])
+    : undefined;
   const [tabs, setTabs] = useState<AgentInfo[]>(initialTabs);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(
-    navigationState?.agent?.display_id ?? initialTabs[0]?.display_id
+    initialSelectedAgentId
   );
 
   const selectedAgent = useMemo(() => {
@@ -199,10 +206,14 @@ const AgentAi: FunctionComponent = () => {
     if (tabs.length > 0) {
       return tabs[0];
     }
-    return displayedAgents[0];
+    return undefined;
   }, [displayedAgents, selectedAgentId, tabs]);
 
   const activeTabId = selectedAgent ? getAgentTabId(selectedAgent) : undefined;
+  const [isRenamingAgent, setIsRenamingAgent] = useState(false);
+  const [agentRenameValue, setAgentRenameValue] = useState("");
+  const [agentRenameError, setAgentRenameError] = useState("");
+  const [isAgentRenaming, setIsAgentRenaming] = useState(false);
 
   // UI state
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
@@ -253,20 +264,29 @@ const AgentAi: FunctionComponent = () => {
     });
   }, []);
 
-  const handleCloseTab = useCallback((agent: AgentInfo) => {
-    setTabs((prevTabs) => {
-      const nextTabs = prevTabs.filter(
-        (tab) => getAgentTabId(tab) !== getAgentTabId(agent)
+  const handleCloseTab = useCallback(
+    (agent: AgentInfo) => {
+      const closedTabId = getAgentTabId(agent);
+      const nextTabs = tabs.filter(
+        (tab) => getAgentTabId(tab) !== closedTabId
       );
-      setSelectedAgentId((currentId) => {
-        if (currentId === getAgentTabId(agent)) {
-          return nextTabs[0]?.display_id;
-        }
-        return currentId;
-      });
-      return nextTabs;
-    });
-  }, []);
+      const nextSelectedId =
+        selectedAgentId === closedTabId
+          ? nextTabs[0]
+            ? getAgentTabId(nextTabs[0])
+            : undefined
+          : selectedAgentId;
+
+      setTabs(nextTabs);
+      setSelectedAgentId(nextSelectedId);
+
+      if (nextTabs.length === 0) {
+        setActiveCorner(null);
+        navigate("/app/agentai", { state: { tabs: [] } });
+      }
+    },
+    [navigate, selectedAgentId, tabs]
+  );
 
   const handleHeaderSwitchChange = useCallback(
     async (nextState: boolean) => {
@@ -288,13 +308,6 @@ const AgentAi: FunctionComponent = () => {
   );
 
   useEffect(() => {
-    if (tabs.length === 0 && displayedAgents.length > 0) {
-      setTabs([displayedAgents[0]]);
-      setSelectedAgentId(displayedAgents[0].display_id);
-    }
-  }, [displayedAgents, tabs.length]);
-
-  useEffect(() => {
     if (!selectedAgentId && selectedAgent) {
       setSelectedAgentId(getAgentTabId(selectedAgent));
     }
@@ -303,6 +316,20 @@ const AgentAi: FunctionComponent = () => {
   useEffect(() => {
     setHeaderSwitchOn(Boolean(selectedAgent?.is_active));
   }, [selectedAgent?.is_active]);
+
+  useEffect(() => {
+    if (!selectedAgent) {
+      setIsRenamingAgent(false);
+      setAgentRenameValue("");
+      setAgentRenameError("");
+      setIsAgentRenaming(false);
+      return;
+    }
+    setAgentRenameValue(selectedAgent.name);
+    setAgentRenameError("");
+    setIsRenamingAgent(false);
+    setIsAgentRenaming(false);
+  }, [selectedAgent?.display_id, selectedAgent?.name]);
 
   const buildSnapshotFromDetails = useCallback(
     (details: Record<string, any> | undefined): DetailsSnapshot => {
@@ -681,6 +708,113 @@ const AgentAi: FunctionComponent = () => {
     ? false
     : headerSwitchOn;
 
+  const trimmedRenameValue = agentRenameValue.trim();
+  const hasChangedName =
+    Boolean(selectedAgent) &&
+    trimmedRenameValue !== (selectedAgent?.name.trim() ?? "");
+  const hasDuplicateName =
+    Boolean(trimmedRenameValue) &&
+    displayedAgents.some(
+      (agent) =>
+        agent.display_id !== selectedAgent?.display_id &&
+        agent.name.trim().toLowerCase() === trimmedRenameValue.toLowerCase()
+    );
+  const renameValidationError =
+    !trimmedRenameValue
+      ? "Le nom ne peut pas être vide."
+      : trimmedRenameValue.length > AGENT_NAME_MAX_LENGTH
+      ? `Le nom doit faire ${AGENT_NAME_MAX_LENGTH} caractères maximum.`
+      : hasDuplicateName
+      ? "Un agent porte déjà ce nom."
+      : "";
+  const canSaveRename =
+    Boolean(trimmedRenameValue) &&
+    !renameValidationError &&
+    hasChangedName &&
+    !isAgentRenaming;
+  const displayedRenameError =
+    isRenamingAgent && renameValidationError
+      ? renameValidationError
+      : agentRenameError;
+
+  const handleStartRenaming = useCallback(() => {
+    if (!selectedAgent) {
+      return;
+    }
+    setAgentRenameValue(selectedAgent.name);
+    setAgentRenameError("");
+    setIsRenamingAgent(true);
+  }, [selectedAgent]);
+
+  const handleCancelRenaming = useCallback(() => {
+    setIsRenamingAgent(false);
+    setAgentRenameValue(selectedAgent?.name ?? "");
+    setAgentRenameError("");
+  }, [selectedAgent?.name]);
+
+  const handleSubmitRenaming = useCallback(async () => {
+    if (!selectedAgent?.display_id) {
+      return;
+    }
+    if (renameValidationError) {
+      setAgentRenameError(renameValidationError);
+      return;
+    }
+    if (!hasChangedName) {
+      setIsRenamingAgent(false);
+      setAgentRenameError("");
+      return;
+    }
+
+    setIsAgentRenaming(true);
+    setAgentRenameError("");
+    const nextName = trimmedRenameValue.slice(0, AGENT_NAME_MAX_LENGTH);
+    try {
+      const { error } = await supabase
+        .from("agent_configs")
+        .update({ name_modif: nextName })
+        .eq("configs_id", selectedAgent.display_id);
+
+      if (error) {
+        console.error(error);
+        setAgentRenameError("Impossible de renommer l’agent pour le moment.");
+        return;
+      }
+
+      setTabs((prevTabs) =>
+        prevTabs.map((tab) =>
+          getAgentTabId(tab) === selectedAgentId ? { ...tab, name: nextName } : tab
+        )
+      );
+      await refreshDisplayedAgents();
+      setIsRenamingAgent(false);
+      setAgentRenameError("");
+    } finally {
+      setIsAgentRenaming(false);
+    }
+  }, [
+    hasChangedName,
+    refreshDisplayedAgents,
+    renameValidationError,
+    selectedAgent?.display_id,
+    selectedAgentId,
+    trimmedRenameValue,
+  ]);
+
+  const handleRenameKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void handleSubmitRenaming();
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleCancelRenaming();
+      }
+    },
+    [handleCancelRenaming, handleSubmitRenaming]
+  );
+
   /** Mise à jour locale des valeurs (en réponse au composant DynamicConfig). */
   const handleConfigChange = (values: ConfigValue[]) => {
     setConfigValues(values);
@@ -904,13 +1038,19 @@ const AgentAi: FunctionComponent = () => {
       <main className={styles.rightcomponent}>
         <Header logoMarque="/logoMarque@2x.png" />
         <div className={styles.tabcomponent}>
-          <TabComponent onClick={goToAgentAi} iconSrc="/tabComponentNotSelect.svg" />
+          <TabComponent
+            label="Mes agents"
+            active={false}
+            onClick={goToAgentAi}
+            iconSrc="/tabComponentNotSelect.svg"
+          />
           {tabs.map((agent) => {
             const tabId = getAgentTabId(agent);
             return (
               <TabComponent
                 key={tabId}
                 label={agent.name.toUpperCase()}
+                active={activeTabId === tabId}
                 iconSrc={
                   activeTabId === tabId
                     ? "/tabComponentSelect.svg"
@@ -926,12 +1066,72 @@ const AgentAi: FunctionComponent = () => {
         {selectedAgent && (
           <div className={styles.agentTitleWrapper}>
             <div className={styles.agentTitleText}>
-              <h2>{selectedAgent.name.toUpperCase()}</h2>
+              <div className={styles.agentNameBlock}>
+                {isRenamingAgent ? (
+                  <>
+                    <div className={styles.renameEditor}>
+                      <input
+                        className={styles.renameInput}
+                        type="text"
+                        value={agentRenameValue}
+                        onChange={(event) => {
+                          setAgentRenameValue(
+                            event.target.value.slice(0, AGENT_NAME_MAX_LENGTH)
+                          );
+                          if (agentRenameError) {
+                            setAgentRenameError("");
+                          }
+                        }}
+                        onKeyDown={handleRenameKeyDown}
+                        maxLength={AGENT_NAME_MAX_LENGTH}
+                        autoFocus
+                      />
+                      <div className={styles.renameActions}>
+                        <button
+                          type="button"
+                          className={styles.renameSecondaryButton}
+                          onClick={handleCancelRenaming}
+                          disabled={isAgentRenaming}
+                        >
+                          Annuler
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.renamePrimaryButton}
+                          onClick={() => {
+                            void handleSubmitRenaming();
+                          }}
+                          disabled={!canSaveRename}
+                        >
+                          {isAgentRenaming ? "Enregistrement..." : "Enregistrer"}
+                        </button>
+                      </div>
+                    </div>
+                    <p className={styles.renameErrorText}>
+                      {displayedRenameError || "\u00A0"}
+                    </p>
+                  </>
+                ) : (
+                  <div className={styles.agentNameDisplay}>
+                    <h2 title={selectedAgent.name.toUpperCase()}>
+                      {selectedAgent.name.toUpperCase()}
+                    </h2>
+                    <button
+                      type="button"
+                      className={styles.renameAgentButton}
+                      onClick={handleStartRenaming}
+                    >
+                      Renommer
+                    </button>
+                  </div>
+                )}
+              </div>
               <SwitchAnimated
                 checked={displayedHeaderSwitchChecked}
                 onChange={handleHeaderSwitchChange}
                 showLabel={false}
                 disabled={isHeaderSwitchDisabled}
+                className={styles.agentActivationSwitch}
               />
             </div>
           </div>

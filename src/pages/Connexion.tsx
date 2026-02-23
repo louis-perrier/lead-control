@@ -10,7 +10,6 @@ import Header from "../components/Header";
 import OptionSearch from "../components/OptionSearch";
 import optionSearchStyles from "../components/OptionSearch.module.css";
 import styles from "./Connexion.module.css";
-import tableStyles from "../styles/TableStyles.module.css";
 import supabase from "../lib/supabase";
 import { buildConnectorActions } from "../connectors/actions";
 import ConfirmationDialog from "../components/ConfirmationDialog";
@@ -316,6 +315,8 @@ const handleCancelDisconnect = () => {
         <div className={styles.optionSearchWrapper}>
           <OptionSearch
             wrap={true}
+            centeredLayout={true}
+            enlargedSearch={true}
             addButton={false}
             detailsButton={false}
             searchValue={searchQuery}
@@ -329,10 +330,8 @@ const handleCancelDisconnect = () => {
             filterPopover={connectionFilterPopover}
           />
         </div>
-        <section
-          className={`${styles.tableWrapper} ${tableStyles.tableWrapper}`}
-        >
-          <table className={tableStyles.validationTable}>
+        <section className={styles.tableWrapper}>
+          <table className={styles.connectionTable}>
             <thead>
               <tr>
                 <th>Icone</th>
@@ -346,16 +345,24 @@ const handleCancelDisconnect = () => {
             <tbody>
               {displayedConnections.map((connection) => (
                 <tr key={connection.connector_user_id}>
-                  <td>
-                    <img
-                      src={`/logoConnectors/${connection.provider.toLowerCase()}.webp`}
-                      alt={`${connection.provider} logo`}
-                      className={styles.tableIcon}
-                    />
+                  <td className={styles.iconCell}>
+                    <span className={styles.providerLogoShell}>
+                      <img
+                        src={`/logoConnectors/${connection.provider.toLowerCase()}.webp`}
+                        alt={`${connection.provider} logo`}
+                        className={styles.tableIcon}
+                      />
+                    </span>
                   </td>
-                  <td>{connection.connectors_label}</td>
-                  <td>{connection.provider}</td>
-                  <td>{formatDate(connection.updated_at)}</td>
+                  <td>
+                    <span className={styles.connectionTitle}>
+                      {connection.connectors_label}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={styles.providerBadge}>{connection.provider}</span>
+                  </td>
+                  <td className={styles.dateCell}>{formatDate(connection.updated_at)}</td>
                   <td>
                     <button
                       type="button"

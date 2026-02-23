@@ -58,6 +58,12 @@ const channelFilterOptions: ChannelFilterOption[] = [
   "Telegram",
 ];
 
+const channelFilterIcons: Record<ChannelOption, string> = {
+  Instagram: "/logoConnectors/instagram.webp",
+  WhatsApp: "/logoConnectors/whatsapp.webp",
+  Telegram: "https://cdn.simpleicons.org/telegram/229ED9",
+};
+
 const periodOptions: { label: string; value: PeriodOption }[] = [
   { label: "7j", value: "7" },
   { label: "30j", value: "30" },
@@ -65,6 +71,12 @@ const periodOptions: { label: string; value: PeriodOption }[] = [
 ];
 
 const statusFilterOptions = ["Tous", "Ouvert", "Clos", "Handoff"] as const;
+const sortOptionLabels: Record<SortOption, string> = {
+  recent: "Recent",
+  unread: "Non lus",
+  messages: "Plus de messages envoyes",
+};
+const sortOptions: SortOption[] = ["recent", "unread", "messages"];
 
 const channelColors: Record<ChannelOption, string> = {
   Instagram: "var(--app-primary)",
@@ -254,7 +266,24 @@ const ChannelFilterGroup: FunctionComponent<{
         }`}
         onClick={() => onChange(option)}
       >
-        {option === "All" ? "Tous" : option}
+        {option === "All" ? (
+          "Tous"
+        ) : (
+          <>
+            <img
+              className={styles.channelChipIcon}
+              src={channelFilterIcons[option]}
+              alt=""
+              aria-hidden="true"
+              onError={(event) => {
+                if (option === "Telegram") {
+                  event.currentTarget.src = "/logoConnectors/telegram.svg";
+                }
+              }}
+            />
+            <span>{option}</span>
+          </>
+        )}
       </button>
     ))}
   </div>
@@ -371,6 +400,10 @@ const Dashboard: FunctionComponent = () => {
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
+  const [isConfigMenuOpen, setConfigMenuOpen] = useState(false);
+  const configMenuRef = useRef<HTMLDivElement | null>(null);
+  const [isSortMenuOpen, setSortMenuOpen] = useState(false);
+  const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const { displayedAgents } = useAgents();
   const agentConfigOptions = useMemo(
     () =>
@@ -398,8 +431,9 @@ const Dashboard: FunctionComponent = () => {
   const [isStopDialogOpen, setStopDialogOpen] = useState(false);
   const [isDetailsOverlayOpen, setDetailsOverlayOpen] = useState(false);
 
-  const handleConfigChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    setSelectedConfigId(event.target.value);
+  const handleConfigChange = (value: string) => {
+    setSelectedConfigId(value);
+    setConfigMenuOpen(false);
   };
 
   useEffect(() => {
@@ -407,6 +441,7 @@ const Dashboard: FunctionComponent = () => {
       if (selectedConfigId !== null) {
         setSelectedConfigId(null);
       }
+      setConfigMenuOpen(false);
       return;
     }
     if (
@@ -416,6 +451,42 @@ const Dashboard: FunctionComponent = () => {
       setSelectedConfigId(agentConfigOptions[0].value);
     }
   }, [agentConfigOptions, selectedConfigId]);
+
+  useEffect(() => {
+    if (!isConfigMenuOpen) {
+      return;
+    }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        configMenuRef.current &&
+        !configMenuRef.current.contains(event.target as Node)
+      ) {
+        setConfigMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isConfigMenuOpen]);
+
+  useEffect(() => {
+    if (!isSortMenuOpen) {
+      return;
+    }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        sortMenuRef.current &&
+        !sortMenuRef.current.contains(event.target as Node)
+      ) {
+        setSortMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSortMenuOpen]);
 
   const activeConfigOption = agentConfigOptions.find(
     (option) => option.value === selectedConfigId,
@@ -657,8 +728,9 @@ const Dashboard: FunctionComponent = () => {
     setSearchQuery(event.target.value);
   };
 
-  const handleSortChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    setSortOption(event.target.value as SortOption);
+  const handleSortChange = (value: SortOption) => {
+    setSortOption(value);
+    setSortMenuOpen(false);
   };
 
   const handleSendMessage = async () => {
@@ -807,18 +879,44 @@ const Dashboard: FunctionComponent = () => {
               <span className={styles.claraConfigLabel}>
                 Configuration active
               </span>
-              <select
-                className={styles.claraConfigSelect}
-                value={selectedConfigId ?? ""}
-                onChange={handleConfigChange}
-                aria-label="Choisir une configuration d'agent"
+              <div
+                className={`${styles.claraConfigSelectWrap} ${
+                  isConfigMenuOpen ? styles.claraConfigSelectWrapOpen : ""
+                }`.trim()}
+                ref={configMenuRef}
               >
-                {agentConfigOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label.toUpperCase()}
-                  </option>
-                ))}
-              </select>
+                <button
+                  type="button"
+                  className={styles.claraConfigSelect}
+                  onClick={() => setConfigMenuOpen((prev) => !prev)}
+                  aria-haspopup="listbox"
+                  aria-expanded={isConfigMenuOpen}
+                  aria-label="Choisir une configuration d'agent"
+                >
+                  {(activeConfigOption?.label ?? "Selectionner un agent").toUpperCase()}
+                </button>
+                {isConfigMenuOpen && (
+                  <div className={styles.claraConfigMenu} role="listbox">
+                    {agentConfigOptions.map((option) => {
+                      const isActive = selectedConfigId === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          className={`${styles.claraConfigMenuItem} ${
+                            isActive ? styles.claraConfigMenuItemActive : ""
+                          }`.trim()}
+                          onClick={() => handleConfigChange(option.value)}
+                        >
+                          {option.label.toUpperCase()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -925,15 +1023,17 @@ const Dashboard: FunctionComponent = () => {
         ) : (
           <section className={styles.claraDetailsLayout}>
             <div className={styles.conversationPanel}>
-              <h3>Conversations</h3>
-            <div className={styles.conversationCountBadge}>
-              <span className={styles.conversationCountBadgeLabel}>
-                Conversations visibles
-              </span>
-              <span className={styles.conversationCountBadgeValue}>
-                {visibleConversationCount.toLocaleString("fr-FR")}
-              </span>
-            </div>
+              <div className={styles.conversationPanelHeader}>
+                <h3>Conversations</h3>
+                <div className={styles.conversationCountBadge}>
+                  <span className={styles.conversationCountBadgeLabel}>
+                    Conversations visibles
+                  </span>
+                  <span className={styles.conversationCountBadgeValue}>
+                    {visibleConversationCount.toLocaleString("fr-FR")}
+                  </span>
+                </div>
+              </div>
             <div className={styles.conversationFilters}>
               {statusFilterOptions.map((statusOption) => (
                 <button
@@ -951,16 +1051,44 @@ const Dashboard: FunctionComponent = () => {
               ))}
             </div>
               <div className={styles.conversationFilters}>
-                <select
-                  value={sortOption}
-                  onChange={handleSortChange}
-                  className={styles.claraPeriodButton}
-                  style={{ borderRadius: "10px" }}
+                <div
+                  className={`${styles.detailsSortWrap} ${
+                    isSortMenuOpen ? styles.detailsSortWrapOpen : ""
+                  }`.trim()}
+                  ref={sortMenuRef}
                 >
-                  <option value="recent">Récent</option>
-                  <option value="unread">Non lus</option>
-                  <option value="messages">Plus de messages envoyés</option>
-                </select>
+                  <button
+                    type="button"
+                    className={styles.detailsSortButton}
+                    onClick={() => setSortMenuOpen((prev) => !prev)}
+                    aria-haspopup="listbox"
+                    aria-expanded={isSortMenuOpen}
+                    aria-label="Trier les conversations"
+                  >
+                    {sortOptionLabels[sortOption]}
+                  </button>
+                  {isSortMenuOpen && (
+                    <div className={styles.detailsSortMenu} role="listbox">
+                      {sortOptions.map((option) => {
+                        const isActive = sortOption === option;
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            className={`${styles.detailsSortMenuItem} ${
+                              isActive ? styles.detailsSortMenuItemActive : ""
+                            }`.trim()}
+                            onClick={() => handleSortChange(option)}
+                          >
+                            {sortOptionLabels[option]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
               {!selectedConfigId ? (
                 <div className={styles.conversationEmpty}>
@@ -1183,3 +1311,4 @@ const Dashboard: FunctionComponent = () => {
 };
 
 export default Dashboard;
+

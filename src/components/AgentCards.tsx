@@ -97,33 +97,6 @@ const AgentCards: FunctionComponent<AgentCardsType> = ({
     Boolean(trimmedPendingName) && !hasDuplicatePendingName;
   const displayedRenameError = renameApiError || validationError;
 
-  const handleNameChange = async (targetAgent: AgentInfo, nextName: string) => {
-    const normalized = nextName.trim();
-    if (!targetAgent.display_id) {
-      return;
-    }
-    const isDuplicate = agents.some(
-      (agent) =>
-        agent.display_id !== targetAgent.display_id &&
-        agent.name.replace(/\s+/g, "").toUpperCase() ===
-          normalized.replace(/\s+/g, "").toUpperCase()
-    );
-    if (isDuplicate) {
-      return;
-    }
-
-    const { error } = await supabase
-      .from("agent_configs")
-      .update({ name_modif: normalized })
-      .eq("configs_id", targetAgent.display_id);
-    if (error) {
-      console.error(error);
-    } else {
-      refreshDisplayedAgents();
-      refreshAvailableAgents();
-    }
-  };
-
   useEffect(() => {
     const handleOpenAddAgent = () => setOverlayOpen(true);
     window.addEventListener("openAddAgentOverlay", handleOpenAddAgent);
@@ -198,20 +171,25 @@ const AgentCards: FunctionComponent<AgentCardsType> = ({
           key={agent.display_id ?? agent.id}
           imageSrc={agent.imageSrc}
           name={agent.name.toUpperCase()}
-          description={agent.description}
           isFav={Boolean(agent.is_fav)}
           isActive={Boolean(agent.is_active)}
           onClick={() => onAgentClick?.(agent)}
           onFavClick={() => onToggleFav?.(agent)}
-          onNameChange={(nextName) => handleNameChange(agent, nextName)}
         />
       ))}
-      <img
-        className={styles.addagentIcon}
-        alt="Ajouter un agent"
-        src="/addAgent.svg"
+      <button
+        type="button"
+        className={styles.addagentCard}
         onClick={() => setOverlayOpen(true)}
-      />
+        aria-label="Ajouter un agent"
+      >
+        <div className={styles.addagentContent}>
+          <span className={styles.addagentPlus} aria-hidden="true">
+            +
+          </span>
+          <span className={styles.addagentLabel}>Ajouter un agent</span>
+        </div>
+      </button>
       {agentDefaultSupa.length > 0 && (
         <OverlayAddAgent
           isOpen={isOverlayOpen}
@@ -240,8 +218,8 @@ const AgentCards: FunctionComponent<AgentCardsType> = ({
         value={pendingAgentName}
         onChange={handlePendingNameChange}
         onContinue={handleRenameContinue}
-      canContinue={canContinueRename}
-      errorMessage={displayedRenameError}
+        canContinue={canContinueRename}
+        errorMessage={displayedRenameError}
         isSubmitting={isRenameSubmitting}
       />
     </section>

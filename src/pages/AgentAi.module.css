@@ -27,11 +27,26 @@
 }
 .tabcomponent {
   align-self: stretch;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   display: flex;
   align-items: center;
-  padding: var(--padding-0) 168px var(--padding-20);
-  row-gap: var(--gap-20);
+  gap: 10px;
+  margin: 20px 24px 18px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(240, 247, 255, 0.92)
+  );
+  box-shadow:
+    0 16px 30px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
 }
 .tabcomponent2,
 .textsupportIcon {
@@ -107,9 +122,9 @@
 }
 @media screen and (max-width: 975px) {
   .tabcomponent {
-    padding-left: var(--padding-20);
-    padding-right: var(--padding-20);
-    box-sizing: border-box;
+    margin-top: 14px;
+    margin-left: 16px;
+    margin-right: 16px;
   }
 }
 @media screen and (max-width: 450px) {
@@ -117,11 +132,10 @@
     height: var(--height-auto);
   }
   .tabcomponent {
-    flex-wrap: wrap;
-    justify-content: center;
-    padding-left: 84px;
-    padding-right: 84px;
-    box-sizing: border-box;
+    margin-left: 12px;
+    margin-right: 12px;
+    border-radius: 14px;
+    padding: 8px;
   }
 }
 
@@ -129,7 +143,7 @@
   position: relative;
   align-self: stretch;
   display: flex;
-  justify-content: flex-end;
-  padding-right: 32px;
+  justify-content: center;
+  padding: 0 24px;
 }
 

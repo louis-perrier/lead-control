@@ -1,10 +1,11 @@
-import { FunctionComponent, MouseEvent } from "react";
+import { FunctionComponent, KeyboardEvent, MouseEvent } from "react";
 import styles from "./TabComponent.module.css";
 
 export type TabComponentType = {
   className?: string;
   label?: string;
   iconSrc?: string;
+  active?: boolean;
   onClick?: () => void;
   closable?: boolean;
   onClose?: () => void;
@@ -13,8 +14,9 @@ export type TabComponentType = {
 
 const TabComponent: FunctionComponent<TabComponentType> = ({
   className = "",
-  label = "Agents",
+  label = "Mes agents",
   iconSrc = "/tabComponentSelect.svg",
+  active = false,
   onClick,
   closable = false,
   onClose,
@@ -25,35 +27,45 @@ const TabComponent: FunctionComponent<TabComponentType> = ({
     onClose?.();
   };
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) {
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
       className={[styles.tabcomponent, className].filter(Boolean).join(" ")}
+      data-active={active}
+      data-closable={closable}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
     >
-      <img
-        className={styles.textsupportIcon}
-        loading="lazy"
-        alt=""
-        src={iconSrc}
-      />
-      <div className={styles.tabContent}>
-        {closable && (
-          <button
-            type="button"
-            className={styles.cancelContainer}
-            onClick={handleCloseClick}
-          >
-            <img
-              className={styles.cancelIcon}
-              alt="Fermer l'onglet"
-              src={closeIconSrc}
-            />
-          </button>
-        )}
-        <div className={styles.agenttabWrapper}>
-          <div className={styles.agenttab}>{label}</div>
-        </div>
-      </div>
+      {iconSrc && (
+        <img className={styles.tabIcon} loading="lazy" alt="" src={iconSrc} />
+      )}
+      <div className={styles.agenttab}>{label}</div>
+      {closable && (
+        <button
+          type="button"
+          className={styles.cancelContainer}
+          onClick={handleCloseClick}
+          aria-label={`Fermer l'onglet ${label}`}
+        >
+          <img
+            className={styles.cancelIcon}
+            alt=""
+            src={closeIconSrc}
+            aria-hidden="true"
+          />
+        </button>
+      )}
     </div>
   );
 };

@@ -150,7 +150,15 @@ const CornerSections: FunctionComponent<CornerSectionsProps> = ({
 
   return (
     <div className={styles.claraContainer}>
-      <div className={styles.claraBackground} style={backgroundStyle}>
+      <div
+        className={[
+          styles.claraBackground,
+          backgroundImage ? styles.claraBackgroundAgent : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        style={backgroundStyle}
+      >
         {blocks.map((block) => {
           const canSelect =
             block.section !== "BIENTÔT" && block.status !== "lock";

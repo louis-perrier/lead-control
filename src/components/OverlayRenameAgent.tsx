@@ -2,6 +2,8 @@ import { FunctionComponent, MouseEvent } from "react";
 import styles from "./OverlayRenameAgent.module.css";
 import { AgentInfo } from "../data/agents";
 
+const AGENT_NAME_MAX_LENGTH = 11;
+
 export type OverlayRenameAgentProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -49,7 +51,7 @@ const OverlayRenameAgent: FunctionComponent<OverlayRenameAgentProps> = ({
           type="text"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          maxLength={40}
+          maxLength={AGENT_NAME_MAX_LENGTH}
         />
         <p className={styles.errorText}>
           {errorMessage ?? "\u00A0"}

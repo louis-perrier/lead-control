@@ -8,6 +8,7 @@ type SwitchAnimatedProps = {
   label?: string;
   showLabel?: boolean;
   disabled?: boolean;
+  className?: string;
 };
 
 const SwitchAnimated: FC<SwitchAnimatedProps> = ({
@@ -16,9 +17,10 @@ const SwitchAnimated: FC<SwitchAnimatedProps> = ({
   label,
   showLabel = true,
   disabled = false,
+  className = "",
 }) => {
   return (
-    <div className={styles.switchRoot}>
+    <div className={[styles.switchRoot, className].filter(Boolean).join(" ")}>
       {label && showLabel && (
         <span className={`${styles.switchLabel} ${configStyles.label}`}>
           {label}
