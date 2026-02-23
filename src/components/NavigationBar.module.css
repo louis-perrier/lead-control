@@ -28,15 +28,15 @@
   will-change: width, transform;
 }
 .navigationbar[data-collapsed="true"] {
-  width: 64px;
-  padding-left: var(--padding-4);
-  padding-right: var(--padding-4);
+  width: 76px;
+  padding-left: 0;
+  padding-right: 0;
   gap: var(--gap-20);
   transform: none;
   transition:
-    width 760ms cubic-bezier(0.4, 0, 0.2, 1),
-    padding 420ms cubic-bezier(0.4, 0, 0.2, 1),
-    gap 420ms cubic-bezier(0.4, 0, 0.2, 1);
+    width 520ms cubic-bezier(0.4, 0, 0.2, 1),
+    padding 240ms cubic-bezier(0.4, 0, 0.2, 1),
+    gap 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .frameParent {
   width: 100%;
@@ -84,7 +84,7 @@
   transition: gap 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .navigationbar[data-collapsed="true"] .optionnavigationParent {
-  gap: var(--gap-12);
+  gap: 0;
   width: 100%;
   justify-content: center;
 }
