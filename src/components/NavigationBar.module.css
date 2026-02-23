@@ -18,17 +18,21 @@
   font-size: var(--Static-Label-Large-Size);
   color: var(--app-text-secondary);
   font-family: var(--Static-Label-Large-Font);
-  transition: width 0.4s ease, transform 0.4s ease;
+  transition:
+    width 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    gap 520ms cubic-bezier(0.22, 1, 0.36, 1);
   transform: translateX(0);
   position: relative;
+  will-change: width, transform;
 }
-.navigationbar[data-collapsed="true"] { 
+.navigationbar[data-collapsed="true"] {
   width: 64px;
   padding-left: var(--padding-4);
   padding-right: var(--padding-4);
   gap: var(--gap-20);
   transform: translateX(calc(64px - var(--width-240)));
-  transition: width 0.4s ease, transform 0.4s ease;
 }
 .frameParent {
   width: 100%;
@@ -73,6 +77,7 @@
   width: 100%;
   justify-content: center;
   gap: 100px;
+  transition: gap 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .navigationbar[data-collapsed="true"] .optionnavigationParent {
   gap: var(--gap-12);
@@ -87,6 +92,13 @@
   align-items: flex-start;
   padding: var(--padding-5) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
+  max-width: var(--width-45);
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .logoIcon {
   cursor: pointer;
@@ -99,7 +111,11 @@
   object-fit: cover;
 }
 .navigationbar[data-collapsed="true"] .logoWrapper {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  overflow: hidden;
 }
 .dividerWrapper {
   width: var(--width-221);
@@ -110,7 +126,7 @@
   padding: var(--padding-0) var(--padding-37) var(--padding-0) var(--padding-0);
   box-sizing: border-box;
   z-index: 6;
-  display: none; 
+  display: none;
 }
 .navigationbar[data-collapsed="true"] .dividerWrapper {
   display: none;

@@ -102,9 +102,37 @@
   padding-inline: 12px;
 }
 
+.linkLabel,
+.linkBadgeLabelText {
+  position: relative;
+  letter-spacing: var(--Static-Label-Large-Tracking);
+  line-height: var(--Static-Label-Large-Line-Height);
+  font-weight: 600;
+  color: inherit;
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  transition:
+    opacity 220ms ease,
+    transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0ms;
+}
+
 .linkRoot[data-collapsed="true"] .linkLabel,
 .linkRoot[data-collapsed="true"] .linkBadgeLabelText {
-  display: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-8px);
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 220ms cubic-bezier(0.4, 0, 1, 1),
+    visibility 0s linear 140ms;
+}
+
+.linkRoot:not([data-collapsed="true"]) .linkLabel,
+.linkRoot:not([data-collapsed="true"]) .linkBadgeLabelText {
+  transition-delay: 120ms;
 }
 
 .linkRoot[data-collapsed="true"] .linkIcon {
@@ -124,17 +152,13 @@
   top: 50%;
   transform: translateY(-50%);
   z-index: 2;
+  transition:
+    left 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 180ms ease;
 }
 
 .linkRoot:hover .linkIcon {
   filter: brightness(0) saturate(0);
-}
-
-.linkLabel,
-.linkBadgeLabelText {
-  position: relative;
-  letter-spacing: var(--Static-Label-Large-Tracking);
-  line-height: var(--Static-Label-Large-Line-Height);
-  font-weight: 600;
-  color: inherit;
 }
