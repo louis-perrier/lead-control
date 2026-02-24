@@ -310,6 +310,10 @@
   gap: 12px;
 }
 
+.dropzoneOverlayWrapper {
+  position: relative;
+}
+
 .dropzone {
   border: 1px dashed var(--app-border);
   border-radius: var(--br-12);
@@ -323,6 +327,22 @@
 
 .dropzoneInput {
   display: none;
+}
+
+.pdfOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--br-12);
+  pointer-events: none;
+  color: var(--app-surface);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--fs-11);
 }
 
 .pdfPreview {

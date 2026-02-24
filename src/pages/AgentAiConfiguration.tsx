@@ -1262,21 +1262,26 @@ const AgentAi: FunctionComponent = () => {
                         className={styles.detailsTextarea}
                       />
                       <div className={styles.dropzoneWrapper}>
-                        <label
-                          htmlFor="contextPdfInput"
-                          className={styles.dropzone}
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={handlePdfDrop}
-                        >
-                          <span>Importer un PDF (max 20 Mo)</span>
-                        </label>
-                        <input
-                          id="contextPdfInput"
-                          type="file"
-                          accept="application/pdf"
-                          className={styles.dropzoneInput}
-                          onChange={handlePdfInputChange}
-                        />
+                        <div className={styles.dropzoneOverlayWrapper}>
+                          <label
+                            htmlFor="contextPdfInput"
+                            className={styles.dropzone}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={handlePdfDrop}
+                          >
+                            <span>Importer un PDF (max 20 Mo)</span>
+                          </label>
+                          <input
+                            id="contextPdfInput"
+                            type="file"
+                            accept="application/pdf"
+                            className={styles.dropzoneInput}
+                            onChange={handlePdfInputChange}
+                          />
+                          <div className={styles.pdfOverlay}>
+                            <span>Bientôt disponible</span>
+                          </div>
+                        </div>
                         {contextPdf && (
                           <div className={styles.pdfPreview}>
                             <div>
