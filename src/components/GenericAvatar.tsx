@@ -29,6 +29,14 @@ const policyLinks = [
   },
 ];
 
+const appLinks = [
+  {
+    label: "Guide de demarrage",
+    description: "Comprendre l'application et activer ton setup",
+    route: "/app/demarer",
+  },
+];
+
 const logoutLabel = "Se déconnecter";
 
 const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
@@ -128,17 +136,41 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
             <span className={styles.menuTitle}>Mon compte</span>
             {user?.email && <span className={styles.menuMeta}>{user.email}</span>}
           </div>
-          {policyLinks.map((link) => (
-            <Link
-              key={link.route}
-              to={link.route}
-              role="menuitem"
-              className={[styles.menuButton, styles.linkButton].join(" ")}
-              onClick={closeMenu}
-            >
-              {link.label}
-            </Link>
-          ))}
+          <div className={styles.menuSection}>
+            <span className={styles.menuSectionTitle}>Commencer ici</span>
+            {appLinks.map((link) => (
+              <Link
+                key={link.route}
+                to={link.route}
+                role="menuitem"
+                className={[
+                  styles.menuButton,
+                  styles.linkButton,
+                  styles.onboardingLinkButton,
+                ].join(" ")}
+                onClick={closeMenu}
+              >
+                <span className={styles.menuButtonLabel}>{link.label}</span>
+                <span className={styles.menuButtonDescription}>
+                  {link.description}
+                </span>
+              </Link>
+            ))}
+          </div>
+          <div className={styles.menuSection}>
+            <span className={styles.menuSectionTitle}>Informations</span>
+            {policyLinks.map((link) => (
+              <Link
+                key={link.route}
+                to={link.route}
+                role="menuitem"
+                className={[styles.menuButton, styles.linkButton].join(" ")}
+                onClick={closeMenu}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
           <button
             type="button"
             className={[styles.menuButton, styles.logoutButton].join(" ")}

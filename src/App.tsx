@@ -10,6 +10,7 @@ import AgentAi from "./pages/AgentAi";
 import AgentAiConfiguration from "./pages/AgentAiConfiguration";
 import Connexion from "./pages/Connexion";
 import Crm from "./pages/Crm";
+import Demarer from "./pages/Demarer";
 import Dashboard from "./pages/Dashboard";
 import Feedback from "./components/Feedback";
 import Landing from "./pages/Landing";
@@ -45,6 +46,10 @@ function App() {
       case "/app":
         title = "LeadControl — Dashboard";
         metaDescription = "Pilote tes agents LeadControl, supervise les conversations et analyse les KPIs.";
+        break;
+      case "/app/demarer":
+        title = "LeadControl â€” Démarrer";
+        metaDescription = "Decouvre LeadControl, son fonctionnement, ses cas d'usage et les fonctionnalites a venir.";
         break;
       case "/app/subscription":
         title = "LeadControl — Abonnement";
@@ -112,6 +117,7 @@ function App() {
         <Route path="/policy/privacy-policy" element={<PolicyPrivacy />} />
         <Route path="/policy/data-deletion" element={<PolicyDataDeletion />} />
         <Route element={<ProtectedRoute />}>
+          <Route path="/app/demarer" element={<Demarer />} />
           <Route path="/app" element={<Dashboard />} />
           <Route path="/app/subscription" element={<Subscription />} />
           <Route path="/app/agentai" element={<AgentAi />} />
