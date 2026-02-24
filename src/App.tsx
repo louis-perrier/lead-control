@@ -19,7 +19,8 @@ import Login from "./pages/Login";
 import PolicyDataDeletion from "./pages/policy/PolicyDataDeletion";
 import PolicyPrivacy from "./pages/policy/PolicyPrivacy";
 import PolicyTerms from "./pages/policy/PolicyTerms";
-import Scraping from "./pages/Scraping";
+import CrmGuard from "./components/GuardComponent/CrmGuard";
+import ScrapingGuard from "./components/GuardComponent/ScrapingGuard";
 import Subscription from "./pages/Subscription";
 
 function App() {
@@ -125,9 +126,9 @@ function App() {
             path="/app/agentai/configuration"
             element={<AgentAiConfiguration />}
           />
-          <Route path="/app/crm" element={<Crm />} />
+          <Route path="/app/crm" element={<CrmGuard />} />
           <Route path="/app/connexion" element={<Connexion />} />
-          <Route path="/app/scraping" element={<Scraping />} />
+          <Route path="/app/scraping" element={<ScrapingGuard />} />
           <Route path="/app/*" element={<Navigate to="/app" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

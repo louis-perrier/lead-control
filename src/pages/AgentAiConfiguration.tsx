@@ -124,6 +124,7 @@ const PDF_SIZE_LIMIT = 20 * 1024 * 1024;
 const CONTEXT_STORAGE_BUCKET = "agent-context";
 const CONTEXT_DOCUMENT_FUNCTION_URL =
   "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/context-document-chunk-embeddings";
+const CONTEXT_PDF_UPLOAD_ENABLED = false;
 const toneOptions: { value: ToneOption; label: string; description: string }[] = [
   {
     value: "normal",
@@ -458,12 +459,19 @@ const AgentAi: FunctionComponent = () => {
   }, []);
 
   const handlePdfInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (!CONTEXT_PDF_UPLOAD_ENABLED) {
+      event.target.value = "";
+      return;
+    }
     handleFileSelection(event.target.files?.[0] ?? null);
     event.target.value = "";
   };
 
   const handlePdfDrop = (event: DragEvent<HTMLLabelElement>) => {
     event.preventDefault();
+    if (!CONTEXT_PDF_UPLOAD_ENABLED) {
+      return;
+    }
     if (event.dataTransfer.files.length > 0) {
       handleFileSelection(event.dataTransfer.files[0]);
     }
@@ -1262,26 +1270,29 @@ const AgentAi: FunctionComponent = () => {
                         className={styles.detailsTextarea}
                       />
                       <div className={styles.dropzoneWrapper}>
-                        <div className={styles.dropzoneOverlayWrapper}>
-                          <label
-                            htmlFor="contextPdfInput"
-                            className={styles.dropzone}
-                            onDragOver={(event) => event.preventDefault()}
-                            onDrop={handlePdfDrop}
-                          >
-                            <span>Importer un PDF (max 20 Mo)</span>
-                          </label>
-                          <input
-                            id="contextPdfInput"
-                            type="file"
-                            accept="application/pdf"
-                            className={styles.dropzoneInput}
-                            onChange={handlePdfInputChange}
-                          />
-                          <div className={styles.pdfOverlay}>
-                            <span>Bientôt disponible</span>
-                          </div>
-                        </div>
+                        <label
+                          htmlFor="contextPdfInput"
+                          className={`${styles.dropzone} ${
+                            !CONTEXT_PDF_UPLOAD_ENABLED ? styles.dropzoneDisabled : ""
+                          }`}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={handlePdfDrop}
+                          aria-disabled={!CONTEXT_PDF_UPLOAD_ENABLED}
+                        >
+                          <span>
+                            {CONTEXT_PDF_UPLOAD_ENABLED
+                              ? "Importer un PDF (max 20 Mo)"
+                              : "Importer un PDF (Bientôt disponible)"}
+                          </span>
+                        </label>
+                        <input
+                          id="contextPdfInput"
+                          type="file"
+                          accept="application/pdf"
+                          className={styles.dropzoneInput}
+                          onChange={handlePdfInputChange}
+                          disabled={!CONTEXT_PDF_UPLOAD_ENABLED}
+                        />
                         {contextPdf && (
                           <div className={styles.pdfPreview}>
                             <div>

@@ -59,10 +59,10 @@ export const defaultAgents: Record<string, AgentInfo> = {
     id: "rick",
     agent_id: "rick",
     name: "RICK",
-    description: "Scraping de leads",
+    description: "Agent Bonus",
     imageSrc: "/RICK-PP.png",
     backgroundSrc: "/RICK-Background.png",
-    details: ["Leads Insta", "Leads Tiktok", "Emails", "Quelques minutes"],
+    details: [],//["Insta, Tiktok, Gmail, Quelques Secondes, Sécuriser, Milliers Leads"]
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   }
 };

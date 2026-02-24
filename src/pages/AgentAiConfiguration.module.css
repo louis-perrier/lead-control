@@ -310,10 +310,6 @@
   gap: 12px;
 }
 
-.dropzoneOverlayWrapper {
-  position: relative;
-}
-
 .dropzone {
   border: 1px dashed var(--app-border);
   border-radius: var(--br-12);
@@ -325,24 +321,16 @@
   font-weight: 600;
 }
 
-.dropzoneInput {
-  display: none;
+.dropzoneDisabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  border-color: rgba(148, 163, 184, 0.6);
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--app-text-secondary);
 }
 
-.pdfOverlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--br-12);
-  pointer-events: none;
-  color: var(--app-surface);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: var(--fs-11);
+.dropzoneInput {
+  display: none;
 }
 
 .pdfPreview {

@@ -75,6 +75,7 @@ type UseAgentsResult = {
   displayedAgents: AgentDisplayed[];
   refreshDisplayedAgents: () => void;
   refreshAvailableAgents: () => void;
+  isDisplayedAgentsLoading: boolean;
 };
 
 const useAgents = (): UseAgentsResult => {
@@ -135,12 +136,16 @@ const useAgents = (): UseAgentsResult => {
     queryClient.invalidateQueries({ queryKey: ["agents", "available"] });
   }, [queryClient]);
 
+  const isDisplayedAgentsLoading =
+    defaultAgentsQuery.isLoading || displayedAgentsQuery.isLoading;
+
   return {
     agentDefaultSupa: defaultAgentsQuery.data ?? [],
     availableAgents: availableAgentsQuery.data ?? [],
     displayedAgents: displayedAgentsQuery.data ?? [],
     refreshDisplayedAgents,
     refreshAvailableAgents,
+    isDisplayedAgentsLoading,
   };
 };
 
