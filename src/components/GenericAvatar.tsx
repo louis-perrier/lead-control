@@ -1,5 +1,10 @@
-import { FunctionComponent, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import {
+  FunctionComponent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ConfirmationDialog from "./ConfirmationDialog";
 import styles from "./GenericAvatar.module.css";
@@ -36,9 +41,13 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (confirmOpen) {
+        return;
+      }
       if (
         open &&
         containerRef.current &&
@@ -52,7 +61,7 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [open]);
+  }, [open, confirmOpen]);
 
   const variantClass =
     variant === "header"
@@ -74,10 +83,15 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
 
   const handleConfirmLogout = async () => {
     setConfirmOpen(false);
-    await signOut();
-    setOpen(false);
-    if (onSignOut) {
-      await onSignOut();
+    try {
+      await signOut();
+      setOpen(false);
+      if (onSignOut) {
+        await onSignOut();
+      }
+      navigate("/login", { replace: true });
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion", error);
     }
   };
 
@@ -132,15 +146,15 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
           >
             {logoutLabel}
           </button>
-          <ConfirmationDialog
-            open={confirmOpen}
-            title="Déconnexion"
-            message="Êtes-vous sûr de vouloir vous déconnecter ?"
-            onClose={() => setConfirmOpen(false)}
-            onConfirm={handleConfirmLogout}
-          />
         </div>
       )}
+      <ConfirmationDialog
+        open={confirmOpen}
+        title="Déconnexion"
+        message="Êtes-vous sûr de vouloir vous déconnecter ?"
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={handleConfirmLogout}
+      />
     </div>
   );
 };

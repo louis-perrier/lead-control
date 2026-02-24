@@ -61,7 +61,7 @@ const NavItem: FunctionComponent<NavItemType> = ({
         data-selected={selected}
         data-collapsed={isCollapsed}
         data-state={state}
-        data-showIcon="true"
+        data-showicon="true"
         onClick={onClick}
       >
         <div className={styles.linkStateLayer}>
@@ -87,7 +87,7 @@ const NavItem: FunctionComponent<NavItemType> = ({
       data-badge={badge}
       data-elevation={elevation}
       data-selected={selected}
-      data-showLabelText={showLabelText}
+      data-showlabeltext={showLabelText}
       data-state={state}
       onClick={onClick}
       role="button"

@@ -709,23 +709,27 @@ const AgentAi: FunctionComponent = () => {
     : headerSwitchOn;
 
   const trimmedRenameValue = agentRenameValue.trim();
+  const normalizeName = (value: string) =>
+    value.replace(/\s+/g, "").toLowerCase();
   const hasChangedName =
     Boolean(selectedAgent) &&
     trimmedRenameValue !== (selectedAgent?.name.trim() ?? "");
   const hasDuplicateName =
     Boolean(trimmedRenameValue) &&
-    displayedAgents.some(
-      (agent) =>
-        agent.display_id !== selectedAgent?.display_id &&
-        agent.name.trim().toLowerCase() === trimmedRenameValue.toLowerCase()
-    );
+    displayedAgents.some((agent) => {
+      if (agent.display_id === selectedAgent?.display_id) {
+        return false;
+      }
+      const candidate = agent.name.trim();
+      return normalizeName(candidate) === normalizeName(trimmedRenameValue);
+    });
   const renameValidationError =
     !trimmedRenameValue
       ? "Le nom ne peut pas être vide."
       : trimmedRenameValue.length > AGENT_NAME_MAX_LENGTH
       ? `Le nom doit faire ${AGENT_NAME_MAX_LENGTH} caractères maximum.`
       : hasDuplicateName
-      ? "Un agent porte déjà ce nom."
+      ? "Un agent porte déjà ce nom ou un nom similaire."
       : "";
   const canSaveRename =
     Boolean(trimmedRenameValue) &&

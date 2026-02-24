@@ -58,6 +58,8 @@ const Connexion: FunctionComponent = () => {
     null
   );
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [connectorUserId, setConnectorUserId] = useState<string | null>(null);
+  const [activePopup, setActivePopup] = useState<Window | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortColumn, setSortColumn] = useState<keyof Connection>(
     "connectors_label"
@@ -118,6 +120,7 @@ const Connexion: FunctionComponent = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "connectors_config_agent" },
         () => {
+          if (activePopup) activePopup.close();
           fetchConnections();
         }
       )
@@ -126,7 +129,7 @@ const Connexion: FunctionComponent = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchConnections]);
+  }, [fetchConnections, activePopup]);
 
   const uniqueProviders = useMemo(
     () =>
@@ -235,6 +238,7 @@ const Connexion: FunctionComponent = () => {
   const handleShowConfiguration = (connection: Connection) => {
     setActiveConfigs(connection.configurations);
     setSelectedAccount(connection.connectors_label);
+    setConnectorUserId(connection.connector_user_id);
   };
 
   const handleDisconnectClick = useCallback((connectorUserId: string) => {
@@ -250,10 +254,17 @@ const connectorActions = useMemo(() => {
     connectors_name: (connection.provider ?? "").toLowerCase(),
     id: connection.connector_user_id,
   }));
+  const selectedConnection = connectorUserId
+    ? connections.find((connection) => connection.connector_user_id === connectorUserId)
+    : undefined;
+  const configsId =
+    selectedConnection?.configurations.find((config) => config.configId)?.configId ?? null;
   return buildConnectorActions({
     connectorConnected,
+    configsId,
+    setActivePopup,
   });
-}, [connections]);
+}, [connections, connectorUserId, setActivePopup]);
 const [confirmationOpen, setConfirmationOpen] = useState(false);
 const [pendingDisconnect, setPendingDisconnect] = useState<{
   action: () => Promise<void> | void;
@@ -292,10 +303,41 @@ const handleCancelDisconnect = () => {
   setConfirmationOpen(false);
 };
 
-  const closeConfigurationOverlay = () => {
+  const closeConfigurationOverlay = useCallback(() => {
     setActiveConfigs(null);
     setSelectedAccount(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!activeConfigs) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeConfigurationOverlay();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeConfigs, closeConfigurationOverlay]);
+
+  useEffect(() => {
+    if (connections.length === 0) {
+      if (connectorUserId !== null) {
+        setConnectorUserId(null);
+      }
+      return;
+    }
+
+    const hasCurrentId = connections.some(
+      (connection) => connection.connector_user_id === connectorUserId
+    );
+    if (!hasCurrentId) {
+      setConnectorUserId(connections[0].connector_user_id);
+    }
+  }, [connections, connectorUserId]);
 
   return (
     <div className={styles.connexion}>
@@ -372,8 +414,8 @@ const handleCancelDisconnect = () => {
                       {connection.connector_nb_liaison}
                     </button>
                   </td>
-                <td className={styles.actionsCell}>
-                  {(() => {
+                  <td className={styles.actionsCell}>
+                    {(() => {
                     const providerKey = (connection.provider ?? "").toLowerCase();
                     const actions = connectorActions[providerKey];
                     const disconnectAction =
