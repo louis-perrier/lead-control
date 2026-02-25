@@ -7,7 +7,7 @@ import styles from "./Demarer.module.css";
 const quickNav = [
   { id: "intro", label: "1. Introduction" },
   { id: "why", label: "2. Pourquoi LeadControl" },
-  { id: "workflow", label: "3. Processus en 4 etapes" },
+  { id: "workflow", label: "3. Processus en 3 etapes" },
   { id: "features", label: "4. Fonctionnalites detaillees" },
   { id: "usecases", label: "5. Cas d'usage" },
   { id: "coming", label: "6. A venir" },
@@ -23,11 +23,6 @@ const quickActions = [
     title: "Connecter tes comptes",
     description: "Centralise Instagram, LinkedIn et les connecteurs actifs.",
     route: "/app/connexion",
-  },
-  {
-    title: "Lancer un scraping",
-    description: "Alimente ton tunnel avec de nouveaux leads cibles.",
-    route: "/app/scraping",
   },
   {
     title: "Suivre les performances",
@@ -64,19 +59,6 @@ const processSteps = [
   },
   {
     step: "Etape 3",
-    title: "Prospecter avec Scraping",
-    description:
-      "Tu generes un flux de leads cible pour alimenter l'agent et augmenter la cadence.",
-    bullets: [
-      "Choisir un profil cible pertinent",
-      "Lancer les runs et suivre l'historique",
-      "Exploiter les leads recuperes dans ton workflow",
-    ],
-    route: "/app/scraping",
-    cta: "Ouvrir Scraping",
-  },
-  {
-    step: "Etape 4",
     title: "Piloter et optimiser",
     description:
       "Tu mesures les resultats dans Dashboard et ajustes ton systeme pour convertir plus.",
@@ -108,15 +90,6 @@ const featureGroups = [
       "Base propre pour automatiser sans friction",
     ],
     route: "/app/connexion",
-  },
-  {
-    title: "Scraping automatise",
-    points: [
-      "Collecte de leads ciblee depuis les profils choisis",
-      "Historique des runs pour suivre la production",
-      "Flux de prospects pour alimenter ton systeme",
-    ],
-    route: "/app/scraping",
   },
   {
     title: "Analytics et pilotage",
@@ -167,7 +140,6 @@ const useCases = [
 ];
 
 const upcomingItems = [
-  "Scraping plus fin par filtres de ciblage",
   "Automatisations avancees basees sur des workflows",
   "Rapports de conversion encore plus exploitables",
   "Playbooks metier et templates preconfigures",
@@ -200,7 +172,7 @@ const Demarer: FunctionComponent = () => {
             <h1 className={styles.title}>Démarrer avec LeadControl</h1>
             <p className={styles.subtitle}>
               Comprendre l&apos;application en moins de 10 minutes, activer ton
-              setup en 4 etapes, puis lancer un systeme de prospection et
+              setup en 3 etapes, puis lancer un systeme de prospection et
               qualification qui scale.
             </p>
             <div className={styles.heroActions}>
@@ -220,15 +192,9 @@ const Demarer: FunctionComponent = () => {
                 <span className={styles.statLabel}>Pour comprendre la valeur</span>
               </article>
               <article className={styles.statCard}>
-                <span className={styles.statValue}>4 etapes</span>
+                <span className={styles.statValue}>3 etapes</span>
                 <span className={styles.statLabel}>
                   Pour etre operationnel rapidement
-                </span>
-              </article>
-              <article className={styles.statCard}>
-                <span className={styles.statValue}>5 modules</span>
-                <span className={styles.statLabel}>
-                  Agent IA, Connexion, Scraping, Dashboard, CRM
                 </span>
               </article>
             </div>
@@ -300,7 +266,6 @@ const Demarer: FunctionComponent = () => {
                     <ul className={styles.cleanList}>
                       <li>Reponse automatisee 24/7</li>
                       <li>Centralisation des conversations</li>
-                      <li>Scraping pour alimenter le pipeline</li>
                       <li>Suivi des stats et des performances</li>
                       <li>IA personnalisee pour qualifier et orienter</li>
                     </ul>
