@@ -272,6 +272,10 @@
   grid-column: 1 / -1;
 }
 
+.detailsCardFullWidth {
+  grid-column: 1 / -1;
+}
+
 .cardHeader {
   display: flex;
   flex-direction: column;
@@ -436,6 +440,96 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.slotSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: var(--br-12);
+  padding: var(--padding-12);
+  background: rgba(148, 163, 184, 0.05);
+}
+
+.slotHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-12);
+}
+
+.slotHeaderLabel {
+  font-weight: 600;
+  font-size: var(--fs-14);
+  color: var(--app-text-primary);
+}
+
+.slotList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+}
+
+.slotRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--gap-12);
+  flex-wrap: wrap;
+  padding: var(--padding-10);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: var(--br-12);
+  background: var(--app-surface);
+}
+
+.slotFieldGroup {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.slotRemoveButton {
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: transparent;
+  color: var(--app-error);
+  border-radius: var(--br-10);
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.slotRemoveButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.slotAddButton {
+  border: 1px solid var(--app-primary);
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--app-primary);
+  border-radius: var(--br-12);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.slotHelper {
+  margin: 0;
+  font-size: var(--fs-12);
+  color: var(--app-text-secondary);
+}
+
+.slotFullRange {
+  display: block;
+  font-weight: 600;
+  color: var(--app-primary);
+  background: rgba(34, 211, 238, 0.12);
+  border-radius: var(--br-10);
+  padding: 6px 10px;
 }
 
 .fieldLabel {

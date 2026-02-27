@@ -171,4 +171,5 @@ dist/
 .vite/
 contexte.md
 
+/supabase/
 

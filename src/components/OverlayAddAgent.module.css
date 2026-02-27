@@ -45,6 +45,11 @@
   flex-direction: column;
   justify-content: space-between;
 }
+.agentInfoBlur .agentName,
+.agentInfoBlur .selectButton {
+  filter: none;
+  opacity: 1;
+}
 .agentInfo {
   text-align: center;
 }
@@ -63,6 +68,33 @@
   height: 100%;
   overflow: hidden;
   box-sizing: border-box;
+  position: relative;
+}
+.infoCardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.infoCardContentBlur {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  filter: blur(3px);
+  opacity: 0.55;
+}
+.infoBonusLabel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.9);
+  color: #fff;
+  font-size: var(--fs-12);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 .agentName {
   margin: 0;
@@ -139,6 +171,62 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+.previewOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  pointer-events: none;
+}
+.comingSoonBanner {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  width: 480px;
+  height: 0;
+  padding: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--app-primary);
+  font-weight: 900;
+  letter-spacing: 0.35em;
+  font-size: var(--fs-18);
+  text-transform: uppercase;
+  text-shadow: none;
+  pointer-events: none;
+}
+.comingSoonBanner {
+  top: 42%;
+  width: 480px;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  padding: 20px 0;
+  background: transparent;
+  border: none;
+  color: var(--app-primary);
+  font-weight: 900;
+  letter-spacing: 0.35em;
+  font-size: var(--fs-18);
+  text-transform: uppercase;
+  text-shadow: none;
+  pointer-events: none;
+}
+.releaseDate {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: var(--fs-12);
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  text-align: center;
 }
 .iconButton {
   position: absolute;

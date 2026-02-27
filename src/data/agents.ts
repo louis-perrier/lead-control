@@ -8,12 +8,20 @@ export type AgentInfo = {
   imageSrc: string;
   backgroundSrc: string;
   details: string[];
-  configs: {Details: Record<string, string>, Configurations: Record<string, string>, Connexions: Record<string, string>, Test: Record<string, string>};
+  configs: {
+    Details: Record<string, string>;
+    Configurations: Record<string, string>;
+    Connexions: Record<string, string>;
+    Test: Record<string, string>;
+  };
   display_id?: string;
   is_active?: boolean;
-  is_fav?: boolean; 
+  is_fav?: boolean;
   limit_agent_user?: number | null;
-}; 
+  is_available?: boolean;
+  is_bonus?: boolean;
+  release_date?: string | null;
+};
 
 // --------------Agents Référence---------------------------------
 export const defaultAgents: Record<string, AgentInfo> = { 
@@ -62,24 +70,35 @@ export const defaultAgents: Record<string, AgentInfo> = {
     description: "Agent Bonus",
     imageSrc: "/RICK-PP.png",
     backgroundSrc: "/RICK-Background.png",
-    details: [],//["Insta, Tiktok, Gmail, Quelques Secondes, Sécuriser, Milliers Leads"]
+    details: ["Insta", "Tiktok", "Gmail", "Quelques Secondes", "Sécuriser", "Milliers Leads"],
     configs: {"Details":{}, "Configurations":{}, "Connexions":{}, "Test": {}}
   }
 };
 
 // --------------Agent Defaults Supa---------------------------------
-const buildAgent = ({id, name_default, description}: {id: string, name_default: string, description: string}) => {
+const buildAgent = (agent: {
+  id: string;
+  name_default: string;
+  description: string;
+  is_available?: boolean | null;
+  is_bonus?: boolean | null;
+  release_date?: string | null;
+}) => {
+  const defaultAgent = defaultAgents[agent.name_default];
   return {
-    id: name_default,
-    agent_id: id,
-    name: name_default.toUpperCase(),
-    description,
-    imageSrc: defaultAgents[name_default].imageSrc,
-    backgroundSrc: defaultAgents[name_default].backgroundSrc,
-    details: defaultAgents[name_default].details,
-    configs: defaultAgents[name_default].configs
-  }
-}
+    id: agent.name_default,
+    agent_id: agent.id,
+    name: agent.name_default.toUpperCase(),
+    description: agent.description,
+    imageSrc: defaultAgent.imageSrc,
+    backgroundSrc: defaultAgent.backgroundSrc,
+    details: defaultAgent.details,
+    configs: defaultAgent.configs,
+    is_available: agent.is_available ?? true,
+    is_bonus: agent.is_bonus ?? false,
+    release_date: agent.release_date ?? null,
+  };
+};
 
 //Optimiser cet agent
 export const fetchDefaultAgentsSupa = async () => {

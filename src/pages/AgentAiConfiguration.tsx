@@ -81,6 +81,77 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
   );
 };
 
+type TimeSlot = {
+  id: string;
+  time: string;
+  durationMinutes: number;
+};
+
+type SavedTimeSlot = Omit<TimeSlot, "id">;
+
+const DEFAULT_SAVED_SLOTS: SavedTimeSlot[] = [
+  { time: "09:00", durationMinutes: 30 },
+  { time: "14:00", durationMinutes: 30 },
+  { time: "19:00", durationMinutes: 30 },
+];
+
+const createTimeSlot = (overrides?: Partial<TimeSlot>): TimeSlot => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  time: "09:00",
+  durationMinutes: 30,
+  ...overrides,
+});
+
+const getDefaultSlots = (): TimeSlot[] =>
+  DEFAULT_SAVED_SLOTS.map((slot) =>
+    createTimeSlot({
+      time: slot.time,
+      durationMinutes: slot.durationMinutes,
+    })
+  );
+
+const buildStateSlots = (savedSlots: SavedTimeSlot[]): TimeSlot[] =>
+  savedSlots.length > 0
+    ? savedSlots.map((slot) =>
+        createTimeSlot({
+          time: slot.time,
+          durationMinutes: slot.durationMinutes,
+        })
+      )
+    : getDefaultSlots();
+
+const normalizeSavedSlots = (value: unknown): SavedTimeSlot[] => {
+  if (!Array.isArray(value)) {
+    return DEFAULT_SAVED_SLOTS;
+  }
+  const parsed = value
+    .filter(
+      (item): item is Record<string, unknown> =>
+        Boolean(item) && typeof item === "object"
+    )
+    .map((slot) => ({
+      time:
+        typeof slot.time === "string" && slot.time.length > 0
+          ? slot.time
+          : "09:00",
+      durationMinutes:
+        typeof slot.durationMinutes === "number" && !Number.isNaN(slot.durationMinutes)
+          ? Math.max(1, Math.round(slot.durationMinutes))
+          : 30,
+    }));
+  return parsed.length > 0 ? parsed : DEFAULT_SAVED_SLOTS;
+};
+
+const toMinutes = (time: string) => {
+  const [hours = "0", minutes = "0"] = time.split(":");
+  const parsedHours = Number(hours);
+  const parsedMinutes = Number(minutes);
+  return Math.max(0, (Number.isNaN(parsedHours) ? 0 : parsedHours) * 60 + (Number.isNaN(parsedMinutes) ? 0 : parsedMinutes));
+};
+
+const isValidTimeFormat = (value: string) =>
+  /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
 type ToneOption = "normal" | "friendly" | "funny" | "pro" | "direct";
 type ActiveDays = {
   mon: boolean;
@@ -98,6 +169,8 @@ type DetailErrors = {
   timeRange?: string;
   stopText?: string;
   stopLink?: string;
+  productName?: string;
+  timeSlots?: string;
 };
 type DetailsSnapshot = {
   contextText: string;
@@ -107,6 +180,8 @@ type DetailsSnapshot = {
   timeEnd: string;
   stopText: string;
   stopLink: string;
+  productName: string;
+  timeSlots: SavedTimeSlot[];
 };
 
 const defaultActiveDays: ActiveDays = {
@@ -234,6 +309,8 @@ const AgentAi: FunctionComponent = () => {
   const [timeEnd, setTimeEnd] = useState(defaultTimeRange.end);
   const [stopText, setStopText] = useState("");
   const [stopLink, setStopLink] = useState("");
+  const [productName, setProductName] = useState("");
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() => getDefaultSlots());
   const [errors, setErrors] = useState<DetailErrors>({});
   const [lastSavedDetails, setLastSavedDetails] =
     useState<DetailsSnapshot | null>(null);
@@ -346,6 +423,8 @@ const AgentAi: FunctionComponent = () => {
         timeEnd: details?.timeEnd ?? defaultTimeRange.end,
         stopText: details?.stopText ?? "",
         stopLink: details?.stopLink ?? "",
+        productName: details?.productName ?? "",
+        timeSlots: normalizeSavedSlots(details?.timeSlots),
       };
     },
     []
@@ -360,6 +439,8 @@ const AgentAi: FunctionComponent = () => {
       setTimeEnd(defaultTimeRange.end);
       setStopText("");
       setStopLink("");
+      setProductName("");
+      setTimeSlots(getDefaultSlots());
       return;
     }
     setContextText(snapshot.contextText);
@@ -369,6 +450,8 @@ const AgentAi: FunctionComponent = () => {
     setTimeEnd(snapshot.timeEnd);
     setStopText(snapshot.stopText);
     setStopLink(snapshot.stopLink);
+    setProductName(snapshot.productName);
+    setTimeSlots(buildStateSlots(snapshot.timeSlots));
   }, []);
 
   useEffect(() => {
@@ -394,13 +477,48 @@ const AgentAi: FunctionComponent = () => {
     if (contextPdfError) {
       nextErrors.contextPdf = contextPdfError;
     }
+    if (!productName.trim()) {
+      nextErrors.productName = "Ajoute le nom du produit.";
+    }
+    const trimmedStopText = stopText.trim();
+    if (!trimmedStopText) {
+      nextErrors.stopText = "Décris ce qui doit déclencher l’arrêt.";
+    }
     const hasActiveDay = Object.values(activeDays).some(Boolean);
     if (!hasActiveDay) {
       nextErrors.activeDays = "Sélectionne au moins un jour actif.";
     }
-    if (timeStart >= timeEnd) {
+    const startMinutes = toMinutes(timeStart);
+    const endMinutes = toMinutes(timeEnd);
+    if (startMinutes >= endMinutes) {
       nextErrors.timeRange =
         "L’horaire de début doit être antérieur à l’horaire de fin.";
+    }
+    if (timeSlots.length > 0 && startMinutes < endMinutes) {
+      for (const slot of timeSlots) {
+        if (!isValidTimeFormat(slot.time)) {
+          nextErrors.timeSlots =
+            "Utilise un format 24h (HH:MM) pour l’heure du créneau.";
+          break;
+        }
+        const slotStart = toMinutes(slot.time);
+        const slotEnd = slotStart + slot.durationMinutes;
+        if (slot.durationMinutes <= 0) {
+          nextErrors.timeSlots =
+            "Chaque créneau doit avoir un intervalle supérieur à 0 minute.";
+          break;
+        }
+        if (slotStart < startMinutes || slotStart > endMinutes) {
+          nextErrors.timeSlots =
+            "Le créneau doit rester dans la plage horaire définie.";
+          break;
+        }
+        if (slotEnd > endMinutes) {
+          nextErrors.timeSlots =
+            "Le créneau + intervalle ne doit pas dépasser la plage horaire.";
+          break;
+        }
+      }
     }
     const trimmedLink = stopLink.trim();
     if (trimmedLink) {
@@ -417,7 +535,7 @@ const AgentAi: FunctionComponent = () => {
         nextErrors.stopLink =
           "Le lien doit être valide (https:// ou www.).";
       }
-      if (!stopText.trim()) {
+      if (!trimmedStopText) {
         nextErrors.stopText =
           "Décris le rôle du lien pour que l’agent sache quand s’arrêter.";
       }
@@ -432,6 +550,8 @@ const AgentAi: FunctionComponent = () => {
     timeEnd,
     stopText,
     stopLink,
+    productName,
+    timeSlots,
   ]);
 
   useEffect(() => {
@@ -480,6 +600,54 @@ const AgentAi: FunctionComponent = () => {
   const toggleDay = (day: keyof ActiveDays) => {
     setActiveDays((prev) => ({ ...prev, [day]: !prev[day] }));
   };
+
+  const handleAddTimeSlot = useCallback(() => {
+    setTimeSlots((prev) => {
+      const baseTime = prev[prev.length - 1]?.time ?? timeStart;
+      return [
+        ...prev,
+        createTimeSlot({
+          time: baseTime,
+          durationMinutes: 30,
+        }),
+      ];
+    });
+  }, [timeStart]);
+
+  const handleRemoveTimeSlot = useCallback((slotId: string) => {
+    setTimeSlots((prev) => prev.filter((slot) => slot.id !== slotId));
+  }, []);
+
+  const handleSlotTimeChange = useCallback((slotId: string, value: string) => {
+    setTimeSlots((prev) =>
+      prev.map((slot) =>
+        slot.id === slotId
+          ? {
+              ...slot,
+              time: value,
+            }
+          : slot
+      )
+    );
+  }, []);
+
+  const handleSlotDurationChange = useCallback(
+    (slotId: string, value: string) => {
+      const parsed = Number(value);
+      const duration = Number.isNaN(parsed) ? 0 : Math.max(1, Math.round(parsed));
+      setTimeSlots((prev) =>
+        prev.map((slot) =>
+          slot.id === slotId
+            ? {
+                ...slot,
+                durationMinutes: duration,
+              }
+            : slot
+        )
+      );
+    },
+    []
+  );
 
 
   // ------------------------------CONNEXIONS---------------------------------
@@ -921,8 +1089,23 @@ const AgentAi: FunctionComponent = () => {
       timeEnd,
       stopText,
       stopLink,
+      productName: productName.trim(),
+      timeSlots: timeSlots.map(({ time, durationMinutes }) => ({
+        time,
+        durationMinutes,
+      })),
     }),
-    [contextText, tone, activeDays, timeStart, timeEnd, stopText, stopLink]
+    [
+      contextText,
+      tone,
+      activeDays,
+      timeStart,
+      timeEnd,
+      stopText,
+      stopLink,
+      productName,
+      timeSlots,
+    ]
   );
 
   const hasValidationErrors = Object.values(errors).some(Boolean);
@@ -1018,6 +1201,8 @@ const AgentAi: FunctionComponent = () => {
             timeEnd,
             stopText,
             stopLink: stopLink.trim(),
+            productName: snapshot.productName,
+            timeSlots: snapshot.timeSlots,
           },
         },
       })
@@ -1318,37 +1503,27 @@ const AgentAi: FunctionComponent = () => {
                         )}
                       </div>
                     </section>
-                    <section className={`${styles.detailsCard} ${styles.toneComingSoon}`}>
+                    <section className={`${styles.detailsCard} ${styles.detailsCardWide}`}>
                       <div className={styles.cardHeader}>
-                        <h4 className={styles.cardTitle}>Ton</h4>
+                        <h4 className={styles.cardTitle}>
+                          Produit
+                        </h4>
                         <p className={styles.cardDescription}>
-                          Choisis la personnalité par défaut que l’agent utilisera à l’écrit.
+                          Donne un nom au produit ou service que cet agent représente.
                         </p>
                       </div>
-                      <select
-                        value={tone}
-                        onChange={(event) =>
-                          setTone(event.target.value as ToneOption)
-                        }
-                        className={styles.toneSelect}
-                      >
-                        {toneOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <p className={styles.toneMeta}>
-                        {
-                          toneOptions.find((option) => option.value === tone)
-                            ?.description
-                        }
-                      </p>
-                      <div className={styles.toneComingSoonOverlay}>
-                        Bientôt disponible
-                      </div>
+                      <input
+                        type="text"
+                        value={productName}
+                        onChange={(event) => setProductName(event.target.value)}
+                        placeholder="Nom du produit"
+                        className={styles.detailsInput}
+                      />
+                      {errors.productName && (
+                        <p className={styles.fieldError}>{errors.productName}</p>
+                      )}
                     </section>
-                    <section className={styles.detailsCard}>
+                    <section className={`${styles.detailsCard} ${styles.detailsCardFullWidth}`}>
                       <div className={styles.cardHeader}>
                         <h4 className={styles.cardTitle}>Horaires d’activation</h4>
                         <p className={styles.cardDescription}>
@@ -1396,12 +1571,112 @@ const AgentAi: FunctionComponent = () => {
                           />
                         </div>
                       </div>
+                      <div className={styles.slotSection}>
+                        <div className={styles.slotHeader}>
+                          <span className={styles.slotHeaderLabel}>
+                            Créneaux d’activation
+                          </span>
+                          <button
+                            type="button"
+                            className={styles.slotAddButton}
+                            onClick={handleAddTimeSlot}
+                          >
+                            Ajouter un créneau
+                          </button>
+                        </div>
+                        <div className={styles.slotList}>
+                          {timeSlots.map((slot, index) => (
+                            <div key={slot.id} className={styles.slotRow}>
+                              <div className={styles.slotFieldGroup}>
+                                <label className={styles.fieldLabel}>
+                                  Heure (créneau {index + 1})
+                                </label>
+                                <input
+                                  type="text"
+                                  pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
+                                  value={slot.time}
+                                  placeholder="HH:MM"
+                                  inputMode="numeric"
+                                  onChange={(event) =>
+                                    handleSlotTimeChange(slot.id, event.target.value)
+                                  }
+                                  className={styles.timeInput}
+                                />
+                              </div>
+                              <div className={styles.slotFieldGroup}>
+                                <label className={styles.fieldLabel}>
+                                  Intervalle (minutes)
+                                </label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  step={5}
+                                  value={slot.durationMinutes}
+                                  onChange={(event) =>
+                                    handleSlotDurationChange(slot.id, event.target.value)
+                                  }
+                                  className={styles.detailsInput}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                className={styles.slotRemoveButton}
+                                onClick={() => handleRemoveTimeSlot(slot.id)}
+                              >
+                                Supprimer
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <p className={styles.slotHelper}>
+                          {timeSlots.length > 0 ? (
+                            `Le créneau + intervalle doit rester compris entre ${timeStart} et ${timeEnd}.`
+                          ) : (
+                            <span className={styles.slotFullRange}>
+                              L’agent répondra sur toute la plage horaire définie.
+                            </span>
+                          )}
+                        </p>
+                        {errors.timeSlots && (
+                          <p className={styles.fieldError}>{errors.timeSlots}</p>
+                        )}
+                      </div>
                       {errors.activeDays && (
                         <p className={styles.fieldError}>{errors.activeDays}</p>
                       )}
                       {errors.timeRange && (
                         <p className={styles.fieldError}>{errors.timeRange}</p>
                       )}
+                    </section>
+                    <section className={`${styles.detailsCard} ${styles.toneComingSoon}`}>
+                      <div className={styles.cardHeader}>
+                        <h4 className={styles.cardTitle}>Ton</h4>
+                        <p className={styles.cardDescription}>
+                          Choisis la personnalité par défaut que l’agent utilisera à l’écrit.
+                        </p>
+                      </div>
+                      <select
+                        value={tone}
+                        onChange={(event) =>
+                          setTone(event.target.value as ToneOption)
+                        }
+                        className={styles.toneSelect}
+                      >
+                        {toneOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className={styles.toneMeta}>
+                        {
+                          toneOptions.find((option) => option.value === tone)
+                            ?.description
+                        }
+                      </p>
+                      <div className={styles.toneComingSoonOverlay}>
+                        Bientôt disponible
+                      </div>
                     </section>
                     <section className={styles.detailsCard}>
                       <div className={styles.cardHeader}>

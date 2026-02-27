@@ -274,7 +274,7 @@ const Demarer: FunctionComponent = () => {
               </section>
 
               <section className={styles.section} id="workflow">
-                <h2>3. Comment ca marche ? (Processus en 4 etapes)</h2>
+                <h2>3. Comment ca marche ? (Processus en 3 etapes)</h2>
                 <p>
                   Ce parcours est pense pour te rendre operationnel rapidement,
                   sans friction technique inutile.

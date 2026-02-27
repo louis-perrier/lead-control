@@ -14,6 +14,19 @@ export type OverlayProps = {
   limitMessage?: string;
 };
 
+const formatReleaseDate = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
 const Overlay: FunctionComponent<OverlayProps> = ({
   isOpen,
   onClose,
@@ -34,20 +47,41 @@ const Overlay: FunctionComponent<OverlayProps> = ({
   };
   const isAvailable = availableAgentIds.has(agent.agent_id);
   const canSelect = isAvailable && !limitReached;
+  const isBlocked = !isAvailable;
+  const isBonusAgent = Boolean(agent.is_bonus);
+  const shouldShowBonus = isBlocked && isBonusAgent;
+  const isUnavailable = agent.is_available === false;
+  const shouldShowComingSoon = isBlocked && isUnavailable;
+  const releaseDateLabel = shouldShowComingSoon
+    ? formatReleaseDate(agent.release_date)
+    : null;
+  const previewFilter = isBlocked ? "grayscale(100%)" : undefined;
+  const previewOpacity = isBlocked ? 0.78 : 1;
 
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.overlayContent} onClick={stopPropagation}>
         <h2 className={styles.title}>Sélectionnez un agent</h2>
         <div className={styles.body}>
-          <div className={styles.previewWrapper}>
+            <div className={styles.previewWrapper}>
             <div
               className={styles.preview}
-                style={{
-                  backgroundImage: `url(${agent.backgroundSrc})`,
-                  filter: isAvailable ? undefined : "grayscale(100%)",
-                }}
+              style={{
+                backgroundImage: `url(${agent.backgroundSrc})`,
+                  filter: previewFilter,
+                  opacity: previewOpacity,
+              }}
             />
+            <div className={styles.previewOverlay}>
+              {shouldShowComingSoon && (
+                <span className={styles.comingSoonBanner}>PROCHAINEMENT</span>
+              )}
+              {releaseDateLabel && (
+                <span className={styles.releaseDate}>
+                  Sortie prévue le {releaseDateLabel}
+                </span>
+              )}
+            </div>
             <button
               type="button"
               className={[styles.iconButton, styles.left].join(" ")}
@@ -69,18 +103,27 @@ const Overlay: FunctionComponent<OverlayProps> = ({
             <div className={styles.agentInfo}>
               <p className={styles.agentName}>{agent.name}</p>
               <div className={styles.infoCard}>
-                <p className={styles.agentDescription}>{agent.description}</p>
-                <div className={styles.detailsHeader}>
-                  <span>Détails clés</span>
+                {shouldShowBonus && (
+                  <span className={styles.infoBonusLabel}>Agent Bonus</span>
+                )}
+                <div
+                  className={
+                    shouldShowBonus ? styles.infoCardContentBlur : styles.infoCardContent
+                  }
+                >
+                  <p className={styles.agentDescription}>{agent.description}</p>
+                  <div className={styles.detailsHeader}>
+                    <span>Détails clés</span>
+                  </div>
+                  <ul className={styles.detailsList}>
+                    {agent.details.map((detail, index) => (
+                      <li key={`${detail}-${index}`} className={styles.detailItem}>
+                        <span className={styles.detailDot} aria-hidden="true" />
+                        <span>{detail}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className={styles.detailsList}>
-                  {agent.details.map((detail, index) => (
-                    <li key={`${detail}-${index}`} className={styles.detailItem}>
-                      <span className={styles.detailDot} aria-hidden="true" />
-                      <span>{detail}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
               {!isAvailable ? (
                 <button
