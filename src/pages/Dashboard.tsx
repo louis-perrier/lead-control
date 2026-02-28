@@ -10,6 +10,11 @@ import { useSearchParams } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import GenericAvatar from "../components/GenericAvatar";
 import ConfirmationDialog from "../components/ConfirmationDialog";
+import {
+  IconConversationPlay,
+  IconConversationStop,
+  IconDetailsComingSoon,
+} from "../components/DashboardIcons";
 import styles from "./Dashboard.module.css";
 import useAgents from "../hooks/useAgents";
 import useClaraConversations from "../hooks/useClaraConversations";
@@ -49,6 +54,8 @@ type Conversation = {
   tags: string[];
   metadata?: Record<string, unknown>;
   automationState: string;
+  lastErrorMessage?: string | null;
+  nextReplyAt?: string | null;
 };
 
 const channelFilterOptions: ChannelFilterOption[] = [
@@ -173,6 +180,9 @@ const mapConversationRecord = (record: any): Conversation => {
     tags: record.heat_tag ? [record.heat_tag] : [],
     metadata: record.metadata ?? {},
     automationState: record.automation_state ?? "idle",
+    lastErrorMessage:
+      record.last_error_message ?? record.error_message ?? null,
+    nextReplyAt: record.next_reply_at ?? null,
   };
 };
 
@@ -289,6 +299,28 @@ const ChannelFilterGroup: FunctionComponent<{
   </div>
 );
 
+const formatNextReply = (iso?: string | null) => {
+  if (!iso) {
+    return null;
+  }
+  const time = new Date(iso);
+  const relativeMinutes = Math.max(
+    0,
+    Math.round((time.getTime() - Date.now()) / 60000),
+  );
+  const relative =
+    relativeMinutes < 60
+      ? `dans ${relativeMinutes} min`
+      : `dans ${Math.round(relativeMinutes / 60)} h`;
+  return {
+    time: time.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    relative,
+  };
+};
+
 const ConversationItem: FunctionComponent<{
   conversation: Conversation;
   isActive: boolean;
@@ -305,7 +337,15 @@ const ConversationItem: FunctionComponent<{
       type="button"
       className={`${styles.conversationItem} ${
         isActive ? styles.conversationItemActive : ""
-      }`}
+      } ${
+        conversation.automationState === "stopped"
+          ? styles.conversationItemStopped
+          : conversation.automationState === "error"
+          ? styles.conversationItemError
+          : conversation.automationState === "condition_stop"
+          ? styles.conversationItemCondition
+          : ""
+      }`.trim()}
       onClick={onSelect}
     >
       <span className={styles.conversationAvatar}>{initials}</span>
@@ -314,17 +354,55 @@ const ConversationItem: FunctionComponent<{
           <span>{conversation.contactName}</span>
           <div className={styles.conversationTopMeta}>
             <ChannelBadge channel={conversation.channel} />
-            {conversation.automationState === "pending" && (
-              <span className={styles.pendingBadge}>
-                <span className={styles.pendingDot} />
-                <span className={styles.pendingDot} />
-                <span className={styles.pendingDot} />
-                Agent en attente
-              </span>
-            )}
+      {conversation.automationState === "pending" && (
+        <span className={styles.pendingBadge}>
+          <span className={styles.pendingDot} />
+          <span className={styles.pendingDot} />
+          <span className={styles.pendingDot} />
+          Agent en attente
+        </span>
+      )}
+      {conversation.automationState === "scheduled" && (
+        <span className={styles.scheduledBadge}>
+          <span className={styles.scheduledDot} />
+          {conversation.nextReplyAt ? (
+            (() => {
+              const formatted = formatNextReply(conversation.nextReplyAt);
+              return formatted
+                ? `Réponse prévue à ${formatted.time} (${formatted.relative})`
+                : "Réponse planifiée";
+            })()
+          ) : (
+            "Réponse planifiée"
+          )}
+        </span>
+      )}
+      {conversation.automationState === "error" && (
+        <span className={styles.errorBadge}>
+          <span className={styles.errorDot} />
+          Erreur détectée
+        </span>
+      )}
+      {conversation.automationState === "condition_stop" && (
+        <span className={styles.conditionBadge}>
+          <span className={styles.conditionDot} />
+          condition stop
+        </span>
+      )}
+      {conversation.automationState === "stopped" && (
+        <span className={styles.stoppedBadge}>
+          <span className={styles.stoppedDot} />
+          Conversation arrêtée
+        </span>
+      )}
           </div>
         </div>
         <p className={styles.conversationPreview}>{conversation.lastMessage}</p>
+      {conversation.automationState === "error" && conversation.lastErrorMessage && (
+        <div className={styles.conversationErrorMessage}>
+          {conversation.lastErrorMessage}
+        </div>
+      )}
         <div className={styles.conversationBottom}>
           <span className={styles.conversationTime}>
             {formatRelativeTime(conversation.lastAt)}
@@ -572,6 +650,14 @@ const Dashboard: FunctionComponent = () => {
       (conversation) => conversation.id === selectedConversationId
     ) ?? sortedConversations[0] ??
     null;
+  const isConversationStopped = Boolean(
+    activeConversation &&
+      ["stopped", "condition_stop", "error"].includes(
+        activeConversation.automationState,
+      ),
+  );
+  const isConditionStop =
+    activeConversation?.automationState === "condition_stop";
 
   const previousConversationRef = useRef<{
     id: string | null;
@@ -810,9 +896,16 @@ const Dashboard: FunctionComponent = () => {
     setStopDialogOpen(false);
   };
 
-  const confirmStopDialog = () => {
+  const confirmStopDialog = async () => {
     setStopDialogOpen(false);
+    const targetState = isConversationStopped ? "idle" : "stopped";
+    await updateConversation({ automation_state: targetState });
   };
+
+  const stopDialogMessage = isConversationStopped
+    ? "Voulez-vous reprendre la conversation ?"
+    : "Voulez-vous vraiment arrêter l’envoi sur cette conversation ? ";
+  const stopDialogConfirmLabel = isConversationStopped ? "Reprendre" : "Arrêter";
 
   return (
     <div className={styles.claraWrapper}>
@@ -1125,6 +1218,43 @@ const Dashboard: FunctionComponent = () => {
                         <span className={styles.topConversationItemMeta}>
                           Statut : {activeConversation.status}
                         </span>
+                      {activeConversation.automationState === "scheduled" && (
+                        <span className={styles.chatScheduledLabel}>
+                          {activeConversation.nextReplyAt ? (
+                            (() => {
+                              const formatted = formatNextReply(
+                                activeConversation.nextReplyAt,
+                              );
+                              return formatted
+                                ? `Réponse prévue à ${formatted.time} (${formatted.relative})`
+                                : "Réponse planifiée";
+                            })()
+                          ) : (
+                            "Réponse planifiée"
+                          )}
+                        </span>
+                      )}
+                      {activeConversation.automationState === "stopped" && (
+                        <span className={styles.chatStoppedLabel}>
+                          Conversation arrêtée – l’agent ne répondra plus
+                        </span>
+                      )}
+                      {activeConversation.automationState === "error" && (
+                        <span className={styles.chatErrorLabel}>
+                          Erreur détectée
+                        </span>
+                      )}
+                      {activeConversation.automationState === "error" &&
+                        activeConversation.lastErrorMessage && (
+                          <div className={styles.chatErrorMessage}>
+                            {activeConversation.lastErrorMessage}
+                          </div>
+                        )}
+                      {activeConversation.automationState === "condition_stop" && (
+                        <span className={styles.chatConditionLabel}>
+                          Condition stop active
+                        </span>
+                      )}
                     {activeConversation.automationState === "pending" && (
                       <span className={styles.chatPendingLabel}>
                         <span className={styles.pendingDot} />
@@ -1136,62 +1266,32 @@ const Dashboard: FunctionComponent = () => {
                         <button
                           type="button"
                           className={styles.chatToolButton}
-                          data-tooltip="Ajouter des détails sur l'utilisateur"
+                          data-tooltip="Bientôt disponible"
                           onClick={handleDetailsClick}
+                          disabled
+                          aria-disabled="true"
                         >
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 18 18"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <circle cx="9" cy="6" r="4" stroke="var(--app-text-primary)" strokeWidth="1.5" />
-                            <path
-                              d="M4 15C4 12.2386 6.23858 10 9 10C11.7614 10 14 12.2386 14 15"
-                              stroke="var(--app-text-primary)"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                            />
-                            <path
-                              d="M14 6H17M15.5 4.5V7.5"
-                              stroke="var(--app-text-primary)"
-                              strokeWidth="1.2"
-                              strokeLinecap="round"
-                            />
-                          </svg>
+                          <IconDetailsComingSoon />
                         </button>
-                        <button
-                          type="button"
-                          className={styles.chatToolButton}
-                          data-tooltip="Arrêter l'envoi sur cette conversation"
-                          onClick={handleStopClick}
-                        >
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 18 18"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <rect
-                              x="3.5"
-                              y="3.5"
-                              width="11"
-                              height="11"
-                              rx="2"
-                              stroke="var(--app-text-primary)"
-                              strokeWidth="1.5"
-                            />
-                            <path
-                              d="M7 7L11 11M11 7L7 11"
-                              stroke="var(--app-text-primary)"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                        </button>
-                        <button type="button" className={styles.chatToolButton}>
+                  {!isConditionStop && (
+                    <button
+                      type="button"
+                      className={styles.chatToolButton}
+                      data-tooltip={
+                        isConversationStopped
+                          ? "Reprendre la conversation"
+                          : "Arrêter l'envoi sur cette conversation"
+                      }
+                      onClick={handleStopClick}
+                    >
+                      {isConversationStopped ? (
+                        <IconConversationPlay />
+                      ) : (
+                        <IconConversationStop />
+                      )}
+                    </button>
+                  )}
+                        {false&&<button type="button" className={styles.chatToolButton}>
                           <svg
                             width="18"
                             height="18"
@@ -1203,7 +1303,7 @@ const Dashboard: FunctionComponent = () => {
                             <circle cx="4.5" cy="9" r="1.25" fill="var(--app-text-primary)" />
                             <circle cx="13.5" cy="9" r="1.25" fill="var(--app-text-primary)" />
                           </svg>
-                        </button>
+                        </button>}
                       </div>
                     </div>
                   </div>
@@ -1297,10 +1397,10 @@ const Dashboard: FunctionComponent = () => {
         <ConfirmationDialog
           open={isStopDialogOpen}
           title="Confirmation"
-          message="Voulez-vous vraiment arrêter l’envoi sur cette conversation ? Vous ne pourrez plus la réactiver."
+          message={stopDialogMessage}
           onClose={closeStopDialog}
           onConfirm={confirmStopDialog}
-          confirmLabel="Arrêter"
+          confirmLabel={stopDialogConfirmLabel}
           cancelLabel="Annuler"
         />
       </div>

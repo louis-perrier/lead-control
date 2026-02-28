@@ -1,0 +1,678 @@
+.pricingPage {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--app-bg);
+  display: flex;
+  align-items: stretch;
+}
+
+.mainComponent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-15);
+  width: 100%;
+  max-width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.container {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1152px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px 16px;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 32px 40px;
+  }
+}
+
+.headerSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: var(--br-20);
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.headerTop {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .headerTop {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.headerContent h1 {
+  margin: 8px 0 4px;
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.headerContent .subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--app-primary);
+}
+
+.headerContent .description {
+  margin: 4px 0 0;
+  max-width: 512px;
+  font-size: 16px;
+  color: var(--app-text-secondary);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trialBadge {
+  border-radius: 50px;
+  border: 1px solid var(--app-border);
+  background-color: var(--app-chip-bg);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-chip-text);
+}
+
+.cycleToggle {
+  display: inline-flex;
+  border-radius: 50px;
+  border: 1px solid var(--app-border);
+  background-color: var(--app-bg);
+  padding: 4px;
+}
+
+.cycleButton {
+  border-radius: 50px;
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.cycleButton.active {
+  background-color: var(--app-primary);
+  color: white;
+  box-shadow: 0 5px 15px rgba(37, 99, 235, 0.35);
+}
+
+.cycleButton:not(.active) {
+  background: transparent;
+  color: var(--app-text-secondary);
+}
+
+.creditsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .creditsSection {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.creditsInfo h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.creditsInfo .label {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--app-text-secondary);
+}
+
+.creditsExtra {
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+}
+
+.sliderContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sliderTrack {
+  position: relative;
+  height: 8px;
+  border-radius: 50px;
+  background-color: var(--app-border);
+}
+
+.sliderProgress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 8px;
+  border-radius: 50px;
+  background: linear-gradient(to right, var(--app-accent), var(--app-primary));
+}
+
+.sliderInput {
+  margin-top: 8px;
+  height: 8px;
+  width: 100%;
+  appearance: none;
+  border-radius: 50px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sliderInput:focus {
+  outline: none;
+}
+
+.sliderTicks {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+.sliderControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sliderControls label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--app-text-secondary);
+}
+
+.sliderControls input {
+  width: 120px;
+  border-radius: var(--br-10);
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.sliderControls input:focus {
+  border-color: var(--app-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--app-accent);
+}
+
+.plansSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.plansHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .plansHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.plansHeader h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.plansHeader .description {
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.plansTotal {
+  text-align: right;
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.plansGrid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .plansGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.planCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: var(--br-20);
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  padding: 20px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.planCard.featured {
+  border-color: var(--app-primary);
+  background: linear-gradient(to bottom, rgba(37, 99, 235, 0.08), var(--app-surface));
+  box-shadow: 0 20px 40px rgba(37, 99, 235, 0.15);
+}
+
+.planHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.planTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.planBadge {
+  border-radius: 50px;
+  background-color: var(--app-chip-bg);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-chip-text);
+}
+
+.planDescription {
+  margin: 0;
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.planPrice {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--app-primary);
+}
+
+.planCycle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--app-text-secondary);
+}
+
+.currentPlanBadge {
+  border-radius: 8px;
+  border: 1px solid var(--app-accent);
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-primary);
+}
+
+.planFeatures {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.planFeatures li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.planFeatures li::before {
+  content: '';
+  margin-top: 4px;
+  height: 4px;
+  width: 4px;
+  border-radius: 50%;
+  background-color: var(--app-primary);
+  flex-shrink: 0;
+}
+
+.planButton {
+  margin-top: 24px;
+  width: 100%;
+  border-radius: var(--br-14);
+  padding: 12px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.planButton.primary {
+  border: none;
+  background-color: var(--app-primary);
+  color: white;
+}
+
+.planButton.primary:hover {
+  background-color: var(--app-primary-hover);
+}
+
+.planButton.secondary {
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  color: var(--app-text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.planButton.disabled {
+  cursor: not-allowed;
+  background-color: var(--app-border);
+  color: var(--app-text-secondary);
+  border: none;
+}
+
+.breakdownSection {
+  border-radius: var(--br-20);
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.breakdownHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .breakdownHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.breakdownHeader h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.breakdownHeader .description {
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.breakdownTotal {
+  border-radius: 50px;
+  border: 1px solid var(--app-border);
+  background-color: var(--app-chip-bg);
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--app-chip-text);
+}
+
+.breakdownDetails {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+  border-top: 1px dashed var(--app-border);
+  padding-top: 16px;
+  font-size: 14px;
+  color: var(--app-text-primary);
+}
+
+.breakdownRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.breakdownRow.total {
+  font-weight: 600;
+}
+
+.breakdownRow.muted {
+  color: var(--app-text-secondary);
+}
+
+.trialInfo {
+  margin-top: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: var(--app-text-secondary);
+}
+
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.historyHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .historyHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.historyHeader h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.historyHeader .description {
+  font-size: 14px;
+  color: var(--app-text-secondary);
+}
+
+.historyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.historyActions input {
+  border-radius: var(--br-14);
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--app-text-primary);
+}
+
+.historyActions input:focus {
+  border-color: var(--app-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--app-accent);
+}
+
+.historyActions button {
+  border-radius: var(--br-14);
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.historyActions .filterButton {
+  border: 1px solid var(--app-primary);
+  background: transparent;
+  color: var(--app-primary);
+}
+
+.historyActions .filterButton:hover {
+  background-color: var(--app-primary);
+  color: white;
+}
+
+.historyActions .exportButton {
+  border: 1px solid var(--app-border);
+  background-color: white;
+  color: var(--app-text-primary);
+}
+
+.historyActions .exportButton:hover {
+  border-color: var(--app-primary);
+}
+
+.historyTable {
+  overflow-x: auto;
+  border-radius: var(--br-20);
+  border: 1px solid var(--app-border);
+  background-color: var(--app-surface);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.historyTable table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  text-align: left;
+}
+
+.historyTable thead {
+  background-color: var(--app-bg);
+  color: var(--app-text-secondary);
+}
+
+.historyTable th,
+.historyTable td {
+  padding: 12px 16px;
+  font-weight: 600;
+}
+
+.historyTable th {
+  border-bottom: 1px solid var(--app-border);
+}
+
+.historyTable tbody tr:nth-child(even) {
+  background-color: rgba(37, 99, 235, 0.02);
+}
+
+.historyTable tbody tr:nth-child(odd) {
+  background-color: var(--app-surface);
+}
+
+.historyTable .planName {
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.historyTable .amount,
+.historyTable .date {
+  color: var(--app-text-secondary);
+}
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 50px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.statusChip.success {
+  background-color: rgba(22, 163, 74, 0.1);
+  color: var(--app-success);
+}
+
+.statusChip.warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--app-warning);
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionButton {
+  border-radius: var(--br-14);
+  border: 1px solid var(--app-border);
+  background: transparent;
+  padding: 4px 8px;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.actionButton:hover {
+  border-color: var(--app-primary);
+  color: var(--app-primary);
+}
+
+.actionButton .material-icons {
+  font-size: 16px;
+}

@@ -35,6 +35,11 @@ const appLinks = [
     description: "Comprendre l'application et activer ton setup",
     route: "/app/demarer",
   },
+  {
+    label: "Facturation",
+    description: "Consulter ton abonnement et l’historique des paiements",
+    route: "/app/paiement",
+  },
 ];
 
 const logoutLabel = "Se déconnecter";

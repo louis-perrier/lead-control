@@ -12,6 +12,12 @@ const HeroSection = ({ onPrimaryCta, primaryCtaLabel, spotsRemaining }: HeroSect
     <section className={styles.hero} data-reveal>
       <div className={styles.heroContent}>
         <p className={styles.heroTag}>Agent setter DM Instagram</p>
+        <div className={styles.heroRelease}>
+          <span className={styles.heroReleaseLabel}>Sortie officielle • 02 mars 2026</span>
+          <p className={styles.heroReleaseCopy}>
+            LeadControl débarque pour transformer chacune de vos conversations en opportunités.
+          </p>
+        </div>
         <h1>{heroCopy.title}</h1>
         <p className={styles.heroSubtitle}>{heroCopy.subtitle}</p>
         <div className={styles.bulletGrid}>

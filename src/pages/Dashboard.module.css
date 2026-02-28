@@ -7,10 +7,10 @@
 .claraDashboardArea {
   flex: 1;
   display: flex;
-  min-height: 0;
-  height: 100vh;
+  min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
+  background: var(--app-bg);
 }
 .claraDashboard {
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
@@ -22,6 +22,7 @@
   flex: 1;
   display: flex;
   position: relative;
+  width: 100%;
 }
 .claraDashboardContent {
   max-width: 1200px;
@@ -30,6 +31,7 @@
   flex-direction: column;
   min-height: 100%;
   flex: 1;
+  gap: 18px;
 }
 .claraHeader {
   display: flex;
@@ -232,8 +234,8 @@
   flex-direction: column;
   gap: 20px;
   margin-top: 20px;
-  flex: 1;
-  min-height: 50vh;
+  flex: 0 1 auto;
+  min-height: 0;
 }
 .claraTabButton {
   background: transparent;
@@ -420,13 +422,16 @@
   font-size: 11px;
   letter-spacing: 0.01em;
 }
-.claraDetailsLayout {
+ .claraDetailsLayout {
   margin-top: 26px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   flex: 1;
-  min-height: 60vh;
+  min-height: 0;
+  align-items: stretch;
+  min-height: 800px;
+  max-height: calc(100vh - 100px);
 }
 .conversationPanel {
   background: var(--app-surface);
@@ -437,7 +442,8 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 0;
+  min-height: 740px;
+  max-height: 100%;
 }
 .conversationPanelHeader {
   display: flex;
@@ -484,6 +490,8 @@
   gap: 8px;
   flex: 1;
   min-height: 0;
+  max-height: 100%;
+  min-height: 620px;
 }
 .conversationLoading,
 .conversationError {
@@ -526,6 +534,18 @@
   border-radius: 12px;
   transition: background 0.2s ease;
 }
+.conversationItemStopped {
+  border: 2px dashed var(--app-warning);
+  background: rgba(249, 115, 22, 0.08);
+}
+.conversationItemError {
+  border: 2px dashed rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.08);
+}
+.conversationItemCondition {
+  border: 2px dashed rgba(16, 185, 129, 0.6);
+  background: rgba(16, 185, 129, 0.08);
+}
 .conversationItem:hover {
   background: var(--app-bg);
 }
@@ -563,6 +583,12 @@
 .conversationPreview {
   color: var(--app-text-secondary);
   font-size: 13px;
+}
+.conversationErrorMessage {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--app-error);
+  line-height: 1.4;
 }
 .conversationBottom {
   display: flex;
@@ -686,11 +712,49 @@
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
 }
+.scheduledBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--app-primary);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
 .pendingDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--app-primary);
+  animation: pendingPulse 1.1s ease-in-out infinite;
+}
+.scheduledDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-primary);
+  animation: pendingPulse 1.1s ease-in-out infinite;
+}
+.stoppedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--app-warning);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+}
+.stoppedDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-warning);
   animation: pendingPulse 1.1s ease-in-out infinite;
 }
 .pendingDot:nth-child(2) {
@@ -704,6 +768,81 @@
   align-items: center;
   gap: 6px;
   color: var(--app-warning);
+  font-size: 12px;
+  font-weight: 600;
+}
+.chatScheduledLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.chatStoppedLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-warning);
+  font-size: 12px;
+  font-weight: 600;
+}
+.errorBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.18);
+  color: var(--app-error);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+.errorDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-error);
+  animation: pendingPulse 1.1s ease-in-out infinite;
+}
+.chatErrorLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-error);
+  font-size: 12px;
+  font-weight: 600;
+}
+.chatErrorMessage {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--app-error);
+}
+.conditionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.18);
+  color: var(--app-success);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+.conditionDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-success);
+  animation: pendingPulse 1.1s ease-in-out infinite;
+}
+.chatConditionLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--app-success);
   font-size: 12px;
   font-weight: 600;
 }
@@ -762,7 +901,9 @@
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 220px;
+  max-height: 100%;
 }
 .chatHeader {
   display: flex;
@@ -792,6 +933,12 @@
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   position: relative;
+}
+.chatToolButton[disabled] {
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: none;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .chatToolButton:hover {
   border-color: rgba(15, 23, 42, 0.2);
@@ -916,6 +1063,8 @@
   flex-direction: column;
   gap: 18px;
   padding-right: 4px;
+  min-height: 0;
+  max-height: calc(100% - 170px);
 }
 .chatBubble {
   max-width: 80%;
@@ -1085,11 +1234,16 @@
   }
   .claraDetailsLayout {
     flex-direction: row;
+    align-items: stretch;
+    min-height: 900px;
+    max-height: calc(100vh - 100px);
   }
   .conversationPanel {
-    flex: 0 0 44%;
+    flex: 0 0 48%;
+    max-width: 48%;
   }
   .chatPanel {
-    flex: 1;
+    flex: 1 1 52%;
+    min-height: 0;
   }
 }

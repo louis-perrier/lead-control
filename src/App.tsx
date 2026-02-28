@@ -22,6 +22,7 @@ import PolicyTerms from "./pages/policy/PolicyTerms";
 import CrmGuard from "./components/GuardComponent/CrmGuard";
 import ScrapingGuard from "./components/GuardComponent/ScrapingGuard";
 import Subscription from "./pages/Subscription";
+import PricingPage from "./pages/PricingPage";
 
 function App() {
   const action = useNavigationType();
@@ -55,6 +56,11 @@ function App() {
       case "/app/subscription":
         title = "LeadControl — Abonnement";
         metaDescription = "Gère ton plan LeadControl et découvre les fonctionnalités disponibles selon ton offre.";
+        break;
+      case "/app/paiement":
+        title = "LeadControl — Pricing";
+        metaDescription =
+          "Gardez le suivi des plans LeadControl, ajustez les crédits et consultez l’historique de facturation.";
         break;
       case "/app/agentai":
         title = "LeadControl — Agents AI";
@@ -128,6 +134,7 @@ function App() {
           />
           <Route path="/app/crm" element={<CrmGuard />} />
           <Route path="/app/connexion" element={<Connexion />} />
+          <Route path="/app/paiement" element={<PricingPage />} />
           <Route path="/app/scraping" element={<ScrapingGuard />} />
           <Route path="/app/*" element={<Navigate to="/app" replace />} />
         </Route>

@@ -110,21 +110,23 @@ const getDefaultSlots = (): TimeSlot[] =>
     })
   );
 
-const buildStateSlots = (savedSlots: SavedTimeSlot[]): TimeSlot[] =>
-  savedSlots.length > 0
-    ? savedSlots.map((slot) =>
+const buildStateSlots = (
+  savedSlots: SavedTimeSlot[] | undefined
+): TimeSlot[] =>
+  savedSlots === undefined
+    ? getDefaultSlots()
+    : savedSlots.map((slot) =>
         createTimeSlot({
           time: slot.time,
           durationMinutes: slot.durationMinutes,
         })
-      )
-    : getDefaultSlots();
+      );
 
 const normalizeSavedSlots = (value: unknown): SavedTimeSlot[] => {
   if (!Array.isArray(value)) {
-    return DEFAULT_SAVED_SLOTS;
+    return [];
   }
-  const parsed = value
+  return value
     .filter(
       (item): item is Record<string, unknown> =>
         Boolean(item) && typeof item === "object"
@@ -139,7 +141,6 @@ const normalizeSavedSlots = (value: unknown): SavedTimeSlot[] => {
           ? Math.max(1, Math.round(slot.durationMinutes))
           : 30,
     }));
-  return parsed.length > 0 ? parsed : DEFAULT_SAVED_SLOTS;
 };
 
 const toMinutes = (time: string) => {
@@ -181,7 +182,7 @@ type DetailsSnapshot = {
   stopText: string;
   stopLink: string;
   productName: string;
-  timeSlots: SavedTimeSlot[];
+  timeSlots?: SavedTimeSlot[];
 };
 
 const defaultActiveDays: ActiveDays = {
@@ -411,21 +412,24 @@ const AgentAi: FunctionComponent = () => {
 
   const buildSnapshotFromDetails = useCallback(
     (details: Record<string, any> | undefined): DetailsSnapshot => {
-      const savedDays = (details?.activeDays ?? {}) as Partial<ActiveDays>;
-      return {
-        contextText: details?.context ?? "",
-        tone: (details?.tone as ToneOption) ?? "normal",
-        activeDays: {
-          ...defaultActiveDays,
-          ...savedDays,
-        },
-        timeStart: details?.timeStart ?? defaultTimeRange.start,
-        timeEnd: details?.timeEnd ?? defaultTimeRange.end,
-        stopText: details?.stopText ?? "",
-        stopLink: details?.stopLink ?? "",
-        productName: details?.productName ?? "",
-        timeSlots: normalizeSavedSlots(details?.timeSlots),
-      };
+    const savedDays = (details?.activeDays ?? {}) as Partial<ActiveDays>;
+    const savedSlots = Array.isArray(details?.timeSlots)
+      ? normalizeSavedSlots(details?.timeSlots)
+      : undefined;
+    return {
+      contextText: details?.context ?? "",
+      tone: (details?.tone as ToneOption) ?? "normal",
+      activeDays: {
+        ...defaultActiveDays,
+        ...savedDays,
+      },
+      timeStart: details?.timeStart ?? defaultTimeRange.start,
+      timeEnd: details?.timeEnd ?? defaultTimeRange.end,
+      stopText: details?.stopText ?? "",
+      stopLink: details?.stopLink ?? "",
+      productName: details?.productName ?? "",
+      timeSlots: savedSlots,
+    };
     },
     []
   );
@@ -1203,6 +1207,8 @@ const AgentAi: FunctionComponent = () => {
             stopLink: stopLink.trim(),
             productName: snapshot.productName,
             timeSlots: snapshot.timeSlots,
+            timezone: "Europe/Paris",
+            schedule_version: (selectedAgent.configs.Details?.schedule_version ?? 0) + 1,
           },
         },
       })
