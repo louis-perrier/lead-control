@@ -16,7 +16,7 @@ type BillingHistoryEntry = {
   status: "success" | "warning";
 };
 
-const creditTicks = [50, 500, 1000, 1500, 2000];
+const creditTicks = [0, 500, 1000, 1500, 2000];
 
 const planCatalog: {
   id: PlanId;
@@ -28,29 +28,28 @@ const planCatalog: {
 }[] = [
   {
     id: "1_agent",
-    title: "1 Agent",
+    title: "Basic",
     description: "Idéal pour démarrer avec un seul agent.",
     basePrice: 100,
     features: [
-      "Support classique LeadControl",
-      "Messagerie prioritaire 24h",
-      "1 configuration agent",
-      "Alertes Slack / email",
-      "Quota 500 crédits inclus",
+      "1 agent",
+      "100 crédits",
+      "Support",
+      "Interface multicanal",
     ],
   },
   {
     id: "2_agents",
-    title: "2 Agents",
+    title: "Ultime",
     description: "Offre PRO pour scaler ton équipe.",
     basePrice: 200,
     badge: "Recommandé",
     features: [
-      "Double quota d'agents",
-      "Priorité onboarding",
-      "Automatisations avancées",
-      "Archiver vos conversations",
-      "Playbooks partagés",
+      "2 agents",
+      "250 crédits",
+      "Support",
+      "Interface multicanal",
+      "Conversations configurables",
     ],
   },
   {
@@ -70,7 +69,7 @@ const planCatalog: {
 const billingHistory: BillingHistoryEntry[] = [
   {
     id: "1",
-    plan: "1 Agent",
+    plan: "Basic",
     amount: "100 €",
     purchaseDate: "01/02/2026",
     endDate: "01/03/2026",
@@ -78,7 +77,7 @@ const billingHistory: BillingHistoryEntry[] = [
   },
   {
     id: "2",
-    plan: "2 Agents",
+    plan: "Ultime",
     amount: "240 €",
     purchaseDate: "15/01/2026",
     endDate: "15/02/2026",
@@ -86,7 +85,7 @@ const billingHistory: BillingHistoryEntry[] = [
   },
   {
     id: "3",
-    plan: "1 Agent",
+    plan: "Basic",
     amount: "120 €",
     purchaseDate: "10/12/2025",
     endDate: "10/01/2026",
@@ -186,7 +185,7 @@ const PricingPage: FunctionComponent = () => {
   );
   
   const currentCreditCost = billingCycle === "monthly" ? monthlyCreditCost : yearlyCreditCost;
-  const sliderProgress = ((credits - 50) / (2000 - 50)) * 100;
+  const sliderProgress = (credits / 2000) * 100;
 
   const onSelectPlan = async (planId: PlanId) => {
     if (planId === "custom") {
@@ -235,7 +234,7 @@ const PricingPage: FunctionComponent = () => {
   };
 
   const handleCreditsChange = (value: number) => {
-    const normalized = Math.min(2000, Math.max(50, value));
+    const normalized = Math.min(2000, Math.max(0, value));
     const stepped = Math.round(normalized / 50) * 50;
     setCredits(stepped);
   };
@@ -260,15 +259,15 @@ const PricingPage: FunctionComponent = () => {
           <div className={styles.headerTop}>
             <div className={styles.headerContent}>
               <p className={styles.subtitle}>
-                Billing & Subscription
+                Facturation & abonnements
               </p>
               <h1>
-                Keep your billing under control
+                Pilotez vos paiements avec sérénité
               </h1>
               <p className={styles.description}>
-                Keep track of your subscription details, update your billing
-                information, and control your account's payment experience in
-                one secure place.
+                Suivez les détails de vos abonnements, mettez à jour vos
+                informations de facturation et gardez la maîtrise de votre
+                expérience de paiement depuis un seul espace sécurisé.
               </p>
             </div>
             <div className={styles.headerActions}>
@@ -307,7 +306,7 @@ const PricingPage: FunctionComponent = () => {
                 {credits.toLocaleString("fr-FR")} credits / mois
               </h3>
               <p className={styles.label}>
-                Upgrade monthly credits limit
+                Augmentez votre limite de crédits mensuels
               </p>
             </div>
             <div className={styles.creditsExtra}>
@@ -323,7 +322,7 @@ const PricingPage: FunctionComponent = () => {
               <input
                 id="creditsRange"
                 type="range"
-                min={50}
+                min={0}
                 max={2000}
                 step={50}
                 value={credits}
@@ -346,7 +345,7 @@ const PricingPage: FunctionComponent = () => {
               <input
                 id="creditsInput"
                 type="number"
-                min={50}
+                min={0}
                 max={2000}
                 step={50}
                 value={credits}
@@ -362,16 +361,17 @@ const PricingPage: FunctionComponent = () => {
           <div className={styles.plansHeader}>
             <div>
               <h2>
-                Pricing plans
+                Nos offres
               </h2>
               <p className={styles.description}>
-                Toggle between monthly and yearly billing to see what fits best.
+                Basculer entre la facturation mensuelle et annuelle pour choisir
+                le format le plus adapté.
               </p>
             </div>
             <div className={styles.plansTotal}>
               {billingCycle === "monthly"
-                ? `Monthly total: ${formatPrice(monthlyTotal)}`
-                : `Annuel: ${formatPrice(yearlyTotal)} (20% de réduction)`}
+                ? `Total mensuel : ${formatPrice(monthlyTotal)}`
+                : `Total annuel : ${formatPrice(yearlyTotal)} (20 % de réduction)`}
             </div>
           </div>
 
@@ -394,7 +394,7 @@ const PricingPage: FunctionComponent = () => {
                 : isCurrentPlan
                 ? "Plan actuel"
                 : plan.id === "2_agents"
-                ? "Upgrade plan"
+                ? "Passer à ce plan"
                 : "Choisir ce plan";
               const buttonDisabled = isCurrentPlan;
 
@@ -474,12 +474,12 @@ const PricingPage: FunctionComponent = () => {
           <div className={styles.breakdownHeader}>
             <div>
               <h3>
-                Billing breakdown
+                Détail de la facturation
               </h3>
               <p className={styles.description}>
                 {billingCycle === "monthly"
-                  ? `Base: ${formatPrice(activePlan.basePrice)} + Crédits: ${formatPrice(currentCreditCost)} (${credits / 50} packs)`
-                  : `Base: ${formatPrice(activePlan.basePrice * 12 * 0.8)} + Crédits: ${formatPrice(currentCreditCost * 12)} (${credits / 50} packs × 12)`}
+                  ? `Base : ${formatPrice(activePlan.basePrice)} + Crédits : ${formatPrice(currentCreditCost)} (${credits / 50} packs)`
+                  : `Base : ${formatPrice(activePlan.basePrice * 12 * 0.8)} + Crédits : ${formatPrice(currentCreditCost * 12)} (${credits / 50} packs × 12)`}
               </p>
             </div>
             <div className={styles.breakdownTotal}>
@@ -492,7 +492,7 @@ const PricingPage: FunctionComponent = () => {
           </div>
           <div className={styles.breakdownDetails}>
             <div className={styles.breakdownRow}>
-              <span>Base {billingCycle === "yearly" ? "(12 mois × 20% réduction)" : ""}</span>
+              <span>Base {billingCycle === "yearly" ? "(12 mois × 20 % de remise)" : ""}</span>
               <span>{formatPrice(billingCycle === "monthly" ? activePlan.basePrice : activePlan.basePrice * 12 * 0.8)}</span>
             </div>
             <div className={styles.breakdownRow}>
@@ -509,7 +509,7 @@ const PricingPage: FunctionComponent = () => {
             </div>
           </div>
           <p className={styles.trialInfo}>
-            Trial ends when 7 days OR 50 credits are used (whichever comes first).
+            L’essai se termine après 7 jours ou lorsque les 50 crédits sont utilisés.
           </p>
         </section>
 
@@ -517,7 +517,7 @@ const PricingPage: FunctionComponent = () => {
           <div className={styles.historyHeader}>
             <div>
               <h3>
-                Billing history
+                Historique des paiements
               </h3>
               <p className={styles.description}>
                 Tous les paiements enregistrés et leur statut.
@@ -533,13 +533,13 @@ const PricingPage: FunctionComponent = () => {
                 type="button"
                 className={styles.filterButton}
               >
-                Filter
+                Filtrer
               </button>
               <button
                 type="button"
                 className={styles.exportButton}
               >
-                Export
+                Exporter
               </button>
             </div>
           </div>
@@ -576,7 +576,7 @@ const PricingPage: FunctionComponent = () => {
                           row.status === "success" ? styles.success : styles.warning
                         }`}
                       >
-                        {row.status === "success" ? "Paid" : "Pending"}
+                        {row.status === "success" ? "Payé" : "En attente"}
                       </span>
                     </td>
                     <td>

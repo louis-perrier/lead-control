@@ -19,6 +19,9 @@ import styles from "./Dashboard.module.css";
 import useAgents from "../hooks/useAgents";
 import useClaraConversations from "../hooks/useClaraConversations";
 import supabase from "../lib/supabase";
+import AudioMessageBubble, {
+  TranscriptStatus,
+} from "../components/AudioMessageBubble";
 
 type ChannelOption = "Instagram" | "WhatsApp" | "Telegram";
 type ChannelFilterOption = ChannelOption | "All";
@@ -29,8 +32,9 @@ type TabOption = "stats" | "details";
 type MessageDirection = "inbound" | "outbound";
 
 type Attachment = {
-  type: "image" | "file";
+  type: "image" | "file" | "audio";
   label: string;
+  mediaPath?: string;
 };
 
 type Message = {
@@ -39,6 +43,10 @@ type Message = {
   text: string;
   sentAt: string;
   attachment?: Attachment;
+  mediaPath?: string;
+  transcriptStatus?: TranscriptStatus;
+  transcript?: string | null;
+  transcriptError?: string | null;
   authorType?: "agent" | "human" | "customer";
 };
 
@@ -99,6 +107,19 @@ const periodMultipliers: Record<PeriodOption, number> = {
 
 const channelCycle: ChannelOption[] = ["Instagram", "WhatsApp", "Telegram"];
 
+const demoAudioMessage: Message = {
+  id: "demo-audio-message",
+  direction: "inbound",
+  text: "",
+  sentAt: new Date().toISOString(),
+  authorType: "customer",
+  mediaPath:
+    "https://cdn.pixabay.com/download/audio/2021/08/04/audio_1f67d0c1c6.mp3?filename=rain-49749.mp3",
+  transcriptStatus: "done",
+  transcript: "Transcription de démonstration d’un message vocal.",
+  transcriptError: null,
+};
+
 const formatRelativeTime = (iso: string) => {
   const now = Date.now();
   const then = new Date(iso).getTime();
@@ -131,21 +152,81 @@ const mapConversationRecord = (record: any): Conversation => {
   const messages =
     (record.conversation_messages ?? [])
       .map((message: any) => {
-        const firstAttachment = Array.isArray(message.attachments)
-          ? message.attachments[0]
-          : null;
+        // Gestion spécifique des messages vocaux (message_type = 'audio')
+        const isAudioMessage = message.message_type === "audio";
+        let mediaPath: string | null = null;
+        let transcriptStatus: TranscriptStatus | undefined = undefined;
+        let transcriptContent: string | null = null;
+        let transcriptError: string | null = null;
+        let attachment: any = undefined;
+
+        if (isAudioMessage) {
+          // Message vocal : utiliser les colonnes directes
+          mediaPath = message.media_path || null;
+          const rawTranscriptStatus = message.transcript_status;
+          transcriptStatus = rawTranscriptStatus === "none" ? undefined : rawTranscriptStatus;
+          transcriptContent = message.transcript || null;
+          transcriptError = message.transcript_error || null;
+          
+          // Toujours créer un attachment pour les messages audio (même sans media_path)
+          attachment = {
+            type: "audio" as const,
+            label: mediaPath ? "Message vocal" : "Message vocal (fichier manquant)",
+            mediaPath: mediaPath || undefined,
+          };
+        } else {
+          // Message non-vocal : vérifier les attachments
+          const firstAttachment = Array.isArray(message.attachments)
+            ? message.attachments[0]
+            : null;
+          if (firstAttachment) {
+            const attachmentType =
+              firstAttachment?.type === "audio"
+                ? "audio"
+                : firstAttachment?.type === "file"
+                ? "file"
+                : "image";
+            const attachmentMediaPath =
+              firstAttachment?.media_path ??
+              firstAttachment?.mediaPath ??
+              firstAttachment?.path ??
+              firstAttachment?.url ??
+              null;
+            
+            attachment = {
+              type: attachmentType,
+              label: firstAttachment.label ?? "Pièce jointe",
+              mediaPath: attachmentMediaPath ?? undefined,
+            };
+            
+            if (attachmentType === "audio") {
+              mediaPath = attachmentMediaPath;
+              transcriptStatus =
+                (message.transcript_status as TranscriptStatus | undefined) ??
+                (message.transcription_status as TranscriptStatus | undefined) ??
+                undefined;
+              transcriptContent =
+                message.transcription ??
+                message.transcript ??
+                message.transcribed_text ??
+                null;
+              transcriptError =
+                message.transcription_error ??
+                message.transcript_error ??
+                null;
+            }
+          }
+        }
         return {
           id: `${record.id}-${message.id}`,
           direction: message.direction === "out" ? "outbound" : "inbound",
           text: message.body_text ?? "",
           sentAt: message.sent_at ?? message.created_at ?? new Date().toISOString(),
-          attachment: firstAttachment
-            ? {
-                type:
-                  firstAttachment.type === "file" ? "file" : "image",
-                label: firstAttachment.label ?? "Pièce jointe",
-              }
-            : undefined,
+          attachment,
+          mediaPath: mediaPath ?? undefined,
+          transcriptStatus,
+          transcript: transcriptContent,
+          transcriptError,
           authorType:
             message.author_type === "human"
               ? "human"
@@ -445,7 +526,11 @@ const ChatBubble: FunctionComponent<{ message: Message }> = ({ message }) => {
       {message.attachment && (
         <div className={styles.attachmentChip}>
           <span>
-            {message.attachment.type === "image" ? "Image" : "Fichier"} :
+            {message.attachment.type === "image"
+              ? "Image"
+              : message.attachment.type === "audio"
+              ? "Vocal"
+              : "Fichier"} :
           </span>
           <strong>{message.attachment.label}</strong>
         </div>
@@ -458,6 +543,30 @@ const ChatBubble: FunctionComponent<{ message: Message }> = ({ message }) => {
       </span>
     </div>
   );
+};
+
+const ConversationMessageItem: FunctionComponent<{ message: Message }> = ({
+  message,
+}) => {
+  const isMine = message.direction === "outbound";
+  
+  // Afficher AudioMessageBubble si c'est un message vocal (même sans media_path)
+  const isAudioMessage = message.mediaPath || message.attachment?.type === "audio";
+  
+  if (isAudioMessage) {
+    return (
+      <AudioMessageBubble
+        messageId={message.id}
+        mediaPath={message.mediaPath || ""}
+        transcriptStatus={message.transcriptStatus ?? "processing"}
+        transcript={message.transcript ?? undefined}
+        transcriptError={message.transcriptError ?? undefined}
+        isMine={isMine}
+        createdAt={message.sentAt}
+      />
+    );
+  }
+  return <ChatBubble message={message} />;
 };
 
 const Dashboard: FunctionComponent = () => {
@@ -658,6 +767,12 @@ const Dashboard: FunctionComponent = () => {
   );
   const isConditionStop =
     activeConversation?.automationState === "condition_stop";
+  const messagesForDisplay = useMemo(() => {
+    if (!activeConversation) {
+      return [];
+    }
+    return activeConversation.messages;
+  }, [activeConversation]);
 
   const previousConversationRef = useRef<{
     id: string | null;
@@ -1353,8 +1468,8 @@ const Dashboard: FunctionComponent = () => {
                     </div>
                   )}
                   <div className={styles.chatMessages}>
-                    {(activeConversation.messages ?? []).map((message) => (
-                      <ChatBubble key={message.id} message={message} />
+                    {messagesForDisplay.map((message) => (
+                      <ConversationMessageItem key={message.id} message={message} />
                     ))}
                     <div ref={messagesEndRef} />
                   </div>

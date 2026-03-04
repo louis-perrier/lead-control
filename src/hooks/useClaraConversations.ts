@@ -22,7 +22,14 @@ const fetchConversations = async (agentConfigId: string) => {
         error_code,
         error_message,
         sent_at,
-        created_at
+        created_at,
+        message_type,
+        media_path,
+        media_mime,
+        media_duration_ms,
+        transcript,
+        transcript_status,
+        transcript_error
       )
     `,
     )
