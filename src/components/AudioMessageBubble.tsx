@@ -69,10 +69,6 @@ const AudioMessageBubble = ({
     setAudioError("Impossible de lire ce fichier audio");
   };
 
-  const handleAudioLoadError = () => {
-    setAudioError("Fichier audio introuvable ou corrompu");
-  };
-
   const toggleTranscript = () => {
     setShowTranscript(!showTranscript);
   };
@@ -145,14 +141,13 @@ const AudioMessageBubble = ({
           
           {hasTriedLoading && signedUrl && !urlError && (
             <>
-              <audio 
-                controls 
-                preload="none" 
-                src={signedUrl}
-                className="w-full h-10"
-                onError={handleAudioError}
-                onLoadError={handleAudioLoadError}
-              />
+            <audio 
+              controls 
+              preload="none" 
+              src={signedUrl}
+              className="w-full h-10"
+              onError={handleAudioError}
+            />
               {audioError && (
                 <div className="p-2 bg-[#FEF2F2] border border-[#FECACA] rounded-[8px] text-sm text-[#DC2626]">
                   {audioError}
