@@ -86,8 +86,8 @@ const BookCallModal = ({ open, onClose }: BookCallModalProps) => {
           <div
             ref={widgetRef}
             className="calendly-inline-widget"
-            data-url="https://calendly.com/louis-lautopreneur/15min?hide_event_type_details=1&hide_gdpr_banner=1"
-            style={{ minWidth: "320px", height: "700px" }}
+            data-url="https://calendly.com/louis-lautopreneur/15min?hide_event_type_details=1&hide_gdpr_banner=1&background_color=ffffff&text_color=000000&primary_color=22d3ee"
+            style={{ minWidth: "320px", height: "550px", width: "100%", borderRadius: "0.75rem" }}
           />
         </div>
         <div className={styles.actions}>

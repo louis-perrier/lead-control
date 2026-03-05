@@ -25,7 +25,7 @@ const useSignedAudioUrl = (mediaPath?: string, messageId?: string, enabled: bool
       
       // Appeler l'edge function pour obtenir l'URL signée
       const response = await fetch(
-        "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/get-supabase",
+        "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/get-supabase/get-signedUrl",
         {
           method: "POST",
           headers: {

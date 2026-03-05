@@ -1,4 +1,4 @@
-export const BOOKING_URL = "https://calendly.com/placeholder";
+export const BOOKING_URL = "https://calendly.com/louis-lautopreneur/15min";
 
 export const launchSpotsRemaining = 5;
 

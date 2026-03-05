@@ -53,6 +53,7 @@ type Message = {
 type Conversation = {
   id: string;
   contactName: string;
+  contactHandle: string;
   channel: ChannelOption;
   lastMessage: string;
   lastAt: string;
@@ -243,6 +244,7 @@ const mapConversationRecord = (record: any): Conversation => {
   return {
     id: String(record.id),
     contactName: record.contact_display_name ?? record.contact_handle ?? "Contact",
+    contactHandle: record.contact_handle ?? "",
     channel,
     lastMessage,
     lastAt:
@@ -432,7 +434,14 @@ const ConversationItem: FunctionComponent<{
       <span className={styles.conversationAvatar}>{initials}</span>
       <div className={styles.conversationDetails}>
         <div className={styles.conversationTop}>
-          <span>{conversation.contactName}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span>{conversation.contactName}</span>
+            {conversation.contactHandle && (
+              <span style={{ fontSize: '0.75em', color: 'var(--app-text-secondary)' }}>
+                @{conversation.contactHandle}
+              </span>
+            )}
+          </div>
           <div className={styles.conversationTopMeta}>
             <ChannelBadge channel={conversation.channel} />
       {conversation.automationState === "pending" && (
@@ -478,7 +487,11 @@ const ConversationItem: FunctionComponent<{
       )}
           </div>
         </div>
-        <p className={styles.conversationPreview}>{conversation.lastMessage}</p>
+        <p className={styles.conversationPreview}>
+          {conversation.lastMessage.length > 70 
+            ? conversation.lastMessage.slice(0, 70) + "..." 
+            : conversation.lastMessage}
+        </p>
       {conversation.automationState === "error" && conversation.lastErrorMessage && (
         <div className={styles.conversationErrorMessage}>
           {conversation.lastErrorMessage}
@@ -586,6 +599,7 @@ const Dashboard: FunctionComponent = () => {
   const [composerText, setComposerText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
   const [isConfigMenuOpen, setConfigMenuOpen] = useState(false);
   const configMenuRef = useRef<HTMLDivElement | null>(null);
@@ -791,7 +805,13 @@ const Dashboard: FunctionComponent = () => {
       previous.id === currentId &&
       previous.messagesLength !== currentLength
     ) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      // Scroll smooth pour les nouveaux messages dans la même conversation
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: "smooth"
+        });
+      }
     }
 
     previousConversationRef.current = {
@@ -799,6 +819,19 @@ const Dashboard: FunctionComponent = () => {
       messagesLength: currentLength,
     };
   }, [activeConversation]);
+
+  // Scroll vers le bas quand on change de conversation ou au chargement initial
+  useEffect(() => {
+    if (messagesForDisplay.length > 0 && messagesContainerRef.current) {
+      // Utiliser un petit délai pour s'assurer que le DOM est mis à jour
+      setTimeout(() => {
+        const container = messagesContainerRef.current;
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [selectedConversationId, messagesForDisplay.length]);
 
   const stats = useMemo(() => {
     const periodMultiplier = periodMultipliers[period];
@@ -1013,12 +1046,57 @@ const Dashboard: FunctionComponent = () => {
 
   const confirmStopDialog = async () => {
     setStopDialogOpen(false);
-    const targetState = isConversationStopped ? "idle" : "stopped";
-    await updateConversation({ automation_state: targetState });
+    
+    if (isConversationStopped) {
+      // Si on reprend une conversation stoppée
+      const wasError = activeConversation?.automationState === "error";
+      
+      if (wasError) {
+        // Conversation en erreur → appeler l'Edge Function pour calculer idle/scheduled
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData?.session?.access_token) {
+            throw new Error("Session invalide");
+          }
+          
+          const response = await fetch(
+            "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/get-supabase/message-error-scheduled",
+            {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${sessionData.session.access_token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                conversation_id: activeConversation?.id,
+              }),
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          // L'Edge Function se charge de l'update, pas besoin d'updateConversation
+        } catch (error) {
+          console.error("Erreur lors de la reprise de conversation:", error);
+          // Fallback en cas d'erreur : remettre en idle
+          await updateConversation({ automation_state: "idle" });
+        }
+      } else {
+        // Conversation stopped/condition_stop → remettre en idle directement
+        await updateConversation({ automation_state: "idle" });
+      }
+    } else {
+      // Arrêter la conversation → passer en stopped
+      await updateConversation({ automation_state: "stopped" });
+    }
   };
 
   const stopDialogMessage = isConversationStopped
-    ? "Voulez-vous reprendre la conversation ?"
+    ? activeConversation?.automationState === "error"
+      ? "Voulez-vous reprendre la conversation ? L'agent répondra à tous les messages reçus depuis l'erreur."
+      : "Voulez-vous reprendre la conversation ?"
     : "Voulez-vous vraiment arrêter l’envoi sur cette conversation ? ";
   const stopDialogConfirmLabel = isConversationStopped ? "Reprendre" : "Arrêter";
 
@@ -1212,7 +1290,14 @@ const Dashboard: FunctionComponent = () => {
                     {topConversations.map((conversation) => (
                       <li key={conversation.id} className={styles.topConversationItem}>
                         <div>
-                          <strong>{conversation.contactName}</strong>
+                          <div>
+                            <strong>{conversation.contactName}</strong>
+                            {conversation.contactHandle && (
+                              <span style={{ fontSize: '0.8em', color: 'var(--app-text-secondary)', marginLeft: '8px' }}>
+                                @{conversation.contactHandle}
+                              </span>
+                            )}
+                          </div>
                           <div className={styles.topConversationItemMeta}>
                             {formatRelativeTime(conversation.lastAt)} ·{" "}
                             <ChannelBadge channel={conversation.channel} />
@@ -1328,7 +1413,14 @@ const Dashboard: FunctionComponent = () => {
                   <div className={styles.chatHeader}>
                     <div className={styles.chatHeaderTop}>
                       <div className={styles.chatHeaderMeta}>
-                        <h3 style={{ margin: 0 }}>{activeConversation.contactName}</h3>
+                        <h3 style={{ margin: 0 }}>
+                          {activeConversation.contactName}
+                          {activeConversation.contactHandle && (
+                            <span style={{ fontSize: '0.8em', color: 'var(--app-text-secondary)', marginLeft: '8px' }}>
+                              @{activeConversation.contactHandle}
+                            </span>
+                          )}
+                        </h3>
                         <ChannelBadge channel={activeConversation.channel} />
                         <span className={styles.topConversationItemMeta}>
                           Statut : {activeConversation.status}
@@ -1467,7 +1559,7 @@ const Dashboard: FunctionComponent = () => {
                       </div>
                     </div>
                   )}
-                  <div className={styles.chatMessages}>
+                  <div className={styles.chatMessages} ref={messagesContainerRef}>
                     {messagesForDisplay.map((message) => (
                       <ConversationMessageItem key={message.id} message={message} />
                     ))}

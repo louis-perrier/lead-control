@@ -14,12 +14,14 @@
   background: linear-gradient(145deg, rgba(11, 16, 27, 0.95), rgba(2, 6, 12, 0.85));
   border: 1px solid rgba(34, 211, 238, 0.4);
   border-radius: 1.25rem;
-  padding: 2rem;
-  width: min(920px, 100%);
+  padding: 1.5rem;
+  width: min(1000px, 95%);
   box-shadow: 0 10px 55px rgba(0, 0, 0, 0.6), 0 0 25px rgba(34, 211, 238, 0.25);
   position: relative;
   max-height: 90vh;
-  overflow: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .closeButton {
@@ -34,35 +36,39 @@
 }
 
 .modal h2 {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
   color: #ebe8ff;
+  font-size: 1.25rem;
 }
 
 .modal p {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   color: #b8c6ff;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .bulletList {
   list-style: none;
   padding: 0;
-  margin: 0 0 1rem;
+  margin: 0 0 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.35rem;
   color: #c2d9ff;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 .frame {
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0;
   margin-bottom: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  min-height: 480px;
-  max-height: calc(90vh - 220px);
+  background: #ffffff;
+  height: 550px;
   overflow: hidden;
+  flex: 0 0 auto;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .embedPlaceholder {
@@ -123,17 +129,41 @@
 @media (max-width: 640px) {
   .backdrop {
     align-items: flex-end;
+    padding: 0;
   }
 
   .modal {
     width: 100%;
     height: 100%;
     border-radius: 0;
-    padding: 1.5rem;
+    padding: 1rem;
+    max-height: 100vh;
     overflow-y: auto;
+  }
+
+  .modal h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .modal p {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .bulletList {
+    font-size: 0.8rem;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .frame {
+    height: calc(100vh - 280px);
+    border-radius: 0.5rem;
   }
 
   .actions {
     justify-content: space-between;
+    margin-top: 0.75rem;
   }
 }
