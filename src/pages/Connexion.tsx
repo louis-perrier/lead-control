@@ -5,7 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import NavigationBar from "../components/NavigationBar";
+import { AppLayout } from "../layouts";
 import Header from "../components/Header";
 import OptionSearch from "../components/OptionSearch";
 import optionSearchStyles from "../components/OptionSearch.module.css";
@@ -340,20 +340,9 @@ const handleCancelDisconnect = () => {
   }, [connections, connectorUserId]);
 
   return (
-    <div className={styles.connexion}>
-      <NavigationBar
-        door="open"
-        divider="/divider.svg"
-        iconBorder4="none"
-        iconPadding4="0"
-        iconBackgroundColor4="transparent"
-        iconBorder5="none"
-        iconPadding5="0"
-        iconBackgroundColor5="transparent"
-        selectedItem="connexion"
-      />
-      <main className={styles.rightcomponent}>
-        <Header logoMarque="/logoMarque@2x.png" />
+    <AppLayout>
+      <div className={styles.rightcomponent}>
+        <Header minimal showLogo={false} />
         <div className={styles.optionSearchWrapper}>
           <OptionSearch
             wrap={true}
@@ -512,8 +501,8 @@ const handleCancelDisconnect = () => {
             </div>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

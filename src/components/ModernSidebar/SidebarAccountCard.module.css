@@ -1,0 +1,163 @@
+.accountCard {
+  padding: var(--padding-8) var(--padding-20);
+  margin: var(--padding-12) var(--padding-12) var(--padding-16);
+  background-color: rgba(246, 248, 252, 0.3);
+  border: 1px solid rgba(230, 235, 242, 0.3);
+  border-radius: var(--br-14);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+}
+
+.accountCardCollapsed {
+  display: flex;
+  justify-content: center;
+  padding: var(--padding-16) var(--padding-12);
+}
+
+.accountInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-12);
+}
+
+.avatarButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  border-radius: var(--br-8);
+  transition: opacity 0.2s ease;
+}
+
+.avatarButton:hover {
+  opacity: 0.8;
+}
+
+.avatarButtonCollapsed {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--br-8);
+  transition: background-color 0.2s ease;
+}
+
+.avatarButtonCollapsed:hover {
+  background-color: var(--app-bg);
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--br-8);
+  background: linear-gradient(135deg, var(--app-primary), var(--app-primary-hover));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-14);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.avatarCollapsed {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--br-8);
+  background: linear-gradient(135deg, var(--app-primary), var(--app-primary-hover));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.accountDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+  min-width: 0;
+}
+
+.userEmail {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--app-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.planInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-1);
+}
+
+.planName {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--app-text-secondary);
+}
+
+.trialBadge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #1d4ed8;
+  background-color: #dbeafe;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: none;
+  line-height: 1.2;
+}
+
+.statusMessage {
+  font-size: var(--fs-11);
+  color: var(--app-warning);
+  font-weight: 500;
+}
+
+.creditsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-8);
+}
+
+.creditsInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.creditsText {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--app-text-secondary);
+}
+
+.upgradeButton {
+  background-color: transparent;
+  color: var(--app-primary);
+  border: 1px solid transparent;
+  border-radius: var(--br-8);
+  padding: var(--padding-8) var(--padding-16);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.upgradeButton:hover {
+  background-color: rgba(37, 99, 235, 0.04);
+  border-color: var(--app-primary);
+}
+
+.upgradeButton:active {
+  transform: translateY(1px);
+}

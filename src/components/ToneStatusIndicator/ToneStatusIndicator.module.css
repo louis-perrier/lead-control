@@ -1,0 +1,58 @@
+.statusCard {
+  border-radius: 18px;
+  border: 1px solid var(--app-border);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--app-surface);
+}
+
+.statusTitle {
+  margin: 0;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.statusHint {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.statusAction {
+  border: none;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--app-primary);
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.statusAction:hover {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.statusidle {
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.statusanswers_saved {
+  border-color: rgba(234, 179, 8, 0.4);
+}
+
+.statusconfigured {
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+.statusmodified {
+  border-color: rgba(249, 115, 22, 0.5);
+}
+
+.statusfallback_to_normal {
+  border-color: rgba(148, 163, 184, 0.4);
+}

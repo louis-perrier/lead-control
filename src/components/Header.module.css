@@ -1,22 +1,27 @@
 .header {
   align-self: stretch;
-  height: var(--height-108_5);
-  border-bottom: var(--border-12);
+  height: 60px;
+  border-bottom: 1px solid var(--app-border);
   box-sizing: border-box;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: var(--padding-0) var(--padding-138);
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--padding-12) var(--padding-24);
   position: relative;
   isolation: isolate;
   z-index: 30;
-  gap: var(--gap-10);
+  background-color: var(--app-surface);
+  gap: var(--gap-12);
 }
 .logomarqueIcon {
-  height: var(--height-108);
-  width: var(--width-542);
-  position: relative;
-  object-fit: cover;
-  z-index: 0;
-  flex-shrink: 0;
+  display: none;
+  /* Logo supprimé car maintenant dans la sidebar */
+}
+
+/* Mode minimal pour le header réduit */
+.header[data-minimal="true"] {
+  height: 48px;
+  padding: var(--padding-8) var(--padding-20);
+  background-color: transparent;
+  border-bottom: none;
 }

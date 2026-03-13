@@ -9,7 +9,7 @@ import {
 import { RealtimeChannel, type PostgrestError } from "@supabase/supabase-js";
 import supabase from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
-import NavigationBar from "../components/NavigationBar";
+import { AppLayout } from "../layouts";
 import Header from "../components/Header";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import styles from "./Scraping.module.css";
@@ -475,20 +475,9 @@ const Scraping: FunctionComponent = () => {
   }, [runScraping]);
 
   return (
-    <div className={styles.scrapingPage}>
-      <NavigationBar
-        door="open"
-        divider="/divider.svg"
-        iconBorder4="none"
-        iconPadding4="0"
-        iconBackgroundColor4="transparent"
-        iconBorder5="none"
-        iconPadding5="0"
-        iconBackgroundColor5="transparent"
-        selectedItem="scraping"
-      />
-      <main className={styles.content}>
-        <Header logoMarque="/logoMarque@2x.png" />
+    <AppLayout>
+      <div className={styles.content}>
+        <Header minimal showLogo={false} />
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <div>
@@ -881,8 +870,8 @@ const Scraping: FunctionComponent = () => {
           confirmLabel="Oui, lancer"
           cancelLabel="Annuler"
         />
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

@@ -1,7 +1,8 @@
-import { FunctionComponent, useMemo, useState } from "react";
-import NavigationBar from "../components/NavigationBar";
+import { FunctionComponent, useMemo, useState, useEffect } from "react";
+import { AppLayout } from "../layouts";
 import Header from "../components/Header";
 import supabase from "../lib/supabase";
+import useSubscriptionState, { PlanKey } from "../hooks/useSubscriptionState";
 import styles from "./PricingPage.module.css";
 
 type BillingCycle = "monthly" | "yearly";
@@ -32,10 +33,11 @@ const planCatalog: {
     description: "Idéal pour démarrer avec un seul agent.",
     basePrice: 100,
     features: [
-      "1 agent",
-      "100 crédits",
+      "1 agent Setting/Closing",
+      "200 crédits",
       "Support",
       "Interface multicanal",
+      "1 agent Assistant Chatbot (bientôt)"
     ],
   },
   {
@@ -45,11 +47,14 @@ const planCatalog: {
     basePrice: 200,
     badge: "Recommandé",
     features: [
-      "2 agents",
-      "250 crédits",
+      "2 agents Settings/Closings",
+      "500 crédits",
       "Support",
       "Interface multicanal",
       "Conversations configurables",
+      "Ton personnalisable",
+      "Message personnalisés",
+      "1 agent Assistant Chatbot (bientôt)"
     ],
   },
   {
@@ -66,43 +71,28 @@ const planCatalog: {
   },
 ];
 
-const billingHistory: BillingHistoryEntry[] = [
-  {
-    id: "1",
-    plan: "Basic",
-    amount: "100 €",
-    purchaseDate: "01/02/2026",
-    endDate: "01/03/2026",
-    status: "success",
-  },
-  {
-    id: "2",
-    plan: "Ultime",
-    amount: "240 €",
-    purchaseDate: "15/01/2026",
-    endDate: "15/02/2026",
-    status: "success",
-  },
-  {
-    id: "3",
-    plan: "Basic",
-    amount: "120 €",
-    purchaseDate: "10/12/2025",
-    endDate: "10/01/2026",
-    status: "warning",
-  },
-  {
-    id: "4",
-    plan: "Custom",
-    amount: "980 €",
-    purchaseDate: "01/10/2025",
-    endDate: "01/11/2025",
-    status: "warning",
-  },
-];
+const billingHistory: BillingHistoryEntry[] = [];
 
 const formatPrice = (value: number) =>
   `${value.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`;
+
+// Fonction pour mapper planKey vers PlanId
+const mapPlanKeyToPlanId = (planKey: PlanKey): PlanId | null => {
+  switch (planKey) {
+    case "basic":
+      return "1_agent";
+    case "ultime":
+      return "2_agents";
+    case "custom":
+      return "custom";
+    case "TESTEUR":
+      return "1_agent";
+    case "none":
+      return null; // Pas de plan actuel
+    default:
+      return null;
+  }
+};
 
 const calculateMonthlyCreditCost = (credits: number) => {
   const packs = credits / 50;
@@ -167,10 +157,32 @@ const calculateYearlyCreditCost = (credits: number) => {
 const PricingPage: FunctionComponent = () => {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [credits, setCredits] = useState(500);
-  const [currentPlan, setCurrentPlan] = useState<PlanId>("1_agent");
+  const [loadingPlanId, setLoadingPlanId] = useState<PlanId | null>(null);
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
+  
+  // Récupération de l'état d'abonnement réel
+  const { data: subscriptionState, isLoading: subscriptionLoading, error: subscriptionError } = useSubscriptionState();
+  
+  // Détermination du plan actuel basé sur l'abonnement
+  const userPlanId = subscriptionState ? mapPlanKeyToPlanId(subscriptionState.planKey) : null;
+  const [currentPlan, setCurrentPlan] = useState<PlanId | null>(userPlanId);
 
-  const activePlan =
-    planCatalog.find((plan) => plan.id === currentPlan) ?? planCatalog[0];
+  // Synchroniser l'état local avec les données d'abonnement
+  useEffect(() => {
+    if (subscriptionState) {
+      const planId = mapPlanKeyToPlanId(subscriptionState.planKey);
+      setCurrentPlan(planId);
+    }
+  }, [subscriptionState]);
+
+  // Condition pour afficher le bouton "Gérer l'abonnement"
+  const showManageButton = subscriptionState && 
+    subscriptionState.planKey !== "none" && 
+    subscriptionState.planKey !== "custom";
+
+  const activePlan = currentPlan 
+    ? planCatalog.find((plan) => plan.id === currentPlan) ?? planCatalog[0]
+    : planCatalog[0]; // Plan par défaut si pas de plan actuel
   
   const monthlyCreditCost = useMemo(() => calculateMonthlyCreditCost(credits), [credits]);
   const yearlyCreditCost = useMemo(() => calculateYearlyCreditCost(credits), [credits]);
@@ -192,6 +204,8 @@ const PricingPage: FunctionComponent = () => {
       return;
     }
 
+    setLoadingPlanId(planId);
+
     try {
       // Récupérer la session utilisateur
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -200,6 +214,9 @@ const PricingPage: FunctionComponent = () => {
         console.error("Erreur session:", sessionError);
         return;
       }
+
+      // Debug: afficher les valeurs envoyées
+      console.log("Données envoyées à Stripe:", { plan: planId, credits: credits, cycle: billingCycle });
 
       // Appel à l'Edge Function pour créer le checkout Stripe
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing/stripe-create-checkout`, {
@@ -214,6 +231,7 @@ const PricingPage: FunctionComponent = () => {
           cycle: billingCycle 
         }),
       });
+      console.log(res)
 
       if (!res.ok) {
         throw new Error(`Erreur HTTP: ${res.status}`);
@@ -225,11 +243,14 @@ const PricingPage: FunctionComponent = () => {
         // Mettre à jour le plan actuel et rediriger vers Stripe
         setCurrentPlan(planId);
         window.location.href = url;
+        // Note: pas besoin de setLoadingPlanId(null) ici car la page va être redirigée
       } else {
         console.error("Aucune URL de checkout retournée");
+        setLoadingPlanId(null);
       }
     } catch (error) {
       console.error("Erreur lors de la création du checkout:", error);
+      setLoadingPlanId(null);
     }
   };
 
@@ -239,64 +260,129 @@ const PricingPage: FunctionComponent = () => {
     setCredits(stepped);
   };
 
+  const handleManageSubscription = async () => {
+    setIsManagingSubscription(true);
+
+    try {
+      // Récupérer la session utilisateur
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error("Erreur session:", sessionError);
+        return;
+      }
+
+      // Appel à l'Edge Function pour créer le portail Stripe
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing/stripe-create-portal`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Erreur HTTP: ${res.status}`);
+      }
+
+      const { url } = await res.json();
+      
+      if (url) {
+        // Rediriger vers le portail Stripe
+        window.location.href = url;
+        // Note: pas besoin de setIsManagingSubscription(false) ici car la page va être redirigée
+      } else {
+        console.error("Aucune URL de portail retournée");
+        setIsManagingSubscription(false);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la création du portail:", error);
+      setIsManagingSubscription(false);
+    }
+  };
+
+  // Afficher un état de chargement pendant la récupération des données d'abonnement
+  if (subscriptionLoading) {
+    return (
+      <AppLayout>
+        <div className={styles.mainComponent}>
+          <Header minimal showLogo={false} />
+          <div className={styles.container}>
+            <div style={{ padding: "2rem", textAlign: "center" }}>
+              <p>Chargement des informations d'abonnement...</p>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Afficher une erreur si la récupération a échoué (mais permettre l'utilisation normale)
+  if (subscriptionError) {
+    console.warn("Erreur lors de la récupération de l'abonnement:", subscriptionError);
+  }
+
   return (
-    <div className={styles.pricingPage}>
-      <NavigationBar
-        door="open"
-        divider="/divider.svg"
-        iconBorder4="none"
-        iconPadding4="0"
-        iconBackgroundColor4="transparent"
-        iconBorder5="none"
-        iconPadding5="0"
-        iconBackgroundColor5="transparent"
-        selectedItem="paiement"
-      />
-      <main className={styles.mainComponent}>
-        <Header logoMarque="/logoMarque@2x.png" />
+    <AppLayout>
+      <div className={styles.mainComponent}>
+        <Header minimal showLogo={false} />
         <div className={styles.container}>
         <section className={styles.headerSection}>
           <div className={styles.headerTop}>
-            <div className={styles.headerContent}>
-              <p className={styles.subtitle}>
-                Facturation & abonnements
-              </p>
-              <h1>
-                Pilotez vos paiements avec sérénité
-              </h1>
-              <p className={styles.description}>
-                Suivez les détails de vos abonnements, mettez à jour vos
-                informations de facturation et gardez la maîtrise de votre
-                expérience de paiement depuis un seul espace sécurisé.
-              </p>
+            <div className={styles.headerLeft}>
+              <div className={styles.headerContent}>
+                <p className={styles.subtitle}>
+                  Facturation & abonnements
+                </p>
+                <h1>
+                  Pilotez vos paiements avec sérénité
+                </h1>
+                <p className={styles.description}>
+                  Suivez les détails de vos abonnements, mettez à jour vos
+                  informations de facturation et gardez la maîtrise de votre
+                  expérience de paiement depuis un seul espace sécurisé.
+                </p>
+              </div>
             </div>
-            <div className={styles.headerActions}>
-              <span className={styles.trialBadge}>
-                7-day free trial • 50 credits
-              </span>
-              <div
-                role="group"
-                aria-label="Choix de cycle de facturation"
-                className={styles.cycleToggle}
-              >
-                <button
-                  type="button"
-                  className={`${styles.cycleButton} ${
-                    billingCycle === "monthly" ? styles.active : ""
-                  }`}
-                  onClick={() => setBillingCycle("monthly")}
+            <div className={styles.headerRight}>
+              <div className={styles.headerActions}>
+                <div
+                  role="group"
+                  aria-label="Choix de cycle de facturation"
+                  className={styles.cycleToggle}
                 >
-                  Mensuel
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.cycleButton} ${
-                    billingCycle === "yearly" ? styles.active : ""
-                  }`}
-                  onClick={() => setBillingCycle("yearly")}
-                >
-                  Annuel (−20 %)
-                </button>
+                  <button
+                    type="button"
+                    className={`${styles.cycleButton} ${
+                      billingCycle === "monthly" ? styles.active : ""
+                    }`}
+                    onClick={() => setBillingCycle("monthly")}
+                  >
+                    Mensuel
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.cycleButton} ${
+                      billingCycle === "yearly" ? styles.active : ""
+                    }`}
+                    onClick={() => setBillingCycle("yearly")}
+                  >
+                    Annuel (−20 %)
+                  </button>
+                </div>
+                {showManageButton && (
+                  <button
+                    type="button"
+                    className={styles.manageButton}
+                    onClick={handleManageSubscription}
+                    disabled={isManagingSubscription}
+                  >
+                    {isManagingSubscription && (
+                      <span className={styles.spinner}></span>
+                    )}
+                    {isManagingSubscription ? "Chargement..." : "Gérer l'abonnement"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -378,7 +464,7 @@ const PricingPage: FunctionComponent = () => {
           <div className={styles.plansGrid}>
             {planCatalog.map((plan) => {
               const isCustom = plan.id === "custom";
-              const isCurrentPlan = currentPlan === plan.id;
+              const isCurrentPlan = currentPlan !== null && currentPlan === plan.id;
               
               let displayPrice = 0;
               if (!isCustom) {
@@ -389,14 +475,17 @@ const PricingPage: FunctionComponent = () => {
                 displayPrice = billingCycle === "monthly" ? planMonthly : planYearly;
               }
               
-              const buttonLabel = isCustom
+              const isLoading = loadingPlanId === plan.id;
+              const buttonLabel = isLoading
+                ? "Chargement..."
+                : isCustom
                 ? "Contactez-nous"
                 : isCurrentPlan
                 ? "Plan actuel"
                 : plan.id === "2_agents"
                 ? "Passer à ce plan"
                 : "Choisir ce plan";
-              const buttonDisabled = isCurrentPlan;
+              const buttonDisabled = isCurrentPlan || isLoading;
 
               return (
                 <article
@@ -425,6 +514,11 @@ const PricingPage: FunctionComponent = () => {
                       </p>
                     ) : (
                       <>
+                        {billingCycle === "yearly" && (
+                          <p className={styles.originalPrice}>
+                            {formatPrice(displayPrice / 0.8)}
+                          </p>
+                        )}
                         <p className={styles.planPrice}>
                           {formatPrice(displayPrice)}
                         </p>
@@ -461,6 +555,9 @@ const PricingPage: FunctionComponent = () => {
                           : styles.primary
                       }`}
                     >
+                      {isLoading && (
+                        <span className={styles.spinner}></span>
+                      )}
                       {buttonLabel}
                     </button>
                   </div>
@@ -508,9 +605,6 @@ const PricingPage: FunctionComponent = () => {
               </span>
             </div>
           </div>
-          <p className={styles.trialInfo}>
-            L’essai se termine après 7 jours ou lorsque les 50 crédits sont utilisés.
-          </p>
         </section>
 
         <section className={styles.historySection}>
@@ -556,56 +650,64 @@ const PricingPage: FunctionComponent = () => {
                 </tr>
               </thead>
               <tbody>
-                {billingHistory.map((row) => (
-                  <tr key={row.id}>
-                    <td className={styles.planName}>
-                      {row.plan}
-                    </td>
-                    <td className={styles.amount}>
-                      {row.amount}
-                    </td>
-                    <td className={styles.date}>
-                      {row.purchaseDate}
-                    </td>
-                    <td className={styles.date}>
-                      {row.endDate}
-                    </td>
-                    <td>
-                      <span
-                        className={`${styles.statusChip} ${
-                          row.status === "success" ? styles.success : styles.warning
-                        }`}
-                      >
-                        {row.status === "success" ? "Payé" : "En attente"}
-                      </span>
-                    </td>
-                    <td>
-                      <div className={styles.actionButtons}>
-                        <button
-                          type="button"
-                          className={styles.actionButton}
-                          aria-label={`Télécharger la facture ${row.amount}`}
+                {billingHistory.length > 0 ? (
+                  billingHistory.map((row) => (
+                    <tr key={row.id}>
+                      <td className={styles.planName}>
+                        {row.plan}
+                      </td>
+                      <td className={styles.amount}>
+                        {row.amount}
+                      </td>
+                      <td className={styles.date}>
+                        {row.purchaseDate}
+                      </td>
+                      <td className={styles.date}>
+                        {row.endDate}
+                      </td>
+                      <td>
+                        <span
+                          className={`${styles.statusChip} ${
+                            row.status === "success" ? styles.success : styles.warning
+                          }`}
                         >
-                          <span className="material-icons">download</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.actionButton}
-                          aria-label={`Voir la facture ${row.amount}`}
-                        >
-                          <span className="material-icons">visibility</span>
-                        </button>
-                      </div>
+                          {row.status === "success" ? "Payé" : "En attente"}
+                        </span>
+                      </td>
+                      <td>
+                        <div className={styles.actionButtons}>
+                          <button
+                            type="button"
+                            className={styles.actionButton}
+                            aria-label={`Télécharger la facture ${row.amount}`}
+                          >
+                            <span className="material-icons">download</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.actionButton}
+                            aria-label={`Voir la facture ${row.amount}`}
+                          >
+                            <span className="material-icons">visibility</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "var(--app-text-secondary)" }}>
+                      Aucun historique de paiement disponible
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
         </section>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

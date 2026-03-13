@@ -1,7 +1,6 @@
 import { FunctionComponent } from "react";
 import { Link } from "react-router-dom";
-import NavigationBar from "../components/NavigationBar";
-import GenericAvatar from "../components/GenericAvatar";
+import { AppLayout } from "../layouts";
 import styles from "./Demarer.module.css";
 
 const quickNav = [
@@ -148,25 +147,9 @@ const upcomingItems = [
 
 const Demarer: FunctionComponent = () => {
   return (
-    <div className={styles.page}>
-      <NavigationBar
-        door="open"
-        divider="/divider.svg"
-        iconBorder4="none"
-        iconPadding4="0"
-        iconBackgroundColor4="transparent"
-        iconBorder5="none"
-        iconPadding5="0"
-        iconBackgroundColor5="transparent"
-        selectedItem=""
-      />
-
-      <main className={styles.main}>
+    <AppLayout>
+      <div className={styles.main}>
         <div className={styles.content}>
-          <div className={styles.avatarRow}>
-            <GenericAvatar variant="header" />
-          </div>
-
           <section className={styles.hero} id="top">
             <p className={styles.eyebrow}>Onboarding premium</p>
             <h1 className={styles.title}>Démarrer avec LeadControl</h1>
@@ -352,8 +335,8 @@ const Demarer: FunctionComponent = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

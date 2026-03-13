@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import NavigationBar from "../components/NavigationBar";
+import { AppLayout } from "../layouts";
 import Header from "../components/Header";
 import TabComponent from "../components/TabComponent";
 import OptionSearch, { AgentFiltersPopover } from "../components/OptionSearch";
@@ -209,20 +209,9 @@ const AgentAi: FunctionComponent = () => {
     isActive ? "/tabComponentSelect.svg" : "/tabComponentNotSelect.svg";
 
   return (
-    <div className={styles.agentai}>
-      <NavigationBar
-        door="open"
-        divider="/divider.svg"
-        iconBorder4="none"
-        iconPadding4="0"
-        iconBackgroundColor4="transparent"
-        iconBorder5="none"
-        iconPadding5="0"
-        iconBackgroundColor5="transparent"
-        selectedItem="agentia"
-      />
-      <main className={styles.rightcomponent}>
-        <Header logoMarque="/logoMarque@2x.png" />
+    <AppLayout>
+      <div className={styles.rightcomponent}>
+        <Header minimal showLogo={false} />
         <div className={styles.tabcomponent}>
           <TabComponent
             label="Mes agents"
@@ -286,8 +275,8 @@ const AgentAi: FunctionComponent = () => {
           onAgentClick={openAgentTab}
           onToggleFav={handleToggleFav}
         />
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

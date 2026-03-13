@@ -1,5 +1,5 @@
 import { FunctionComponent } from "react";
-import NavigationBar from "../components/NavigationBar";
+import { AppLayout } from "../layouts";
 import Header from "../components/Header";
 import MoreOptionSearch from "../components/MoreOptionSearch";
 import styles from "./Crm.module.css";
@@ -56,20 +56,9 @@ const leadRows: LeadRow[] = [
 
 const Crm: FunctionComponent = () => {
   return (
-    <div className={styles.crm}>
-      <NavigationBar
-        door="open"
-        divider="/divider.svg"
-        iconBorder4="none"
-        iconPadding4="0"
-        iconBackgroundColor4="transparent"
-        iconBorder5="none"
-        iconPadding5="0"
-        iconBackgroundColor5="transparent"
-        selectedItem="crm"
-      />
-      <main className={styles.rightcomponent}>
-        <Header logoMarque="/logoMarque@2x.png" />
+    <AppLayout>
+      <div className={styles.rightcomponent}>
+        <Header minimal showLogo={false} />
         <MoreOptionSearch />
         <section
           className={[styles.tableWrapper, tableStyles.tableWrapper].join(" ")}
@@ -103,8 +92,8 @@ const Crm: FunctionComponent = () => {
             </tbody>
           </table>
         </section>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

@@ -1,4 +1,10 @@
 import supabase from '../lib/supabase'
+import { CustomToneDefinition } from '../types/customTone'
+
+type AgentDetails = Record<string, unknown> & {
+  tone?: string;
+  custom_tone?: CustomToneDefinition;
+};
 
 export type AgentInfo = {
   id: string;
@@ -9,7 +15,7 @@ export type AgentInfo = {
   backgroundSrc: string;
   details: string[];
   configs: {
-    Details: Record<string, string>;
+    Details: AgentDetails;
     Configurations: Record<string, string>;
     Connexions: Record<string, string>;
     Test: Record<string, string>;

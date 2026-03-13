@@ -1,0 +1,25 @@
+.appLayout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--app-bg);
+}
+
+.appMain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--app-bg);
+  overflow-x: hidden;
+}
+
+/* Responsive - layout sur mobile */
+@media screen and (max-width: 975px) {
+  .appLayout {
+    flex-direction: column;
+  }
+  
+  .appMain {
+    min-height: 100vh;
+  }
+}

@@ -1,12 +1,7 @@
-import {
-  FunctionComponent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { FunctionComponent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import ConfirmationDialog from "./ConfirmationDialog";
+import useSubscriptionState from "../hooks/useSubscriptionState";
 import styles from "./GenericAvatar.module.css";
 
 export type GenericAvatarVariant = "default" | "wrapper" | "header";
@@ -16,16 +11,21 @@ export type GenericAvatarType = {
   style?: string;
   variant?: GenericAvatarVariant;
   onSignOut?: () => void | Promise<void>;
+  showInitials?: boolean;
 };
 
 const policyLinks = [
   {
-    label: "Terms & Conditions",
+    label: "Termes & Services",
     route: "/policy/terms-et-conditions",
   },
   {
     label: "Politique Utilisateur",
     route: "/policy/privacy-policy",
+  },
+  {
+    label: "Politique de suppression",
+    route: "/policy/data-deletion",
   },
 ];
 
@@ -40,41 +40,69 @@ const appLinks = [
     description: "Consulter ton abonnement et l’historique des paiements",
     route: "/app/paiement",
   },
+  {
+    label: "Découvrir l'application",
+    description: "Présentation complète de LeadControl",
+    route: "/app/demarer",
+  },
 ];
 
 const logoutLabel = "Se déconnecter";
+
+// Fonction pour mapper les planKey vers des noms d'affichage
+const getPlanDisplayName = (planKey: string): string => {
+  switch (planKey) {
+    case "basic":
+      return "Plan Basic";
+    case "ultime":
+      return "Plan Ultime";
+    case "custom":
+      return "Plan Custom";
+    case "none":
+      return "Plan Gratuit";
+    case "TESTEUR":
+      return "TESTEUR";
+    default:
+      return "Plan inconnu";
+  }
+};
+
+// Fonction pour générer les initiales depuis l'email
+const getInitials = (email: string): string => {
+  if (!email) return "??";
+  const parts = email.split("@")[0];
+  return parts.substring(0, 2).toUpperCase();
+};
 
 const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
   className = "",
   style = "Avatar",
   variant = "default",
+  showInitials = false,
   onSignOut,
 }) => {
   const { signOut, user } = useAuth();
+  const { data: subscriptionState, isLoading: subscriptionLoading } =
+    useSubscriptionState();
   const [open, setOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (confirmOpen) {
-        return;
-      }
       if (
         open &&
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
         setOpen(false);
-        setConfirmOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [open, confirmOpen]);
+  }, [open]);
 
   const variantClass =
     variant === "header"
@@ -85,20 +113,12 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
 
   const handleAvatarClick = () => {
     setOpen((prev) => !prev);
-    if (open) {
-      setConfirmOpen(false);
-    }
   };
 
-  const handleLogoutClick = () => {
-    setConfirmOpen(true);
-  };
-
-  const handleConfirmLogout = async () => {
-    setConfirmOpen(false);
+  const handleLogoutClick = async () => {
+    setOpen(false);
     try {
       await signOut();
-      setOpen(false);
       if (onSignOut) {
         await onSignOut();
       }
@@ -129,17 +149,49 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
         type="button"
         onClick={handleAvatarClick}
       >
-        <img
-          className={styles.avatarPlaceholderIcon}
-          alt=""
-          src="/Avatar-Placeholder.svg"
-        />
+        {showInitials && user?.email ? (
+          <div className={styles.avatarInitials}>
+            {getInitials(user.email)}
+          </div>
+        ) : (
+          <img
+            className={styles.avatarPlaceholderIcon}
+            alt=""
+            src="/Avatar-Placeholder.svg"
+          />
+        )}
       </button>
       {open && (
         <div className={styles.overlayMenu} role="menu" aria-label="Avatar menu">
           <div className={styles.menuHeader}>
             <span className={styles.menuTitle}>Mon compte</span>
             {user?.email && <span className={styles.menuMeta}>{user.email}</span>}
+            <div className={styles.subscriptionInfo}>
+              {subscriptionState ? (
+                <>
+                  <span className={
+                    subscriptionState.planKey === "none" 
+                      ? styles.freePlanName 
+                      : styles.planName
+                  }>
+                    {getPlanDisplayName(subscriptionState.planKey)}
+                  </span>
+                  <span className={styles.creditsInfo}>
+                    {subscriptionState.planKey === "none" 
+                      ? "50 crédits disponibles"
+                      : `${subscriptionState.creditsBalance} crédits restants`
+                    }
+                  </span>
+                </>
+              ) : subscriptionLoading ? (
+                <>
+                  <span className={styles.planSkeleton}>Chargement du plan...</span>
+                  <span className={styles.creditsSkeleton}>Chargement des crédits...</span>
+                </>
+              ) : (
+                <span className={styles.subscriptionError}>Plan non disponible</span>
+              )}
+            </div>
           </div>
           <div className={styles.menuSection}>
             <span className={styles.menuSectionTitle}>Commencer ici</span>
@@ -185,13 +237,6 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
           </button>
         </div>
       )}
-      <ConfirmationDialog
-        open={confirmOpen}
-        title="Déconnexion"
-        message="Êtes-vous sûr de vouloir vous déconnecter ?"
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={handleConfirmLogout}
-      />
     </div>
   );
 };

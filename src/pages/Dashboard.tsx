@@ -7,8 +7,7 @@ import {
   useState,
 } from "react";
 import { useSearchParams } from "react-router-dom";
-import NavigationBar from "../components/NavigationBar";
-import GenericAvatar from "../components/GenericAvatar";
+import { AppLayout } from "../layouts";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import {
   IconConversationPlay,
@@ -65,6 +64,7 @@ type Conversation = {
   automationState: string;
   lastErrorMessage?: string | null;
   nextReplyAt?: string | null;
+  summary?: string | null;
 };
 
 const channelFilterOptions: ChannelFilterOption[] = [
@@ -86,7 +86,7 @@ const periodOptions: { label: string; value: PeriodOption }[] = [
   { label: "90j", value: "90" },
 ];
 
-const statusFilterOptions = ["Tous", "Ouvert", "Clos", "Handoff"] as const;
+const statusFilterOptions = ["Tous", "Ouvert", "Clos"] as const;
 const sortOptionLabels: Record<SortOption, string> = {
   recent: "Recent",
   unread: "Non lus",
@@ -266,6 +266,7 @@ const mapConversationRecord = (record: any): Conversation => {
     lastErrorMessage:
       record.last_error_message ?? record.error_message ?? null,
     nextReplyAt: record.next_reply_at ?? null,
+    summary: record.summary ?? null,
   };
 };
 
@@ -314,6 +315,9 @@ const ChannelBadge: FunctionComponent<{ channel: ChannelOption }> = ({
   </span>
 );
 
+const truncateLabel = (value: string, maxLength = 18) =>
+  value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
+
 const KpiCard: FunctionComponent<{
   label: string;
   value: string;
@@ -324,7 +328,7 @@ const KpiCard: FunctionComponent<{
     <div className={styles.claraKpiCardValue}>{value}</div>
     <div className={styles.claraKpiCardLabel}>{label}</div>
     {note && <div className={styles.claraKpiCardNote}>{note}</div>}
-    <div className={styles.claraKpiCardDelta}>{delta}</div>
+    {false&&<div className={styles.claraKpiCardDelta}>{delta}</div>}
   </article>
 );
 
@@ -631,6 +635,8 @@ const Dashboard: FunctionComponent = () => {
   );
   const [isStopDialogOpen, setStopDialogOpen] = useState(false);
   const [isDetailsOverlayOpen, setDetailsOverlayOpen] = useState(false);
+  const [isSummaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [isErrorDetailOpen, setErrorDetailOpen] = useState(false);
 
   const handleConfigChange = (value: string) => {
     setSelectedConfigId(value);
@@ -832,6 +838,10 @@ const Dashboard: FunctionComponent = () => {
       }, 100);
     }
   }, [selectedConversationId, messagesForDisplay.length]);
+
+  useEffect(() => {
+    setErrorDetailOpen(false);
+  }, [activeConversation?.id, activeConversation?.lastErrorMessage]);
 
   const stats = useMemo(() => {
     const periodMultiplier = periodMultipliers[period];
@@ -1036,6 +1046,22 @@ const Dashboard: FunctionComponent = () => {
     setDetailsOverlayOpen(false);
   };
 
+  const handleSummaryClick = () => {
+    setSummaryModalOpen(true);
+  };
+
+  const closeSummaryModal = () => {
+    setSummaryModalOpen(false);
+  };
+
+  const handleErrorDetailOpen = () => {
+    setErrorDetailOpen(true);
+  };
+
+  const closeErrorDetail = () => {
+    setErrorDetailOpen(false);
+  };
+
   const handleStopClick = () => {
     setStopDialogOpen(true);
   };
@@ -1097,25 +1123,19 @@ const Dashboard: FunctionComponent = () => {
     ? activeConversation?.automationState === "error"
       ? "Voulez-vous reprendre la conversation ? L'agent répondra à tous les messages reçus depuis l'erreur."
       : "Voulez-vous reprendre la conversation ?"
-    : "Voulez-vous vraiment arrêter l’envoi sur cette conversation ? ";
+    : "Voulez-vous vraiment arrêter l’envoi sur cette conversation ? L'agent ne répondra désormais plus à cette conversation.";
   const stopDialogConfirmLabel = isConversationStopped ? "Reprendre" : "Arrêter";
+  const chatErrorMessage =
+    activeConversation?.lastErrorMessage ?? "";
+  const isChatErrorTooLong = chatErrorMessage.length > 100;
+  const chatErrorPreview = isChatErrorTooLong
+    ? `${chatErrorMessage.slice(0, 100)}...`
+    : chatErrorMessage;
 
   return (
-    <div className={styles.claraWrapper}>
-      <NavigationBar
-        door="open"
-        divider="/divider.svg"
-        iconBorder4="none"
-        iconPadding4="0"
-        iconBackgroundColor4="transparent"
-        iconBorder5="none"
-        iconPadding5="0"
-        iconBackgroundColor5="transparent"
-        selectedItem="dashboard"
-      />
+    <AppLayout>
       <div className={styles.claraDashboardArea}>
         <div className={styles.claraDashboard}>
-          <GenericAvatar variant="header" />
           <div className={styles.claraDashboardContent}>
         <header className={styles.claraHeader}>
           <div>
@@ -1291,7 +1311,7 @@ const Dashboard: FunctionComponent = () => {
                       <li key={conversation.id} className={styles.topConversationItem}>
                         <div>
                           <div>
-                            <strong>{conversation.contactName}</strong>
+                          <strong>{truncateLabel(conversation.contactName)}</strong>
                             {conversation.contactHandle && (
                               <span style={{ fontSize: '0.8em', color: 'var(--app-text-secondary)', marginLeft: '8px' }}>
                                 @{conversation.contactHandle}
@@ -1453,8 +1473,19 @@ const Dashboard: FunctionComponent = () => {
                       )}
                       {activeConversation.automationState === "error" &&
                         activeConversation.lastErrorMessage && (
-                          <div className={styles.chatErrorMessage}>
-                            {activeConversation.lastErrorMessage}
+                          <div className={styles.chatErrorMessageBlock}>
+                            <span className={styles.chatErrorMessage}>
+                              {chatErrorPreview}
+                            </span>
+                            {isChatErrorTooLong && (
+                              <button
+                                type="button"
+                                className={styles.errorSeeMoreButton}
+                                onClick={handleErrorDetailOpen}
+                              >
+                                Voir plus
+                              </button>
+                            )}
                           </div>
                         )}
                       {activeConversation.automationState === "condition_stop" && (
@@ -1470,6 +1501,35 @@ const Dashboard: FunctionComponent = () => {
                     )}
                       </div>
                       <div className={styles.chatHeaderTools}>
+                        {activeConversation?.summary && (
+                          <button
+                            type="button"
+                            className={styles.chatToolButton}
+                            data-tooltip="Résumé de la conversation"
+                            onClick={handleSummaryClick}
+                          >
+                            <svg
+                              width="20"
+                              height="20"
+                              viewBox="0 0 20 20"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <circle cx="10" cy="10" r="9" fill="#2563EB" />
+                              <text
+                                x="10"
+                                y="14"
+                                textAnchor="middle"
+                                fill="white"
+                                fontSize="11"
+                                fontWeight="600"
+                                fontFamily="Inter, sans-serif"
+                              >
+                                ?
+                              </text>
+                            </svg>
+                          </button>
+                        )}
                         <button
                           type="button"
                           className={styles.chatToolButton}
@@ -1483,7 +1543,7 @@ const Dashboard: FunctionComponent = () => {
                   {!isConditionStop && (
                     <button
                       type="button"
-                      className={styles.chatToolButton}
+                      className={`${styles.chatToolButton} ${styles.orangeButton}`}
                       data-tooltip={
                         isConversationStopped
                           ? "Reprendre la conversation"
@@ -1601,6 +1661,48 @@ const Dashboard: FunctionComponent = () => {
             </div>
           </section>
         )}
+        {isSummaryModalOpen && (
+          <div className={styles.summaryModalBackdrop} onClick={closeSummaryModal}>
+            <div className={styles.summaryModal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.summaryModalHeader}>
+                <h3>Résumé conversation</h3>
+                <button 
+                  type="button" 
+                  className={styles.summaryModalClose}
+                  onClick={closeSummaryModal}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 6.586L12.293 2.293a1 1 0 1 1 1.414 1.414L9.414 8l4.293 4.293a1 1 0 1 1-1.414 1.414L8 9.414l-4.293 4.293a1 1 0 1 1-1.414-1.414L6.586 8 2.293 3.707a1 1 0 0 1 1.414-1.414L8 6.586z"/>
+                  </svg>
+                </button>
+              </div>
+              <div className={styles.summaryModalContent}>
+                <p>{activeConversation?.summary}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        {isErrorDetailOpen && activeConversation?.lastErrorMessage && (
+          <div className={styles.errorModalBackdrop} onClick={closeErrorDetail}>
+            <div className={styles.errorModal} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.errorModalHeader}>
+                <h3>Message d'erreur</h3>
+                <button
+                  type="button"
+                  className={styles.errorModalClose}
+                  onClick={closeErrorDetail}
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 6.586L12.293 2.293a1 1 0 1 1 1.414 1.414L9.414 8l4.293 4.293a1 1 0 1 1-1.414 1.414L8 9.414l-4.293 4.293a1 1 0 1 1-1.414-1.414L6.586 8 2.293 3.707a1 1 0 0 1 1.414-1.414L8 6.586z"/>
+                  </svg>
+                </button>
+              </div>
+              <div className={styles.errorModalContent}>
+                <p>{activeConversation.lastErrorMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
         <ConfirmationDialog
           open={isStopDialogOpen}
           title="Confirmation"
@@ -1613,7 +1715,7 @@ const Dashboard: FunctionComponent = () => {
       </div>
     </div>
   </div>
-</div>
+    </AppLayout>
   );
 };
 

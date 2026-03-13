@@ -1,0 +1,28 @@
+.sidebarSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-6);
+  padding: 0 var(--padding-12);
+}
+
+.sidebarSection[data-collapsed="true"] {
+  gap: var(--gap-4);
+  padding: 0 var(--padding-6);
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+  padding: 0 var(--padding-8);
+  line-height: 1.4;
+}
+
+.sectionItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}

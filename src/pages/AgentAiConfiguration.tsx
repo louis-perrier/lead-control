@@ -1,4 +1,4 @@
-import {
+import React, {
   FunctionComponent,
   useCallback,
   useEffect,
@@ -6,11 +6,10 @@ import {
   useState,
   ChangeEvent,
   DragEvent,
-  KeyboardEvent,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import NavigationBar from "../components/NavigationBar";
+import { AppLayout } from "../layouts";
 import Header from "../components/Header";
 import TabComponent from "../components/TabComponent";
 import Button from "../components/Button";
@@ -31,6 +30,18 @@ import supabase from "../lib/supabase";
 import useAgents from "../hooks/useAgents";
 import { useConnectors } from "../hooks/useConnexion";
 import { buildConnectorActions } from "../connectors/actions";
+import ToneSelector, {
+  ToneOption,
+  ToneOptionConfig,
+} from "../components/ToneSelector/ToneSelector";
+import ToneStatusIndicator, { ToneStatus } from "../components/ToneStatusIndicator/ToneStatusIndicator";
+import ProgressiveQuestionModal from "../components/ProgressiveQuestionModal/ProgressiveQuestionModal";
+import {
+  CustomToneAnswers,
+  CustomToneKey,
+  CustomToneStatus,
+  CustomToneQuestion,
+} from "../types/customTone";
 
 
 type ConfigurationLogo = {
@@ -153,7 +164,6 @@ const toMinutes = (time: string) => {
 const isValidTimeFormat = (value: string) =>
   /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 
-type ToneOption = "normal" | "friendly" | "funny" | "pro" | "direct";
 type ActiveDays = {
   mon: boolean;
   tue: boolean;
@@ -162,6 +172,63 @@ type ActiveDays = {
   fri: boolean;
   sat: boolean;
   sun: boolean;
+};
+
+
+const CUSTOM_TONE_QUESTIONS: CustomToneQuestion[] = [
+  {
+    key: "q1",
+    title: "Q1 — Prospect froid / vague",
+    example: "Salut, je suis tombé sur ton contenu, tu proposes quoi exactement ?",
+  },
+  {
+    key: "q2",
+    title: "Q2 — Prospect qui partage un problème",
+    example: "Honnêtement je galère depuis un moment et je ne sais pas par où commencer.",
+  },
+  {
+    key: "q3",
+    title: "Q3 — Prospect intéressé mais prudent",
+    example: "Ça a l'air bien, mais je ne sais pas si c'est vraiment pour moi.",
+  },
+  {
+    key: "q4",
+    title: "Q4 — Objection prix",
+    example: "Ça coûte combien ? Et est-ce que ça vaut vraiment le coup ?",
+  },
+  {
+    key: "q5",
+    title: "Q5 — Prospect pressé / direct",
+    example: "Vas droit au but, c'est quoi l'intérêt concret pour moi ?",
+  },
+  {
+    key: "q6",
+    title: "Q6 — Prospect chaud / prêt à acheter",
+    example: "Ok, ça me parle, comment je fais pour rejoindre ?",
+  },
+];
+
+const createDefaultCustomToneAnswers = (): CustomToneAnswers =>
+  CUSTOM_TONE_QUESTIONS.reduce(
+    (acc, question) => ({ ...acc, [question.key]: "" }),
+    {} as CustomToneAnswers
+  );
+
+const buildCustomToneValidationErrors = (
+  answers: CustomToneAnswers
+): Partial<Record<CustomToneKey, string>> => {
+  const errors: Partial<Record<CustomToneKey, string>> = {};
+  CUSTOM_TONE_QUESTIONS.forEach((question) => {
+    const value = answers[question.key]?.trim() ?? "";
+    if (value.length < 200) {
+      errors[question.key] =
+        "Chaque réponse doit contenir au minimum 200 caractères.";
+    } else if (value.length > 900) {
+      errors[question.key] =
+        "Chaque réponse doit contenir au maximum 900 caractères.";
+    }
+  });
+  return errors;
 };
 type DetailErrors = {
   context?: string;
@@ -201,31 +268,17 @@ const CONTEXT_STORAGE_BUCKET = "agent-context";
 const CONTEXT_DOCUMENT_FUNCTION_URL =
   "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/context-document-chunk-embeddings";
 const CONTEXT_PDF_UPLOAD_ENABLED = false;
-const toneOptions: { value: ToneOption; label: string; description: string }[] = [
+const toneOptions: ToneOptionConfig[] = [
   {
     value: "normal",
     label: "Normal",
     description: "Factuel et neutre pour la majorité des conversations.",
   },
   {
-    value: "friendly",
-    label: "Amical",
-    description: "Ton chaleureux pour rassurer vos interlocuteurs.",
-  },
-  {
-    value: "funny",
-    label: "Drôle",
-    description: "Une approche légère et détendue (à utiliser avec parcimonie).",
-  },
-  {
-    value: "pro",
-    label: "Pro",
-    description: "Langage formel, précis et rassurant.",
-  },
-  {
-    value: "direct",
-    label: "Direct",
-    description: "Aller à l’essentiel avec un ton actif.",
+    value: "custom",
+    label: "Personnalisé",
+    description:
+      "Réponds aux simulations afin de générer un ton personnalisé",
   },
 ];
 const dayLabels: { key: keyof ActiveDays; label: string }[] = [
@@ -295,6 +348,44 @@ const AgentAi: FunctionComponent = () => {
   // UI state
   const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
   const [headerSwitchOn, setHeaderSwitchOn] = useState(false);
+  
+  // État de la sidebar pour ajuster l'overlay
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("leadcontrol.navCollapsed") === "true";
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const collapsed = window.localStorage.getItem("leadcontrol.navCollapsed") === "true";
+      setIsSidebarCollapsed(collapsed);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    
+    // Vérifier périodiquement le localStorage car l'événement storage ne se déclenche pas toujours
+    const interval = setInterval(handleStorageChange, 100);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Bloquer le scroll du body quand la modal Details est ouverte
+  useEffect(() => {
+    if (activeCorner === "Details") {
+      // Sauvegarder le style original
+      const originalOverflow = document.body.style.overflow;
+      // Bloquer le scroll
+      document.body.style.overflow = "hidden";
+      
+      return () => {
+        // Restaurer le scroll original à la fermeture
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [activeCorner]);
 
   // Etat de la popup “Details”
   const [contextText, setContextText] = useState("");
@@ -303,6 +394,32 @@ const AgentAi: FunctionComponent = () => {
     undefined
   );
   const [tone, setTone] = useState<ToneOption>("normal");
+  const [customToneModalOpen, setCustomToneModalOpen] =
+    useState<boolean>(false);
+  const [customToneAnswers, setCustomToneAnswers] =
+    useState<CustomToneAnswers>(() => createDefaultCustomToneAnswers());
+  const [customToneStatus, setCustomToneStatus] =
+    useState<CustomToneStatus>("idle");
+  const [customToneGeneratedPrompt, setCustomToneGeneratedPrompt] =
+    useState("");
+  const [customToneLastGeneratedAt, setCustomToneLastGeneratedAt] =
+    useState<string | null>(null);
+  const [customToneError, setCustomToneError] = useState<string | null>(null);
+  const [customToneValidationErrors, setCustomToneValidationErrors] =
+    useState<Partial<Record<CustomToneKey, string>>>({});
+  const [isGeneratingCustomTone, setIsGeneratingCustomTone] =
+    useState(false);
+  const [showToneErrors, setShowToneErrors] = useState(false);
+  const [touchedQuestions, setTouchedQuestions] = useState<
+    Record<CustomToneKey, boolean>
+  >(() =>
+    CUSTOM_TONE_QUESTIONS.reduce(
+      (acc, question) => ({ ...acc, [question.key]: false }),
+      {} as Record<CustomToneKey, boolean>
+    )
+  );
+  const [lastGeneratedAnswers, setLastGeneratedAnswers] =
+    useState<CustomToneAnswers | null>(null);
   const [activeDays, setActiveDays] = useState<ActiveDays>({
     ...defaultActiveDays,
   });
@@ -468,6 +585,75 @@ const AgentAi: FunctionComponent = () => {
     setContextPdfError(undefined);
     setErrors({});
   }, [applySnapshot, buildSnapshotFromDetails, selectedAgent]);
+
+  useEffect(() => {
+    if (!selectedAgent) {
+      setCustomToneAnswers(createDefaultCustomToneAnswers());
+      setCustomToneStatus("idle");
+      setCustomToneGeneratedPrompt("");
+      setCustomToneLastGeneratedAt(null);
+      setCustomToneError(null);
+      setTouchedQuestions(
+        CUSTOM_TONE_QUESTIONS.reduce(
+          (acc, question) => ({ ...acc, [question.key]: false }),
+          {} as Record<CustomToneKey, boolean>
+        )
+      );
+      setShowToneErrors(false);
+      return;
+    }
+    const savedCustomTone = (
+      (selectedAgent.configs as Record<string, any>)?.Details
+        ?.custom_tone ?? {}
+    ) as {
+      answers?: Record<string, string>;
+      status?: CustomToneStatus;
+      generated_prompt?: string;
+      last_generated_at?: string | null;
+    };
+    if (savedCustomTone.answers) {
+      setCustomToneAnswers({
+        ...createDefaultCustomToneAnswers(),
+        ...Object.fromEntries(
+          CUSTOM_TONE_QUESTIONS.map((question) => [
+            question.key,
+            savedCustomTone.answers?.[question.key] ?? "",
+          ])
+        ),
+      });
+    } else {
+      setCustomToneAnswers(createDefaultCustomToneAnswers());
+    }
+    setCustomToneStatus(savedCustomTone.status ?? "idle");
+    setCustomToneGeneratedPrompt(savedCustomTone.generated_prompt ?? "");
+    setCustomToneLastGeneratedAt(savedCustomTone.last_generated_at ?? null);
+    setCustomToneError(null);
+  }, [selectedAgent]);
+
+  const handleOpenCustomToneModal = useCallback(() => {
+    setCustomToneModalOpen(true);
+  }, []);
+
+  const handleCloseCustomToneModal = useCallback(() => {
+    setCustomToneModalOpen(false);
+  }, []);
+
+  useEffect(() => {
+    setCustomToneValidationErrors(
+      buildCustomToneValidationErrors(customToneAnswers)
+    );
+  }, [customToneAnswers]);
+
+  useEffect(() => {
+    if (!customToneModalOpen) return;
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleCloseCustomToneModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [customToneModalOpen, handleCloseCustomToneModal]);
 
   const handleCloseDetailsOverlay = useCallback(() => {
     setActiveCorner(null);
@@ -653,6 +839,31 @@ const AgentAi: FunctionComponent = () => {
     []
   );
 
+  const handleToneSelectionChange = useCallback(
+    (nextTone: ToneOption) => {
+      setTone(nextTone);
+      if (nextTone === "custom") {
+        setCustomToneModalOpen(true);
+      }
+      setShowToneErrors(false);
+    },
+    []
+  );
+
+  const handleQuestionTouch = useCallback((key: CustomToneKey) => {
+    setTouchedQuestions((prev) => ({ ...prev, [key]: true }));
+  }, []);
+
+  const handleCustomToneAnswerChange = useCallback(
+    (key: CustomToneKey, value: string) => {
+      setCustomToneAnswers((prev) => ({ ...prev, [key]: value }));
+      setCustomToneStatus("idle");
+      setCustomToneGeneratedPrompt("");
+      setCustomToneLastGeneratedAt(null);
+      handleQuestionTouch(key);
+    },
+    [handleQuestionTouch]
+  );
 
   // ------------------------------CONNEXIONS---------------------------------
   const [activePopup, setActivePopup] = useState<Window | null>(null);
@@ -986,7 +1197,7 @@ const AgentAi: FunctionComponent = () => {
   ]);
 
   const handleRenameKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === "Enter") {
         event.preventDefault();
         void handleSubmitRenaming();
@@ -1003,6 +1214,163 @@ const AgentAi: FunctionComponent = () => {
   const handleConfigChange = (values: ConfigValue[]) => {
     setConfigValues(values);
   };
+
+  const getTrimmedCustomToneAnswers = useCallback(() => {
+    return CUSTOM_TONE_QUESTIONS.reduce(
+      (acc, question) => ({
+        ...acc,
+        [question.key]: customToneAnswers[question.key]?.trim() ?? "",
+      }),
+      {} as CustomToneAnswers
+    );
+  }, [customToneAnswers]);
+
+  const handleGenerateCustomTone = useCallback(async () => {
+    const validation = buildCustomToneValidationErrors(customToneAnswers);
+    setCustomToneValidationErrors(validation);
+    if (Object.values(validation).some(Boolean)) {
+      setCustomToneError(
+        "Chaque réponse doit contenir entre 200 et 900 caractères."
+      );
+      return;
+    }
+    setShowToneErrors(true);
+    setTouchedQuestions((prev) =>
+      CUSTOM_TONE_QUESTIONS.reduce(
+        (acc, question) => ({ ...acc, [question.key]: true }),
+        {} as Record<CustomToneKey, boolean>
+      )
+    );
+    if (!selectedAgent) {
+      setCustomToneError("Impossible de générer le ton pour le moment.");
+      return;
+    }
+    const configId =
+      selectedAgent.display_id ??
+      selectedAgent.agent_id ??
+      selectedAgent.id ??
+      "";
+    if (!configId) {
+      setCustomToneError("Impossible de générer le ton pour le moment.");
+      return;
+    }
+    const answersPayload = getTrimmedCustomToneAnswers();
+    setIsGeneratingCustomTone(true);
+    setCustomToneError(null);
+    setCustomToneStatus("processing");
+    try {
+      const { data, error } = await supabase.functions.invoke<{
+        success: boolean;
+        message?: string;
+        status?: string;
+        generated_prompt?: string;
+      }>("generate-custom-tone", {
+        body: {
+          config_id: configId,
+          answers: answersPayload,
+        },
+      });
+      if (error) {
+        throw error;
+      }
+      if (!data?.success) {
+        throw new Error(data?.message ?? "La génération du ton a échoué.");
+      }
+      setCustomToneStatus(data.status === "configured" ? "configured" : "processing");
+      if (typeof data.generated_prompt === "string") {
+        setCustomToneGeneratedPrompt(data.generated_prompt);
+        setCustomToneLastGeneratedAt(new Date().toISOString());
+        setLastGeneratedAnswers(answersPayload);
+      }
+      await refreshDisplayedAgents();
+      setCustomToneStatus("configured");
+      setShowToneErrors(false);
+    } catch (generationError) {
+      console.error("Erreur génération ton personnalisé", generationError);
+      setCustomToneStatus("failed");
+      setCustomToneError(
+        generationError instanceof Error
+          ? generationError.message
+          : "Une erreur est survenue, veuillez réessayer ultérieurement."
+      );
+    } finally {
+      setIsGeneratingCustomTone(false);
+    }
+  }, [
+    customToneAnswers,
+    getTrimmedCustomToneAnswers,
+    refreshDisplayedAgents,
+    selectedAgent,
+  ]);
+
+  const trimmedCustomToneAnswers = useMemo(
+    () => getTrimmedCustomToneAnswers(),
+    [getTrimmedCustomToneAnswers]
+  );
+
+  const hasValidCustomToneAnswers = useMemo(
+    () => !Object.values(customToneValidationErrors).some(Boolean),
+    [customToneValidationErrors]
+  );
+
+  const answersChangedSinceGeneration = useMemo(() => {
+    if (!lastGeneratedAnswers) {
+      return false;
+    }
+    return CUSTOM_TONE_QUESTIONS.some((question) => {
+      const previous = lastGeneratedAnswers[question.key] ?? "";
+      const current = trimmedCustomToneAnswers[question.key] ?? "";
+      return previous !== current;
+    });
+  }, [lastGeneratedAnswers, trimmedCustomToneAnswers]);
+
+  const toneStatus = useMemo<ToneStatus>(() => {
+    if (tone !== "custom") {
+      return "idle";
+    }
+    if (customToneStatus === "configured" && customToneGeneratedPrompt) {
+      return answersChangedSinceGeneration ? "modified" : "configured";
+    }
+    const allAnswered = CUSTOM_TONE_QUESTIONS.every((question) => {
+      const value = trimmedCustomToneAnswers[question.key] ?? "";
+      return value.length >= 200 && value.length <= 900;
+    });
+    if (allAnswered && hasValidCustomToneAnswers) {
+      return "answers_saved";
+    }
+    return "fallback_to_normal";
+  }, [
+    tone,
+    customToneStatus,
+    customToneGeneratedPrompt,
+    answersChangedSinceGeneration,
+    hasValidCustomToneAnswers,
+    trimmedCustomToneAnswers,
+  ]);
+
+  const selectedToneLabel = useMemo(() => {
+    return toneOptions.find((option) => option.value === tone)?.label ?? "Normal";
+  }, [tone]);
+
+  const activeToneDescription = useMemo(() => {
+    if (tone !== "custom") {
+      return `${selectedToneLabel} (actif)`;
+    }
+    if (toneStatus === "configured" && customToneLastGeneratedAt) {
+      const formattedDate = new Date(customToneLastGeneratedAt).toLocaleString("fr-FR", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+      return `Ton personnalisé généré le ${formattedDate}`;
+    }
+    if (toneStatus === "modified") {
+      return "Ton personnalisé prêt, régénération recommandée.";
+    }
+    if (toneStatus === "answers_saved") {
+      return "Ton personnalisé prêt à être généré.";
+    }
+    return "Ton Normal (utilisé tant que le ton personnalisé n’est pas généré).";
+  }, [tone, toneStatus, selectedToneLabel, customToneLastGeneratedAt]);
   /**
    * Récupère les valeurs sauvegardées dans Supabase pour pré-remplir la section
    * lorsque l’utilisateur ouvre Configurations.
@@ -1113,6 +1481,10 @@ const AgentAi: FunctionComponent = () => {
   );
 
   const hasValidationErrors = Object.values(errors).some(Boolean);
+  const hasCustomToneValidationErrors = useMemo(
+    () => Object.values(customToneValidationErrors).some(Boolean),
+    [customToneValidationErrors]
+  );
 
   // ------------------------------PROMPT---------------------------------
   /**
@@ -1190,6 +1562,22 @@ const AgentAi: FunctionComponent = () => {
         return;
       }
     }
+    const trimmedCustomToneAnswers = getTrimmedCustomToneAnswers();
+    const customTonePayload =
+      tone === "custom"
+        ? {
+            status: customToneStatus,
+            answers: trimmedCustomToneAnswers,
+            generated_prompt:
+              customToneStatus === "configured"
+                ? customToneGeneratedPrompt
+                : "",
+            last_generated_at:
+              customToneStatus === "configured"
+                ? customToneLastGeneratedAt
+                : null,
+          }
+        : undefined;
     const snapshot = getCurrentDetailsSnapshot();
     const { error } = await supabase
       .from("agent_configs")
@@ -1208,7 +1596,10 @@ const AgentAi: FunctionComponent = () => {
             productName: snapshot.productName,
             timeSlots: snapshot.timeSlots,
             timezone: "Europe/Paris",
-            schedule_version: (selectedAgent.configs.Details?.schedule_version ?? 0) + 1,
+            schedule_version: (typeof selectedAgent.configs.Details?.schedule_version === "number" 
+              ? selectedAgent.configs.Details.schedule_version 
+              : 0) + 1,
+            ...(customTonePayload ? { custom_tone: customTonePayload } : {}),
           },
         },
       })
@@ -1226,20 +1617,9 @@ const AgentAi: FunctionComponent = () => {
   };
 
   return (
-    <div className={styles.agentai}>
-      <NavigationBar
-        door="open"
-        divider="/divider.svg"
-        iconBorder4="none"
-        iconPadding4="0"
-        iconBackgroundColor4="transparent"
-        iconBorder5="none"
-        iconPadding5="0"
-        iconBackgroundColor5="transparent"
-        selectedItem="agentia"
-      />
-      <main className={styles.rightcomponent}>
-        <Header logoMarque="/logoMarque@2x.png" />
+    <AppLayout>
+      <div className={styles.rightcomponent}>
+        <Header minimal showLogo={false} />
         <div className={styles.tabcomponent}>
           <TabComponent
             label="Mes agents"
@@ -1347,6 +1727,7 @@ const AgentAi: FunctionComponent = () => {
         {activeCorner && selectedAgent && (
             <div
               className={styles.cornerOverlay}
+              data-sidebar-collapsed={isSidebarCollapsed}
               onClick={() => {
                 if (activeCorner === "Details") {
                   handleCloseDetailsOverlay();
@@ -1437,29 +1818,39 @@ const AgentAi: FunctionComponent = () => {
                 </>
               )}
               {activeCorner === "Details" && (
-                <div className={styles.detailsLayout}>
-                  <div className={styles.detailsHeader}>
+                <div className={styles.modalContainer}>
+                  <div className={styles.modalHeader}>
                     <div>
                       <h3>Configuration de l’agent</h3>
-                      <p className={styles.detailsSubtitle}>
+                      <p className={styles.modalSubtitle}>
                         Donne suffisamment d’éléments pour guider la prise de parole de ton agent IA.
                       </p>
                     </div>
                   </div>
-                  <div className={styles.detailsGrid}>
-                    <section className={`${styles.detailsCard} ${styles.detailsCardWide}`}>
-                      <div className={styles.cardHeader}>
-                        <h4 className={styles.cardTitle}>Contexte</h4>
-                        <p className={styles.cardDescription}>
-                          Texte libre et/ou PDF pour expliquer le ton, le produit et les limites à respecter.
-                        </p>
-                      </div>
-                      <textarea
-                        value={contextText}
-                        onChange={(event) => setContextText(event.target.value)}
-                        placeholder="Décris le contexte à prendre en compte..."
-                        className={styles.detailsTextarea}
-                      />
+                  
+                  {/* Section 01 : Contexte */}
+                  <section className={styles.modalSection}>
+                    <div className={styles.sectionHeading}>
+                      <span className={styles.sectionStep}>01</span>
+                      <h4 className={styles.sectionTitle}>Contexte</h4>
+                    </div>
+                    <p className={styles.sectionDescription}>
+                      Explique à l'agent le ton, le produit et les limites à respecter.
+                    </p>
+                    <textarea
+                      value={contextText}
+                      onChange={(event) => setContextText(event.target.value)}
+                      placeholder="Décrivez ici le ton à adopter, le produit ou service, et toutes les informations importantes que l'agent doit connaître pour bien répondre aux prospects."
+                      className={styles.contextTextarea}
+                      rows={8}
+                    />
+                    <div className={styles.pdfSection}>
+                      <h5 className={styles.pdfSectionTitle}>
+                        Documentation complémentaire
+                      </h5>
+                      <p className={styles.pdfSectionDescription}>
+                        Importez un PDF avec des informations détaillées que l'agent pourra consulter (brochure produit, FAQ, etc.).
+                      </p>
                       <div className={styles.dropzoneWrapper}>
                         <label
                           htmlFor="contextPdfInput"
@@ -1508,16 +1899,17 @@ const AgentAi: FunctionComponent = () => {
                           <p className={styles.fieldError}>{errors.contextPdf}</p>
                         )}
                       </div>
+                    </div>
                     </section>
-                    <section className={`${styles.detailsCard} ${styles.detailsCardWide}`}>
-                      <div className={styles.cardHeader}>
-                        <h4 className={styles.cardTitle}>
-                          Produit
-                        </h4>
-                        <p className={styles.cardDescription}>
-                          Donne un nom au produit ou service que cet agent représente.
-                        </p>
-                      </div>
+                  {/* Section 02 : Produit */}
+                  <section className={styles.modalSection}>
+                    <div className={styles.sectionHeading}>
+                      <span className={styles.sectionStep}>02</span>
+                      <h4 className={styles.sectionTitle}>Produit</h4>
+                    </div>
+                    <p className={styles.sectionDescription}>
+                      Nom du produit ou service que cet agent représente.
+                    </p>
                       <input
                         type="text"
                         value={productName}
@@ -1529,20 +1921,26 @@ const AgentAi: FunctionComponent = () => {
                         <p className={styles.fieldError}>{errors.productName}</p>
                       )}
                     </section>
-                    <section className={`${styles.detailsCard} ${styles.detailsCardFullWidth}`}>
-                      <div className={styles.cardHeader}>
-                        <h4 className={styles.cardTitle}>Horaires d’activation</h4>
-                        <p className={styles.cardDescription}>
-                          Défini les jours et la plage horaire à respecter pour ce contexte.
-                        </p>
-                      </div>
-                      <div className={styles.dayToggles}>
+                  {/* Section 03 : Horaires d'activation */}
+                  <section className={styles.modalSection}>
+                    <div className={styles.sectionHeading}>
+                      <span className={styles.sectionStep}>03</span>
+                      <h4 className={styles.sectionTitle}>Horaires d’activation</h4>
+                    </div>
+                    <p className={styles.sectionDescription}>
+                      Définissez les jours et créneaux horaires où l'agent sera actif pour répondre aux prospects.
+                    </p>
+                    
+                    {/* Sous-section 1: Jours actifs */}
+                    <div className={styles.scheduleSubsection}>
+                      <h5 className={styles.subsectionTitle}>Jours actifs</h5>
+                      <div className={styles.dayChips}>
                         {dayLabels.map((day) => (
                           <button
                             key={day.key}
                             type="button"
-                            className={`${styles.dayToggle} ${
-                              activeDays[day.key] ? styles.dayToggleActive : ""
+                            className={`${styles.dayChip} ${
+                              activeDays[day.key] ? styles.dayChipActive : ""
                             }`}
                             aria-pressed={activeDays[day.key]}
                             onClick={() => toggleDay(day.key)}
@@ -1551,11 +1949,14 @@ const AgentAi: FunctionComponent = () => {
                           </button>
                         ))}
                       </div>
-                      <div className={styles.timeFields}>
+                    </div>
+                    
+                    {/* Sous-section 2: Plage horaire principale */}
+                    <div className={styles.scheduleSubsection}>
+                      <h5 className={styles.subsectionTitle}>Plage horaire principale</h5>
+                      <div className={styles.timeInputGroup}>
                         <div className={styles.timeField}>
-                          <label htmlFor="timeStart" className={styles.fieldLabel}>
-                            De
-                          </label>
+                          <label htmlFor="timeStart">De</label>
                           <input
                             id="timeStart"
                             type="time"
@@ -1565,9 +1966,7 @@ const AgentAi: FunctionComponent = () => {
                           />
                         </div>
                         <div className={styles.timeField}>
-                          <label htmlFor="timeEnd" className={styles.fieldLabel}>
-                            À
-                          </label>
+                          <label htmlFor="timeEnd">À</label>
                           <input
                             id="timeEnd"
                             type="time"
@@ -1577,6 +1976,17 @@ const AgentAi: FunctionComponent = () => {
                           />
                         </div>
                       </div>
+                    </div>
+                    
+                    {/* Sous-section 3: Créneaux spécifiques */}
+                    <div className={styles.scheduleSubsection}>
+                      <h5 className={styles.subsectionTitle}>Créneaux spécifiques (optionnel)</h5>
+                      <p className={styles.subsectionDescription}>
+                        Si vous ajoutez des créneaux, l'agent répondra uniquement pendant ces créneaux.
+                      </p>
+                      <p className={styles.subsectionInfo}>
+                        Si aucun créneau n’est ajouté, l’agent répondra pendant toute la plage horaire principale.
+                      </p>
                       <div className={styles.slotSection}>
                         <div className={styles.slotHeader}>
                           <span className={styles.slotHeaderLabel}>
@@ -1647,6 +2057,7 @@ const AgentAi: FunctionComponent = () => {
                           <p className={styles.fieldError}>{errors.timeSlots}</p>
                         )}
                       </div>
+                    </div>
                       {errors.activeDays && (
                         <p className={styles.fieldError}>{errors.activeDays}</p>
                       )}
@@ -1654,40 +2065,77 @@ const AgentAi: FunctionComponent = () => {
                         <p className={styles.fieldError}>{errors.timeRange}</p>
                       )}
                     </section>
-                    <section className={`${styles.detailsCard} ${styles.toneComingSoon}`}>
-                      <div className={styles.cardHeader}>
-                        <h4 className={styles.cardTitle}>Ton</h4>
-                        <p className={styles.cardDescription}>
-                          Choisis la personnalité par défaut que l’agent utilisera à l’écrit.
+                  {/* Bas de la modal : Layout 2 colonnes */}
+                  <div className={styles.twoColumnLayout}>
+                    {/* Colonne 1 : Ton */}
+                    <section className={`${styles.modalSection} ${styles.toneSection}`}>
+                      <div className={styles.sectionHeader}>
+                        <div className={styles.sectionHeading}>
+                          <span className={styles.sectionStep}>05</span>
+                          <h4 className={styles.sectionTitle}>Ton & Langage</h4>
+                          <span className={styles.newFeatureBadge}>Nouveau</span>
+                        </div>
+                        <p className={styles.sectionDescription}>
+                          Construis un ton cohérent, le langage est automatiquement inclus.
                         </p>
                       </div>
-                      <select
+                      <ToneSelector
                         value={tone}
-                        onChange={(event) =>
-                          setTone(event.target.value as ToneOption)
-                        }
-                        className={styles.toneSelect}
-                      >
-                        {toneOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <p className={styles.toneMeta}>
-                        {
-                          toneOptions.find((option) => option.value === tone)
-                            ?.description
-                        }
-                      </p>
-                      <div className={styles.toneComingSoonOverlay}>
-                        Bientôt disponible
+                        options={toneOptions}
+                        onChange={handleToneSelectionChange}
+                      />
+                      <div className={styles.languageLine}>
+                        <span className={styles.languageLabel}>Langage</span>
+                        <span className={styles.languageValue}>
+                          Français (automatiquement adapté selon le ton choisi)
+                        </span>
                       </div>
+                      <div className={styles.toneStateSummary}>
+                        <div className={styles.toneStateRow}>
+                          <span className={styles.toneStateLabel}>Ton sélectionné :</span>
+                          <span className={styles.toneStateValue}>
+                            {tone === "custom" ? "Personnalisé" : selectedToneLabel}
+                          </span>
+                        </div>
+                        <div className={styles.toneStateRow}>
+                          <span className={styles.toneStateLabel}>Agent utilise :</span>
+                          <span className={styles.toneStateValue}>
+                            {activeToneDescription}
+                          </span>
+                        </div>
+                        {tone === "custom" && toneStatus !== "configured" && (
+                          <p className={styles.toneFallbackNote}>
+                            Si le ton personnalisé n’est pas généré, le ton Normal reste
+                            actif par défaut.
+                          </p>
+                        )}
+                      </div>
+                      <div className={styles.toneStatusWrapper}>
+                        <ToneStatusIndicator
+                          status={toneStatus}
+                          lastGenerated={customToneLastGeneratedAt}
+                          onAction={
+                            toneStatus === "idle" ? undefined : handleGenerateCustomTone
+                          }
+                        />
+                      </div>
+                      {tone === "custom" && (
+                        <Button
+                          className={styles.customToneActionButton}
+                          onClick={handleOpenCustomToneModal}
+                        >
+                          Modifier les réponses
+                        </Button>
+                      )}
                     </section>
-                    <section className={styles.detailsCard}>
-                      <div className={styles.cardHeader}>
-                        <h4 className={styles.cardTitle}>Condition d’arrêt</h4>
-                        <p className={styles.cardDescription}>
+                    {/* Colonne 2 : Condition d'arrêt */}
+                    <section className={styles.modalSection}>
+                      <div className={styles.sectionHeader}>
+                        <div className={styles.sectionHeading}>
+                          <span className={styles.sectionStep}>04</span>
+                          <h4 className={styles.sectionTitle}>Condition d’arrêt</h4>
+                        </div>
+                        <p className={styles.sectionDescription}>
                           Si vous mettez un lien (ex: Calendly), décrivez à quoi il sert pour que l’agent comprenne quand s’arrêter.
                         </p>
                       </div>
@@ -1712,10 +2160,13 @@ const AgentAi: FunctionComponent = () => {
                       )}
                     </section>
                   </div>
-                  <div className={styles.detailsFooter}>
+                  <div className={styles.modalFooter}>
+                    <p className={styles.footerHint}>
+                      Les modifications sont enregistrées uniquement après validation.
+                    </p>
                     <button
                       type="button"
-                      className={styles.cornerOverlaySave}
+                      className={styles.saveButton}
                       onClick={handleSaveDetails}
                       disabled={hasValidationErrors}
                     >
@@ -1767,8 +2218,21 @@ const AgentAi: FunctionComponent = () => {
             </div>
           </div>
         )}
-      </main>
-    </div>
+        <ProgressiveQuestionModal
+          open={customToneModalOpen}
+          questions={CUSTOM_TONE_QUESTIONS}
+          answers={customToneAnswers}
+          validationErrors={customToneValidationErrors}
+          showValidationErrors={showToneErrors}
+          touched={touchedQuestions}
+          onAnswerChange={handleCustomToneAnswerChange}
+          onFieldTouch={handleQuestionTouch}
+          onClose={handleCloseCustomToneModal}
+          onGenerate={handleGenerateCustomTone}
+          isGenerating={isGeneratingCustomTone}
+        />
+      </div>
+    </AppLayout>
   );
 };
 

@@ -186,30 +186,53 @@
 
 .cornerOverlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--sidebar-open-width, 240px);
+  background: rgba(11, 18, 32, 0.4);
+  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--gap-16);
+  gap: 16px;
   z-index: 50;
+  transition: left 0.32s cubic-bezier(0.32, 0, 0.2, 1);
+}
+
+.cornerOverlay[data-sidebar-collapsed="true"] {
+  left: 76px;
+}
+
+@media screen and (max-width: 975px) {
+  .cornerOverlay {
+    left: 0;
+  }
 }
 
 .cornerOverlayContent {
-  width: min(90vw, 1100px);
-  max-width: 1100px;
+  width: min(90vw, 960px);
+  max-width: 960px;
   max-height: min(92vh, 920px);
-  background: var(--app-surface);
-  border-radius: var(--br-16);
-  padding: var(--padding-24);
-  box-shadow: var(--shadow-drop);
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   position: relative;
   text-align: left;
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--gap-20);
+  gap: 20px;
+  border: 1px solid rgba(230, 235, 242, 0.5);
+}
+
+@media screen and (max-width: 975px) {
+  .cornerOverlayContent {
+    width: min(90vw, 1100px);
+    max-width: 1100px;
+  }
 }
 
 .configurationOverlayContent {
@@ -223,6 +246,753 @@
   display: flex;
   flex-direction: column;
   gap: var(--gap-20);
+}
+
+/* Nouveau layout premium pour la modal */
+.modalContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-24);
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.modalHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-8);
+  padding-bottom: var(--padding-16);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.modalHeader h3 {
+  font-size: var(--fs-24);
+  font-weight: 600;
+  color: var(--app-text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.modalHeader .modalSubtitle,
+.modalHeader .detailsSubtitle {
+  font-size: var(--fs-16);
+  color: #5B667A;
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+
+.modalSection {
+  background: #FFFFFF;
+  border: 1px solid #E6EBF2;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.2s ease;
+}
+
+.modalSection:hover {
+  border-color: rgba(37, 99, 235, 0.1);
+}
+
+.toneSection {
+  border: 1px solid rgba(229, 231, 235, 0.6);
+  background: linear-gradient(180deg, #fdfdfd, #ffffff 60%);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 26px;
+}
+
+.newFeatureBadge {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-left: 6px;
+  position: relative;
+  top: -1px;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+}
+
+.toneStateSummary {
+  padding: 12px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toneStateRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  line-height: 1.5;
+}
+
+.toneStateLabel {
+  color: #64748b;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.toneStateValue {
+  color: var(--app-text-primary);
+  font-weight: 500;
+  text-align: right;
+  font-size: var(--fs-14);
+  max-width: 200px;
+}
+
+.toneFallbackNote {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: 8px;
+  border-left: 3px solid #f59e0b;
+  font-size: var(--fs-12);
+  color: #92400e;
+  line-height: 1.4;
+}
+
+.toneControlRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toneSelect {
+  flex: 1;
+  min-width: 180px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  font-size: var(--fs-14);
+  color: var(--app-text-primary);
+}
+
+.customToneActionButton {
+  white-space: nowrap;
+  padding: 10px 20px;
+}
+
+.customToneStatus {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.05);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.customToneHint {
+  margin: 0;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.customToneSuccess {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.customToneGeneratedPrompt {
+  margin-top: 8px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #f5f6fb;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  max-height: 140px;
+  overflow: auto;
+  font-size: 13px;
+  color: #0b1220;
+}
+
+.customToneOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 60;
+}
+
+.customToneModal {
+  width: min(92vw, 960px);
+  max-height: min(92vh, 920px);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.customToneModalHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.customToneModalHeader h3 {
+  margin: 0;
+  font-size: var(--fs-22);
+  color: var(--app-text-primary);
+}
+
+.customToneModalSubtitle {
+  margin: 4px 0 0;
+  color: var(--app-text-secondary);
+  font-size: var(--fs-14);
+}
+
+.customToneModalHint {
+  font-size: var(--fs-13);
+  color: #475569;
+  margin: 0;
+}
+
+.customToneModalStatus {
+  min-height: 36px;
+}
+
+.customToneQuestions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customToneQuestion {
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(248, 250, 252, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customToneQuestionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.customToneQuestionTitle {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.customToneQuestionExample {
+  margin: 4px 0 0;
+  font-size: var(--fs-13);
+  color: #475569;
+}
+
+.customToneQuestionBadge {
+  background: #e0e7ff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #312e81;
+}
+
+.customToneTextarea {
+  width: 100%;
+  min-height: 140px;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background: #ffffff;
+  padding: 12px 14px;
+  resize: vertical;
+  font-size: var(--fs-14);
+  font-family: inherit;
+  color: #0b1220;
+}
+
+.customToneModalPreview {
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 14px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.customToneModalPreview h4 {
+  margin: 0 0 8px;
+  font-size: var(--fs-16);
+}
+
+.customToneActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.customTonePrimaryButton {
+  padding: 12px 24px;
+}
+
+.customToneSecondaryButton {
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  background: transparent;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: #0b1220;
+  cursor: pointer;
+}
+
+.customToneSecondaryButton:hover {
+  border-color: rgba(15, 23, 42, 0.4);
+}
+
+@media screen and (max-width: 768px) {
+  .customToneModalHeader {
+    flex-direction: column;
+  }
+
+  .toneControlRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .customToneActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0B1220;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.sectionDescription {
+  font-size: var(--fs-14);
+  color: var(--app-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.twoColumnLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-16);
+}
+
+@media screen and (max-width: 768px) {
+  .twoColumnLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Styles améliorés pour les sections */
+.contextTextarea {
+  width: 100%;
+  min-height: 160px;
+  padding: var(--padding-16);
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-8);
+  font-family: inherit;
+  font-size: var(--fs-14);
+  line-height: 1.5;
+  color: var(--app-text-primary);
+  background-color: var(--app-surface);
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.contextTextarea:focus {
+  outline: none;
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.contextTextarea::placeholder {
+  color: var(--app-text-secondary);
+  opacity: 0.7;
+}
+
+.pdfSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+  padding: var(--padding-16);
+  background-color: #f8fafc;
+  border: 1px dashed var(--app-border);
+  border-radius: var(--br-8);
+  margin-top: var(--gap-8);
+}
+
+.pdfSectionTitle {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--app-text-primary);
+  margin: 0;
+}
+
+.pdfSectionDescription {
+  font-size: var(--fs-13);
+  color: var(--app-text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Styles pour les sous-sections des horaires */
+.scheduleSubsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+  padding: var(--padding-16);
+  background-color: #f8fafc;
+  border-radius: var(--br-8);
+  border: 1px solid #e2e8f0;
+}
+
+.subsectionTitle {
+  font-size: var(--fs-16);
+  font-weight: 600;
+  color: var(--app-text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.subsectionDescription {
+  font-size: var(--fs-14);
+  color: var(--app-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.dayChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-8);
+}
+
+.dayChip {
+  padding: 8px 12px;
+  border: 1px solid #E6EBF2;
+  border-radius: 20px;
+  background-color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 500;
+  color: #5B667A;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.dayChip:hover {
+  border-color: #2563EB;
+  background-color: rgba(37, 99, 235, 0.04);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.dayChip.active {
+  background-color: #2563EB;
+  color: white;
+  border-color: #2563EB;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.timeInputGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-16);
+}
+
+.timeField {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+}
+
+.timeField label {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--app-text-primary);
+  min-width: 24px;
+}
+
+.scheduleHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-8);
+  margin-bottom: var(--gap-16);
+}
+
+/* Styles premium pour les inputs et éléments */
+.detailsInput,
+.timeInput {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #E6EBF2;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #0B1220;
+  background-color: #FFFFFF;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.detailsInput:focus,
+.timeInput:focus {
+  outline: none;
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  transform: translateY(-1px);
+}
+
+.detailsInput::placeholder {
+  color: #5B667A;
+  opacity: 0.7;
+}
+
+/* Style premium pour le textarea condition d'arrêt */
+.stopTextarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 16px;
+  border: 1px solid #E6EBF2;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #0B1220;
+  background-color: #FFFFFF;
+  resize: vertical;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.stopTextarea:focus {
+  outline: none;
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  transform: translateY(-1px);
+}
+
+.stopTextarea::placeholder {
+  color: #5B667A;
+  opacity: 0.7;
+}
+
+/* Footer premium */
+.detailsFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--padding-24);
+  border-top: 1px solid var(--app-border);
+  margin-top: var(--gap-8);
+}
+
+/* Nouveau footer modal premium */
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding: 24px 0 0 0;
+  border-top: 1px solid #E6EBF2;
+  margin-top: 32px;
+  background: #F6F8FC;
+  margin-left: -24px;
+  margin-right: -24px;
+  margin-bottom: -24px;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-bottom: 24px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Bouton Enregistrer premium */
+.cornerOverlaySave {
+  background-color: var(--app-primary);
+  border: 1px solid var(--app-primary);
+  color: white;
+  padding: var(--padding-12) var(--padding-24);
+  border-radius: var(--br-8);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+
+.cornerOverlaySave:hover:not(:disabled) {
+  background-color: var(--app-primary-hover);
+  border-color: var(--app-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.cornerOverlaySave:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Nouveau bouton save premium */
+.saveButton {
+  background-color: #2563EB;
+  border: 1px solid #2563EB;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.saveButton:hover:not(:disabled) {
+  background-color: #1D4ED8;
+  border-color: #1D4ED8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Amélioration de la zone PDF */
+.dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--padding-20);
+  border: 2px dashed var(--app-border);
+  border-radius: var(--br-8);
+  background-color: #f8fafc;
+  color: var(--app-text-secondary);
+  font-size: var(--fs-14);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 80px;
+}
+
+.dropzone:hover:not(.dropzoneDisabled) {
+  border-color: var(--app-primary);
+  background-color: rgba(37, 99, 235, 0.02);
+  color: var(--app-primary);
+}
+
+.dropzoneDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+}
+
+/* Select premium pour le ton */
+.toneSelect {
+  width: 100%;
+  padding: var(--padding-12) var(--padding-16);
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-8);
+  font-family: inherit;
+  font-size: var(--fs-14);
+  color: var(--app-text-primary);
+  background-color: var(--app-surface);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.toneSelect:focus {
+  outline: none;
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Messages d'erreur premium */
+.fieldError {
+  color: var(--app-error);
+  font-size: var(--fs-13);
+  margin-top: var(--gap-4);
+  display: flex;
+  align-items: center;
+  gap: var(--gap-4);
+}
+
+.fieldError:before {
+  content: "⚠";
+  font-size: var(--fs-12);
+}
+
+/* Badge "Bientôt disponible" premium */
+/* Ajustements responsives */
+@media screen and (max-width: 768px) {
+  .modalContainer {
+    gap: var(--gap-20);
+  }
+  
+  .modalSection {
+    padding: var(--padding-20);
+  }
+  
+  .scheduleSubsection {
+    padding: var(--padding-12);
+  }
+  
+  .timeInputGroup {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .cornerOverlaySave {
+    width: 100%;
+  }
 }
 
 .configurationContent {
@@ -377,32 +1147,58 @@
   font-family: inherit;
 }
 
-.toneComingSoon {
-  position: relative;
-}
-
-.toneComingSoonOverlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  border-radius: inherit;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--app-surface);
-  font-weight: 700;
-  font-size: var(--fs-13);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  z-index: 1;
-  pointer-events: all;
-  cursor: not-allowed;
-}
-
 .toneMeta {
   margin: 0;
   font-size: var(--fs-13);
   color: var(--app-text-secondary);
+}
+
+.languageLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.languageLabel {
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.languageValue {
+  font-size: var(--fs-14);
+  color: var(--app-text-primary);
+  font-weight: 500;
+}
+
+.toneStatusWrapper {
+  margin-top: 8px;
+}
+
+.customToneActionButton {
+  justify-self: flex-end;
+  align-self: flex-start;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.05), rgba(37, 99, 235, 0.08));
+  color: var(--app-primary);
+  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: var(--fs-14);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
+}
+
+.customToneActionButton:hover {
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.12));
+  border-color: rgba(37, 99, 235, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
 
 .dayToggles {
@@ -865,4 +1661,67 @@
 .cornerOverlayEmpty {
   margin-top: var(--padding-16);
   color: var(--app-text-secondary);
+}
+
+/* UI polish overlay details - Mars 2026 */
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.sectionStep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid #E6EBF2;
+  background: #F6F8FC;
+  color: #5B667A;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.dayChipActive {
+  background-color: #2563EB;
+  color: #FFFFFF;
+  border-color: #2563EB;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.subsectionInfo {
+  margin: 0;
+  font-size: 12px;
+  color: #5B667A;
+}
+
+.modalFooter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  bottom: -24px;
+  z-index: 6;
+  justify-content: flex-end;
+  margin-top: 24px;
+  margin-left: -24px;
+  margin-right: -24px;
+  margin-bottom: -24px;
+  padding: 14px 24px;
+  background: #F6F8FC;
+  border-top: 1px solid #E6EBF2;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.footerHint {
+  margin: 0;
+  margin-right: auto;
+  font-size: 12px;
+  color: #5B667A;
 }

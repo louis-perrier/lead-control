@@ -1,0 +1,64 @@
+.modernSidebar {
+  --sidebar-open-width: 240px;
+  --sidebar-closed-width: 76px;
+  --sidebar-duration: 320ms;
+  
+  position: sticky;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: var(--sidebar-open-width);
+  background-color: var(--app-surface);
+  border-right: 1px solid var(--app-border);
+  flex-shrink: 0;
+  z-index: 100;
+  transition: width var(--sidebar-duration) cubic-bezier(0.32, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modernSidebar[data-collapsed="true"] {
+  width: var(--sidebar-closed-width);
+}
+
+.sidebarContent {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.navigationSections {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-16);
+  padding: var(--padding-16) 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.navigationSections::-webkit-scrollbar {
+  width: 4px;
+}
+
+.navigationSections::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.navigationSections::-webkit-scrollbar-thumb {
+  background: var(--app-border);
+  border-radius: var(--br-8);
+}
+
+.navigationSections::-webkit-scrollbar-thumb:hover {
+  background: var(--app-text-secondary);
+}
+
+/* Responsive - masquer sur mobile */
+@media screen and (max-width: 975px) {
+  .modernSidebar {
+    display: none;
+  }
+}

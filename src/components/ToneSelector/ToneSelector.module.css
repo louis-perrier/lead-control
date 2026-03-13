@@ -1,0 +1,41 @@
+.toneSelectorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.tonePill {
+  border-radius: 16px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tonePill:hover {
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
+.tonePillActive {
+  border-color: var(--app-primary);
+  box-shadow: 0 12px 20px rgba(37, 99, 235, 0.15);
+  transform: translateY(-1px);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.tonePillLabel {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+  color: var(--app-text-primary);
+}
+
+.tonePillDescription {
+  margin: 0;
+  font-size: var(--fs-13);
+  color: var(--app-text-secondary);
+  line-height: 1.4;
+}

@@ -2,12 +2,15 @@ import {
   Alert,
   Box,
   Button,
+  IconButton,
+  InputAdornment,
   TextField,
   Typography,
 } from "@mui/material";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Eye, EyeOff } from "lucide-react";
 
 type LoginForm = {
   email: string;
@@ -25,6 +28,7 @@ const Login = () => {
   const [form, setForm] = useState<LoginForm>(initialForm);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -101,12 +105,26 @@ const Login = () => {
           fullWidth
           required
           name="password"
-          type="password"
+          type={showPassword ? "text" : "password"}
           label="Mot de passe"
           value={form.password}
           onChange={handleChange}
           margin="normal"
           disabled={isSubmitting}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  edge="end"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  disabled={isSubmitting}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
         />
         <Button
           type="submit"
