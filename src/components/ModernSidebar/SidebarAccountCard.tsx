@@ -86,19 +86,14 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
     ? getStatusMessage(subscriptionState.status)
     : null;
 
-  const isTesteur = subscriptionState?.planKey === "TESTEUR";
   const creditsMonthly = !subscriptionState
     ? 100
-    : isTesteur
-    ? 1_000_000
     : subscriptionState.planKey === "none"
     ? 100
     : subscriptionState.creditsMonthly;
   
   const creditsBalance = !subscriptionState
     ? 100
-    : isTesteur
-    ? 1_000_000
     : subscriptionState.planKey === "none"
     ? 100
     : subscriptionState.creditsBalance;
