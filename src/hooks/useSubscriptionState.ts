@@ -29,23 +29,6 @@ type SubscriptionState = {
   capabilities: Capabilities;
 };
 
-const normalizeState = (state: SubscriptionState): SubscriptionState => {
-  if (state.planKey === "TESTEUR") {
-    return {
-      ...state,
-      agentsSettingsQty: 1,
-      creditsMonthly: 1_000_000,
-      creditsBalance: 1_000_000,
-      capabilities: {
-        ...state.capabilities,
-        maxSettingsAgents: 1,
-      },
-    };
-  }
-
-  return state;
-};
-
 const useSubscriptionState = () => {
   return useQuery<SubscriptionState>({
     queryKey: ["subscription", "state"],
@@ -72,7 +55,7 @@ const useSubscriptionState = () => {
       }
 
       const data = (await response.json()) as SubscriptionState;
-      return normalizeState(data);
+      return data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
