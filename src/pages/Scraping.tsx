@@ -89,7 +89,7 @@ const PLATFORM_META: Record<
 > = {
   instagram: {
     label: "Instagram",
-    icon: "/logoConnectors/instagram.webp",
+    icon: "/logoConnectors/instagram.svg",
     color: "var(--app-primary)",
   },
   tiktok: {

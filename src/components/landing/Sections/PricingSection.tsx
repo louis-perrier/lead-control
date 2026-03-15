@@ -1,4 +1,4 @@
-import { heroCopy } from "../../../config/landing";
+import { heroCopy, pricingData } from "../../../config/landing";
 import styles from "../../../styles/landing/Sections.module.css";
 
 type PricingSectionProps = {
@@ -10,19 +10,39 @@ const PricingSection = ({ onPrimaryCta, primaryCtaLabel }: PricingSectionProps) 
   return (
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
-        <p className={styles.sectionKicker}>Pricing</p>
-        <h2>Essai gratuit 7 jours, ensuite à partir de 100€/mois.</h2>
-        <p>
-          Le tarif de lancement reste fixe pendant la vague. Il augmente de +20 % dès que la phase se termine.
-        </p>
+        <p className={styles.sectionKicker}>{pricingData.kicker}</p>
+        <h2>{pricingData.title}</h2>
+        <p>{pricingData.subtitle}</p>
       </div>
-      <div className={styles.pricingCard}>
-        <h3>{heroCopy.trial}</h3>
-        <p className={styles.priceTag}>{heroCopy.pricing}</p>
-        <p className={styles.pricingNote}>{heroCopy.scarcityNote}</p>
-        <button type="button" onClick={onPrimaryCta} className={styles.ctaButton}>
-          {primaryCtaLabel}
-        </button>
+      <div className={styles.pricingWrap}>
+        <article className={styles.pricingCard}>
+          <h3>{heroCopy.trial}</h3>
+          <p className={styles.priceTag}>{heroCopy.pricing}</p>
+          <ul className={styles.pricingList}>
+            {pricingData.includes.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+          <button type="button" onClick={onPrimaryCta} className={styles.ctaButton}>
+            {primaryCtaLabel}
+          </button>
+          <p className={styles.pricingNote}>{heroCopy.scarcityNote}</p>
+        </article>
+
+        <aside className={styles.pricingSide}>
+          <p className={styles.pricingSideTitle}>Ce que vous obtenez des la mise en route</p>
+          {pricingData.highlights.map((item) => (
+            <article key={item.label} className={styles.pricingHighlight}>
+              <p>{item.label}</p>
+              <span>{item.value}</span>
+            </article>
+          ))}
+          {pricingData.reassurance.map((item) => (
+            <span key={item} className={styles.pricingBadge}>
+              {item}
+            </span>
+          ))}
+        </aside>
       </div>
     </section>
   );

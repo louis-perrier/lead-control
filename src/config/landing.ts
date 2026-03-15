@@ -3,114 +3,338 @@ export const BOOKING_URL = "https://calendly.com/louis-lautopreneur/15min";
 export const launchSpotsRemaining = 5;
 
 export const heroCopy = {
-  title: "Transforme tes DM Instagram en RDV concrets sans lâcher la main.",
+  eyebrow: "Agent IA setter pour DM Instagram",
+  title: "Automatisez vos DM entrants et transformez-les en rendez-vous qualifies.",
   subtitle:
-    "LeadControl répond aux messages, qualifie, résume et t’amène directement au lien que tu choisis. Tu gardes toujours le contrôle du point d’arrêt.",
-  trial: "Essai gratuit 7 jours, sans carte.",
-  pricing: "À partir de 100€/mois",
-  scarcityNote: "Le tarif augmente de +20 % après cette vague.",
+    "LeadControl repond comme un setter humain, qualifie vos prospects et propose le bon lien de rendez-vous au bon moment. Vous gardez le controle sur chaque conversation.",
+  releaseLabel: "Lancement public - Mars 2026",
+  releaseText:
+    "Concu pour les offres B2B, services et coaching qui veulent traiter les DM plus vite sans sacrifier la qualite.",
+  trial: "Essai gratuit 7 jours, sans carte",
+  pricing: "A partir de 100 EUR / mois",
+  scarcityNote: "Tarif de lancement reserve aux premiers comptes actifs.",
 };
 
 export const heroBullets = [
-  "Répond 24/7 pour ne plus laisser un lead froid.",
-  "Amène chaque conversation vers le lien que tu paramètres (Calendly, Formulaire, etc.).",
-  "Tu gardes la main : tu peux modifier, stopper ou superviser en un instant.",
+  "Qualification automatique des leads avec des messages naturels adaptes a votre offre.",
+  "Reponses instantanees sur les objections simples et questions frequentes.",
+  "Ton personnalise selon votre maniere d'ecrire et transfert vers Calendly au bon moment.",
+];
+
+export const heroTrustItems = [
+  "Configuration initiale accompagnee",
+  "Activation en moins de 24h",
+  "Pause / reprise de l'agent en un clic",
+];
+
+export const heroMiniProof = {
+  quote:
+    "On a gagne en regularite sur les DM sans perdre la qualite des echanges. Les rendez-vous sont mieux qualifies.",
+  author: "Thomas R.",
+  role: "Fondateur d'agence",
+};
+
+export const heroAppPreview = {
+  title: "Apercu application",
+  note: "Remplacez cette image par un vrai screenshot de votre dashboard.",
+  image: "/landing/proof-calendly.png",
+  alt: "Apercu du dashboard LeadControl",
+};
+
+export const partnerBadges = [
+  {
+    label: "Instagram",
+    status: "Canal principal",
+    icon: "/logoConnectors/instagram.svg",
+  },
+  {
+    label: "WhatsApp",
+    status: "Tres bientot",
+    icon: "/logoConnectors/whatsapp.webp",
+  },
+  {
+    label: "Calendly",
+    status: "Utilise actuellement",
+    icon: "https://cdn.simpleicons.org/calendly/006BFF",
+  },
+  {
+    label: "TikTok",
+    status: "Prochainement",
+    icon: "/logoConnectors/tiktok.webp",
+  },
+  {
+    label: "Telegram",
+    status: "Prochainement",
+    icon: "/logoConnectors/telegram.svg",
+  },
+];
+
+export const quickProofStats = [
+  {
+    value: "< 5 min",
+    label: "pour connecter et lancer le premier agent",
+  },
+  {
+    value: "24/7",
+    label: "reponse sur les nouveaux DM entrants",
+  },
+  {
+    value: "100%",
+    label: "conversations historisees et consultables",
+  },
 ];
 
 export const steps = [
   {
-    title: "Tu connectes ton Instagram",
-    description: "Canvas d’autorisation sécurisé, RGPD-friendly, compatible avec les comptes pro.",
-  },
-  {
-    title: "Tu définis ton point d’arrêt",
-    description: "Choisis ton lien (Calendly, formulaire, page vente) et ajuste la tonalité en 3 clics.",
-  },
-  {
-    title: "L’agent gère les DM, qualifier puis redirige",
+    title: "Connectez votre compte",
     description:
-      "Attention aux objections simples, résumé instantané et lien Calendly envoyé dès que c’est qualifié.",
+      "Connexion securisee et conforme aux standards de confidentialite pour demarrer sans friction.",
+  },
+  {
+    title: "Definissez vos regles",
+    description:
+      "Objectif, ton, criteres de qualification et lien de rendez-vous: tout est ajustable a tout moment.",
+  },
+  {
+    title: "L'agent execute et vous gardez la supervision",
+    description:
+      "Leads qualifies et handoff fluide vers votre calendrier quand le prospect est pret.",
   },
 ];
 
 export const capabilityItems = [
   {
-    title: "Qualification fluide",
-    description: "L’agent pose les bonnes questions, détecte l’intensité du besoin et prépare un résumé clair.",
+    title: "Qualification automatique",
+    description:
+      "Detection du besoin, du budget et de l'urgence selon vos criteres business.",
   },
   {
-    title: "Réponses rapides",
-    description: "Réponse automatique aux FAQs, objections simples et rappel de ton offre sans mentionner de scraping.",
+    title: "Reponses instantanees",
+    description:
+      "Prise en charge immediate des DM entrants pour eviter de laisser des conversations refroidir.",
   },
   {
-    title: "Point d’arrêt configurable",
-    description: "Tu choisis quand l’agent stoppe et propose ton lien Calendly ; tu peux le reprendre à tout moment.",
+    title: "Suivi des conversations",
+    description:
+      "Historique clair des echanges pour identifier les opportunites a traiter en priorite.",
+  },
+  {
+    title: "Prise de rendez-vous",
+    description:
+      "Envoi du bon lien au bon moment (Calendly, formulaire ou page interne).",
+  },
+  {
+    title: "Pilotage simple",
+    description:
+      "Pause, reprise et ajustement des regles en direct depuis un tableau de bord unique.",
+  },
+  {
+    title: "Posture setter experimente",
+    description:
+      "L'agent conduit la conversation comme un setter: questions utiles, qualification et orientation vers le rendez-vous.",
+  },
+  {
+    title: "Ton personnalise intelligent",
+    description:
+      "L'IA analyse votre facon d'ecrire et la structure de vos phrases pour generer des messages naturels et coherents.",
   },
 ];
 
-export const proofData = {
-  testimonial:
-    "« En 24h, un RDV qualifié. L’agent a neutralisé les objections et transmis le lien Calendly sans que j’intervienne. »",
-  author: "Nora, coach growth",
-  result: "1 RDV qualifié en 24h",
-};
-
 export const reassurancePoints = [
   {
-    title: "Conforme aux règles Meta",
-    description: "Politique RGPD respectée, HTTPS obligatoire et surveillance humaine du flux DM.",
+    title: "Conformite et supervision",
+    description:
+      "Historique des conversations, cadre de securite et controle humain sur les etapes sensibles.",
   },
   {
-    title: "Contrôle humain total",
-    description: "Stoppe, modifie, relance : tu actives/désactives l’agent en quelques clics.",
+    title: "Controle total",
+    description:
+      "Vous gardez la possibilite de modifier, interrompre ou reprendre toute conversation en temps reel.",
   },
   {
-    title: "Historique & multi-inbox",
-    description: "Toutes les conversations sont horodatées et accessibles, Instagram + Email pour commencer.",
+    title: "Vision business",
+    description:
+      "Toutes les interactions sont tracees pour suivre les opportunites et prioriser les actions commerciales.",
   },
 ];
 
 export const channels = {
-  active: ["Instagram", "Email"],
-  upcoming: ["TikTok (à venir)", "WhatsApp (en cours)", "Telegram (en cours)"],
+  active: ["Instagram", "Calendly"],
+  upcoming: ["WhatsApp (prochainement)", "TikTok (prochainement)", "Telegram (prochainement)"],
+};
+
+export const testimonials = [
+  {
+    name: "Nora L.",
+    role: "Coach business",
+    activity: "Accompagnement premium",
+    quote:
+      "Je ne passe plus mes soirees a repondre aux memes questions en DM. Les leads avances arrivent deja qualifies.",
+    initials: "NL",
+  },
+  {
+    name: "Thomas R.",
+    role: "Fondateur",
+    activity: "Agence acquisition",
+    quote:
+      "On a gagne du temps sans perdre la qualite des echanges. Les leads avances arrivent plus vite au bon moment.",
+    initials: "TR",
+  },
+  {
+    name: "Sarah M.",
+    role: "Closer",
+    activity: "Infoproduit / coaching",
+    quote:
+      "Le vrai plus: l'agent n'envoie le lien de call que quand la conversation est mature. Les rendez-vous sont plus pertinents.",
+    initials: "SM",
+  },
+  {
+    name: "Yann C.",
+    role: "CEO",
+    activity: "Services B2B",
+    quote:
+      "On garde la main sur chaque conversation, mais avec une cadence impossible a tenir manuellement.",
+    initials: "YC",
+  },
+  {
+    name: "Lea P.",
+    role: "Fondatrice",
+    activity: "Studio branding",
+    quote:
+      "Le ton reste naturel et proche de notre image. Les prospects arrivent mieux prepares au call.",
+    initials: "LP",
+  },
+  {
+    name: "Karim B.",
+    role: "Head of Sales",
+    activity: "Agence SMMA",
+    quote:
+      "On a clarifie notre process DM et l'equipe gagne du temps sur les conversations les plus repetitives.",
+    initials: "KB",
+  },
+  {
+    name: "Ines D.",
+    role: "Consultante",
+    activity: "Acquisition B2B",
+    quote:
+      "Leads mieux qualifies, moins d'aller-retours inutiles et une meilleure visibilite sur ce qui convertit.",
+    initials: "ID",
+  },
+  {
+    name: "Matthieu S.",
+    role: "Co-fondateur",
+    activity: "Cabinet conseil",
+    quote:
+      "Le flux est propre, les messages restent humains et l'equipe reprend la main facilement quand il faut.",
+    initials: "MS",
+  },
+];
+
+export const roiStats = [
+  {
+    value: "6h a 10h",
+    label: "de temps manuel economise par semaine",
+    note: "moyenne observee sur les premiers comptes actifs",
+  },
+  {
+    value: "x2",
+    label: "de vitesse de premiere reponse",
+    note: "par rapport a un traitement manuel en horaires limites",
+  },
+  {
+    value: "+18%",
+    label: "de conversations qui vont jusqu'au lien de rendez-vous",
+    note: "tendance initiale, resultat variable selon offre et volume",
+  },
+  {
+    value: "1 vue",
+    label: "sur toutes les conversations et handoffs",
+    note: "historique centralise pour mieux suivre les opportunites",
+  },
+];
+
+export const roiDisclaimer =
+  "Ces indicateurs proviennent de comptes en phase de lancement. Ils donnent une tendance et non une garantie de resultat.";
+
+export const pricingData = {
+  kicker: "Offre lancement",
+  title: "Essai gratuit 7 jours, puis abonnement mensuel flexible.",
+  subtitle:
+    "Vous testez le flux complet avant engagement, puis vous adaptez le niveau d'accompagnement selon vos besoins.",
+  includes: [
+    "Agent IA DM configure sur votre offre",
+    "Qualification + proposition de rendez-vous",
+    "Lien de rendez-vous configurable",
+    "Supervision et reprise manuelle a tout moment",
+    "Support de demarrage pour le setup",
+  ],
+  reassurance: [
+    "Sans engagement long terme",
+    "Sans carte pendant l'essai",
+    "Activation rapide",
+  ],
+  highlights: [
+    {
+      label: "Onboarding",
+      value: "1 call de cadrage + setup guide",
+    },
+    {
+      label: "Mise en route",
+      value: "Premiers messages automatises en moins de 24h",
+    },
+    {
+      label: "Pilotage",
+      value: "Ajustements de ton et regles depuis un seul dashboard",
+    },
+  ],
 };
 
 export const faqItems = [
   {
-    question: "Est-ce que je perds le contrôle ?",
+    question: "Est-ce que l'agent repond automatiquement a tous les messages ?",
     answer:
-      "Jamais. Tu peux stopper l’agent, revoir la conversation, relancer toi-même ou modifier le point d’arrêt en live.",
+      "Il suit les regles que vous definissez. Vous pouvez limiter les cas auto, valider certains messages ou reprendre la main quand vous le souhaitez.",
   },
   {
-    question: "Ça marche si je reçois beaucoup de DM ?",
+    question: "Peut-on personnaliser les reponses selon mon offre ?",
     answer:
-      "L’agent fait le tri, qualifie les leads chauds et te résume les plus prometteurs, même lors des pics.",
+      "Oui. L'agent adapte le ton, les formulations et les objections traitees selon votre offre et votre maniere d'ecrire.",
   },
   {
-    question: "Et si je veux changer l’objectif ?",
+    question: "Est-ce que ca fonctionne pour Instagram et WhatsApp ?",
     answer:
-      "Tu peux remplacer le lien cible (Calendly, formulaire, page) en quelques clics sans casser le flux en cours.",
+      "Instagram est le canal principal au lancement. WhatsApp sera ajoute prochainement.",
   },
   {
-    question: "C’est compatible avec mon Instagram pro ?",
+    question: "Est-ce que je garde le controle des conversations ?",
     answer:
-      "Oui, LeadControl fonctionne sur les comptes business/creator et respecte les limites imposées par Instagram.",
+      "Toujours. Vous pouvez voir l'historique, corriger un message, mettre l'agent en pause ou reprendre manuellement un lead.",
   },
   {
-    question: "C’est légal / conforme ?",
+    question: "En combien de temps l'installation est prete ?",
     answer:
-      "RGPD, HTTPS, suppression instantanée à la demande : on surligne la conformité sans jamais promettre de garantie impossible.",
+      "Le setup initial prend generalement quelques minutes, puis nous validons ensemble les regles de qualification.",
+  },
+  {
+    question: "Est-ce utile meme avec peu de volume ?",
+    answer:
+      "Oui, car l'objectif est aussi la regularite: reponse rapide, suivi propre et process stable des les premiers leads.",
   },
 ];
 
-export const faqCta = "Tu veux voir le flow ? Réserve un call, tu lances ton essai de 7 jours.";
+export const faqCta = "Besoin d'une demo rapide ? Reservez un call de 15 minutes.";
+
+export const finalCtaCopy = {
+  title: "Mettez vos DM au travail, sans perdre votre niveau d'exigence.",
+  subtitle:
+    "LeadControl automatise les taches repetitives et vous laisse la maitrise sur les moments strategiques de vente.",
+  reassurance: "Essai gratuit 7 jours, sans carte, avec accompagnement au demarrage.",
+};
 
 export const ctaOptions = [
-  "Je commande mes RDV",
-  "Je réveille mes DM",
   "Je verrouille mes RDV",
-  "Je déclenche le call gagné",
-  "Je prends les commandes des RDV",
+  "Je structure mes DM",
+  "Je passe en mode scalable",
 ];
 
-export const primaryCtaLabel = ctaOptions[2];
+export const primaryCtaLabel = ctaOptions[0];

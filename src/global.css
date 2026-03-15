@@ -232,3 +232,50 @@ body {
   --lh-22: 22px;
   --lh-28: 28px;
 }
+
+/* Scrollbars premium forcees sur toutes les pages app (Dashboard / Details / Paiements) */
+aside[data-collapsed] ~ main,
+aside[data-collapsed] ~ main * {
+  scrollbar-width: auto !important;
+  scrollbar-color: rgba(37, 99, 235, 0.78) rgba(148, 163, 184, 0.24) !important;
+}
+
+aside[data-collapsed] ~ main::-webkit-scrollbar,
+aside[data-collapsed] ~ main *::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+aside[data-collapsed] ~ main::-webkit-scrollbar-button,
+aside[data-collapsed] ~ main *::-webkit-scrollbar-button {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+aside[data-collapsed] ~ main::-webkit-scrollbar-track,
+aside[data-collapsed] ~ main *::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.24) !important;
+  border-radius: 999px !important;
+}
+
+aside[data-collapsed] ~ main::-webkit-scrollbar-thumb,
+aside[data-collapsed] ~ main *::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(37, 99, 235, 0.95),
+    rgba(37, 99, 235, 0.62)
+  ) !important;
+  border-radius: 999px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
+aside[data-collapsed] ~ main::-webkit-scrollbar-thumb:hover,
+aside[data-collapsed] ~ main *::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(29, 78, 216, 1),
+    rgba(37, 99, 235, 0.78)
+  ) !important;
+}

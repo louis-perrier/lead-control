@@ -1,4 +1,9 @@
-import { heroBullets, heroCopy } from "../../../config/landing";
+import {
+  heroAppPreview,
+  heroCopy,
+  heroMiniProof,
+  heroTrustItems,
+} from "../../../config/landing";
 import styles from "../../../styles/landing/HeroSection.module.css";
 
 type HeroSectionProps = {
@@ -11,49 +16,53 @@ const HeroSection = ({ onPrimaryCta, primaryCtaLabel, spotsRemaining }: HeroSect
   return (
     <section className={styles.hero} data-reveal>
       <div className={styles.heroContent}>
-        <p className={styles.heroTag}>Agent setter DM Instagram</p>
-        <div className={styles.heroRelease}>
-          <span className={styles.heroReleaseLabel}>Sortie officielle • 02 mars 2026</span>
-          <p className={styles.heroReleaseCopy}>
-            LeadControl débarque pour transformer chacune de vos conversations en opportunités.
-          </p>
-        </div>
+        <p className={styles.heroTag}>{heroCopy.eyebrow}</p>
         <h1>{heroCopy.title}</h1>
         <p className={styles.heroSubtitle}>{heroCopy.subtitle}</p>
-        <div className={styles.bulletGrid}>
-          {heroBullets.map((bullet) => (
-            <div key={bullet} className={styles.bullet}>
-              <span className={styles.bulletDot} />
-              <p>{bullet}</p>
-            </div>
-          ))}
-        </div>
-        <div className={styles.metaRow}>
-          <span className={styles.trial}>{heroCopy.trial}</span>
-          <span className={styles.pricing}>{heroCopy.pricing}</span>
-        </div>
-        <div className={styles.badgeRow}>
-          <div className={styles.scarcityBadge}>
-            Tarif lancement — places restantes : {spotsRemaining}
+
+        <div className={styles.heroActionPanel}>
+          <span
+            className={`${styles.keyInfoChip} ${styles.keyInfoScarcity} ${styles.keyInfoScarcityStandalone}`}
+          >
+            Offre lancement: {spotsRemaining} places restantes
+          </span>
+
+          <div className={styles.ctaRow}>
+            <button type="button" className={styles.heroCta} onClick={onPrimaryCta}>
+              {primaryCtaLabel}
+            </button>
+            <span className={styles.ctaHint}>Aucun CB, call de 15 minutes.</span>
           </div>
-          <p className={styles.scarcityNote}>{heroCopy.scarcityNote}</p>
-        </div>
-        <div className={styles.ctaRow}>
-          <button type="button" className={styles.heroCta} onClick={onPrimaryCta}>
-            {primaryCtaLabel}
-          </button>
-          <span className={styles.ctaHint}>Aucun CB, call en 15 minutes.</span>
+
+          <div className={styles.reassureRow}>
+            <span className={styles.keyInfoChip}>{heroCopy.trial}</span>
+            {heroTrustItems.slice(0, 2).map((item) => (
+              <span key={item} className={styles.trustItem}>
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
+
       <div className={styles.heroVisual}>
-        <div className={styles.heroFrame}>
-          <img
-            src="/landing/hero-mock.png"
-            alt="Mockup de la boîte de réception traitée par l’agent LeadControl"
-            loading="lazy"
-          />
-          <div className={styles.visualGlow} aria-hidden="true" />
-        </div>
+        <aside className={styles.appPreviewSlot}>
+          <div className={styles.appPreviewTop}>
+            <p className={styles.appPreviewTitle}>{heroAppPreview.title}</p>
+            <span className={styles.appPreviewBadge}>Zone image</span>
+          </div>
+          <p className={styles.appPreviewNote}>{heroAppPreview.note}</p>
+          <div className={styles.appPreviewFrame}>
+            <img src={heroAppPreview.image} alt={heroAppPreview.alt} loading="lazy" />
+            <div className={styles.visualGlow} aria-hidden="true" />
+          </div>
+          <article className={styles.miniProof}>
+            <p className={styles.miniProofQuote}>{heroMiniProof.quote}</p>
+            <p className={styles.miniProofAuthor}>
+              {heroMiniProof.author} - {heroMiniProof.role}
+            </p>
+          </article>
+        </aside>
       </div>
     </section>
   );

@@ -138,7 +138,7 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
       <div className={styles.creditsSection}>
         <div className={styles.creditsInfo}>
           <span className={styles.creditsText}>
-            {creditsBalance} / {creditsMonthly} crédits restants
+            {creditsBalance} / {creditsMonthly} crédits
           </span>
         </div>
         <CreditsProgressBar

@@ -1,18 +1,23 @@
 .toneSelectorGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .tonePill {
   border-radius: 16px;
   border: 1px solid var(--app-border);
   background: var(--app-surface);
-  padding: 16px;
+  min-height: 150px;
+  padding: 16px 18px;
   text-align: left;
   cursor: pointer;
   transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 6px;
 }
 
 .tonePill:hover {
@@ -37,5 +42,16 @@
   margin: 0;
   font-size: var(--fs-13);
   color: var(--app-text-secondary);
-  line-height: 1.4;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+@media (max-width: 680px) {
+  .toneSelectorGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tonePill {
+    min-height: 0;
+  }
 }

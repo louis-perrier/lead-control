@@ -1,36 +1,90 @@
 .footer {
-  padding: 2.5rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  color: rgba(255, 255, 255, 0.8);
+  margin-top: 0.9rem;
+  padding: 1.5rem 0 0.5rem;
+  display: grid;
+  gap: 0.9rem;
+  color: rgba(209, 223, 251, 0.88);
+}
+
+.topCard {
+  border-radius: 1rem;
+  border: 1px solid rgba(147, 197, 253, 0.24);
+  background:
+    radial-gradient(100% 120% at 0% 0%, rgba(34, 211, 238, 0.1), transparent 60%),
+    linear-gradient(155deg, rgba(9, 18, 32, 0.9), rgba(6, 12, 22, 0.86));
+  padding: 1rem 1.05rem;
 }
 
 .top {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.top p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .links {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.92rem;
 }
 
 .links a {
-  color: #22d3ee;
+  color: #93c5fd;
   text-decoration: none;
   font-size: 0.9rem;
+  transition: color 0.2s ease;
 }
 
 .links a:focus-visible,
 .links a:hover {
+  color: #67e8f9;
   text-decoration: underline;
 }
 
+.bottomBar {
+  border-radius: 0.95rem;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  background: rgba(4, 11, 21, 0.74);
+  padding: 0.72rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
 .bottom {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  font-size: 0.83rem;
+  color: rgba(191, 219, 254, 0.8);
+}
+
+.bottomBadges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.bottomBadge {
+  border-radius: 999px;
+  border: 1px solid rgba(147, 197, 253, 0.25);
+  background: rgba(11, 22, 38, 0.86);
+  color: rgba(219, 234, 254, 0.92);
+  padding: 0.3rem 0.64rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+@media (max-width: 780px) {
+  .bottomBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bottom {
+    font-size: 0.8rem;
+  }
 }

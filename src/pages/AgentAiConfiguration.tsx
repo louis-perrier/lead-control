@@ -1766,7 +1766,13 @@ const AgentAi: FunctionComponent = () => {
                             } ${logo.connectors_special ? styles.availableLogoSpecial : ""}`}
                           >
                             <img
-                              src={`/logoConnectors/${logo.connectors_name.toLowerCase()}.webp`}
+                              src={
+                                ["appel", "instagram"].includes(
+                                  logo.connectors_name.toLowerCase()
+                                )
+                                  ? `/logoConnectors/${logo.connectors_name.toLowerCase()}.svg`
+                                  : `/logoConnectors/${logo.connectors_name.toLowerCase()}.webp`
+                              }
                               alt={`${logo.connectors_name} logo`}
                               className={styles.availableLogo}
                             />

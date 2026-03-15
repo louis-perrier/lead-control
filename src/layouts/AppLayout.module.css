@@ -13,6 +13,44 @@
   overflow-x: hidden;
 }
 
+/* Scrollbar premium forcée sur toute l'app (Dashboard / Details / Paiements inclus) */
+.appMain,
+.appMain * {
+  scrollbar-width: auto !important;
+  scrollbar-color: rgba(37, 99, 235, 0.66) rgba(148, 163, 184, 0.22) !important;
+}
+
+.appMain::-webkit-scrollbar,
+.appMain *::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.appMain::-webkit-scrollbar-button,
+.appMain *::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.appMain::-webkit-scrollbar-track,
+.appMain *::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.2) !important;
+  border-radius: 999px !important;
+}
+
+.appMain::-webkit-scrollbar-thumb,
+.appMain *::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(37, 99, 235, 0.9),
+    rgba(37, 99, 235, 0.56)
+  ) !important;
+  border-radius: 999px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
 /* Responsive - layout sur mobile */
 @media screen and (max-width: 975px) {
   .appLayout {

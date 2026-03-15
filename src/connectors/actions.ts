@@ -97,13 +97,13 @@ export const buildConnectorActions = (
   const ctx = normalizeContext(context);
   return {
     appel: {
-      imageSrc: "/logoConnectors/appel.webp",
+      imageSrc: "/logoConnectors/appel.svg",
       color:"",
       onConnect: () => {},
       onDisconnect: () => {},
     },
     instagram: {
-      imageSrc: "/logoConnectors/instagram.webp",
+      imageSrc: "/logoConnectors/instagram.svg",
       color: "",
       onConnect: createConnectInstagram(ctx),
       onDisconnect: createDisconnectInstagram(ctx),

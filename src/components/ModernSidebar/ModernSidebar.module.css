@@ -33,7 +33,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--gap-16);
+  gap: 16px;
   padding: var(--padding-16) 0;
   overflow-y: auto;
   overflow-x: hidden;

@@ -379,7 +379,11 @@ const handleCancelDisconnect = () => {
                   <td className={styles.iconCell}>
                     <span className={styles.providerLogoShell}>
                       <img
-                        src={`/logoConnectors/${connection.provider.toLowerCase()}.webp`}
+                        src={
+                          ["appel", "instagram"].includes(connection.provider.toLowerCase())
+                            ? `/logoConnectors/${connection.provider.toLowerCase()}.svg`
+                            : `/logoConnectors/${connection.provider.toLowerCase()}.webp`
+                        }
                         alt={`${connection.provider} logo`}
                         className={styles.tableIcon}
                       />

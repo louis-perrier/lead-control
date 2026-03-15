@@ -5,13 +5,22 @@ const CapabilitiesSection = () => {
   return (
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
-        <p className={styles.sectionKicker}>Ce que fait vraiment l’agent</p>
-        <h2>Qualification, réponses, point d’arrêt paramétrable.</h2>
-        <p>Tu restes maître du flow : tu peux stopper, superviser ou relancer à tout moment.</p>
+        <p className={styles.sectionKicker}>Fonctionnalites cles</p>
+        <h2>Un agent IA complet pour qualifier et convertir en rendez-vous.</h2>
+        <p>
+          Chaque bloc est pense pour reduire le travail manuel sans perdre la personnalisation de
+          vos echanges.
+        </p>
       </div>
-      <div className={styles.cardGrid}>
-        {capabilityItems.map((entry) => (
-          <article key={entry.title} className={styles.card}>
+      <div className={`${styles.cardGrid} ${styles.capabilitiesGrid}`}>
+        {capabilityItems.map((entry, index) => (
+          <article
+            key={entry.title}
+            className={`${styles.card} ${
+              index === capabilityItems.length - 1 ? styles.capabilityCardFeatured : ""
+            }`}
+          >
+            <p className={styles.cardNumber}>{`0${index + 1}`}</p>
             <h3>{entry.title}</h3>
             <p>{entry.description}</p>
           </article>

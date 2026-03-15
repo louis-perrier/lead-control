@@ -1,47 +1,80 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap");
+
 :global(:root) {
-  --landing-bg: #01030a;
-  --landing-gradient: radial-gradient(circle at top, rgba(34, 211, 238, 0.18), transparent 55%);
-  --landing-grid: linear-gradient(90deg, rgba(34, 211, 238, 0.08) 1px, transparent 1px);
-  --landing-grid-size: 120px;
-  --landing-text: #f8fbff;
+  --landing-bg: #050b14;
+  --landing-bg-deep: #02060d;
+  --landing-surface: rgba(10, 21, 36, 0.72);
+  --landing-surface-strong: rgba(12, 26, 44, 0.9);
+  --landing-border: rgba(255, 255, 255, 0.14);
+  --landing-border-soft: rgba(147, 197, 253, 0.22);
+  --landing-text: #f4f8ff;
+  --landing-muted: rgba(226, 234, 255, 0.76);
+  --landing-brand: #2dd4bf;
+  --landing-brand-strong: #3b82f6;
+  --landing-brand-warm: #f59e0b;
+  --landing-shadow: 0 30px 80px rgba(2, 8, 23, 0.55);
+  --landing-radius-xl: 1.5rem;
+  --landing-font-display: "Sora", "Segoe UI", sans-serif;
+  --landing-font-body: "Manrope", "Segoe UI", sans-serif;
 }
 
-:global(body),
-:global(#root) {
+:global(body.landing-body) {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
+  color: var(--landing-text);
   background-color: var(--landing-bg);
-  background-image: var(--landing-gradient), var(--landing-grid);
-  background-size: cover, var(--landing-grid-size) var(--landing-grid-size);
-  background-repeat: no-repeat;
+  background-image:
+    radial-gradient(900px 420px at 6% -2%, rgba(45, 212, 191, 0.16), transparent 65%),
+    radial-gradient(720px 380px at 94% 4%, rgba(245, 158, 11, 0.12), transparent 70%),
+    linear-gradient(170deg, var(--landing-bg) 12%, var(--landing-bg-deep) 75%);
   background-attachment: fixed;
+  font-family: var(--landing-font-body);
+}
+
+:global(body.landing-body #root) {
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .page {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
-  color: var(--landing-text);
-  padding: 0 1.5rem 4rem;
-  width: min(1400px, 100%);
-  max-width: 1400px;
+  overflow-x: visible;
+  width: min(1160px, 100%);
   margin: 0 auto;
+  padding: 3.95rem 1.15rem 4.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 2.15rem;
 }
 
-.visible {
-  opacity: 1;
-  transform: translateY(0);
+.page::before {
+  content: "";
+  position: absolute;
+  inset: 5.6rem 0 auto;
+  height: 240px;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.24), transparent 72%);
+  filter: blur(36px);
+  pointer-events: none;
 }
 
 :global([data-reveal]) {
   opacity: 1;
-  transform: translateY(12px);
-  transition: opacity 0.8s ease, transform 0.8s ease;
+  transform: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .page {
+    padding-top: 3.75rem;
     padding-inline: 1rem;
+    gap: 1.75rem;
+  }
+
+  .page::before {
+    inset: 4.5rem 0 auto;
+    height: 180px;
   }
 }

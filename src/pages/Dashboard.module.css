@@ -33,6 +33,79 @@
   flex: 1;
   gap: 18px;
 }
+
+/* Scrollbar premium - Dashboard + Details */
+.claraDashboardArea,
+.claraDashboardArea *,
+.claraConfigMenu,
+.conversationList,
+.detailsSortMenu,
+.summaryModalContent,
+.errorModalContent,
+.chatMessages {
+  scrollbar-width: auto !important;
+  scrollbar-color: rgba(37, 99, 235, 0.62) rgba(148, 163, 184, 0.2) !important;
+}
+
+.claraDashboardArea::-webkit-scrollbar,
+.claraDashboardArea *::-webkit-scrollbar,
+.claraConfigMenu::-webkit-scrollbar,
+.conversationList::-webkit-scrollbar,
+.detailsSortMenu::-webkit-scrollbar,
+.summaryModalContent::-webkit-scrollbar,
+.errorModalContent::-webkit-scrollbar,
+.chatMessages::-webkit-scrollbar {
+  width: 11px !important;
+  height: 11px !important;
+}
+
+.claraDashboardArea::-webkit-scrollbar-button,
+.claraDashboardArea *::-webkit-scrollbar-button,
+.claraConfigMenu::-webkit-scrollbar-button,
+.conversationList::-webkit-scrollbar-button,
+.detailsSortMenu::-webkit-scrollbar-button,
+.summaryModalContent::-webkit-scrollbar-button,
+.errorModalContent::-webkit-scrollbar-button,
+.chatMessages::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.claraDashboardArea::-webkit-scrollbar-track,
+.claraDashboardArea *::-webkit-scrollbar-track,
+.claraConfigMenu::-webkit-scrollbar-track,
+.conversationList::-webkit-scrollbar-track,
+.detailsSortMenu::-webkit-scrollbar-track,
+.summaryModalContent::-webkit-scrollbar-track,
+.errorModalContent::-webkit-scrollbar-track,
+.chatMessages::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.2) !important;
+  border-radius: 999px !important;
+}
+
+.claraConfigMenu::-webkit-scrollbar-track,
+.conversationList::-webkit-scrollbar-track,
+.detailsSortMenu::-webkit-scrollbar-track,
+.summaryModalContent::-webkit-scrollbar-track,
+.errorModalContent::-webkit-scrollbar-track,
+.chatMessages::-webkit-scrollbar-track {
+  margin-block: 6px;
+}
+
+.claraDashboardArea::-webkit-scrollbar-thumb,
+.claraDashboardArea *::-webkit-scrollbar-thumb,
+.claraConfigMenu::-webkit-scrollbar-thumb,
+.conversationList::-webkit-scrollbar-thumb,
+.detailsSortMenu::-webkit-scrollbar-thumb,
+.summaryModalContent::-webkit-scrollbar-thumb,
+.errorModalContent::-webkit-scrollbar-thumb,
+.chatMessages::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.86), rgba(37, 99, 235, 0.5)) !important;
+  border-radius: 999px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
 .claraHeader {
   display: flex;
   flex-direction: column;

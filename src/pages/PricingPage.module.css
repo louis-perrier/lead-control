@@ -17,6 +17,53 @@
   overflow-x: hidden;
 }
 
+/* Scrollbar premium - Mes paiements */
+.mainComponent,
+.mainComponent *,
+.historyTable {
+  scrollbar-width: auto !important;
+  scrollbar-color: rgba(37, 99, 235, 0.62) rgba(148, 163, 184, 0.2) !important;
+}
+
+.mainComponent::-webkit-scrollbar,
+.mainComponent *::-webkit-scrollbar,
+.historyTable::-webkit-scrollbar {
+  width: 11px !important;
+  height: 11px !important;
+}
+
+.mainComponent::-webkit-scrollbar-button,
+.mainComponent *::-webkit-scrollbar-button,
+.historyTable::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.mainComponent::-webkit-scrollbar-track,
+.mainComponent *::-webkit-scrollbar-track,
+.historyTable::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.2) !important;
+  border-radius: 999px !important;
+}
+
+.mainComponent::-webkit-scrollbar-track {
+  margin-block: 6px;
+}
+
+.historyTable::-webkit-scrollbar-track {
+  margin-inline: 10px;
+}
+
+.mainComponent::-webkit-scrollbar-thumb,
+.mainComponent *::-webkit-scrollbar-thumb,
+.historyTable::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.86), rgba(37, 99, 235, 0.5)) !important;
+  border-radius: 999px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
 .container {
   margin: 0 auto;
   width: 100%;

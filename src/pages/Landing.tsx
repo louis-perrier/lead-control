@@ -7,7 +7,8 @@ import HeroSection from "../components/landing/Sections/HeroSection";
 import HowItWorksSection from "../components/landing/Sections/HowItWorksSection";
 import CapabilitiesSection from "../components/landing/Sections/CapabilitiesSection";
 import ProofSection from "../components/landing/Sections/ProofSection";
-import ReassuranceSection from "../components/landing/Sections/ReassuranceSection";
+import TestimonialsSection from "../components/landing/Sections/TestimonialsSection";
+import RoiSection from "../components/landing/Sections/RoiSection";
 import PricingSection from "../components/landing/Sections/PricingSection";
 import FinalCtaSection from "../components/landing/Sections/FinalCtaSection";
 import FaqSection from "../components/landing/Sections/FaqSection";
@@ -28,29 +29,16 @@ const Landing = () => {
   }, [loading, user, navigate]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add(styles.visible);
-          }
-        });
-      },
-      { threshold: 0.15 },
-    );
-
-    const elements = document.querySelectorAll<HTMLElement>("[data-reveal]");
-    elements.forEach((element) => observer.observe(element));
-
+    document.body.classList.add("landing-body");
     return () => {
-      observer.disconnect();
+      document.body.classList.remove("landing-body");
     };
   }, []);
 
   const handleOpenModal = () => setModalOpen(true);
   const handleCloseModal = () => setModalOpen(false);
 
-  const memoizedTitle = useMemo(() => "LeadControl — Agent setter DM Instagram", []);
+  const memoizedTitle = useMemo(() => "LeadControl - Agent IA DM Instagram", []);
 
   useEffect(() => {
     document.title = memoizedTitle;
@@ -65,13 +53,14 @@ const Landing = () => {
           primaryCtaLabel={primaryCtaLabel}
           spotsRemaining={spots}
         />
+        <ProofSection />
         <HowItWorksSection />
         <CapabilitiesSection />
-        <ProofSection />
-        <ReassuranceSection />
+        <TestimonialsSection />
+        <RoiSection />
         <PricingSection onPrimaryCta={handleOpenModal} primaryCtaLabel={primaryCtaLabel} />
-        <FinalCtaSection onPrimaryCta={handleOpenModal} />
         <FaqSection />
+        <FinalCtaSection onPrimaryCta={handleOpenModal} />
         <FooterLanding />
       </main>
       <BookCallModal open={modalOpen} onClose={handleCloseModal} />

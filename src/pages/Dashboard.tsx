@@ -75,7 +75,7 @@ const channelFilterOptions: ChannelFilterOption[] = [
 ];
 
 const channelFilterIcons: Record<ChannelOption, string> = {
-  Instagram: "/logoConnectors/instagram.webp",
+  Instagram: "/logoConnectors/instagram.svg",
   WhatsApp: "/logoConnectors/whatsapp.webp",
   Telegram: "https://cdn.simpleicons.org/telegram/229ED9",
 };
@@ -1720,4 +1720,3 @@ const Dashboard: FunctionComponent = () => {
 };
 
 export default Dashboard;
-

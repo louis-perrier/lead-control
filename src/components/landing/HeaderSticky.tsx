@@ -12,7 +12,7 @@ const HeaderSticky = ({ onPrimaryCta, primaryCtaLabel }: HeaderStickyProps) => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsSolid(window.scrollY > 30);
+      setIsSolid(window.scrollY > 24);
     };
     handleScroll();
     window.addEventListener("scroll", handleScroll);
@@ -23,7 +23,7 @@ const HeaderSticky = ({ onPrimaryCta, primaryCtaLabel }: HeaderStickyProps) => {
     <header className={`${styles.header} ${isSolid ? styles.solid : ""}`}>
       <div className={styles.logo}>
         <img src="/logo@2x.png" alt="Logo LeadControl" loading="lazy" />
-        <span>LEADCONTROL.FR</span>
+        <span>LEADCONTROL</span>
       </div>
       <div className={styles.ctas}>
         <Link to="/login" className={styles.secondary}>

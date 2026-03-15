@@ -7,6 +7,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--gap-12);
+  min-width: 0;
+  overflow: hidden;
+  will-change: auto;
 }
 
 .accountCardCollapsed {
@@ -16,9 +19,12 @@
 }
 
 .accountInfo {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-12);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: start;
 }
 
 .avatarButton {
@@ -26,6 +32,9 @@
   border: none;
   cursor: pointer;
   padding: 0;
+  align-self: start;
+  grid-column: 1;
+  grid-row: 1;
   border-radius: var(--br-8);
   transition: opacity 0.2s ease;
 }
@@ -76,32 +85,55 @@
 }
 
 .accountDetails {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-4);
+  display: contents;
   min-width: 0;
 }
 
 .userEmail {
-  font-size: var(--fs-14);
+  grid-column: 1 / -1;
+  grid-row: 2;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--app-text-primary);
+  display: block;
+  width: 100%;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-overflow: clip;
+  line-height: 1.3;
+  max-width: 100%;
+}
+
+.userEmail::-webkit-scrollbar {
+  display: none;
 }
 
 .planInfo {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
-  flex-direction: column;
-  gap: var(--gap-1);
+  align-items: center;
+  align-self: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 20px;
+  min-width: 0;
 }
 
 .planName {
-  font-size: var(--fs-12);
-  font-weight: 500;
-  color: var(--app-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1d4ed8;
+  background-color: #dbeafe;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 999px;
+  padding: 2px 8px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .trialBadge {
@@ -126,18 +158,34 @@
   display: flex;
   flex-direction: column;
   gap: var(--gap-8);
+  min-width: 0;
 }
 
 .creditsInfo {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.creditsInfo::-webkit-scrollbar {
+  display: none;
 }
 
 .creditsText {
+  display: inline-block;
+  width: max-content;
   font-size: var(--fs-12);
   font-weight: 500;
   color: var(--app-text-secondary);
+  min-width: max-content;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .upgradeButton {

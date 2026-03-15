@@ -1,22 +1,26 @@
 .sidebarSection {
   display: flex;
   flex-direction: column;
-  gap: var(--gap-6);
+  gap: 8px;
   padding: 0 var(--padding-12);
 }
 
 .sidebarSection[data-collapsed="true"] {
-  gap: var(--gap-4);
+  gap: 6px;
   padding: 0 var(--padding-6);
+}
+
+.sidebarSection + .sidebarSection {
+  margin-top: 3px;
 }
 
 .sectionTitle {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: #9ca3af;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0;
+  letter-spacing: 0.07em;
+  margin: 0 0 1px;
   padding: 0 var(--padding-8);
   line-height: 1.4;
 }
@@ -24,5 +28,5 @@
 .sectionItems {
   display: flex;
   flex-direction: column;
-  gap: var(--gap-2);
+  gap: 3px;
 }

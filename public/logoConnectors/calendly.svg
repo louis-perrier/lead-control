@@ -1,0 +1,10 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Calendly">
+  <defs>
+    <linearGradient id="calendlyGrad" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06B6D4"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#calendlyGrad)"/>
+  <path d="M40.7 20.9a11.7 11.7 0 0 0-17.8 9.9 11.7 11.7 0 0 0 17.8 9.9 2.3 2.3 0 0 0-2.4-4 7 7 0 1 1 0-11.8 2.3 2.3 0 1 0 2.4-4Z" fill="#FFFFFF"/>
+</svg>
