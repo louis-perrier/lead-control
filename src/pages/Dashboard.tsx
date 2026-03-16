@@ -134,6 +134,33 @@ const formatRelativeTime = (iso: string) => {
   return `il y a ${Math.floor(diffMinutes / 1440)} j`;
 };
 
+const formatDateSeparator = (iso: string) => {
+  const date = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (messageDate.getTime() === today.getTime()) {
+    return "Aujourd'hui";
+  }
+  if (messageDate.getTime() === yesterday.getTime()) {
+    return "Hier";
+  }
+
+  // Si c'est cette semaine, afficher le jour
+  const daysDiff = Math.floor((today.getTime() - messageDate.getTime()) / (24 * 60 * 60 * 1000));
+  if (daysDiff < 7 && daysDiff >= 2) {
+    return date.toLocaleDateString("fr-FR", { weekday: "long" });
+  }
+
+  // Sinon, afficher la date complète
+  return date.toLocaleDateString("fr-FR", { 
+    day: "numeric", 
+    month: "long" 
+  });
+};
+
 const normalizeChannel = (platform?: string): ChannelOption => {
   const normalized = platform?.toLowerCase();
   if (normalized === "instagram") {
@@ -562,6 +589,18 @@ const ChatBubble: FunctionComponent<{ message: Message }> = ({ message }) => {
   );
 };
 
+const DateSeparator: FunctionComponent<{ dateString: string }> = ({ dateString }) => {
+  return (
+    <div className={styles.dateSeparator}>
+      <div className={styles.dateSeparatorLine} />
+      <div className={styles.dateSeparatorText}>
+        {formatDateSeparator(dateString)}
+      </div>
+      <div className={styles.dateSeparatorLine} />
+    </div>
+  );
+};
+
 const ConversationMessageItem: FunctionComponent<{ message: Message }> = ({
   message,
 }) => {
@@ -791,7 +830,41 @@ const Dashboard: FunctionComponent = () => {
     if (!activeConversation) {
       return [];
     }
-    return activeConversation.messages;
+    const messages = activeConversation.messages;
+    const messagesWithSeparators: Array<Message | { type: 'date-separator'; date: string; id: string }> = [];
+
+    for (let i = 0; i < messages.length; i++) {
+      const currentMessage = messages[i];
+      const currentDate = new Date(currentMessage.sentAt);
+      const currentDayString = currentDate.toDateString();
+
+      // Vérifier si on doit ajouter un séparateur de date
+      if (i === 0) {
+        // Premier message, toujours ajouter un séparateur
+        messagesWithSeparators.push({
+          type: 'date-separator',
+          date: currentMessage.sentAt,
+          id: `date-${currentDayString}`
+        });
+      } else {
+        const previousMessage = messages[i - 1];
+        const previousDate = new Date(previousMessage.sentAt);
+        const previousDayString = previousDate.toDateString();
+
+        // Si le jour a changé, ajouter un séparateur
+        if (currentDayString !== previousDayString) {
+          messagesWithSeparators.push({
+            type: 'date-separator',
+            date: currentMessage.sentAt,
+            id: `date-${currentDayString}`
+          });
+        }
+      }
+
+      messagesWithSeparators.push(currentMessage);
+    }
+
+    return messagesWithSeparators;
   }, [activeConversation]);
 
   const previousConversationRef = useRef<{
@@ -1620,9 +1693,22 @@ const Dashboard: FunctionComponent = () => {
                     </div>
                   )}
                   <div className={styles.chatMessages} ref={messagesContainerRef}>
-                    {messagesForDisplay.map((message) => (
-                      <ConversationMessageItem key={message.id} message={message} />
-                    ))}
+                  {messagesForDisplay.map((item) => {
+                      if ('type' in item && item.type === 'date-separator') {
+                        return (
+                          <DateSeparator
+                            key={item.id}
+                            dateString={item.date}
+                          />
+                        );
+                      }
+                      return (
+                        <ConversationMessageItem
+                          key={item.id}
+                          message={item as Message}
+                        />
+                      );
+                    })}
                     <div ref={messagesEndRef} />
                   </div>
                   <div className={styles.chatComposer}>

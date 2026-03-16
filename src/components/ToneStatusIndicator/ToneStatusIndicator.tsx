@@ -12,6 +12,7 @@ type ToneStatusIndicatorProps = {
   status: ToneStatus;
   lastGenerated?: string | null;
   onAction?: () => void;
+  isGenerating?: boolean;
 };
 
 const statusLabels: Record<ToneStatus, { title: string; hint: string; action?: string }> = {
@@ -44,6 +45,7 @@ const ToneStatusIndicator: React.FC<ToneStatusIndicatorProps> = ({
   status,
   lastGenerated,
   onAction,
+  isGenerating = false,
 }) => {
   const current = statusLabels[status];
   return (
@@ -60,8 +62,13 @@ const ToneStatusIndicator: React.FC<ToneStatusIndicatorProps> = ({
         </p>
       </div>
       {current.action && onAction && (
-        <button type="button" className={styles.statusAction} onClick={onAction}>
-          {current.action}
+        <button 
+          type="button" 
+          className={`${styles.statusAction} ${isGenerating ? styles.statusActionDisabled : ""}`}
+          onClick={isGenerating ? undefined : onAction}
+          disabled={isGenerating}
+        >
+          {isGenerating ? "Génération en cours..." : current.action}
         </button>
       )}
     </div>

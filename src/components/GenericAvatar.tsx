@@ -178,7 +178,7 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
                   </span>
                   <span className={styles.creditsInfo}>
                     {subscriptionState.planKey === "none" 
-                      ? "50 crédits disponibles"
+                      ? "0 crédit disponible"
                       : `${subscriptionState.creditsBalance} crédits restants`
                     }
                   </span>

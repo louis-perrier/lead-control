@@ -4,13 +4,21 @@ import {
   Button,
   IconButton,
   InputAdornment,
+  Link,
+  Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import AuthLayout, {
+  authActionButtonSx,
+  authAlertSx,
+  authFieldSx,
+  authLinkSx,
+} from "../components/auth/AuthLayout";
 
 type LoginForm = {
   email: string;
@@ -32,7 +40,7 @@ const Login = () => {
 
   useEffect(() => {
     if (user) {
-      navigate("/", { replace: true });
+      navigate("/app", { replace: true });
     }
   }, [user, navigate]);
 
@@ -48,45 +56,32 @@ const Login = () => {
 
     try {
       await signIn(form);
-      navigate("/", { replace: true });
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Impossible de se connecter.";
-      setError(message);
+      navigate("/app", { replace: true });
+    } catch (_err) {
+      setError("Email ou mot de passe incorrect");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+
   return (
-    <Box
-      component="main"
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        px: 2,
-        bgcolor: "background.default",
-      }}
+    <AuthLayout
+      title="Connexion"
+      subtitle="Accède à ton cockpit LeadControl en toute sécurité."
+      hint={
+        <Typography variant="body2" color="text.secondary">
+          Besoin d’aide ? Contacte l’équipe LeadControl.
+        </Typography>
+      }
     >
       <Box
         component="form"
         onSubmit={handleSubmit}
-        sx={{
-          width: "100%",
-          maxWidth: 420,
-          p: 4,
-          borderRadius: 2,
-          boxShadow: 3,
-          bgcolor: "background.paper",
-        }}
+        sx={{ display: "flex", flexDirection: "column", gap: 2 }}
       >
-        <Typography component="h1" variant="h5" mb={2}>
-          Connexion
-        </Typography>
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ ...authAlertSx }}>
             {error}
           </Alert>
         )}
@@ -98,8 +93,8 @@ const Login = () => {
           label="Adresse e-mail"
           value={form.email}
           onChange={handleChange}
-          margin="normal"
           disabled={isSubmitting}
+          sx={authFieldSx}
         />
         <TextField
           fullWidth
@@ -109,13 +104,15 @@ const Login = () => {
           label="Mot de passe"
           value={form.password}
           onChange={handleChange}
-          margin="normal"
           disabled={isSubmitting}
+          sx={authFieldSx}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">
                 <IconButton
-                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  aria-label={
+                    showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"
+                  }
                   edge="end"
                   onClick={() => setShowPassword((prev) => !prev)}
                   disabled={isSubmitting}
@@ -129,14 +126,26 @@ const Login = () => {
         <Button
           type="submit"
           variant="contained"
-          fullWidth
-          sx={{ mt: 2 }}
           disabled={isSubmitting}
+          sx={{ ...authActionButtonSx }}
         >
           {isSubmitting ? "Connexion..." : "Se connecter"}
         </Button>
+        <Stack
+          direction="row"
+          spacing={1}
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Link component={RouterLink} to="/signup" sx={authLinkSx} underline="hover">
+            Créer un compte
+          </Link>
+          <Link component={RouterLink} to="/forgot-password" sx={authLinkSx} underline="hover">
+            Mot de passe oublié ?
+          </Link>
+        </Stack>
       </Box>
-    </Box>
+    </AuthLayout>
   );
 };
 

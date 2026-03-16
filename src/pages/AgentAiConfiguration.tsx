@@ -1841,12 +1841,12 @@ const AgentAi: FunctionComponent = () => {
                       <h4 className={styles.sectionTitle}>Contexte</h4>
                     </div>
                     <p className={styles.sectionDescription}>
-                      Explique à l'agent le ton, le produit et les limites à respecter.
+                      Décris ton produit ou service en détail pour que l'agent puisse répondre à toutes les questions des prospects sur ton offre.
                     </p>
                     <textarea
                       value={contextText}
                       onChange={(event) => setContextText(event.target.value)}
-                      placeholder="Décrivez ici le ton à adopter, le produit ou service, et toutes les informations importantes que l'agent doit connaître pour bien répondre aux prospects."
+                      placeholder="Exemple : Mon produit est une formation en ligne sur le dropshipping à 497€. Elle comprend 25 modules vidéo, un groupe privé Discord, 3 sessions de coaching en live par mois, et un accès à vie. Les avantages principaux sont : méthode testée sur +1000 élèves, accompagnement personnalisé, garantie remboursé 30j. Le processus : appel découverte gratuit de 30min → présentation de l'offre → paiement en 1x ou 3x sans frais."
                       className={styles.contextTextarea}
                       rows={8}
                     />
@@ -2123,6 +2123,7 @@ const AgentAi: FunctionComponent = () => {
                           onAction={
                             toneStatus === "idle" ? undefined : handleGenerateCustomTone
                           }
+                          isGenerating={isGeneratingCustomTone}
                         />
                       </div>
                       {tone === "custom" && (

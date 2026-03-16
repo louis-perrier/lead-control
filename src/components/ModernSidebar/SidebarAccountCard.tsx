@@ -8,6 +8,7 @@ import styles from "./SidebarAccountCard.module.css";
 export type SidebarAccountCardProps = {
   user: User | null;
   subscriptionState: SubscriptionState | undefined;
+  isLoading?: boolean;
   isCollapsed: boolean;
   onProfileClick: () => void;
   triggerRef?: RefObject<HTMLButtonElement>;
@@ -54,6 +55,7 @@ const getInitials = (email: string): string => {
 const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
   user,
   subscriptionState,
+  isLoading = false,
   isCollapsed,
   onProfileClick,
   triggerRef,
@@ -78,6 +80,27 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
     );
   }
 
+  // Affichage du loader pendant le chargement de l'abonnement
+  if (isLoading) {
+    return (
+      <div className={styles.accountCard}>
+        <div className={styles.loadingSubscription}>
+          <div className={styles.logoSpinner}>
+            <img 
+              src="/logo@2x.png" 
+              alt="LeadControl" 
+              className={styles.spinningLogo}
+            />
+          </div>
+          <div className={styles.loadingText}>
+            <div className={styles.loadingLine}></div>
+            <div className={styles.loadingLine}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const planDisplayName = subscriptionState 
     ? getPlanDisplayName(subscriptionState.planKey, subscriptionState.status)
     : "Plan Gratuit";
@@ -87,15 +110,15 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
     : null;
 
   const creditsMonthly = !subscriptionState
-    ? 100
+    ? 0
     : subscriptionState.planKey === "none"
-    ? 100
+    ? 0
     : subscriptionState.creditsMonthly;
   
   const creditsBalance = !subscriptionState
-    ? 100
+    ? 0
     : subscriptionState.planKey === "none"
-    ? 100
+    ? 0
     : subscriptionState.creditsBalance;
 
   const showUpgradeButton = !subscriptionState || subscriptionState.planKey === "none";

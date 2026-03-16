@@ -16,6 +16,9 @@ import Feedback from "./components/Feedback";
 import Landing from "./pages/Landing";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import PolicyDataDeletion from "./pages/policy/PolicyDataDeletion";
 import PolicyPrivacy from "./pages/policy/PolicyPrivacy";
 import PolicyTerms from "./pages/policy/PolicyTerms";
@@ -120,6 +123,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/policy/terms-et-conditions" element={<PolicyTerms />} />
         <Route path="/policy/privacy-policy" element={<PolicyPrivacy />} />
         <Route path="/policy/data-deletion" element={<PolicyDataDeletion />} />

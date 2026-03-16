@@ -33,11 +33,12 @@ const planCatalog: {
     description: "Idéal pour démarrer avec un seul agent.",
     basePrice: 100,
     features: [
-      "1 agent Setting/Closing",
+      "1 agent au choix",
       "200 crédits",
       "Support",
       "Interface multicanal",
-      "1 agent Assistant Chatbot (bientôt)"
+      "1 agent Assistant Chatbot (bientôt)",
+      "Comission 50%"
     ],
   },
   {
@@ -47,13 +48,14 @@ const planCatalog: {
     basePrice: 200,
     badge: "Recommandé",
     features: [
-      "2 agents Settings/Closings",
+      "2 agents au choix + 1 bonus",
       "500 crédits",
       "Support",
       "Interface multicanal",
       "Conversations configurables",
       "Ton personnalisable",
       "Message personnalisés",
+      "Commission 70%",
       "1 agent Assistant Chatbot (bientôt)"
     ],
   },

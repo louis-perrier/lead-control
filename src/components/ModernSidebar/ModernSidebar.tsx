@@ -44,7 +44,7 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
   const location = useLocation();
   const currentPath = location.pathname;
   const { user } = useAuth();
-  const { data: subscriptionState } = useSubscriptionState();
+  const { data: subscriptionState, isLoading: subscriptionLoading } = useSubscriptionState();
 
   const { displayedAgents } = useAgents();
   const normalizedDisplayedAgentIds = displayedAgents.map((agent) =>
@@ -153,6 +153,7 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
         <SidebarAccountCard
           user={user}
           subscriptionState={subscriptionState}
+          isLoading={subscriptionLoading}
           isCollapsed={isCollapsed}
           onProfileClick={toggleProfilePopover}
           triggerRef={profileTriggerRef}

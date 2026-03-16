@@ -52,13 +52,16 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
   const currentQuestion = questions[currentIndex];
   const currentAnswer = answers[currentQuestion.key] ?? "";
   const hasError = Boolean(validationErrors[currentQuestion.key]);
+  const [questionLabel, questionTitle] = currentQuestion.title.includes("—")
+    ? currentQuestion.title.split("—").map((segment) => segment.trim())
+    : [currentQuestion.title, currentQuestion.title];
 
   const preview = useMemo(
     () =>
       questions.map((question) => ({
         key: question.key,
         title: question.title,
-        snippet: answers[question.key]?.trim().slice(0, 160) ?? "",
+        snippet: answers[question.key]?.trim().slice(0, 25) + (answers[question.key]?.trim().length > 25 ? "..." : "") ?? "",
         filled: Boolean(answers[question.key]?.trim().length),
       })),
     [answers, questions]
@@ -90,31 +93,41 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
         <header className={styles.header}>
-          <div>
+          <div className={styles.headerContent}>
             <p className={styles.meta}>Ton personnalisé</p>
-            <h3>Questions guidées</h3>
+            <h3>Analyse de votre style de communication</h3>
             <p className={styles.description}>
-              Un pas à la fois pour retracer l’intention de ton prospect.
+              Répondez comme vous le feriez naturellement pour que l’IA reproduise votre ton et votre rythme.
             </p>
           </div>
-          <p className={styles.progress}>
-            {currentIndex + 1}/{total}
-          </p>
+          <div className={styles.progressIndicator}>
+            <span className={styles.progressLabel}>Question</span>
+            <span className={styles.progressValue}>{currentIndex + 1}</span>
+            <span className={styles.progressSlash}>/</span>
+            <span className={styles.progressValue}>{total}</span>
+          </div>
         </header>
         <div className={styles.body}>
           <div className={styles.questionArea}>
             <div className={styles.questionHeader}>
-              <span className={styles.stepBadge}>Q{currentIndex + 1}</span>
-              <p className={styles.questionTitle}>{currentQuestion.title}</p>
+              <span className={styles.stepBadge}>{questionLabel}</span>
+              <div>
+                <p className={styles.questionTitle}>{questionTitle}</p>
+                <p className={styles.questionSubtitle}>
+                  {currentQuestion.example}
+                </p>
+              </div>
             </div>
-            <p className={styles.questionExample}>{currentQuestion.example}</p>
+            <p className={styles.instructionText}>
+              💡 Répondez comme vous le feriez naturellement à cette situation - cela permet à l'IA d'analyser votre style pour reproduire votre ton.
+            </p>
             <textarea
               className={`${styles.textarea} ${
                 (hasError && (showValidationErrors || touched[currentQuestion.key]))
                   ? styles.textareaWarning
                   : ""
               }`}
-              placeholder={currentQuestion.example}
+              placeholder="Écrivez ici comment VOUS répondriez naturellement dans cette situation..."
               value={currentAnswer}
               onChange={(event) => {
                 onAnswerChange(currentQuestion.key, event.target.value);
@@ -127,7 +140,7 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
                 <p className={styles.error}>{validationErrors[currentQuestion.key]}</p>
               )}
               <span
-                className={`${styles.charCount} ${
+                className={`${styles.charCountWrap} ${styles.charCount} ${
                   currentAnswer.length > 900
                     ? styles.charCountError
                     : currentAnswer.length < 200 && showValidationErrors
@@ -140,22 +153,24 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
               </span>
             </div>
             <div className={styles.navigationRow}>
-              <button
-                type="button"
-                className={styles.textButton}
+              <Button
+                variant="secondary"
+                className={styles.navButton}
+                align="none"
                 onClick={() => canGoPrev && setCurrentIndex((prev) => prev - 1)}
                 disabled={!canGoPrev}
               >
                 Précédent
-              </button>
-              <button
-                type="button"
-                className={styles.textButton}
+              </Button>
+              <Button
+                variant="primary"
+                className={styles.navButton}
+                align="none"
                 onClick={() => canGoNext && setCurrentIndex((prev) => prev + 1)}
                 disabled={!canGoNext}
               >
                 Suivant
-              </button>
+              </Button>
             </div>
           </div>
           <aside className={styles.previewSidebar}>
@@ -204,7 +219,7 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
               onClick={onGenerate}
               className={styles.primary}
             >
-              {isGenerating ? "Génération en cours..." : "Générer le ton"}
+              {isGenerating ? "Analyse de votre style en cours..." : "Analyser mon style"}
             </Button>
           </div>
         </footer>
