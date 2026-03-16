@@ -61,7 +61,7 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
       questions.map((question) => ({
         key: question.key,
         title: question.title,
-        snippet: answers[question.key]?.trim().slice(0, 25) + (answers[question.key]?.trim().length > 25 ? "..." : "") ?? "",
+        snippet: answers[question.key]?.trim().slice(0, 25) + (answers[question.key]?.trim().length > 25 ? "..." : ""),
         filled: Boolean(answers[question.key]?.trim().length),
       })),
     [answers, questions]
