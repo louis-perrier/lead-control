@@ -48,6 +48,8 @@ const AgentAi: FunctionComponent = () => {
     locationState?.tabs ?? []
   );
   const [activeTab, setActiveTab] = useState<string>("agents");
+  const [oauthMessage, setOauthMessage] = useState<string | null>(null);
+  const [oauthMessageType, setOauthMessageType] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
     if (!locationState?.tabs) {
@@ -55,6 +57,44 @@ const AgentAi: FunctionComponent = () => {
     }
     setOpenTabs(locationState.tabs);
   }, [locationState?.tabs]);
+
+  // Gérer les query params OAuth Instagram au retour
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const igConnected = urlParams.get('ig_connected');
+    const igError = urlParams.get('ig_error');
+    
+    if (igConnected === '1') {
+      // Succès - comportement existant + message optionnel
+      setOauthMessage("Compte Instagram connecté avec succès !");
+      setOauthMessageType('success');
+      
+      // Rafraîchir les données des connecteurs
+      refreshDisplayedAgents();
+    } else if (igError === 'already_connected') {
+      // Erreur - afficher le message d'erreur
+      setOauthMessage("Ce compte Instagram est déjà connecté à un autre agent");
+      setOauthMessageType('error');
+    }
+    
+    // Nettoyer les query params de l'URL
+    if (igConnected || igError) {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('ig_connected');
+      newUrl.searchParams.delete('ig_error');
+      
+      // Remplacer l'URL sans recharger la page
+      window.history.replaceState({}, '', newUrl.toString());
+      
+      // Auto-effacer le message après quelques secondes
+      const timer = setTimeout(() => {
+        setOauthMessage(null);
+        setOauthMessageType(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location.search, refreshDisplayedAgents]);
 
   const handleSortChange = useCallback(
     ({ key, order }: { key: string; order: "asc" | "desc" }) => {
@@ -212,6 +252,25 @@ const AgentAi: FunctionComponent = () => {
     <AppLayout>
       <div className={styles.rightcomponent}>
         <Header minimal showLogo={false} />
+        
+        {/* Message OAuth Instagram */}
+        {oauthMessage && (
+          <div className={`${styles.oauthNotification} ${
+            oauthMessageType === 'error' ? styles.error : styles.success
+          }`}>
+            {oauthMessage}
+            <button 
+              onClick={() => {
+                setOauthMessage(null);
+                setOauthMessageType(null);
+              }}
+              className={styles.closeButton}
+            >
+              ×
+            </button>
+          </div>
+        )}
+        
         <div className={styles.tabcomponent}>
           <TabComponent
             label="Mes agents"

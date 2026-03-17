@@ -1229,6 +1229,75 @@
   opacity: 0.7;
   pointer-events: none;
 }
+.evolutionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.evolutionHeader h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+.evolutionStats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-end;
+}
+.evolutionMax,
+.evolutionTotal {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.evolutionMax {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--app-primary);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+}
+.evolutionTotal {
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--app-success);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+.claraSparklineBar {
+  position: relative;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+.claraSparklineBar:hover {
+  opacity: 0.8;
+  transform: scaleY(1.02);
+}
+.claraSparklineBar[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: rgba(15, 23, 42, 0.95);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+}
+.claraSparklineBar[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
 
 .chatToolButton[data-tooltip]::after {
   content: attr(data-tooltip);

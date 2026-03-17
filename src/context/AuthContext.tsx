@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import type { User } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import supabase from "../lib/supabase";
 
 type Credentials = {
@@ -30,6 +31,7 @@ type AuthProviderProps = {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let mounted = true;
@@ -53,9 +55,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (mounted) {
-        setUser(session?.user ?? null);
+        const newUser = session?.user ?? null;
+        const userChanged = user?.id !== newUser?.id;
+        
+        setUser(newUser);
+        
+        // Invalider le cache lors des changements d'utilisateur critiques
+        if (event === 'SIGNED_OUT' || (event === 'SIGNED_IN' && userChanged)) {
+          queryClient.invalidateQueries({
+            predicate: (query) => {
+              // Invalider seulement les queries user-spécifiques
+              const key = query.queryKey[0] as string;
+              return ['subscription', 'agents', 'clara-conversations', 'signed-audio-url-v2'].includes(key);
+            }
+          });
+        }
       }
     });
 
@@ -63,7 +79,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [queryClient, user?.id]);
 
   const signIn = async ({ email, password }: Credentials) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -76,6 +92,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = async () => {
+    // Vider immédiatement le cache des données utilisateur avant la déconnexion
+    queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey[0] as string;
+        return ['subscription', 'agents', 'clara-conversations', 'signed-audio-url-v2'].includes(key);
+      }
+    });
+    
     await supabase.auth.signOut();
   };
 

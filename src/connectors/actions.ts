@@ -49,7 +49,7 @@ const createConnectInstagram = (
           authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          return_to: "https://leadcontrol.com/app/agentai",
+          return_to: `https://leadcontrol.com${window.location.pathname}`,
           configs_id: context.configsId,
         }),
       }

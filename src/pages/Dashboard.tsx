@@ -918,21 +918,23 @@ const Dashboard: FunctionComponent = () => {
 
   const stats = useMemo(() => {
     const periodMultiplier = periodMultipliers[period];
+    const days = period === "7" ? 7 : period === "30" ? 30 : 90;
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     let totalResponseMs = 0;
     let responsePairs = 0;
     const responses = filteredConversations.reduce((acc, conversation) => {
       acc += conversation.messages.filter(
-        (message) => message.authorType === "agent",
+        (message) => message.authorType === "agent" && new Date(message.sentAt) >= cutoffDate,
       ).length;
       for (let i = 0; i < conversation.messages.length; i += 1) {
         const current = conversation.messages[i];
-        if (current.direction !== "inbound") {
+        if (current.direction !== "inbound" || new Date(current.sentAt) < cutoffDate) {
           continue;
         }
         const nextOutbound = conversation.messages.slice(i + 1).find(
           (message) => message.direction === "outbound",
         );
-        if (nextOutbound) {
+        if (nextOutbound && new Date(nextOutbound.sentAt) >= cutoffDate) {
           const diff =
             new Date(nextOutbound.sentAt).getTime() -
             new Date(current.sentAt).getTime();
@@ -948,7 +950,7 @@ const Dashboard: FunctionComponent = () => {
       (acc, conversation) =>
         acc +
         conversation.messages.filter(
-          (message) => message.direction === "inbound",
+          (message) => message.direction === "inbound" && new Date(message.sentAt) >= cutoffDate,
         ).length,
       0,
     );
@@ -958,11 +960,39 @@ const Dashboard: FunctionComponent = () => {
     const averageResponseSeconds =
       responsePairs === 0 ? 0 : Math.round((totalResponseMs / responsePairs) / 1000);
     return {
-      responses: Math.round(responses * periodMultiplier * 0.95),
-      messages: Math.round(messagesReceived * periodMultiplier * 0.9),
+      responses: responses,
+      messages: messagesReceived,
       active: activeConversations,
       responseTime: averageResponseSeconds,
     };
+  }, [filteredConversations, period]);
+
+  const evolutionData = useMemo(() => {
+    const days = period === "7" ? 7 : period === "30" ? 30 : 90;
+    const now = new Date();
+    const dataPoints: number[] = [];
+
+    for (let i = days - 1; i >= 0; i--) {
+      const targetDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const targetDateString = targetDate.toDateString();
+      
+      let messagesCount = 0;
+      
+      filteredConversations.forEach(conversation => {
+        conversation.messages.forEach(message => {
+          const messageDate = new Date(message.sentAt);
+          if (message.authorType === "agent" && 
+              message.direction === "outbound" && 
+              messageDate.toDateString() === targetDateString) {
+            messagesCount++;
+          }
+        });
+      });
+      
+      dataPoints.push(messagesCount);
+    }
+    
+    return dataPoints;
   }, [filteredConversations, period]);
 
   const deltas = {
@@ -1002,42 +1032,36 @@ const Dashboard: FunctionComponent = () => {
   ];
 
   const channelStats = useMemo(() => {
+    const days = period === "7" ? 7 : period === "30" ? 30 : 90;
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    
     const bucket: Record<ChannelOption, number> = {
       Instagram: 0,
       WhatsApp: 0,
       Telegram: 0,
     };
+    
     filteredConversations.forEach((conversation) => {
       const agentMessages = conversation.messages.filter(
-        (message) => message.direction === "outbound" && message.authorType === "agent",
+        (message) => message.direction === "outbound" && 
+                    message.authorType === "agent" &&
+                    new Date(message.sentAt) >= cutoffDate
       ).length;
       bucket[conversation.channel] += agentMessages;
     });
+    
     const maxBucket = Math.max(...Object.values(bucket), 1);
     return channelCycle.map((channel) => ({
       channel,
       count: bucket[channel],
       normalized: Math.round((bucket[channel] / maxBucket) * 100),
     }));
-  }, [filteredConversations]);
+  }, [filteredConversations, period]);
 
   const maxChannelCount =
     Math.max(...channelStats.map((stat) => stat.count)) || 1;
 
-  const sparklinePoints = useMemo(() => {
-    const length = period === "7" ? 7 : period === "30" ? 30 : 30;
-    const numericPeriod = Number(period);
-    return Array.from({ length }).map((_, index) => {
-      const base =
-        24 + index * 0.8 + filteredConversations.length * 0.35 + numericPeriod;
-      const fluctuation = Math.sin(index * 0.5) * 6;
-      return Math.max(
-        6,
-        Math.round((base + fluctuation) * periodMultipliers[period])
-      );
-    });
-  }, [filteredConversations, period]);
-  const sparklineMax = Math.max(...sparklinePoints);
+  const sparklineMax = Math.max(...evolutionData, 1);
 
   const topConversations = sortedConversations.slice(0, 5);
 
@@ -1355,18 +1379,28 @@ const Dashboard: FunctionComponent = () => {
                 </div>
               </section>
               <section className={styles.claraPanel}>
-                <div className={styles.panelComingSoonOverlay}>
-                  BIENTÔT DISPONIBLE
+                <div className={styles.evolutionHeader}>
+                  <h3>Messages envoyés par l'agent</h3>
+                  <div className={styles.evolutionStats}>
+                    <span className={styles.evolutionMax}>Max: {sparklineMax}</span>
+                    <span className={styles.evolutionTotal}>
+                      Total: {evolutionData.reduce((sum, val) => sum + val, 0)}
+                    </span>
+                  </div>
                 </div>
-                <h3>Évolution sur la période</h3>
                 <div className={styles.claraSparkline}>
-                  {sparklinePoints.map((value, index) => {
+                  {evolutionData.map((value, index) => {
                     const height = Math.max(12, (value / sparklineMax) * 100);
+                    const daysAgo = evolutionData.length - 1 - index;
+                    const dateLabel = daysAgo === 0 ? "Aujourd'hui" : 
+                                     daysAgo === 1 ? "Hier" : 
+                                     `Il y a ${daysAgo}j`;
                     return (
                       <span
                         key={`${value}-${index}`}
                         className={styles.claraSparklineBar}
                         style={{ height: `${height}%` }}
+                        data-tooltip={`${dateLabel}: ${value} message${value !== 1 ? 's' : ''}`}
                       />
                     );
                   })}
