@@ -47,6 +47,8 @@ type Message = {
   transcript?: string | null;
   transcriptError?: string | null;
   authorType?: "agent" | "human" | "customer";
+  automationStart?: string | null;
+  automationEnd?: string | null;
 };
 
 type Conversation = {
@@ -261,6 +263,8 @@ const mapConversationRecord = (record: any): Conversation => {
               : message.author_type === "customer"
               ? "customer"
               : "agent",
+          automationStart: message.automation_start ?? null,
+          automationEnd: message.automation_end ?? null,
         };
       })
       .sort(
@@ -566,7 +570,7 @@ const ChatBubble: FunctionComponent<{ message: Message }> = ({ message }) => {
       {label && (
         <span className={styles.chatBubbleSender}>{label}</span>
       )}
-      <p>{message.text}</p>
+      <p style={{ whiteSpace: "pre-wrap" }}>{message.text}</p>
       {message.attachment && (
         <div className={styles.attachmentChip}>
           <span>
@@ -926,22 +930,21 @@ const Dashboard: FunctionComponent = () => {
       acc += conversation.messages.filter(
         (message) => message.authorType === "agent" && new Date(message.sentAt) >= cutoffDate,
       ).length;
-      for (let i = 0; i < conversation.messages.length; i += 1) {
-        const current = conversation.messages[i];
-        if (current.direction !== "inbound" || new Date(current.sentAt) < cutoffDate) {
+      for (const message of conversation.messages) {
+        if (
+          message.authorType !== "agent" ||
+          new Date(message.sentAt) < cutoffDate ||
+          !message.automationStart ||
+          !message.automationEnd
+        ) {
           continue;
         }
-        const nextOutbound = conversation.messages.slice(i + 1).find(
-          (message) => message.direction === "outbound",
-        );
-        if (nextOutbound && new Date(nextOutbound.sentAt) >= cutoffDate) {
-          const diff =
-            new Date(nextOutbound.sentAt).getTime() -
-            new Date(current.sentAt).getTime();
-          if (diff > 0) {
-            totalResponseMs += diff;
-            responsePairs += 1;
-          }
+        const diff =
+          new Date(message.automationEnd).getTime() -
+          new Date(message.automationStart).getTime();
+        if (diff > 0) {
+          totalResponseMs += diff;
+          responsePairs += 1;
         }
       }
       return acc;

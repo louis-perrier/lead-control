@@ -4,12 +4,12 @@ export const launchSpotsRemaining = 5;
 
 export const heroCopy = {
   eyebrow: "Agent IA setter pour DM Instagram",
-  title: "Automatisez vos DM entrants et transformez-les en rendez-vous qualifies.",
+  title: "Vos DM entrants restent sans reponse. LeadControl les traite, qualifie et prend rendez-vous a votre place.",
   subtitle:
-    "LeadControl repond comme un setter humain, qualifie vos prospects et propose le bon lien de rendez-vous au bon moment. Vous gardez le controle sur chaque conversation.",
+    "Pendant que vous closez ou travaillez, votre agent gere les questions, les objections et envoie le lien Calendly au bon moment — sans que vous ayez a valider chaque message.",
   releaseLabel: "Lancement public - Mars 2026",
   releaseText:
-    "Concu pour les offres B2B, services et coaching qui veulent traiter les DM plus vite sans sacrifier la qualite.",
+    "Pour les offres B2B, coaches et agences qui veulent traiter plus de leads sans recruter.",
   trial: "Essai gratuit 7 jours, sans carte",
   pricing: "A partir de 100 EUR / mois",
   scarcityNote: "Tarif de lancement reserve aux premiers comptes actifs.",
@@ -86,19 +86,19 @@ export const quickProofStats = [
 
 export const steps = [
   {
-    title: "Connectez votre compte",
+    title: "Connectez et configurez en moins de 10 minutes",
     description:
-      "Connexion securisee et conforme aux standards de confidentialite pour demarrer sans friction.",
+      "Liaison securisee a Instagram, description de votre offre, ton et criteres de qualification. Aucun code requis, setup guide inclus.",
   },
   {
-    title: "Definissez vos regles",
+    title: "L'agent prend le relais sur vos DM entrants",
     description:
-      "Objectif, ton, criteres de qualification et lien de rendez-vous: tout est ajustable a tout moment.",
+      "Questions de qualification, reponses aux objections courantes, envoi du lien de rendez-vous au bon moment — selon vos regles, pas les siennes.",
   },
   {
-    title: "L'agent execute et vous gardez la supervision",
+    title: "Vous supervisez, reprenez et ajustez en direct",
     description:
-      "Leads qualifies et handoff fluide vers votre calendrier quand le prospect est pret.",
+      "Tableau de bord unique, historique complet de chaque conversation, reprise manuelle possible a tout moment. Zero boite noire.",
   },
 ];
 
@@ -258,9 +258,14 @@ export const roiDisclaimer =
 
 export const pricingData = {
   kicker: "Offre lancement",
-  title: "Essai gratuit 7 jours, puis abonnement mensuel flexible.",
+  title: "Essai gratuit 7 jours, puis 100 EUR / mois.",
   subtitle:
-    "Vous testez le flux complet avant engagement, puis vous adaptez le niveau d'accompagnement selon vos besoins.",
+    "Moins qu'une heure de setter freelance par semaine. Vous recuperez des dizaines d'heures et des leads mieux qualifies.",
+  whyPrice: [
+    { label: "Setter freelance", value: "1 500 – 3 000 EUR / mois" },
+    { label: "Leads froids non traites", value: "Cout invisible, mais reel" },
+    { label: "LeadControl", value: "100 EUR / mois — 7 jours gratuits" },
+  ],
   includes: [
     "Agent IA DM configure sur votre offre",
     "Qualification + proposition de rendez-vous",
@@ -325,16 +330,27 @@ export const faqItems = [
 export const faqCta = "Besoin d'une demo rapide ? Reservez un call de 15 minutes.";
 
 export const finalCtaCopy = {
-  title: "Mettez vos DM au travail, sans perdre votre niveau d'exigence.",
+  title: "Passez en mode setter automatique. Sans perdre votre niveau d'exigence.",
   subtitle:
-    "LeadControl automatise les taches repetitives et vous laisse la maitrise sur les moments strategiques de vente.",
-  reassurance: "Essai gratuit 7 jours, sans carte, avec accompagnement au demarrage.",
+    "Moins de charge mentale sur les DM, plus de rendez-vous qualifies, zero lead laisse sans reponse.",
+  reassurance: "7 jours gratuits · Pas de carte · Onboarding accompagne",
 };
 
 export const ctaOptions = [
-  "Je verrouille mes RDV",
-  "Je structure mes DM",
-  "Je passe en mode scalable",
+  "Activer mon agent DM",
+  "Fixer un check-up de mes DM",
+  "Voir comment ca marche pour mon offre",
 ];
 
 export const primaryCtaLabel = ctaOptions[0];
+
+export const founderCopy = {
+  kicker: "Pourquoi LeadControl",
+  title: "Un outil construit par quelqu'un qui a vu trop de leads partir faute de suivi.",
+  paragraphs: [
+    "J'ai lance LeadControl apres avoir observe trop d'entrepreneurs competents rater des opportunites reelles — non pas par manque d'offre, mais parce qu'un DM sans reponse rapide refroidit vite.",
+    "L'idee n'est pas de remplacer la relation humaine. C'est de s'assurer que chaque lead entrant recoit une reponse utile, au bon moment, avec le bon ton — et que vous reprenez la main sur les conversations qui comptent vraiment.",
+    "LeadControl est en lancement actif. Si vous avez un retour, une question ou une demande specifique a votre offre, je lis chaque message.",
+  ],
+  signature: "Louis — Fondateur de LeadControl",
+};

@@ -38,7 +38,7 @@ const planCatalog: {
       "Support",
       "Interface multicanal",
       "1 agent Assistant Chatbot (bientôt)",
-      "Comission 50%"
+      "Commission 50%"
     ],
   },
   {
@@ -65,7 +65,7 @@ const planCatalog: {
     description: "Pack sur-mesure, nous contacter pour un devis.",
     basePrice: 0,
     features: [
-      "Support dédier à ton équipe",
+      "Support dédié",
       "Intégrations sur-mesure",
       "Formation + onboarding",
       "Service-level agreement",
@@ -533,7 +533,7 @@ const PricingPage: FunctionComponent = () => {
                     )}
                     {isCurrentPlan && (
                       <span className={styles.currentPlanBadge}>
-                        Current plan
+                        Plan actuel
                       </span>
                     )}
                   </header>

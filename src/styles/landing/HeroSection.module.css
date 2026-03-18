@@ -349,6 +349,71 @@
   object-fit: cover;
 }
 
+.mockConversation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.44rem;
+  padding: 0.1rem 0;
+}
+
+.mockMsg {
+  max-width: 86%;
+  padding: 0.5rem 0.72rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.mockMsgIn {
+  align-self: flex-start;
+  border-radius: 0.85rem 0.85rem 0.85rem 0.2rem;
+  background: rgba(18, 32, 52, 0.9);
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  color: rgba(226, 234, 255, 0.88);
+}
+
+.mockMsgOut {
+  align-self: flex-end;
+  border-radius: 0.85rem 0.85rem 0.2rem 0.85rem;
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(59, 130, 246, 0.15));
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  color: rgba(226, 234, 255, 0.94);
+}
+
+.mockCta {
+  align-self: flex-end;
+  max-width: 86%;
+  padding: 0.48rem 0.72rem;
+  border-radius: 0.85rem 0.85rem 0.2rem 0.85rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(45, 212, 191, 0.1));
+  border: 1px solid rgba(59, 130, 246, 0.32);
+  color: #93c5fd;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.bulletList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.52rem;
+}
+
+.bulletItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.58rem;
+}
+
+.bulletItem p {
+  margin: 0;
+  color: rgba(226, 234, 255, 0.88);
+  line-height: 1.42;
+  font-size: 0.93rem;
+}
+
 @media (max-width: 980px) {
   .hero {
     grid-template-columns: 1fr;

@@ -10,6 +10,7 @@ import ProofSection from "../components/landing/Sections/ProofSection";
 import TestimonialsSection from "../components/landing/Sections/TestimonialsSection";
 import RoiSection from "../components/landing/Sections/RoiSection";
 import PricingSection from "../components/landing/Sections/PricingSection";
+import FounderSection from "../components/landing/Sections/FounderSection";
 import FinalCtaSection from "../components/landing/Sections/FinalCtaSection";
 import FaqSection from "../components/landing/Sections/FaqSection";
 import FooterLanding from "../components/landing/Sections/FooterLanding";
@@ -59,6 +60,7 @@ const Landing = () => {
         <TestimonialsSection />
         <RoiSection />
         <PricingSection onPrimaryCta={handleOpenModal} primaryCtaLabel={primaryCtaLabel} />
+        <FounderSection />
         <FaqSection />
         <FinalCtaSection onPrimaryCta={handleOpenModal} />
         <FooterLanding />

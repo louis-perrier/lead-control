@@ -18,6 +18,19 @@ const PricingSection = ({ onPrimaryCta, primaryCtaLabel }: PricingSectionProps) 
         <article className={styles.pricingCard}>
           <h3>{heroCopy.trial}</h3>
           <p className={styles.priceTag}>{heroCopy.pricing}</p>
+
+          {pricingData.whyPrice && (
+            <div className={styles.pricingWhy}>
+              <p className={styles.pricingWhyTitle}>Pourquoi 100 EUR / mois ?</p>
+              {pricingData.whyPrice.map((row) => (
+                <div key={row.label} className={styles.pricingWhyRow}>
+                  <span>{row.label}</span>
+                  <strong>{row.value}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+
           <ul className={styles.pricingList}>
             {pricingData.includes.map((item) => (
               <li key={item}>{item}</li>

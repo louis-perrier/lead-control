@@ -29,7 +29,9 @@ const fetchConversations = async (agentConfigId: string) => {
         media_duration_ms,
         transcript,
         transcript_status,
-        transcript_error
+        transcript_error,
+        automation_start,
+        automation_end
       )
     `,
     )

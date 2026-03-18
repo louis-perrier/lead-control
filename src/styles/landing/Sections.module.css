@@ -610,6 +610,136 @@
   font-weight: 600;
 }
 
+/* Testimonials static grid */
+.testimonialGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+/* Trust bar below testimonials */
+.trustBar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-top: 1.2rem;
+}
+
+.trustPoint {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+  padding: 0.88rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  background: linear-gradient(165deg, rgba(9, 18, 32, 0.85), rgba(5, 11, 20, 0.82));
+}
+
+.trustCheck {
+  color: #2dd4bf;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.trustPointTitle {
+  margin: 0;
+  color: #f8fbff;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.trustPointDesc {
+  margin: 0.22rem 0 0;
+  color: rgba(191, 219, 254, 0.82);
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+/* Pricing — bloc "Pourquoi 100 EUR/mois" */
+.pricingWhy {
+  margin: 0.9rem 0 1rem;
+  padding: 0.78rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  background: rgba(6, 14, 26, 0.72);
+}
+
+.pricingWhyTitle {
+  margin: 0 0 0.52rem;
+  color: rgba(186, 230, 253, 0.9);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pricingWhyRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.1);
+  font-size: 0.86rem;
+}
+
+.pricingWhyRow:last-child {
+  border-bottom: none;
+}
+
+.pricingWhyRow span {
+  color: rgba(191, 219, 254, 0.82);
+}
+
+.pricingWhyRow strong {
+  color: #f8fbff;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Founder section */
+.founderBox {
+  max-width: 720px;
+  margin-inline: auto;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(147, 197, 253, 0.2);
+  background: linear-gradient(160deg, rgba(8, 18, 32, 0.88), rgba(5, 11, 20, 0.84));
+}
+
+.founderBody p {
+  margin: 0.72rem 0 0;
+  color: var(--landing-muted);
+  line-height: 1.65;
+}
+
+.founderSignature {
+  margin: 1.1rem 0 0;
+  color: #7dd3fc;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Final CTA secondary link */
+.ctaSecondary {
+  margin: 0;
+}
+
+.ctaSecondaryLink {
+  color: rgba(125, 211, 252, 0.9);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.ctaSecondaryLink:hover {
+  color: #7dd3fc;
+  text-decoration: underline;
+}
+
 @media (max-width: 980px) {
   .cardGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -642,6 +772,14 @@
 
   .pricingHighlight {
     flex: 1 1 calc(50% - 0.5rem);
+  }
+
+  .testimonialGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .trustBar {
+    grid-template-columns: 1fr;
   }
 }
 
