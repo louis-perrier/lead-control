@@ -11,7 +11,7 @@ const ProofSection = () => {
         <h2>Compatible avec vos canaux prioritaires, pense pour convertir vite.</h2>
         <p>
           Une mise en place simple, une execution continue et une vision claire des conversations
-          qui avancent vers un rendez-vous.
+          qui avancent vers un rendez vous.
         </p>
       </div>
 

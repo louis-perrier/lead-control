@@ -23,7 +23,7 @@ const FinalCtaSection = ({ onPrimaryCta }: FinalCtaSectionProps) => {
             rel="noopener noreferrer"
             className={styles.ctaSecondaryLink}
           >
-            Fixer un check-up de vos DM (15 min) →
+            Fixer un check up de vos DM (15 min) &gt;
           </a>
         </p>
       </div>

@@ -1,4 +1,4 @@
-import { reassurancePoints, testimonials } from "../../../config/landing";
+﻿import { reassurancePoints, testimonials } from "../../../config/landing";
 import styles from "../../../styles/landing/Sections.module.css";
 
 const TestimonialsSection = () => {
@@ -17,7 +17,7 @@ const TestimonialsSection = () => {
 
       <div className={styles.testimonialGrid}>
         {featured.map((item) => (
-          <article key={item.name} className={styles.testimonialCard}>
+          <article key={item.name} className={`${styles.testimonialCard} ${styles.testimonialCardStatic}`}>
             <div className={styles.testimonialHead}>
               <div className={styles.testimonialAvatar} aria-hidden="true">
                 {item.initials}
@@ -25,7 +25,7 @@ const TestimonialsSection = () => {
               <div>
                 <p className={styles.testimonialName}>{item.name}</p>
                 <p className={styles.testimonialRole}>
-                  {item.role} — {item.activity}
+                  {item.role} - {item.activity}
                 </p>
               </div>
             </div>

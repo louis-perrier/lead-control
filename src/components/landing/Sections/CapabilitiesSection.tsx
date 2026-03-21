@@ -6,7 +6,7 @@ const CapabilitiesSection = () => {
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
         <p className={styles.sectionKicker}>Fonctionnalites cles</p>
-        <h2>Un agent IA complet pour qualifier et convertir en rendez-vous.</h2>
+        <h2>Un agent IA complet pour qualifier et convertir en rendez vous.</h2>
         <p>
           Chaque bloc est pense pour reduire le travail manuel sans perdre la personnalisation de
           vos echanges.

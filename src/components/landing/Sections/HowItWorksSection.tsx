@@ -6,7 +6,7 @@ const HowItWorksSection = () => {
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
         <p className={styles.sectionKicker}>Comment ca marche</p>
-        <h2>Un flux simple en 3 etapes, de la connexion au rendez-vous.</h2>
+        <h2>Un flux simple en 3 etapes, de la connexion au rendez vous.</h2>
         <p>
           Vous connectez, vous reglez vos objectifs, puis l'agent gere l'operationnel pendant que
           vous pilotez les decisions importantes.

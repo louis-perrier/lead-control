@@ -31,7 +31,7 @@ const HeroSection = ({ onPrimaryCta, primaryCtaLabel, spotsRemaining }: HeroSect
             <button type="button" className={styles.heroCta} onClick={onPrimaryCta}>
               {primaryCtaLabel}
             </button>
-            <span className={styles.ctaHint}>Sans carte · Call de 15 minutes · Setup en 24h</span>
+            <span className={styles.ctaHint}>Sans carte - Call 15 min - Setup 24h</span>
           </div>
 
           <ul className={styles.bulletList}>
@@ -57,32 +57,41 @@ const HeroSection = ({ onPrimaryCta, primaryCtaLabel, spotsRemaining }: HeroSect
       <div className={styles.heroVisual}>
         <aside className={styles.appPreviewSlot}>
           <div className={styles.appPreviewTop}>
-            <p className={styles.appPreviewTitle}>LeadControl — DM en cours</p>
-            <span className={styles.appPreviewBadge}>● Agent actif</span>
+            <div className={styles.appPreviewHeading}>
+              <p className={styles.appPreviewTitle}>Visite guidee LeadControl en 60 secondes</p>
+              <p className={styles.appPreviewCaption}>
+                Inbox reelle, qualification IA et prise de rendez vous automatique.
+              </p>
+            </div>
           </div>
 
-          <div className={styles.mockConversation}>
-            <div className={`${styles.mockMsg} ${styles.mockMsgIn}`}>
-              Bonjour, j'ai vu votre post sur l'acquisition. C'est quoi exactement votre offre ?
-            </div>
-            <div className={`${styles.mockMsg} ${styles.mockMsgOut}`}>
-              Salut ! Je travaille avec des independants B2B qui veulent structurer leur vente sans recruter. Vous etes en train de scaler ou plutot d'optimiser un flux existant ?
-            </div>
-            <div className={`${styles.mockMsg} ${styles.mockMsgIn}`}>
-              Les deux un peu. J'ai 5-6 leads par semaine mais je perds du temps a qualifier.
-            </div>
-            <div className={`${styles.mockMsg} ${styles.mockMsgOut}`}>
-              C'est exactement ce qu'on traite. Je vous envoie un lien pour un call de 15 min — vous choisissez le creneau qui vous convient.
-            </div>
-            <div className={styles.mockCta}>
-              📅 Reserver un creneau → calendly.com/…
-            </div>
+          <div className={styles.demoMetaRow}>
+            <span className={styles.demoMetaChip}>Cas reel</span>
+            <span className={styles.demoMetaChip}>Version produit actuelle</span>
+          </div>
+
+          <div className={styles.demoStage}>
+            <span className={styles.demoGlow} aria-hidden="true" />
+            <figure className={styles.demoPhoneFrame}>
+              <video
+                className={styles.demoVideo}
+                autoPlay
+                loop
+                controls
+                preload="metadata"
+                playsInline
+                src="/landing/demo-v1.mov"
+              >
+                <source src="/landing/demo-v1.mov" type="video/quicktime" />
+                Votre navigateur ne supporte pas la lecture video integree.
+              </video>
+            </figure>
           </div>
 
           <article className={styles.miniProof}>
             <p className={styles.miniProofQuote}>{heroMiniProof.quote}</p>
             <p className={styles.miniProofAuthor}>
-              {heroMiniProof.author} — {heroMiniProof.role}
+              {heroMiniProof.author} - {heroMiniProof.role}
             </p>
           </article>
         </aside>

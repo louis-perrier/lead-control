@@ -21,7 +21,7 @@ const PricingSection = ({ onPrimaryCta, primaryCtaLabel }: PricingSectionProps) 
 
           {pricingData.whyPrice && (
             <div className={styles.pricingWhy}>
-              <p className={styles.pricingWhyTitle}>Pourquoi 100 EUR / mois ?</p>
+              <p className={styles.pricingWhyTitle}>Avant vs maintenant</p>
               {pricingData.whyPrice.map((row) => (
                 <div key={row.label} className={styles.pricingWhyRow}>
                   <span>{row.label}</span>

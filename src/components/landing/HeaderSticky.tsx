@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import styles from "../../styles/landing/HeaderSticky.module.css";
 
@@ -27,7 +27,7 @@ const HeaderSticky = ({ onPrimaryCta, primaryCtaLabel }: HeaderStickyProps) => {
       </div>
       <div className={styles.ctas}>
         <Link to="/login" className={styles.secondary}>
-          Bêta Testeur
+          Beta testeur
         </Link>
         <button type="button" className={styles.primary} onClick={onPrimaryCta}>
           {primaryCtaLabel}

@@ -1,4 +1,4 @@
-import { channels, reassurancePoints } from "../../../config/landing";
+﻿import { channels, reassurancePoints } from "../../../config/landing";
 import styles from "../../../styles/landing/Sections.module.css";
 
 const ReassuranceSection = () => {
@@ -6,8 +6,8 @@ const ReassuranceSection = () => {
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
         <p className={styles.sectionKicker}>Pourquoi LeadControl</p>
-        <h2>Sécurité, contrôle et visibilité.</h2>
-        <p>RGPD, HTTPS, supervision humaine et multi-inbox dès aujourd’hui.</p>
+        <h2>Securite, controle et visibilite.</h2>
+        <p>RGPD, HTTPS, supervision humaine et multi inbox des aujourd'hui.</p>
       </div>
       <div className={styles.reassuranceGrid}>
         {reassurancePoints.map((point) => (
@@ -20,7 +20,8 @@ const ReassuranceSection = () => {
       <div className={styles.sectionHeader}>
         <p className={styles.sectionKicker}>Canaux couverts</p>
         <p>
-          Disponible maintenant sur <strong>{channels.active.join(" + ")}</strong> — <em>{channels.upcoming.join(", ")}</em>.
+          Disponible maintenant sur <strong>{channels.active.join(" + ")}</strong>,
+          <em> {channels.upcoming.join(", ")}</em>.
         </p>
       </div>
     </section>

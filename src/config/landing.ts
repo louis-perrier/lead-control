@@ -4,9 +4,9 @@ export const launchSpotsRemaining = 5;
 
 export const heroCopy = {
   eyebrow: "Agent IA setter pour DM Instagram",
-  title: "Vos DM entrants restent sans reponse. LeadControl les traite, qualifie et prend rendez-vous a votre place.",
+  title: "LeadControl repond a vos DM Instagram, qualifie les leads et prend des rendez vous automatiquement.",
   subtitle:
-    "Pendant que vous closez ou travaillez, votre agent gere les questions, les objections et envoie le lien Calendly au bon moment — sans que vous ayez a valider chaque message.",
+    "Pendant que vous travaillez, votre agent gere les questions cles, traite les objections courantes et envoie le lien Calendly au bon moment.",
   releaseLabel: "Lancement public - Mars 2026",
   releaseText:
     "Pour les offres B2B, coaches et agences qui veulent traiter plus de leads sans recruter.",
@@ -16,9 +16,9 @@ export const heroCopy = {
 };
 
 export const heroBullets = [
-  "Qualification automatique des leads avec des messages naturels adaptes a votre offre.",
-  "Reponses instantanees sur les objections simples et questions frequentes.",
-  "Ton personnalise selon votre maniere d'ecrire et transfert vers Calendly au bon moment.",
+  "Qualification automatique selon vos criteres business.",
+  "Reponses instantanees sur les questions frequentes.",
+  "Passage vers Calendly quand le lead est pret.",
 ];
 
 export const heroTrustItems = [
@@ -29,7 +29,7 @@ export const heroTrustItems = [
 
 export const heroMiniProof = {
   quote:
-    "On a gagne en regularite sur les DM sans perdre la qualite des echanges. Les rendez-vous sont mieux qualifies.",
+    "On a gagne en regularite sur les DM sans perdre la qualite des echanges. Les rendez vous sont mieux qualifies.",
   author: "Thomas R.",
   role: "Fondateur d'agence",
 };
@@ -93,7 +93,7 @@ export const steps = [
   {
     title: "L'agent prend le relais sur vos DM entrants",
     description:
-      "Questions de qualification, reponses aux objections courantes, envoi du lien de rendez-vous au bon moment — selon vos regles, pas les siennes.",
+      "Questions de qualification, reponses aux objections courantes, envoi du lien de rendez vous au bon moment, selon vos regles, pas les siennes.",
   },
   {
     title: "Vous supervisez, reprenez et ajustez en direct",
@@ -119,7 +119,7 @@ export const capabilityItems = [
       "Historique clair des echanges pour identifier les opportunites a traiter en priorite.",
   },
   {
-    title: "Prise de rendez-vous",
+    title: "Prise de rendez vous",
     description:
       "Envoi du bon lien au bon moment (Calendly, formulaire ou page interne).",
   },
@@ -131,7 +131,7 @@ export const capabilityItems = [
   {
     title: "Posture setter experimente",
     description:
-      "L'agent conduit la conversation comme un setter: questions utiles, qualification et orientation vers le rendez-vous.",
+      "L'agent conduit la conversation comme un setter: questions utiles, qualification et orientation vers le rendez vous.",
   },
   {
     title: "Ton personnalise intelligent",
@@ -150,11 +150,6 @@ export const reassurancePoints = [
     title: "Controle total",
     description:
       "Vous gardez la possibilite de modifier, interrompre ou reprendre toute conversation en temps reel.",
-  },
-  {
-    title: "Vision business",
-    description:
-      "Toutes les interactions sont tracees pour suivre les opportunites et prioriser les actions commerciales.",
   },
 ];
 
@@ -185,7 +180,7 @@ export const testimonials = [
     role: "Closer",
     activity: "Infoproduit / coaching",
     quote:
-      "Le vrai plus: l'agent n'envoie le lien de call que quand la conversation est mature. Les rendez-vous sont plus pertinents.",
+      "Le vrai plus: l'agent n'envoie le lien de call que quand la conversation est mature. Les rendez vous sont plus pertinents.",
     initials: "SM",
   },
   {
@@ -217,7 +212,7 @@ export const testimonials = [
     role: "Consultante",
     activity: "Acquisition B2B",
     quote:
-      "Leads mieux qualifies, moins d'aller-retours inutiles et une meilleure visibilite sur ce qui convertit.",
+      "Leads mieux qualifies, moins d'allers retours inutiles et une meilleure visibilite sur ce qui convertit.",
     initials: "ID",
   },
   {
@@ -243,7 +238,7 @@ export const roiStats = [
   },
   {
     value: "+18%",
-    label: "de conversations qui vont jusqu'au lien de rendez-vous",
+    label: "de conversations qui vont jusqu'au lien de rendez vous",
     note: "tendance initiale, resultat variable selon offre et volume",
   },
   {
@@ -262,14 +257,14 @@ export const pricingData = {
   subtitle:
     "Moins qu'une heure de setter freelance par semaine. Vous recuperez des dizaines d'heures et des leads mieux qualifies.",
   whyPrice: [
-    { label: "Setter freelance", value: "1 500 – 3 000 EUR / mois" },
-    { label: "Leads froids non traites", value: "Cout invisible, mais reel" },
-    { label: "LeadControl", value: "100 EUR / mois — 7 jours gratuits" },
+    { label: "Avant: setter freelance", value: "1 500 a 3 000 EUR / mois" },
+    { label: "Avant: leads froids non traites", value: "Cout invisible, mais reel" },
+    { label: "Maintenant: agent LeadControl", value: "100 EUR / mois, 7 jours gratuits" },
   ],
   includes: [
     "Agent IA DM configure sur votre offre",
-    "Qualification + proposition de rendez-vous",
-    "Lien de rendez-vous configurable",
+    "Qualification + proposition de rendez vous",
+    "Lien de rendez vous configurable",
     "Supervision et reprise manuelle a tout moment",
     "Support de demarrage pour le setup",
   ],
@@ -323,7 +318,7 @@ export const faqItems = [
   {
     question: "Est-ce utile meme avec peu de volume ?",
     answer:
-      "Oui, car l'objectif est aussi la regularite: reponse rapide, suivi propre et process stable des les premiers leads.",
+      "Oui, car l'objectif est aussi la regularite: reponse rapide, suivi propre et process stable a partir des premiers leads.",
   },
 ];
 
@@ -332,13 +327,13 @@ export const faqCta = "Besoin d'une demo rapide ? Reservez un call de 15 minutes
 export const finalCtaCopy = {
   title: "Passez en mode setter automatique. Sans perdre votre niveau d'exigence.",
   subtitle:
-    "Moins de charge mentale sur les DM, plus de rendez-vous qualifies, zero lead laisse sans reponse.",
-  reassurance: "7 jours gratuits · Pas de carte · Onboarding accompagne",
+    "Moins de charge mentale sur les DM, plus de rendez vous qualifies, zero lead laisse sans reponse.",
+  reassurance: "7 jours gratuits | Pas de carte | Onboarding accompagne",
 };
 
 export const ctaOptions = [
   "Activer mon agent DM",
-  "Fixer un check-up de mes DM",
+  "Fixer un check up de mes DM",
   "Voir comment ca marche pour mon offre",
 ];
 
@@ -346,11 +341,12 @@ export const primaryCtaLabel = ctaOptions[0];
 
 export const founderCopy = {
   kicker: "Pourquoi LeadControl",
-  title: "Un outil construit par quelqu'un qui a vu trop de leads partir faute de suivi.",
+  title: "Un outil cree pour ne plus perdre de leads en DM.",
   paragraphs: [
-    "J'ai lance LeadControl apres avoir observe trop d'entrepreneurs competents rater des opportunites reelles — non pas par manque d'offre, mais parce qu'un DM sans reponse rapide refroidit vite.",
-    "L'idee n'est pas de remplacer la relation humaine. C'est de s'assurer que chaque lead entrant recoit une reponse utile, au bon moment, avec le bon ton — et que vous reprenez la main sur les conversations qui comptent vraiment.",
-    "LeadControl est en lancement actif. Si vous avez un retour, une question ou une demande specifique a votre offre, je lis chaque message.",
+    "Nous avons lance LeadControl apres avoir observe trop d'entrepreneurs solides rater des opportunites reelles, non pas par manque d'offre, mais parce qu'un DM sans reponse rapide refroidit vite.",
+    "Notre objectif n'est pas de remplacer la relation humaine. C'est d'assurer une reponse utile a chaque lead entrant, au bon moment, avec le bon ton, puis de vous laisser reprendre la main sur les conversations importantes.",
+    "LeadControl est en lancement actif. Si vous avez un retour, une question ou une demande specifique a votre offre, nous lisons chaque message.",
   ],
-  signature: "Louis — Fondateur de LeadControl",
+  signature: "Florian et Louis - Co-founder de LeadControl",
 };
+

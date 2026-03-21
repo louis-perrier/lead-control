@@ -46,59 +46,59 @@ function App() {
       case "/":
         title = "LeadControl";
         metaDescription =
-          "LeadControl répond à tes DM Instagram, qualifie les leads et propose un lien Calendly configuré en quelques minutes.";
+          "LeadControl repond a tes DM Instagram, qualifie les leads et propose un lien Calendly configure en quelques minutes.";
         break;
       case "/app":
-        title = "LeadControl — Dashboard";
+        title = "LeadControl - Dashboard";
         metaDescription = "Pilote tes agents LeadControl, supervise les conversations et analyse les KPIs.";
         break;
       case "/app/demarer":
-        title = "LeadControl â€” Démarrer";
+        title = "LeadControl - Demarrer";
         metaDescription = "Decouvre LeadControl, son fonctionnement, ses cas d'usage et les fonctionnalites a venir.";
         break;
       case "/app/subscription":
-        title = "LeadControl — Abonnement";
-        metaDescription = "Gère ton plan LeadControl et découvre les fonctionnalités disponibles selon ton offre.";
+        title = "LeadControl - Abonnement";
+        metaDescription = "Gere ton plan LeadControl et decouvre les fonctionnalites disponibles selon ton offre.";
         break;
       case "/app/paiement":
-        title = "LeadControl — Pricing";
+        title = "LeadControl - Pricing";
         metaDescription =
-          "Gardez le suivi des plans LeadControl, ajustez les crédits et consultez l’historique de facturation.";
+          "Gardez le suivi des plans LeadControl, ajustez les credits et consultez l'historique de facturation.";
         break;
       case "/app/agentai":
-        title = "LeadControl — Agents AI";
-        metaDescription = "Liste et contrôle de tes agents, statu s des inbox et accès aux overlays.";
+        title = "LeadControl - Agents AI";
+        metaDescription = "Liste et controle de tes agents, statut des inbox et acces aux overlays.";
         break;
       case "/app/agentai/configuration":
-        title = "LeadControl — Configuration d’agent";
-        metaDescription = "Paramètre les connexions, limites et tests de ton agent LeadControl.";
+        title = "LeadControl - Configuration d'agent";
+        metaDescription = "Parametre les connexions, limites et tests de ton agent LeadControl.";
         break;
       case "/app/scraping":
-        title = "LeadControl — Scraping";
+        title = "LeadControl - Scraping";
         metaDescription = "Orchestration des runs de scraping, collecte des leads et suivi des quotas.";
         break;
       case "/app/crm":
-        title = "LeadControl — CRM";
-        metaDescription = "Accède au CRM, filtre les conversations et prépare les handoffs.";
+        title = "LeadControl - CRM";
+        metaDescription = "Accede au CRM, filtre les conversations et prepare les handoffs.";
         break;
       case "/app/connexion":
-        title = "LeadControl — Connexions";
-        metaDescription = "Gère tes connexions tierces (Google, LinkedIn, etc.) et recharge les tokens.";
+        title = "LeadControl - Connexions";
+        metaDescription = "Gere tes connexions tierces (Google, LinkedIn, etc.) et recharge les tokens.";
         break;
       case "/policy/data-deletion":
-        title = "Suppression des données utilisateurs — LeadControl";
+        title = "Suppression des donnees utilisateurs - LeadControl";
         metaDescription =
-          "Préconisations LeadControl pour demander la suppression complète ou partielle de vos données.";
+          "Preconisations LeadControl pour demander la suppression complete ou partielle de vos donnees.";
         break;
       case "/policy/privacy-policy":
-        title = "Privacy Policy — LeadControl";
+        title = "Privacy Policy - LeadControl";
         metaDescription =
-          "Politique de confidentialité LeadControl décrivant les traitements, partages et droits des utilisateurs.";
+          "Politique de confidentialite LeadControl decrivant les traitements, partages et droits des utilisateurs.";
         break;
       case "/policy/terms-et-conditions":
-        title = "Terms & Conditions — LeadControl";
+        title = "Terms & Conditions - LeadControl";
         metaDescription =
-          "Conditions générales LeadControl détaillant les droits, obligations, responsabilités et contacts.";
+          "Conditions generales LeadControl detaillant les droits, obligations, responsabilites et contacts.";
         break;
     }
 
