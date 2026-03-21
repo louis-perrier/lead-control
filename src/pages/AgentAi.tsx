@@ -96,6 +96,44 @@ const AgentAi: FunctionComponent = () => {
     }
   }, [location.search, refreshDisplayedAgents]);
 
+  // Gérer les query params OAuth WhatsApp au retour
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const waConnected = urlParams.get('wa_connected');
+    const waError = urlParams.get('wa_error');
+    
+    if (waConnected === '1') {
+      // Succès - comportement existant + message optionnel
+      setOauthMessage("Compte WhatsApp connecté avec succès !");
+      setOauthMessageType('success');
+      
+      // Rafraîchir les données des connecteurs
+      refreshDisplayedAgents();
+    } else if (waError === 'already_connected') {
+      // Erreur - afficher le message d'erreur
+      setOauthMessage("Ce numéro WhatsApp est déjà connecté à un autre agent");
+      setOauthMessageType('error');
+    }
+    
+    // Nettoyer les query params de l'URL
+    if (waConnected || waError) {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('wa_connected');
+      newUrl.searchParams.delete('wa_error');
+      
+      // Remplacer l'URL sans recharger la page
+      window.history.replaceState({}, '', newUrl.toString());
+      
+      // Auto-effacer le message après quelques secondes
+      const timer = setTimeout(() => {
+        setOauthMessage(null);
+        setOauthMessageType(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location.search, refreshDisplayedAgents]);
+
   const handleSortChange = useCallback(
     ({ key, order }: { key: string; order: "asc" | "desc" }) => {
       setSortColumn(key);

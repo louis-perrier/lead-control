@@ -111,8 +111,8 @@ export const buildConnectorActions = (
     whatsapp: {
       imageSrc: "/logoConnectors/whatsapp.webp",
       color: "",
-      onConnect: () => {},
-      onDisconnect: () => {},
+      onConnect: createConnectWhatsApp(ctx),
+      onDisconnect: createDisconnectWhatsApp(ctx),
     },
     gmail: {
       imageSrc: "/logoConnectors/gmail.webp",
@@ -151,4 +151,122 @@ export const buildConnectorActions = (
       onDisconnect: () => {},
     },
   };
+};
+
+const createConnectWhatsApp = (
+  context: Required<ConnectorActionsContext>
+) => async () => {
+  console.log("🔵 WhatsApp connection - START");
+  console.log("🔍 Context configsId:", context.configsId);
+  
+  if (!context.configsId) {
+    console.error("❌ No configsId provided");
+    return;
+  }
+  
+  try {
+    console.log("🔍 Getting Supabase session...");
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    console.log("✅ Session OK");
+    
+    console.log("🔍 Checking environment variables...");
+    console.log("VITE_META_APP_ID:", import.meta.env.VITE_META_APP_ID);
+    console.log("VITE_SUPABASE_ANON_KEY:", import.meta.env.VITE_SUPABASE_ANON_KEY ? "✅ Present" : "❌ Missing");
+    
+    // Appel à l'API WhatsApp OAuth start (même pattern qu'Instagram)
+    console.log("🔍 Calling wa-oauth/start...");
+    const res = await fetch(
+      "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/start",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          return_to: `https://leadcontrol.com${window.location.pathname}`,
+          configs_id: context.configsId,
+        }),
+      }
+    );
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    
+    const responseData = await res.json();
+    console.log("✅ wa-oauth/start response:", responseData);
+    const { auth_url } = responseData;
+    
+    if (!auth_url) {
+      throw new Error("No auth_url in response");
+    }
+    
+    // Extraire le state depuis l'URL d'auth
+    const state = new URL(auth_url).searchParams.get('state');
+    console.log("🔍 Extracted state:", state);
+    
+    // Vérifier le SDK Facebook
+    console.log("🔍 Checking Facebook SDK...");
+    console.log("window.FB:", typeof window.FB);
+    
+    // Utiliser le SDK Facebook pour WhatsApp Embedded Signup
+    if (typeof window.FB !== 'undefined') {
+      console.log("✅ Facebook SDK loaded, calling FB.login...");
+      window.FB.login(function(response: any) {
+        console.log("🔍 FB.login response:", response);
+        if (!response.authResponse?.code) {
+          console.error("❌ WhatsApp connection cancelled or failed", response);
+          return;
+        }
+        console.log("✅ WhatsApp FB.login successful");
+        // Si code présent : Meta redirige automatiquement vers wa-oauth/callback
+        // Rien à faire ici
+      }, {
+        config_id: 'WA_CONFIG_ID_PLACEHOLDER', // À remplacer manuellement après création dans Meta Dashboard
+        response_type: 'code',
+        override_default_response_type: true,
+        extras: { state, setup: {} }
+      });
+    } else {
+      console.error("❌ Facebook SDK not loaded");
+      alert("Erreur : SDK Facebook non chargé. Veuillez rafraîchir la page.");
+    }
+  } catch (error) {
+    console.error("❌ WhatsApp connection error:", error);
+    alert(`Erreur WhatsApp: ${error instanceof Error ? error.message : String(error)}`);
+  }
+};
+
+const createDisconnectWhatsApp = (
+  context: Required<ConnectorActionsContext>
+) => async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    
+    const connectorId = context.connectorConnected.find(
+      (item) => item.connectors_name.toLowerCase() === "whatsapp"
+    )?.id;
+    
+    const res = await fetch(
+      "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/dynamic-responder/start",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ connector_id: connectorId }),
+      }
+    );
+    
+    const data = await res.text();
+    if (data !== "OK") throw new Error("Failed to disconnect WhatsApp connector");
+  } catch (error) {
+    console.error("WhatsApp disconnection error:", error);
+  }
 };

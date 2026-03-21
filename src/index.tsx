@@ -15,6 +15,25 @@ import "./global.css";
 import "./global.css";
 import { AuthProvider } from "./context/AuthContext";
 
+// Configuration du SDK Facebook pour WhatsApp Embedded Signup
+declare global {
+  interface Window {
+    fbAsyncInit?: () => void;
+    FB?: any;
+  }
+}
+
+window.fbAsyncInit = function() {
+  if (typeof window.FB !== 'undefined') {
+    window.FB.init({
+      appId: import.meta.env.VITE_META_APP_ID,
+      autoLogAppEvents: true,
+      xfbml: true,
+      version: 'v21.0'
+    });
+  }
+};
+
 const muiTheme = createTheme();
 
 const queryClient = new QueryClient({
