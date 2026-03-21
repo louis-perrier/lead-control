@@ -239,7 +239,7 @@ const createConnectWhatsApp = (
         // Si code présent : Meta redirige automatiquement vers wa-oauth/callback
         // Rien à faire ici
       }, {
-        config_id: 'WA_CONFIG_ID_PLACEHOLDER', // À remplacer manuellement après création dans Meta Dashboard
+        config_id: '2000398807181284', // Config ID WhatsApp Business depuis Meta Dashboard
         response_type: 'code',
         override_default_response_type: true,
         extras: { state, setup: {} }
