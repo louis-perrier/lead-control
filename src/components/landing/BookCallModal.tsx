@@ -15,7 +15,7 @@ type CalendlyMessage = {
 };
 
 const CALENDLY_EMBED_URL =
-  "https://calendly.com/louis-lautopreneur/15min?hide_landing_page_details=1&hide_event_type_details=1&hide_gdpr_banner=1&background_color=ffffff&text_color=000000&primary_color=22d3ee";
+  "https://calendly.com/louis-lautopreneur/lead-control-diagnostic-coach?hide_event_type_details=1&hide_gdpr_banner=1";
 
 const BookCallModal = ({ open, onClose }: BookCallModalProps) => {
   const widgetRef = useRef<HTMLDivElement | null>(null);

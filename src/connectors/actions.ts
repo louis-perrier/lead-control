@@ -182,8 +182,7 @@ const createConnectWhatsApp = (
         method: "POST",
         headers: {
           "content-type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          authorization: `Bearer ${session.access_token}`,
+          "Authorization": `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           return_to: `https://leadcontrol.com${window.location.pathname}`,

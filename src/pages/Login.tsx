@@ -136,6 +136,7 @@ const Login = () => {
           spacing={1}
           justifyContent="space-between"
           alignItems="center"
+          sx={{ display: "none" }}
         >
           <Link component={RouterLink} to="/signup" sx={authLinkSx} underline="hover">
             Créer un compte

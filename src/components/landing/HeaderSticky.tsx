@@ -27,7 +27,7 @@ const HeaderSticky = ({ onPrimaryCta, primaryCtaLabel }: HeaderStickyProps) => {
       </div>
       <div className={styles.ctas}>
         <Link to="/login" className={styles.secondary}>
-          Se connecter
+          Bêta Testeur
         </Link>
         <button type="button" className={styles.primary} onClick={onPrimaryCta}>
           {primaryCtaLabel}
