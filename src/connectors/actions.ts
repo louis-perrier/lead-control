@@ -212,20 +212,23 @@ const createConnectWhatsApp = (
     console.log("window.FB:", typeof window.FB);
     
     // Utiliser le SDK Facebook pour WhatsApp Embedded Signup
-    if (typeof window.FB !== 'undefined') {
-      // S'assurer que FB est initialisé avant de l'utiliser
-      if (!window.FB.getAccessToken && import.meta.env.VITE_META_APP_ID) {
-        console.log("🔧 Initializing Facebook SDK...");
+    if (typeof window.FB !== 'undefined' && import.meta.env.VITE_META_APP_ID) {
+      // TOUJOURS forcer l'initialisation avant utilisation
+      console.log("🔧 Force initializing Facebook SDK...");
+      try {
         window.FB.init({
           appId: import.meta.env.VITE_META_APP_ID,
           autoLogAppEvents: true,
           xfbml: true,
           version: 'v21.0'
         });
-        console.log("✅ Facebook SDK initialized on-demand");
+        console.log("✅ Facebook SDK force-initialized");
+      } catch (initError) {
+        console.error("❌ FB.init failed:", initError);
+        return;
       }
       
-      console.log("✅ Facebook SDK loaded, calling FB.login...");
+      console.log("✅ Facebook SDK ready, calling FB.login...");
       window.FB.login(function(response: any) {
         console.log("🔍 FB.login response:", response);
         if (!response.authResponse?.code) {
