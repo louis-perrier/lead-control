@@ -24,13 +24,20 @@ declare global {
 }
 
 window.fbAsyncInit = function() {
-  if (typeof window.FB !== 'undefined') {
-    window.FB.init({
-      appId: import.meta.env.VITE_META_APP_ID,
-      autoLogAppEvents: true,
-      xfbml: true,
-      version: 'v21.0'
-    });
+  if (typeof window.FB !== 'undefined' && import.meta.env.VITE_META_APP_ID) {
+    try {
+      window.FB.init({
+        appId: import.meta.env.VITE_META_APP_ID,
+        autoLogAppEvents: true,
+        xfbml: true,
+        version: 'v21.0'
+      });
+      console.log("✅ Facebook SDK initialized");
+    } catch (error) {
+      console.error("❌ Facebook SDK init failed:", error);
+    }
+  } else {
+    console.warn("⚠️ Facebook SDK not initialized: missing VITE_META_APP_ID or FB not loaded");
   }
 };
 

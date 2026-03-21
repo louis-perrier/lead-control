@@ -213,6 +213,18 @@ const createConnectWhatsApp = (
     
     // Utiliser le SDK Facebook pour WhatsApp Embedded Signup
     if (typeof window.FB !== 'undefined') {
+      // S'assurer que FB est initialisé avant de l'utiliser
+      if (!window.FB.getAccessToken && import.meta.env.VITE_META_APP_ID) {
+        console.log("🔧 Initializing Facebook SDK...");
+        window.FB.init({
+          appId: import.meta.env.VITE_META_APP_ID,
+          autoLogAppEvents: true,
+          xfbml: true,
+          version: 'v21.0'
+        });
+        console.log("✅ Facebook SDK initialized on-demand");
+      }
+      
       console.log("✅ Facebook SDK loaded, calling FB.login...");
       window.FB.login(function(response: any) {
         console.log("🔍 FB.login response:", response);
@@ -256,8 +268,7 @@ const createDisconnectWhatsApp = (
         method: "POST",
         headers: {
           "content-type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          authorization: `Bearer ${session.access_token}`,
+          "Authorization": `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ connector_id: connectorId }),
       }
