@@ -229,15 +229,17 @@ const createConnectWhatsApp = (
       }
       
       console.log("✅ Facebook SDK ready, calling FB.login...");
-      window.FB.login(function(response: any) {
+      window.FB.login(async function(response: any) {
         console.log("🔍 FB.login response:", response);
-        if (!response.authResponse?.code) {
+        if (response.authResponse?.code) {
+          console.log("✅ WhatsApp code received:", response.authResponse.code);
+          console.log("🔄 Redirecting to callback with code...");
+          
+          // Appeler manuellement le callback avec le code
+          window.location.href = `https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/callback?code=${response.authResponse.code}&state=${state}`;
+        } else {
           console.error("❌ WhatsApp connection cancelled or failed", response);
-          return;
         }
-        console.log("✅ WhatsApp FB.login successful");
-        // Si code présent : Meta redirige automatiquement vers wa-oauth/callback
-        // Rien à faire ici
       }, {
         config_id: '2000398807181284', // Config ID WhatsApp Business depuis Meta Dashboard
         response_type: 'code',
