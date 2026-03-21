@@ -229,7 +229,7 @@ const createConnectWhatsApp = (
       }
       
       console.log("✅ Facebook SDK ready, calling FB.login...");
-      window.FB.login(async function(response: any) {
+      window.FB.login(function(response: any) {
         console.log("🔍 FB.login response:", response);
         if (response.authResponse?.code) {
           console.log("✅ WhatsApp code received:", response.authResponse.code);
