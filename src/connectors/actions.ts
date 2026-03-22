@@ -229,7 +229,10 @@ const createConnectWhatsApp = (
       }
       
       console.log("✅ Facebook SDK ready, calling FB.login...");
-      window.FB.login(function(response: any) {
+    const currentPageUrl = window.location.href;
+    console.log("🔍 Captured redirect URI before FB.login:", currentPageUrl);
+
+    window.FB.login(function(response: any) {
         console.log("🔍 FB.login response:", response);
         if (response.authResponse?.code) {
           console.log("✅ WhatsApp code received:", response.authResponse.code);
@@ -239,7 +242,7 @@ const createConnectWhatsApp = (
           const callbackUrl = `https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/callback`
             + `?code=${response.authResponse.code}`
             + `&state=${state}`
-            + `&redirect_uri=${encodeURIComponent(window.location.href)}`;
+            + `&redirect_uri=${encodeURIComponent(currentPageUrl)}`;
           
           console.log("🔗 Callback URL:", callbackUrl);
           window.location.href = callbackUrl;
