@@ -235,8 +235,14 @@ const createConnectWhatsApp = (
           console.log("✅ WhatsApp code received:", response.authResponse.code);
           console.log("🔄 Redirecting to callback with code...");
           
-          // Appeler manuellement le callback avec le code
-          window.location.href = `https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/callback?code=${response.authResponse.code}&state=${state}`;
+          // Appeler manuellement le callback avec le code + redirect_uri
+          const callbackUrl = `https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/callback`
+            + `?code=${response.authResponse.code}`
+            + `&state=${state}`
+            + `&redirect_uri=${encodeURIComponent(window.location.href)}`;
+          
+          console.log("🔗 Callback URL:", callbackUrl);
+          window.location.href = callbackUrl;
         } else {
           console.error("❌ WhatsApp connection cancelled or failed", response);
         }
