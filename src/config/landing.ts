@@ -4,7 +4,7 @@ export const launchSpotsRemaining = 5;
 
 export const heroCopy = {
   eyebrow: "Agent IA setter pour DM Instagram",
-  title: "LeadControl repond a vos DM Instagram, qualifie les leads et prend des rendez vous automatiquement.",
+  title: "Ton agent IA répond, qualifie et book. Toi tu closes.",
   subtitle:
     "Pendant que vous travaillez, votre agent gere les questions cles, traite les objections courantes et envoie le lien Calendly au bon moment.",
   releaseLabel: "Lancement public - Mars 2026",
