@@ -238,11 +238,10 @@ const createConnectWhatsApp = (
           console.log("✅ WhatsApp code received:", response.authResponse.code);
           console.log("🔄 Redirecting to callback with code...");
           
-          // Appeler manuellement le callback avec le code + redirect_uri
-          const callbackUrl = `https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/callback`
-            + `?code=${response.authResponse.code}`
-            + `&state=${state}`
-            + `&redirect_uri=${encodeURIComponent(currentPageUrl)}`;
+        // Appeler manuellement le callback avec le code (sans redirect_uri)
+        const callbackUrl = `https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/callback`
+          + `?code=${response.authResponse.code}`
+          + `&state=${state}`;
           
           console.log("🔗 Callback URL:", callbackUrl);
           window.location.href = callbackUrl;
