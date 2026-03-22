@@ -18,6 +18,7 @@ import styles from "./Dashboard.module.css";
 import useAgents from "../hooks/useAgents";
 import useClaraConversations from "../hooks/useClaraConversations";
 import supabase from "../lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
 import AudioMessageBubble, {
   TranscriptStatus,
 } from "../components/AudioMessageBubble";
@@ -1077,23 +1078,67 @@ const Dashboard: FunctionComponent = () => {
     setSortMenuOpen(false);
   };
 
+  const queryClient = useQueryClient();
+
   const handleSendMessage = async () => {
-    if (isSending || !composerText.trim() || !activeConversation) {
+    if (!composerText.trim() || !activeConversation || !selectedConfigId) {
       return;
     }
-    setIsSending(true);
+
+    const messageText = composerText.trim();
+    const tempId = `temp-${Date.now()}`;
+    
+    // 1. Créer le message optimiste
+    const optimisticMessage = {
+      id: `${activeConversation.id}-${tempId}`,
+      direction: "outbound" as const,
+      text: messageText,
+      sentAt: new Date().toISOString(),
+      attachment: undefined,
+      mediaPath: undefined,
+      transcriptStatus: undefined,
+      transcript: null,
+      transcriptError: null,
+      authorType: "human" as const,
+      automationStart: null,
+      automationEnd: null,
+    };
+
+    // 2. Mettre à jour React Query optimistiquement
+    const queryKey = ["clara-conversations", selectedConfigId];
+    queryClient.setQueryData(queryKey, (oldData: any) => {
+      if (!Array.isArray(oldData)) return oldData;
+      
+      return oldData.map((conv: any) =>
+        conv.id === activeConversation.id
+          ? {
+              ...conv,
+              messages: [
+                ...conv.messages,
+                optimisticMessage
+              ]
+            }
+          : conv
+      );
+    });
+
+    // 3. Vider le champ immédiatement
+    setComposerText("");
+
     try {
+      // 4. Envoyer à l'API
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getSession();
       if (sessionError) {
         console.error("Impossible de récupérer la session", sessionError);
-        return;
+        throw new Error("Session error");
       }
       const accessToken = sessionData?.session?.access_token;
       if (!accessToken) {
         console.error("Token d'accès manquant pour envoyer le message");
-        return;
+        throw new Error("Access token missing");
       }
+      
       const response = await fetch(
         "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/callback-relay/insta/send-message",
         {
@@ -1105,23 +1150,42 @@ const Dashboard: FunctionComponent = () => {
           body: JSON.stringify({
             conversation_id: Number(activeConversation.id),
             platform: activeConversation.channel,
-            text: composerText.trim(),
+            text: messageText,
           }),
         }
       );
+      
       const payload = await response.json();
       if (!response.ok || payload?.ok !== true) {
         console.error(
           "Impossible d'envoyer le message via la fonction callback",
           payload
         );
-        return;
+        throw new Error("API error");
       }
-      setComposerText("");
+
+      // 5. Succès : React Query sera mis à jour via Realtime
+      // Le message optimiste sera remplacé par le vrai message
+      
     } catch (error) {
-      console.error("Erreur lors de l'appel à la fonction callback", error);
-    } finally {
-      setIsSending(false);
+      console.error("Erreur lors de l'envoi du message", error);
+      
+      // 6. Rollback en cas d'erreur
+      queryClient.setQueryData(queryKey, (oldData: any) => {
+        if (!Array.isArray(oldData)) return oldData;
+        
+        return oldData.map((conv: any) =>
+          conv.id === activeConversation.id
+            ? {
+                ...conv,
+                messages: conv.messages.filter((msg: any) => msg.id !== optimisticMessage.id)
+              }
+            : conv
+        );
+      });
+      
+      // Remettre le texte dans le champ
+      setComposerText(messageText);
     }
   };
 
@@ -1762,15 +1826,8 @@ const Dashboard: FunctionComponent = () => {
                       type="button"
                       className={styles.chatComposerSend}
                       onClick={handleSendMessage}
-                      disabled={isSending || !composerText.trim()}
-                      aria-busy={isSending}
+                      disabled={!composerText.trim()}
                     >
-                      {isSending && (
-                        <span
-                          className={styles.chatComposerSpinner}
-                          aria-hidden="true"
-                        />
-                      )}
                       Envoyer
                     </button>
                     </div>

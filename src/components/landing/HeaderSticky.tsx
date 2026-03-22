@@ -1,13 +1,14 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import styles from "../../styles/landing/HeaderSticky.module.css";
+import { useCalendly } from "../../hooks/useCalendly";
 
 type HeaderStickyProps = {
-  onPrimaryCta: () => void;
   primaryCtaLabel: string;
 };
 
-const HeaderSticky = ({ onPrimaryCta, primaryCtaLabel }: HeaderStickyProps) => {
+const HeaderSticky = ({ primaryCtaLabel }: HeaderStickyProps) => {
+  const { openCalendly } = useCalendly();
   const [isSolid, setIsSolid] = useState(false);
 
   useEffect(() => {
@@ -27,9 +28,9 @@ const HeaderSticky = ({ onPrimaryCta, primaryCtaLabel }: HeaderStickyProps) => {
       </div>
       <div className={styles.ctas}>
         <Link to="/login" className={styles.secondary}>
-          Beta testeur
+          Bêta Testeur
         </Link>
-        <button type="button" className={styles.primary} onClick={onPrimaryCta}>
+        <button type="button" className={styles.primary} onClick={openCalendly}>
           {primaryCtaLabel}
         </button>
       </div>

@@ -1,12 +1,13 @@
 import { heroCopy, pricingData } from "../../../config/landing";
 import styles from "../../../styles/landing/Sections.module.css";
+import { useCalendly } from "../../../hooks/useCalendly";
 
 type PricingSectionProps = {
-  onPrimaryCta: () => void;
   primaryCtaLabel: string;
 };
 
-const PricingSection = ({ onPrimaryCta, primaryCtaLabel }: PricingSectionProps) => {
+const PricingSection = ({ primaryCtaLabel }: PricingSectionProps) => {
+  const { openCalendly } = useCalendly();
   return (
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
@@ -36,7 +37,7 @@ const PricingSection = ({ onPrimaryCta, primaryCtaLabel }: PricingSectionProps) 
               <li key={item}>{item}</li>
             ))}
           </ul>
-          <button type="button" onClick={onPrimaryCta} className={styles.ctaButton}>
+          <button type="button" onClick={openCalendly} className={styles.ctaButton}>
             {primaryCtaLabel}
           </button>
           <p className={styles.pricingNote}>{heroCopy.scarcityNote}</p>

@@ -169,8 +169,11 @@ const AgentAi: FunctionComponent = () => {
   }, []);
 
   const typeOptions = useMemo(() => { 
+    const agentsList = Array.isArray(displayedAgents)
+      ? displayedAgents
+      : [];
     const map = new Map<string, string>();
-    displayedAgents.forEach((agent) => {
+    agentsList.forEach((agent) => {
       if (!map.has(agent.agent_id)) {
         map.set(agent.agent_id, agent.agent_default_name);
       }
@@ -183,7 +186,10 @@ const AgentAi: FunctionComponent = () => {
 
   const filteredAgents = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    let candidates = [...displayedAgents];
+    const agentsList = Array.isArray(displayedAgents)
+      ? displayedAgents
+      : [];
+    let candidates = [...agentsList];
     if (normalizedQuery) {
       candidates = candidates.filter((agent) =>
         (agent.name ?? "")

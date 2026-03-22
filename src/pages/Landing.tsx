@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import BookCallModal from "../components/landing/BookCallModal";
+import CalendlyBadge from "../components/landing/CalendlyBadge";
 import HeaderSticky from "../components/landing/HeaderSticky";
 import HeroSection from "../components/landing/Sections/HeroSection";
 import HowItWorksSection from "../components/landing/Sections/HowItWorksSection";
@@ -20,7 +20,6 @@ import styles from "../styles/landing/Landing.module.css";
 const Landing = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const [modalOpen, setModalOpen] = useState(false);
   const [spots] = useState(launchSpotsRemaining);
 
   useEffect(() => {
@@ -36,9 +35,6 @@ const Landing = () => {
     };
   }, []);
 
-  const handleOpenModal = () => setModalOpen(true);
-  const handleCloseModal = () => setModalOpen(false);
-
   const memoizedTitle = useMemo(() => "LeadControl - Agent IA DM Instagram", []);
 
   useEffect(() => {
@@ -47,25 +43,21 @@ const Landing = () => {
 
   return (
     <>
-      <HeaderSticky onPrimaryCta={handleOpenModal} primaryCtaLabel={primaryCtaLabel} />
+      <HeaderSticky primaryCtaLabel={primaryCtaLabel} />
       <main className={styles.page}>
-        <HeroSection
-          onPrimaryCta={handleOpenModal}
-          primaryCtaLabel={primaryCtaLabel}
-          spotsRemaining={spots}
-        />
+        <HeroSection primaryCtaLabel={primaryCtaLabel} spotsRemaining={spots} />
         <ProofSection />
         <HowItWorksSection />
         <CapabilitiesSection />
         <TestimonialsSection />
         <RoiSection />
-        <PricingSection onPrimaryCta={handleOpenModal} primaryCtaLabel={primaryCtaLabel} />
+        <PricingSection primaryCtaLabel={primaryCtaLabel} />
         <FounderSection />
         <FaqSection />
-        <FinalCtaSection onPrimaryCta={handleOpenModal} />
+        <FinalCtaSection />
         <FooterLanding />
       </main>
-      <BookCallModal open={modalOpen} onClose={handleCloseModal} />
+      <CalendlyBadge />
     </>
   );
 };

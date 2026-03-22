@@ -955,8 +955,16 @@ const AgentAi: FunctionComponent = () => {
   }, [activeSocial, connectorAvailable]);
 
   const collectRequiredConfigIds = (items: ConfigItem[]) => {
+    if (!Array.isArray(items)) {
+      console.warn("collectRequiredConfigIds: items is not an array", items);
+      return [];
+    }
     const ids: string[] = [];
     const visit = (entries: ConfigItem[]) => {
+      if (!Array.isArray(entries)) {
+        console.warn("collectRequiredConfigIds visit: entries is not an array", entries);
+        return;
+      }
       entries.forEach((entry) => {
         if (entry.required) {
           ids.push(entry.id);
@@ -1022,7 +1030,10 @@ const AgentAi: FunctionComponent = () => {
         id: item.id,
         value: item.value,
       }));
-      return checkMissing(blueprint.config_agent_connector as ConfigItem[], savedValues);
+      const configItems = Array.isArray(blueprint.config_agent_connector) 
+        ? blueprint.config_agent_connector as ConfigItem[]
+        : [];
+      return checkMissing(configItems, savedValues);
     });
   }, [connectorAvailable, connectorConnected]);
 

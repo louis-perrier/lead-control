@@ -1,4 +1,4 @@
-export const BOOKING_URL = "https://calendly.com/louis-lautopreneur/15min";
+export const BOOKING_URL = "https://calendly.com/louis-lautopreneur/lead-control-diagnostic-coach?hide_gdpr_banner=1";
 
 export const launchSpotsRemaining = 5;
 

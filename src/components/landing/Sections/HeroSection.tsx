@@ -5,14 +5,15 @@ import {
   heroTrustItems,
 } from "../../../config/landing";
 import styles from "../../../styles/landing/HeroSection.module.css";
+import { useCalendly } from "../../../hooks/useCalendly";
 
 type HeroSectionProps = {
-  onPrimaryCta: () => void;
   primaryCtaLabel: string;
   spotsRemaining: number;
 };
 
-const HeroSection = ({ onPrimaryCta, primaryCtaLabel, spotsRemaining }: HeroSectionProps) => {
+const HeroSection = ({ primaryCtaLabel, spotsRemaining }: HeroSectionProps) => {
+  const { openCalendly } = useCalendly();
   return (
     <section className={styles.hero} data-reveal>
       <div className={styles.heroContent}>
@@ -28,7 +29,7 @@ const HeroSection = ({ onPrimaryCta, primaryCtaLabel, spotsRemaining }: HeroSect
           </span>
 
           <div className={styles.ctaRow}>
-            <button type="button" className={styles.heroCta} onClick={onPrimaryCta}>
+            <button type="button" className={styles.heroCta} onClick={openCalendly}>
               {primaryCtaLabel}
             </button>
             <span className={styles.ctaHint}>Sans carte - Call 15 min - Setup 24h</span>
