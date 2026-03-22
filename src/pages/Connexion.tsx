@@ -82,6 +82,12 @@ const Connexion: FunctionComponent = () => {
       console.error("Error fetching connections:", error);
       return;
     }
+    if (!Array.isArray(data)) {
+      console.warn("fetchConnections: unexpected payload, resetting connections", data);
+      setConnections([]);
+      return;
+    }
+
     setConnections(
       (data ?? []).map((connection: any) => {
         const configs = connection.connectors_config_agent ?? [];
