@@ -49,7 +49,7 @@ const createConnectInstagram = (
           authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          return_to: `https://leadcontrol.com${window.location.pathname}`,
+          return_to: window.location.href,
           configs_id: context.configsId,
         }),
       }
@@ -198,66 +198,17 @@ const createConnectWhatsApp = (
     const responseData = await res.json();
     console.log("✅ wa-oauth/start response:", responseData);
     const { auth_url } = responseData;
-    
+
     if (!auth_url) {
       throw new Error("No auth_url in response");
     }
-    
-    // Extraire le state depuis l'URL d'auth
-    const state = new URL(auth_url).searchParams.get('state');
-    console.log("🔍 Extracted state:", state);
-    
-    // Vérifier le SDK Facebook
-    console.log("🔍 Checking Facebook SDK...");
-    console.log("window.FB:", typeof window.FB);
-    
-    // Utiliser le SDK Facebook pour WhatsApp Embedded Signup
-    if (typeof window.FB !== 'undefined' && import.meta.env.VITE_META_APP_ID) {
-      // TOUJOURS forcer l'initialisation avant utilisation
-      console.log("🔧 Force initializing Facebook SDK...");
-      try {
-        window.FB.init({
-          appId: import.meta.env.VITE_META_APP_ID,
-          autoLogAppEvents: true,
-          xfbml: true,
-          version: 'v21.0'
-        });
-        console.log("✅ Facebook SDK force-initialized");
-      } catch (initError) {
-        console.error("❌ FB.init failed:", initError);
-        return;
-      }
-      
-      console.log("✅ Facebook SDK ready, calling FB.login...");
-    const currentPageUrl = window.location.href;
-    console.log("🔍 Captured redirect URI before FB.login:", currentPageUrl);
 
-    window.FB.login(function(response: any) {
-        console.log("🔍 FB.login response:", response);
-        if (response.authResponse?.code) {
-          console.log("✅ WhatsApp code received:", response.authResponse.code);
-          console.log("🔄 Redirecting to callback with code...");
-          
-        // Appeler manuellement le callback avec le code (sans redirect_uri)
-        const callbackUrl = `https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/callback`
-          + `?code=${response.authResponse.code}`
-          + `&state=${state}`;
-          
-          console.log("🔗 Callback URL:", callbackUrl);
-          window.location.href = callbackUrl;
-        } else {
-          console.error("❌ WhatsApp connection cancelled or failed", response);
-        }
-      }, {
-        config_id: '2000398807181284', // Config ID WhatsApp Business depuis Meta Dashboard
-        response_type: 'code',
-        override_default_response_type: true,
-        extras: { state, setup: {} }
-      });
-    } else {
-      console.error("❌ Facebook SDK not loaded");
-      alert("Erreur : SDK Facebook non chargé. Veuillez rafraîchir la page.");
+    const popup = window.open(auth_url, "wa_oauth", "width=600,height=700");
+    if (!popup) {
+      alert("Popup bloquée : autorise les popups pour Lead Control");
+      return;
     }
+    context.setActivePopup(popup);
   } catch (error) {
     console.error("❌ WhatsApp connection error:", error);
     alert(`Erreur WhatsApp: ${error instanceof Error ? error.message : String(error)}`);
