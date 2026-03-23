@@ -9,6 +9,7 @@ declare global {
         textColor?: string;
         branding?: boolean;
       }) => void;
+      destroyBadgeWidget?: () => void;
     };
   }
 }
