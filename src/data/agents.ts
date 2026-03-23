@@ -14,6 +14,7 @@ export type AgentInfo = {
   imageSrc: string;
   backgroundSrc: string;
   details: string[];
+  details_component?: string[];
   configs: {
     Details: AgentDetails;
     Configurations: Record<string, string>;
@@ -89,6 +90,7 @@ const buildAgent = (agent: {
   is_available?: boolean | null;
   is_bonus?: boolean | null;
   release_date?: string | null;
+  details_component?: string[] | null;
 }) => {
   const defaultAgent = defaultAgents[agent.name_default];
   return {
@@ -99,6 +101,7 @@ const buildAgent = (agent: {
     imageSrc: defaultAgent.imageSrc,
     backgroundSrc: defaultAgent.backgroundSrc,
     details: defaultAgent.details,
+    details_component: agent.details_component ?? [],
     configs: defaultAgent.configs,
     is_available: agent.is_available ?? true,
     is_bonus: agent.is_bonus ?? false,

@@ -8,15 +8,6 @@ import styles from "./PricingPage.module.css";
 type BillingCycle = "monthly" | "yearly";
 type PlanId = "1_agent" | "2_agents" | "custom";
 
-type BillingHistoryEntry = {
-  id: string;
-  plan: string;
-  amount: string;
-  purchaseDate: string;
-  endDate: string;
-  status: "success" | "warning";
-};
-
 const creditTicks = [0, 500, 1000, 1500, 2000];
 
 const planCatalog: {
@@ -72,8 +63,6 @@ const planCatalog: {
     ],
   },
 ];
-
-const billingHistory: BillingHistoryEntry[] = [];
 
 const formatPrice = (value: number) =>
   `${value.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`;
@@ -340,9 +329,7 @@ const PricingPage: FunctionComponent = () => {
                   Pilotez vos paiements avec sérénité
                 </h1>
                 <p className={styles.description}>
-                  Suivez les détails de vos abonnements, mettez à jour vos
-                  informations de facturation et gardez la maîtrise de votre
-                  expérience de paiement depuis un seul espace sécurisé.
+                  Gérez vos abonnements et votre facturation en un seul endroit.
                 </p>
               </div>
             </div>
@@ -609,104 +596,6 @@ const PricingPage: FunctionComponent = () => {
           </div>
         </section>
 
-        <section className={styles.historySection}>
-          <div className={styles.historyHeader}>
-            <div>
-              <h3>
-                Historique des paiements
-              </h3>
-              <p className={styles.description}>
-                Tous les paiements enregistrés et leur statut.
-              </p>
-            </div>
-            <div className={styles.historyActions}>
-              <input
-                type="search"
-                placeholder="Rechercher"
-                aria-label="Rechercher un paiement"
-              />
-              <button
-                type="button"
-                className={styles.filterButton}
-              >
-                Filtrer
-              </button>
-              <button
-                type="button"
-                className={styles.exportButton}
-              >
-                Exporter
-              </button>
-            </div>
-          </div>
-          <div className={styles.historyTable}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Plan</th>
-                  <th>Montant</th>
-                  <th>Date d'achat</th>
-                  <th>Fin</th>
-                  <th>Statut</th>
-                  <th aria-label="Actions">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {billingHistory.length > 0 ? (
-                  billingHistory.map((row) => (
-                    <tr key={row.id}>
-                      <td className={styles.planName}>
-                        {row.plan}
-                      </td>
-                      <td className={styles.amount}>
-                        {row.amount}
-                      </td>
-                      <td className={styles.date}>
-                        {row.purchaseDate}
-                      </td>
-                      <td className={styles.date}>
-                        {row.endDate}
-                      </td>
-                      <td>
-                        <span
-                          className={`${styles.statusChip} ${
-                            row.status === "success" ? styles.success : styles.warning
-                          }`}
-                        >
-                          {row.status === "success" ? "Payé" : "En attente"}
-                        </span>
-                      </td>
-                      <td>
-                        <div className={styles.actionButtons}>
-                          <button
-                            type="button"
-                            className={styles.actionButton}
-                            aria-label={`Télécharger la facture ${row.amount}`}
-                          >
-                            <span className="material-icons">download</span>
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.actionButton}
-                            aria-label={`Voir la facture ${row.amount}`}
-                          >
-                            <span className="material-icons">visibility</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} style={{ textAlign: "center", padding: "2rem", color: "var(--app-text-secondary)" }}>
-                      Aucun historique de paiement disponible
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
         </div>
       </div>
     </AppLayout>

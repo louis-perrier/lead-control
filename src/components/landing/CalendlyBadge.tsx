@@ -26,6 +26,7 @@ const CalendlyBadge = () => {
 
     return () => {
       isMounted = false;
+      window.Calendly?.destroyBadgeWidget?.();
     };
   }, []);
 

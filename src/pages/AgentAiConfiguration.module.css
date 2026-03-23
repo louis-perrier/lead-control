@@ -235,6 +235,10 @@
   }
 }
 
+.detailsOverlayContent {
+  height: min(92vh, 920px);
+}
+
 .configurationOverlayContent {
   height: 560px;
   max-height: 560px;
@@ -336,7 +340,6 @@
   border: 1px solid rgba(229, 231, 235, 0.6);
   background: linear-gradient(180deg, #fdfdfd, #ffffff 60%);
   position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -2079,4 +2082,26 @@
   margin-right: auto;
   font-size: 12px;
   color: #5B667A;
+}
+
+
+.noConfigMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.noConfigMessage p:first-child {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.noConfigMessage p:last-child {
+  font-size: 14px;
+  color: var(--app-text-secondary);
 }

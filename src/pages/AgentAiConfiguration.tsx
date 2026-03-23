@@ -249,6 +249,7 @@ type DetailsSnapshot = {
   stopText: string;
   stopLink: string;
   productName: string;
+  qualification: string;
   timeSlots?: SavedTimeSlot[];
 };
 
@@ -428,6 +429,7 @@ const AgentAi: FunctionComponent = () => {
   const [stopText, setStopText] = useState("");
   const [stopLink, setStopLink] = useState("");
   const [productName, setProductName] = useState("");
+  const [qualification, setQualification] = useState("");
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() => getDefaultSlots());
   const [errors, setErrors] = useState<DetailErrors>({});
   const [lastSavedDetails, setLastSavedDetails] =
@@ -545,6 +547,7 @@ const AgentAi: FunctionComponent = () => {
       stopText: details?.stopText ?? "",
       stopLink: details?.stopLink ?? "",
       productName: details?.productName ?? "",
+      qualification: details?.qualification ?? "",
       timeSlots: savedSlots,
     };
     },
@@ -561,6 +564,7 @@ const AgentAi: FunctionComponent = () => {
       setStopText("");
       setStopLink("");
       setProductName("");
+      setQualification("");
       setTimeSlots(getDefaultSlots());
       return;
     }
@@ -572,6 +576,7 @@ const AgentAi: FunctionComponent = () => {
     setStopText(snapshot.stopText);
     setStopLink(snapshot.stopLink);
     setProductName(snapshot.productName);
+    setQualification(snapshot.qualification);
     setTimeSlots(buildStateSlots(snapshot.timeSlots));
   }, []);
 
@@ -660,78 +665,88 @@ const AgentAi: FunctionComponent = () => {
   }, []);
 
   const validateForm = useCallback((): DetailErrors => {
+    const activeComponents = selectedAgent?.details_component ?? [];
     const nextErrors: DetailErrors = {};
-    if (!contextText.trim() && !contextPdf) {
-      nextErrors.context = "Ajoute du texte ou un PDF pour décrire ton contexte.";
-    }
-    if (contextPdfError) {
-      nextErrors.contextPdf = contextPdfError;
-    }
-    if (!productName.trim()) {
-      nextErrors.productName = "Ajoute le nom du produit.";
-    }
-    const trimmedStopText = stopText.trim();
-    if (!trimmedStopText) {
-      nextErrors.stopText = "Décris ce qui doit déclencher l’arrêt.";
-    }
-    const hasActiveDay = Object.values(activeDays).some(Boolean);
-    if (!hasActiveDay) {
-      nextErrors.activeDays = "Sélectionne au moins un jour actif.";
-    }
-    const startMinutes = toMinutes(timeStart);
-    const endMinutes = toMinutes(timeEnd);
-    if (startMinutes >= endMinutes) {
-      nextErrors.timeRange =
-        "L’horaire de début doit être antérieur à l’horaire de fin.";
-    }
-    if (timeSlots.length > 0 && startMinutes < endMinutes) {
-      for (const slot of timeSlots) {
-        if (!isValidTimeFormat(slot.time)) {
-          nextErrors.timeSlots =
-            "Utilise un format 24h (HH:MM) pour l’heure du créneau.";
-          break;
-        }
-        const slotStart = toMinutes(slot.time);
-        const slotEnd = slotStart + slot.durationMinutes;
-        if (slot.durationMinutes <= 0) {
-          nextErrors.timeSlots =
-            "Chaque créneau doit avoir un intervalle supérieur à 0 minute.";
-          break;
-        }
-        if (slotStart < startMinutes || slotStart > endMinutes) {
-          nextErrors.timeSlots =
-            "Le créneau doit rester dans la plage horaire définie.";
-          break;
-        }
-        if (slotEnd > endMinutes) {
-          nextErrors.timeSlots =
-            "Le créneau + intervalle ne doit pas dépasser la plage horaire.";
-          break;
-        }
+    if (activeComponents.includes("context")) {
+      if (!contextText.trim() && !contextPdf) {
+        nextErrors.context = "Ajoute du texte ou un PDF pour décrire ton contexte.";
+      }
+      if (contextPdfError) {
+        nextErrors.contextPdf = contextPdfError;
       }
     }
-    const trimmedLink = stopLink.trim();
-    if (trimmedLink) {
-      const normalizedLink =
-        trimmedLink.startsWith("http://") ||
-        trimmedLink.startsWith("https://")
-          ? trimmedLink
-          : trimmedLink.startsWith("www.")
-          ? `https://${trimmedLink}`
-          : `https://${trimmedLink}`;
-      try {
-        new URL(normalizedLink);
-      } catch {
-        nextErrors.stopLink =
-          "Le lien doit être valide (https:// ou www.).";
+    if (activeComponents.includes("product_name")) {
+      if (!productName.trim()) {
+        nextErrors.productName = "Ajoute le nom du produit.";
       }
+    }
+    if (activeComponents.includes("stopped_condition")) {
+      const trimmedStopText = stopText.trim();
       if (!trimmedStopText) {
-        nextErrors.stopText =
-          "Décris le rôle du lien pour que l’agent sache quand s’arrêter.";
+        nextErrors.stopText = "Décris ce qui doit déclencher l’arrêt.";
+      }
+      const trimmedLink = stopLink.trim();
+      if (trimmedLink) {
+        const normalizedLink =
+          trimmedLink.startsWith("http://") ||
+          trimmedLink.startsWith("https://")
+            ? trimmedLink
+            : trimmedLink.startsWith("www.")
+            ? `https://${trimmedLink}`
+            : `https://${trimmedLink}`;
+        try {
+          new URL(normalizedLink);
+        } catch {
+          nextErrors.stopLink =
+            "Le lien doit être valide (https:// ou www.).";
+        }
+        if (!trimmedStopText) {
+          nextErrors.stopText =
+            "Décris le rôle du lien pour que l’agent sache quand s’arrêter.";
+        }
+      }
+    }
+    if (activeComponents.includes("activation_time")) {
+      const hasActiveDay = Object.values(activeDays).some(Boolean);
+      if (!hasActiveDay) {
+        nextErrors.activeDays = "Sélectionne au moins un jour actif.";
+      }
+      const startMinutes = toMinutes(timeStart);
+      const endMinutes = toMinutes(timeEnd);
+      if (startMinutes >= endMinutes) {
+        nextErrors.timeRange =
+          "L’horaire de début doit être antérieur à l’horaire de fin.";
+      }
+      if (timeSlots.length > 0 && startMinutes < endMinutes) {
+        for (const slot of timeSlots) {
+          if (!isValidTimeFormat(slot.time)) {
+            nextErrors.timeSlots =
+              "Utilise un format 24h (HH:MM) pour l’heure du créneau.";
+            break;
+          }
+          const slotStart = toMinutes(slot.time);
+          const slotEnd = slotStart + slot.durationMinutes;
+          if (slot.durationMinutes <= 0) {
+            nextErrors.timeSlots =
+              "Chaque créneau doit avoir un intervalle supérieur à 0 minute.";
+            break;
+          }
+          if (slotStart < startMinutes || slotStart > endMinutes) {
+            nextErrors.timeSlots =
+              "Le créneau doit rester dans la plage horaire définie.";
+            break;
+          }
+          if (slotEnd > endMinutes) {
+            nextErrors.timeSlots =
+              "Le créneau + intervalle ne doit pas dépasser la plage horaire.";
+            break;
+          }
+        }
       }
     }
     return nextErrors;
   }, [
+    selectedAgent,
     contextText,
     contextPdf,
     contextPdfError,
@@ -1473,6 +1488,7 @@ const AgentAi: FunctionComponent = () => {
       stopText,
       stopLink,
       productName: productName.trim(),
+      qualification: qualification.trim(),
       timeSlots: timeSlots.map(({ time, durationMinutes }) => ({
         time,
         durationMinutes,
@@ -1487,6 +1503,7 @@ const AgentAi: FunctionComponent = () => {
       stopText,
       stopLink,
       productName,
+      qualification,
       timeSlots,
     ]
   );
@@ -1605,6 +1622,7 @@ const AgentAi: FunctionComponent = () => {
             stopText,
             stopLink: stopLink.trim(),
             productName: snapshot.productName,
+            qualification: snapshot.qualification,
             timeSlots: snapshot.timeSlots,
             timezone: "Europe/Paris",
             schedule_version: (typeof selectedAgent.configs.Details?.schedule_version === "number" 
@@ -1625,6 +1643,360 @@ const AgentAi: FunctionComponent = () => {
     setContextPdfError(undefined);
     setErrors({});
     setActiveCorner(null);
+  };
+
+  const renderDetailsSection = (key: string, step: number): React.ReactNode => {
+    const stepLabel = String(step).padStart(2, "0");
+    switch (key) {
+      case "context":
+        return (
+          <section className={styles.modalSection}>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionStep}>{stepLabel}</span>
+              <h4 className={styles.sectionTitle}>Contexte</h4>
+            </div>
+            <p className={styles.sectionDescription}>
+              Décris ton produit ou service en détail pour que l'agent puisse répondre à toutes les questions des prospects sur ton offre.
+            </p>
+            <textarea
+              value={contextText}
+              onChange={(event) => setContextText(event.target.value)}
+              placeholder="Exemple : Mon produit est une formation en ligne sur le dropshipping à 497€. Elle comprend 25 modules vidéo, un groupe privé Discord, 3 sessions de coaching en live par mois, et un accès à vie. Les avantages principaux sont : méthode testée sur +1000 élèves, accompagnement personnalisé, garantie remboursé 30j. Le processus : appel découverte gratuit de 30min → présentation de l'offre → paiement en 1x ou 3x sans frais."
+              className={styles.contextTextarea}
+              rows={8}
+            />
+            <div className={styles.pdfSection}>
+              <h5 className={styles.pdfSectionTitle}>Documentation complémentaire</h5>
+              <p className={styles.pdfSectionDescription}>
+                Importez un PDF avec des informations détaillées que l'agent pourra consulter (brochure produit, FAQ, etc.).
+              </p>
+              <div className={styles.dropzoneWrapper}>
+                <label
+                  htmlFor="contextPdfInput"
+                  className={`${styles.dropzone} ${!CONTEXT_PDF_UPLOAD_ENABLED ? styles.dropzoneDisabled : ""}`}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={handlePdfDrop}
+                  aria-disabled={!CONTEXT_PDF_UPLOAD_ENABLED}
+                >
+                  <span>
+                    {CONTEXT_PDF_UPLOAD_ENABLED
+                      ? "Importer un PDF (max 20 Mo)"
+                      : "Importer un PDF (Bientôt disponible)"}
+                  </span>
+                </label>
+                <input
+                  id="contextPdfInput"
+                  type="file"
+                  accept="application/pdf"
+                  className={styles.dropzoneInput}
+                  onChange={handlePdfInputChange}
+                  disabled={!CONTEXT_PDF_UPLOAD_ENABLED}
+                />
+                {contextPdf && (
+                  <div className={styles.pdfPreview}>
+                    <div>
+                      <span className={styles.pdfName}>{contextPdf.name}</span>
+                      <span className={styles.pdfSize}>
+                        {(contextPdf.size / 1024 / 1024).toFixed(1)} Mo
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.pdfRemove}
+                      onClick={() => handleFileSelection(null)}
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                )}
+                {errors.context && (
+                  <p className={styles.fieldError}>{errors.context}</p>
+                )}
+                {errors.contextPdf && (
+                  <p className={styles.fieldError}>{errors.contextPdf}</p>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      case "product_name":
+        return (
+          <section className={styles.modalSection}>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionStep}>{stepLabel}</span>
+              <h4 className={styles.sectionTitle}>Produit</h4>
+            </div>
+            <p className={styles.sectionDescription}>
+              Nom du produit ou service que cet agent représente.
+            </p>
+            <input
+              type="text"
+              value={productName}
+              onChange={(event) => setProductName(event.target.value)}
+              placeholder="Nom du produit"
+              className={styles.detailsInput}
+            />
+            {errors.productName && (
+              <p className={styles.fieldError}>{errors.productName}</p>
+            )}
+          </section>
+        );
+      case "activation_time":
+        return (
+          <section className={styles.modalSection}>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionStep}>{stepLabel}</span>
+              <h4 className={styles.sectionTitle}>Horaires d'activation</h4>
+            </div>
+            <p className={styles.sectionDescription}>
+              Définissez les jours et créneaux horaires où l'agent sera actif pour répondre aux prospects.
+            </p>
+            <div className={styles.scheduleSubsection}>
+              <h5 className={styles.subsectionTitle}>Jours actifs</h5>
+              <div className={styles.dayChips}>
+                {dayLabels.map((day) => (
+                  <button
+                    key={day.key}
+                    type="button"
+                    className={`${styles.dayChip} ${activeDays[day.key] ? styles.dayChipActive : ""}`}
+                    aria-pressed={activeDays[day.key]}
+                    onClick={() => toggleDay(day.key)}
+                  >
+                    {day.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={styles.scheduleSubsection}>
+              <h5 className={styles.subsectionTitle}>Plage horaire principale</h5>
+              <div className={styles.timeInputGroup}>
+                <div className={styles.timeField}>
+                  <label htmlFor="timeStart">De</label>
+                  <input
+                    id="timeStart"
+                    type="time"
+                    value={timeStart}
+                    onChange={(event) => setTimeStart(event.target.value)}
+                    className={styles.timeInput}
+                  />
+                </div>
+                <div className={styles.timeField}>
+                  <label htmlFor="timeEnd">À</label>
+                  <input
+                    id="timeEnd"
+                    type="time"
+                    value={timeEnd}
+                    onChange={(event) => setTimeEnd(event.target.value)}
+                    className={styles.timeInput}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className={styles.scheduleSubsection}>
+              <h5 className={styles.subsectionTitle}>Créneaux spécifiques (optionnel)</h5>
+              <p className={styles.subsectionDescription}>
+                Si vous ajoutez des créneaux, l'agent répondra uniquement pendant ces créneaux.
+              </p>
+              <p className={styles.subsectionInfo}>
+                Si aucun créneau n'est ajouté, l'agent répondra pendant toute la plage horaire principale.
+              </p>
+              <div className={styles.slotSection}>
+                <div className={styles.slotHeader}>
+                  <span className={styles.slotHeaderLabel}>Créneaux d'activation</span>
+                  <button
+                    type="button"
+                    className={styles.slotAddButton}
+                    onClick={handleAddTimeSlot}
+                  >
+                    Ajouter un créneau
+                  </button>
+                </div>
+                <div className={styles.slotList}>
+                  {timeSlots.map((slot, slotIndex) => (
+                    <div key={slot.id} className={styles.slotRow}>
+                      <div className={styles.slotFieldGroup}>
+                        <label className={styles.fieldLabel}>
+                          Heure (créneau {slotIndex + 1})
+                        </label>
+                        <input
+                          type="text"
+                          pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
+                          value={slot.time}
+                          placeholder="HH:MM"
+                          inputMode="numeric"
+                          onChange={(event) =>
+                            handleSlotTimeChange(slot.id, event.target.value)
+                          }
+                          className={styles.timeInput}
+                        />
+                      </div>
+                      <div className={styles.slotFieldGroup}>
+                        <label className={styles.fieldLabel}>
+                          Intervalle (minutes)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          step={5}
+                          value={slot.durationMinutes}
+                          onChange={(event) =>
+                            handleSlotDurationChange(slot.id, event.target.value)
+                          }
+                          className={styles.detailsInput}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.slotRemoveButton}
+                        onClick={() => handleRemoveTimeSlot(slot.id)}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className={styles.slotHelper}>
+                  {timeSlots.length > 0 ? (
+                    `Le créneau + intervalle doit rester compris entre ${timeStart} et ${timeEnd}.`
+                  ) : (
+                    <span className={styles.slotFullRange}>
+                      L'agent répondra sur toute la plage horaire définie.
+                    </span>
+                  )}
+                </p>
+                {errors.timeSlots && (
+                  <p className={styles.fieldError}>{errors.timeSlots}</p>
+                )}
+              </div>
+            </div>
+            {errors.activeDays && (
+              <p className={styles.fieldError}>{errors.activeDays}</p>
+            )}
+            {errors.timeRange && (
+              <p className={styles.fieldError}>{errors.timeRange}</p>
+            )}
+          </section>
+        );
+      case "tone":
+        return (
+          <section className={`${styles.modalSection} ${styles.toneSection}`}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionHeading}>
+                <span className={styles.sectionStep}>{stepLabel}</span>
+                <h4 className={styles.sectionTitle}>Ton & Langage</h4>
+                <span className={styles.newFeatureBadge}>Nouveau</span>
+              </div>
+              <p className={styles.sectionDescription}>
+                Construis un ton cohérent, le langage est automatiquement inclus.
+              </p>
+            </div>
+            <ToneSelector
+              value={tone}
+              options={toneOptions}
+              onChange={handleToneSelectionChange}
+            />
+            <div className={styles.languageLine}>
+              <span className={styles.languageLabel}>Langage</span>
+              <span className={styles.languageValue}>
+                Français (automatiquement adapté selon le ton choisi)
+              </span>
+            </div>
+            <div className={styles.toneStateSummary}>
+              <div className={styles.toneStateRow}>
+                <span className={styles.toneStateLabel}>Ton sélectionné :</span>
+                <span className={styles.toneStateValue}>
+                  {tone === "custom" ? "Personnalisé" : selectedToneLabel}
+                </span>
+              </div>
+              <div className={styles.toneStateRow}>
+                <span className={styles.toneStateLabel}>Agent utilise :</span>
+                <span className={styles.toneStateValue}>
+                  {activeToneDescription}
+                </span>
+              </div>
+              {tone === "custom" && toneStatus !== "configured" && (
+                <p className={styles.toneFallbackNote}>
+                  Si le ton personnalisé n'est pas généré, le ton Normal reste
+                  actif par défaut.
+                </p>
+              )}
+            </div>
+            <div className={styles.toneStatusWrapper}>
+              <ToneStatusIndicator
+                status={toneStatus}
+                lastGenerated={customToneLastGeneratedAt}
+                onAction={
+                  toneStatus === "idle" ? undefined : handleGenerateCustomTone
+                }
+                isGenerating={isGeneratingCustomTone}
+              />
+            </div>
+            {tone === "custom" && (
+              <Button
+                className={styles.customToneActionButton}
+                onClick={handleOpenCustomToneModal}
+              >
+                Modifier les réponses
+              </Button>
+            )}
+          </section>
+        );
+      case "stopped_condition":
+        return (
+          <section className={styles.modalSection}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.sectionHeading}>
+                <span className={styles.sectionStep}>{stepLabel}</span>
+                <h4 className={styles.sectionTitle}>Condition d'arrêt</h4>
+              </div>
+              <p className={styles.sectionDescription}>
+                Si vous mettez un lien (ex: Calendly), décrivez à quoi il sert pour que l'agent comprenne quand s'arrêter.
+              </p>
+            </div>
+            <textarea
+              value={stopText}
+              onChange={(event) => setStopText(event.target.value)}
+              placeholder="Décris ce qui doit déclencher l'arrêt."
+              className={styles.stopTextarea}
+            />
+            {errors.stopText && (
+              <p className={styles.fieldError}>{errors.stopText}</p>
+            )}
+            <input
+              type="text"
+              value={stopLink}
+              onChange={(event) => setStopLink(event.target.value)}
+              placeholder="https://"
+              className={styles.detailsInput}
+            />
+            {errors.stopLink && (
+              <p className={styles.fieldError}>{errors.stopLink}</p>
+            )}
+          </section>
+        );
+      case "qualification":
+        return (
+          <section className={styles.modalSection}>
+            <div className={styles.sectionHeading}>
+              <span className={styles.sectionStep}>{stepLabel}</span>
+              <h4 className={styles.sectionTitle}>Qualification</h4>
+              <span className={styles.newFeatureBadge}>Bêta</span>
+            </div>
+            <p className={styles.sectionDescription}>
+              Décris les critères que le prospect doit remplir pour que l'agent continue la conversation. Si ce champ est vide, l'agent discutera avec tout le monde.
+            </p>
+            <textarea
+              value={qualification}
+              onChange={(event) => setQualification(event.target.value)}
+              placeholder="Décris les critères que le prospect doit remplir pour que l'agent continue la conversation (ex : budget minimum, secteur d'activité, localisation...)"
+              className={styles.stopTextarea}
+              rows={5}
+            />
+          </section>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -1749,7 +2121,8 @@ const AgentAi: FunctionComponent = () => {
             >
             <div
               className={`${styles.cornerOverlayContent} ${
-                activeCorner === "Configurations" ? styles.configurationOverlayContent : ""
+                activeCorner === "Configurations" ? styles.configurationOverlayContent :
+                activeCorner === "Details" ? styles.detailsOverlayContent : ""
               }`}
               onClick={(event) => event.stopPropagation()}
             >
@@ -1835,363 +2208,45 @@ const AgentAi: FunctionComponent = () => {
                 </>
               )}
               {activeCorner === "Details" && (
-                <div className={styles.modalContainer}>
-                  <div className={styles.modalHeader}>
-                    <div>
-                      <h3>Configuration de l’agent</h3>
-                      <p className={styles.modalSubtitle}>
-                        Donne suffisamment d’éléments pour guider la prise de parole de ton agent IA.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Section 01 : Contexte */}
-                  <section className={styles.modalSection}>
-                    <div className={styles.sectionHeading}>
-                      <span className={styles.sectionStep}>01</span>
-                      <h4 className={styles.sectionTitle}>Contexte</h4>
-                    </div>
-                    <p className={styles.sectionDescription}>
-                      Décris ton produit ou service en détail pour que l'agent puisse répondre à toutes les questions des prospects sur ton offre.
-                    </p>
-                    <textarea
-                      value={contextText}
-                      onChange={(event) => setContextText(event.target.value)}
-                      placeholder="Exemple : Mon produit est une formation en ligne sur le dropshipping à 497€. Elle comprend 25 modules vidéo, un groupe privé Discord, 3 sessions de coaching en live par mois, et un accès à vie. Les avantages principaux sont : méthode testée sur +1000 élèves, accompagnement personnalisé, garantie remboursé 30j. Le processus : appel découverte gratuit de 30min → présentation de l'offre → paiement en 1x ou 3x sans frais."
-                      className={styles.contextTextarea}
-                      rows={8}
-                    />
-                    <div className={styles.pdfSection}>
-                      <h5 className={styles.pdfSectionTitle}>
-                        Documentation complémentaire
-                      </h5>
-                      <p className={styles.pdfSectionDescription}>
-                        Importez un PDF avec des informations détaillées que l'agent pourra consulter (brochure produit, FAQ, etc.).
-                      </p>
-                      <div className={styles.dropzoneWrapper}>
-                        <label
-                          htmlFor="contextPdfInput"
-                          className={`${styles.dropzone} ${
-                            !CONTEXT_PDF_UPLOAD_ENABLED ? styles.dropzoneDisabled : ""
-                          }`}
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={handlePdfDrop}
-                          aria-disabled={!CONTEXT_PDF_UPLOAD_ENABLED}
-                        >
-                          <span>
-                            {CONTEXT_PDF_UPLOAD_ENABLED
-                              ? "Importer un PDF (max 20 Mo)"
-                              : "Importer un PDF (Bientôt disponible)"}
-                          </span>
-                        </label>
-                        <input
-                          id="contextPdfInput"
-                          type="file"
-                          accept="application/pdf"
-                          className={styles.dropzoneInput}
-                          onChange={handlePdfInputChange}
-                          disabled={!CONTEXT_PDF_UPLOAD_ENABLED}
-                        />
-                        {contextPdf && (
-                          <div className={styles.pdfPreview}>
-                            <div>
-                              <span className={styles.pdfName}>{contextPdf.name}</span>
-                              <span className={styles.pdfSize}>
-                                {(contextPdf.size / 1024 / 1024).toFixed(1)} Mo
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              className={styles.pdfRemove}
-                              onClick={() => handleFileSelection(null)}
-                            >
-                              Retirer
-                            </button>
-                          </div>
-                        )}
-                        {errors.context && (
-                          <p className={styles.fieldError}>{errors.context}</p>
-                        )}
-                        {errors.contextPdf && (
-                          <p className={styles.fieldError}>{errors.contextPdf}</p>
-                        )}
-                      </div>
-                    </div>
-                    </section>
-                  {/* Section 02 : Produit */}
-                  <section className={styles.modalSection}>
-                    <div className={styles.sectionHeading}>
-                      <span className={styles.sectionStep}>02</span>
-                      <h4 className={styles.sectionTitle}>Produit</h4>
-                    </div>
-                    <p className={styles.sectionDescription}>
-                      Nom du produit ou service que cet agent représente.
-                    </p>
-                      <input
-                        type="text"
-                        value={productName}
-                        onChange={(event) => setProductName(event.target.value)}
-                        placeholder="Nom du produit"
-                        className={styles.detailsInput}
-                      />
-                      {errors.productName && (
-                        <p className={styles.fieldError}>{errors.productName}</p>
-                      )}
-                    </section>
-                  {/* Section 03 : Horaires d'activation */}
-                  <section className={styles.modalSection}>
-                    <div className={styles.sectionHeading}>
-                      <span className={styles.sectionStep}>03</span>
-                      <h4 className={styles.sectionTitle}>Horaires d’activation</h4>
-                    </div>
-                    <p className={styles.sectionDescription}>
-                      Définissez les jours et créneaux horaires où l'agent sera actif pour répondre aux prospects.
-                    </p>
-                    
-                    {/* Sous-section 1: Jours actifs */}
-                    <div className={styles.scheduleSubsection}>
-                      <h5 className={styles.subsectionTitle}>Jours actifs</h5>
-                      <div className={styles.dayChips}>
-                        {dayLabels.map((day) => (
-                          <button
-                            key={day.key}
-                            type="button"
-                            className={`${styles.dayChip} ${
-                              activeDays[day.key] ? styles.dayChipActive : ""
-                            }`}
-                            aria-pressed={activeDays[day.key]}
-                            onClick={() => toggleDay(day.key)}
-                          >
-                            {day.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Sous-section 2: Plage horaire principale */}
-                    <div className={styles.scheduleSubsection}>
-                      <h5 className={styles.subsectionTitle}>Plage horaire principale</h5>
-                      <div className={styles.timeInputGroup}>
-                        <div className={styles.timeField}>
-                          <label htmlFor="timeStart">De</label>
-                          <input
-                            id="timeStart"
-                            type="time"
-                            value={timeStart}
-                            onChange={(event) => setTimeStart(event.target.value)}
-                            className={styles.timeInput}
-                          />
-                        </div>
-                        <div className={styles.timeField}>
-                          <label htmlFor="timeEnd">À</label>
-                          <input
-                            id="timeEnd"
-                            type="time"
-                            value={timeEnd}
-                            onChange={(event) => setTimeEnd(event.target.value)}
-                            className={styles.timeInput}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Sous-section 3: Créneaux spécifiques */}
-                    <div className={styles.scheduleSubsection}>
-                      <h5 className={styles.subsectionTitle}>Créneaux spécifiques (optionnel)</h5>
-                      <p className={styles.subsectionDescription}>
-                        Si vous ajoutez des créneaux, l'agent répondra uniquement pendant ces créneaux.
-                      </p>
-                      <p className={styles.subsectionInfo}>
-                        Si aucun créneau n’est ajouté, l’agent répondra pendant toute la plage horaire principale.
-                      </p>
-                      <div className={styles.slotSection}>
-                        <div className={styles.slotHeader}>
-                          <span className={styles.slotHeaderLabel}>
-                            Créneaux d’activation
-                          </span>
-                          <button
-                            type="button"
-                            className={styles.slotAddButton}
-                            onClick={handleAddTimeSlot}
-                          >
-                            Ajouter un créneau
-                          </button>
-                        </div>
-                        <div className={styles.slotList}>
-                          {timeSlots.map((slot, index) => (
-                            <div key={slot.id} className={styles.slotRow}>
-                              <div className={styles.slotFieldGroup}>
-                                <label className={styles.fieldLabel}>
-                                  Heure (créneau {index + 1})
-                                </label>
-                                <input
-                                  type="text"
-                                  pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
-                                  value={slot.time}
-                                  placeholder="HH:MM"
-                                  inputMode="numeric"
-                                  onChange={(event) =>
-                                    handleSlotTimeChange(slot.id, event.target.value)
-                                  }
-                                  className={styles.timeInput}
-                                />
-                              </div>
-                              <div className={styles.slotFieldGroup}>
-                                <label className={styles.fieldLabel}>
-                                  Intervalle (minutes)
-                                </label>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  step={5}
-                                  value={slot.durationMinutes}
-                                  onChange={(event) =>
-                                    handleSlotDurationChange(slot.id, event.target.value)
-                                  }
-                                  className={styles.detailsInput}
-                                />
-                              </div>
-                              <button
-                                type="button"
-                                className={styles.slotRemoveButton}
-                                onClick={() => handleRemoveTimeSlot(slot.id)}
-                              >
-                                Supprimer
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                        <p className={styles.slotHelper}>
-                          {timeSlots.length > 0 ? (
-                            `Le créneau + intervalle doit rester compris entre ${timeStart} et ${timeEnd}.`
-                          ) : (
-                            <span className={styles.slotFullRange}>
-                              L’agent répondra sur toute la plage horaire définie.
-                            </span>
-                          )}
-                        </p>
-                        {errors.timeSlots && (
-                          <p className={styles.fieldError}>{errors.timeSlots}</p>
-                        )}
-                      </div>
-                    </div>
-                      {errors.activeDays && (
-                        <p className={styles.fieldError}>{errors.activeDays}</p>
-                      )}
-                      {errors.timeRange && (
-                        <p className={styles.fieldError}>{errors.timeRange}</p>
-                      )}
-                    </section>
-                  {/* Bas de la modal : Layout 2 colonnes */}
-                  <div className={styles.twoColumnLayout}>
-                    {/* Colonne 1 : Ton */}
-                    <section className={`${styles.modalSection} ${styles.toneSection}`}>
-                      <div className={styles.sectionHeader}>
-                        <div className={styles.sectionHeading}>
-                          <span className={styles.sectionStep}>05</span>
-                          <h4 className={styles.sectionTitle}>Ton & Langage</h4>
-                          <span className={styles.newFeatureBadge}>Nouveau</span>
-                        </div>
-                        <p className={styles.sectionDescription}>
-                          Construis un ton cohérent, le langage est automatiquement inclus.
+                <>
+                  <div className={styles.modalContainer}>
+                    <div className={styles.modalHeader}>
+                      <div>
+                        <h3>Configuration de l’agent</h3>
+                        <p className={styles.modalSubtitle}>
+                          Donne suffisamment d’éléments pour guider la prise de parole de ton agent IA.
                         </p>
                       </div>
-                      <ToneSelector
-                        value={tone}
-                        options={toneOptions}
-                        onChange={handleToneSelectionChange}
-                      />
-                      <div className={styles.languageLine}>
-                        <span className={styles.languageLabel}>Langage</span>
-                        <span className={styles.languageValue}>
-                          Français (automatiquement adapté selon le ton choisi)
-                        </span>
+                    </div>
+                    {selectedAgent?.details_component?.length ? (
+                      selectedAgent.details_component.map((key, index) => (
+                        <React.Fragment key={key}>
+                          {renderDetailsSection(key, index + 1)}
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      <div className={styles.noConfigMessage}>
+                        <p>Bonne nouvelle !</p>
+                        <p>Aucune configuration n’est nécessaire pour cet agent.</p>
                       </div>
-                      <div className={styles.toneStateSummary}>
-                        <div className={styles.toneStateRow}>
-                          <span className={styles.toneStateLabel}>Ton sélectionné :</span>
-                          <span className={styles.toneStateValue}>
-                            {tone === "custom" ? "Personnalisé" : selectedToneLabel}
-                          </span>
-                        </div>
-                        <div className={styles.toneStateRow}>
-                          <span className={styles.toneStateLabel}>Agent utilise :</span>
-                          <span className={styles.toneStateValue}>
-                            {activeToneDescription}
-                          </span>
-                        </div>
-                        {tone === "custom" && toneStatus !== "configured" && (
-                          <p className={styles.toneFallbackNote}>
-                            Si le ton personnalisé n’est pas généré, le ton Normal reste
-                            actif par défaut.
-                          </p>
-                        )}
-                      </div>
-                      <div className={styles.toneStatusWrapper}>
-                        <ToneStatusIndicator
-                          status={toneStatus}
-                          lastGenerated={customToneLastGeneratedAt}
-                          onAction={
-                            toneStatus === "idle" ? undefined : handleGenerateCustomTone
-                          }
-                          isGenerating={isGeneratingCustomTone}
-                        />
-                      </div>
-                      {tone === "custom" && (
-                        <Button
-                          className={styles.customToneActionButton}
-                          onClick={handleOpenCustomToneModal}
-                        >
-                          Modifier les réponses
-                        </Button>
-                      )}
-                    </section>
-                    {/* Colonne 2 : Condition d'arrêt */}
-                    <section className={styles.modalSection}>
-                      <div className={styles.sectionHeader}>
-                        <div className={styles.sectionHeading}>
-                          <span className={styles.sectionStep}>04</span>
-                          <h4 className={styles.sectionTitle}>Condition d’arrêt</h4>
-                        </div>
-                        <p className={styles.sectionDescription}>
-                          Si vous mettez un lien (ex: Calendly), décrivez à quoi il sert pour que l’agent comprenne quand s’arrêter.
-                        </p>
-                      </div>
-                      <textarea
-                        value={stopText}
-                        onChange={(event) => setStopText(event.target.value)}
-                        placeholder="Décris ce qui doit déclencher l’arrêt."
-                        className={styles.stopTextarea}
-                      />
-                      {errors.stopText && (
-                        <p className={styles.fieldError}>{errors.stopText}</p>
-                      )}
-                      <input
-                        type="text"
-                        value={stopLink}
-                        onChange={(event) => setStopLink(event.target.value)}
-                        placeholder="https://"
-                        className={styles.detailsInput}
-                      />
-                      {errors.stopLink && (
-                        <p className={styles.fieldError}>{errors.stopLink}</p>
-                      )}
-                    </section>
+                    )}
                   </div>
-                  <div className={styles.modalFooter}>
-                    <p className={styles.footerHint}>
-                      Les modifications sont enregistrées uniquement après validation.
-                    </p>
-                    <button
-                      type="button"
-                      className={styles.saveButton}
-                      onClick={handleSaveDetails}
-                      disabled={hasValidationErrors}
-                    >
-                      Enregistrer
-                    </button>
-                  </div>
-                </div>
+                  {selectedAgent?.details_component?.length ? (
+                    <div className={styles.modalFooter}>
+                      <p className={styles.footerHint}>
+                        Les modifications sont enregistrées uniquement après validation.
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.saveButton}
+                        onClick={handleSaveDetails}
+                        disabled={hasValidationErrors}
+                      >
+                        Enregistrer
+                      </button>
+                    </div>
+                  ) : null}
+                </>
               )}
               {activeCorner === "Connexions" && (
                 <div className={styles.connexionSections}>

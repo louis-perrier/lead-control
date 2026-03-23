@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import CalendlyBadge from "../components/landing/CalendlyBadge";
 import HeaderSticky from "../components/landing/HeaderSticky";
 import HeroSection from "../components/landing/Sections/HeroSection";
 import HowItWorksSection from "../components/landing/Sections/HowItWorksSection";
@@ -57,7 +56,6 @@ const Landing = () => {
         <FinalCtaSection />
         <FooterLanding />
       </main>
-      <CalendlyBadge />
     </>
   );
 };
