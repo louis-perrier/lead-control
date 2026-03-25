@@ -28,7 +28,7 @@ type ChannelFilterOption = ChannelOption | "All";
 type StatusOption = "Ouvert" | "Clos" | "Handoff";
 type PeriodOption = "7" | "30" | "90";
 type SortOption = "recent" | "unread" | "messages";
-type TabOption = "stats" | "details";
+type TabOption = "stats" | "conversation";
 type MessageDirection = "inbound" | "outbound";
 
 type Attachment = {
@@ -633,7 +633,7 @@ const ConversationMessageItem: FunctionComponent<{ message: Message }> = ({
 const Dashboard: FunctionComponent = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = (searchParams.get("tab") ?? "stats") as TabOption;
-  const currentTab: TabOption = rawTab === "details" ? "details" : "stats";
+  const currentTab: TabOption = rawTab === "conversation" ? "conversation" : "stats";
   const [period, setPeriod] = useState<PeriodOption>("7");
   const [channelFilter, setChannelFilter] =
     useState<ChannelFilterOption>("All");
@@ -666,6 +666,18 @@ const Dashboard: FunctionComponent = () => {
       }),
     [displayedAgents],
   );
+
+  const selectedAgent = useMemo(
+    () => displayedAgents.find(
+      (agent) => (agent.display_id ?? agent.agent_id) === selectedConfigId
+    ),
+    [displayedAgents, selectedConfigId],
+  );
+
+  const activeTabs = selectedAgent?.dashboard_tab_component ?? [];
+  const effectiveCurrentTab: TabOption = activeTabs.includes(currentTab)
+    ? currentTab
+    : (activeTabs[0] as TabOption) ?? "stats";
 
   const {
     data: rawConversations = [],
@@ -1390,19 +1402,29 @@ const Dashboard: FunctionComponent = () => {
             </div>
           </div>
         )}
-        <div className={styles.claraTabRow}>
-          <TabButton
-            label="Statistiques"
-            active={currentTab === "stats"}
-            onClick={() => updateTab("stats")}
-          />
-          <TabButton
-            label="Détails"
-            active={currentTab === "details"}
-            onClick={() => updateTab("details")}
-          />
-        </div>
-        {currentTab === "stats" ? (
+        {activeTabs.length === 0 ? (
+          <div className={styles.noTabsMessage}>
+            <p>Aucune statistique définie pour cet agent.</p>
+          </div>
+        ) : (
+          <>
+            <div className={styles.claraTabRow}>
+              {activeTabs.includes("stats") && (
+                <TabButton
+                  label="Statistiques"
+                  active={effectiveCurrentTab === "stats"}
+                  onClick={() => updateTab("stats")}
+                />
+              )}
+              {activeTabs.includes("conversation") && (
+                <TabButton
+                  label="Conversations"
+                  active={effectiveCurrentTab === "conversation"}
+                  onClick={() => updateTab("conversation")}
+                />
+              )}
+            </div>
+        {effectiveCurrentTab === "stats" ? (
           <section className={styles.claraStatsGrid}>
             <div className={styles.claraKpiRow}>
               {kpiCards.map((card) => (
@@ -1840,6 +1862,8 @@ const Dashboard: FunctionComponent = () => {
               )}
             </div>
           </section>
+        )}
+          </>
         )}
         {isSummaryModalOpen && (
           <div className={styles.summaryModalBackdrop} onClick={closeSummaryModal}>

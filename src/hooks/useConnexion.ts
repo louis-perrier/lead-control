@@ -40,6 +40,7 @@ export const useConnectors = ({
   const [connectorConnected, setConnectorConnected] = useState<ConnectedConnector[]>([]);
   const [countAvailableConnector, setCountAvailableConnector] = useState(0);
   const [countConnectedConnector, setCountConnectedConnector] = useState(0);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const refreshAvailable = useCallback(async () => {
     if (!agentId) {
@@ -98,7 +99,7 @@ export const useConnectors = ({
   }, [refreshAvailable, refreshConnected]);
 
   useEffect(() => {
-    refresh();
+    refresh().then(() => setIsLoaded(true));
   }, [refresh]);
 
   const availableShow = useMemo(() => {
@@ -112,6 +113,7 @@ export const useConnectors = ({
     availableShow,
     countAvailableConnector,
     countConnectedConnector,
+    isLoaded,
     refresh,
   };
 };

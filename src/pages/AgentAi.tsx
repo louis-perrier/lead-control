@@ -371,6 +371,7 @@ const AgentAi: FunctionComponent = () => {
         </div>
         <AgentCards
           agents={filteredAgents}
+          allAgents={displayedAgents ?? []}
           agentDefaultSupa={agentDefaultSupa}
           availableAgents={availableAgents}
           refreshDisplayedAgents={refreshDisplayedAgents}

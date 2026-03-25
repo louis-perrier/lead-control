@@ -332,7 +332,7 @@ export const finalCtaCopy = {
 };
 
 export const ctaOptions = [
-  "Activer mon agent DM",
+  "Réserver mon call gratuit",
   "Fixer un check up de mes DM",
   "Voir comment ca marche pour mon offre",
 ];

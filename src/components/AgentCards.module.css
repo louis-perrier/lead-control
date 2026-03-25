@@ -3,13 +3,11 @@
   align-items: flex-end;
   box-sizing: border-box;
   align-self: stretch;
-  overflow: visible;
   flex-wrap: wrap;
   align-content: flex-end;
   margin-top: 30px;
   padding: var(--padding-0) 70px var(--padding-20);
   gap: 70px 50px;
-  max-height: 786px;
   text-align: center;
   font-size: var(--Static-Headline-Small-Size);
   color: var(--color-black);

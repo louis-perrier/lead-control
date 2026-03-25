@@ -1602,3 +1602,13 @@
     min-height: 0;
   }
 }
+
+
+.noTabsMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}

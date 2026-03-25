@@ -888,6 +888,7 @@ const AgentAi: FunctionComponent = () => {
     availableShow,
     countAvailableConnector,
     countConnectedConnector,
+    isLoaded: connectorsLoaded,
     refresh: refreshConnectors,
   } = useConnectors({
     agentId: selectedAgent?.agent_id,
@@ -1121,9 +1122,29 @@ const AgentAi: FunctionComponent = () => {
   const isConfigSectionAvailable =
     sectionStatuses.Configurations === "available";
   const isHeaderSwitchDisabled = !isConfigSectionAvailable;
-  const displayedHeaderSwitchChecked = isHeaderSwitchDisabled
-    ? false
-    : headerSwitchOn;
+  const displayedHeaderSwitchChecked = !connectorsLoaded
+    ? Boolean(selectedAgent?.is_active)
+    : isHeaderSwitchDisabled
+      ? false
+      : headerSwitchOn;
+
+  useEffect(() => {
+    if (!connectorsLoaded || !isHeaderSwitchDisabled || !headerSwitchOn || !selectedAgent?.display_id) {
+      return;
+    }
+    setHeaderSwitchOn(false);
+    supabase
+      .from("agent_configs")
+      .update({ is_active: false })
+      .eq("configs_id", selectedAgent.display_id)
+      .then(({ error }) => {
+        if (error) {
+          console.error(error);
+        } else {
+          refreshDisplayedAgents();
+        }
+      });
+  }, [connectorsLoaded, isHeaderSwitchDisabled, headerSwitchOn, selectedAgent?.display_id, refreshDisplayedAgents]);
 
   const trimmedRenameValue = agentRenameValue.trim();
   const normalizeName = (value: string) =>

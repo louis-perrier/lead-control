@@ -9,6 +9,7 @@ import supabase from "../lib/supabase";
 export type AgentCardsType = {
   className?: string;
   agents: AgentInfo[];
+  allAgents: AgentInfo[];
   agentDefaultSupa: AgentInfo[];
   availableAgents: AgentInfo[];
   refreshDisplayedAgents: () => void;
@@ -20,6 +21,7 @@ export type AgentCardsType = {
 const AgentCards: FunctionComponent<AgentCardsType> = ({
   className = "",
   agents = [],
+  allAgents = [],
   agentDefaultSupa = [],
   availableAgents = [],
   refreshDisplayedAgents,
@@ -59,12 +61,12 @@ const AgentCards: FunctionComponent<AgentCardsType> = ({
 
   const agentCountMap = useMemo(() => {
     const map = new Map<string, number>();
-    agents.forEach((agent) => {
+    allAgents.forEach((agent) => {
       const current = map.get(agent.agent_id) ?? 0;
       map.set(agent.agent_id, current + 1);
     });
     return map;
-  }, [agents]);
+  }, [allAgents]);
 
   const hasReachedLimitForAgent = (agentId: string) => {
     const limit = agentLimitMap.get(agentId);
