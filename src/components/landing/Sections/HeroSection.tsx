@@ -32,7 +32,7 @@ const HeroSection = ({ primaryCtaLabel, spotsRemaining }: HeroSectionProps) => {
             <button type="button" className={styles.heroCta} onClick={openCalendly}>
               {primaryCtaLabel}
             </button>
-            <span className={styles.ctaHint}>Sans carte - Call 15 min - Setup 24h</span>
+            <span className={styles.ctaHint}>Diagnostic 15 min - Setup 24h - Sans engagement</span>
           </div>
 
           <ul className={styles.bulletList}>

@@ -10,8 +10,8 @@ export const heroCopy = {
   releaseLabel: "Lancement public - Mars 2026",
   releaseText:
     "Pour les offres B2B, coaches et agences qui veulent traiter plus de leads sans recruter.",
-  trial: "Essai gratuit 7 jours, sans carte",
-  pricing: "A partir de 100 EUR / mois",
+  trial: "Sans engagement long terme",
+  pricing: "A partir de 200 EUR / mois",
   scarcityNote: "Tarif de lancement reserve aux premiers comptes actifs.",
 };
 
@@ -44,17 +44,17 @@ export const heroAppPreview = {
 export const partnerBadges = [
   {
     label: "Instagram",
-    status: "Canal principal",
+    status: "Disponible",
     icon: "/logoConnectors/instagram.svg",
   },
   {
     label: "WhatsApp",
-    status: "Tres bientot",
+    status: "Disponible",
     icon: "/logoConnectors/whatsapp.webp",
   },
   {
     label: "Calendly",
-    status: "Utilise actuellement",
+    status: "Disponible",
     icon: "https://cdn.simpleicons.org/calendly/006BFF",
   },
   {
@@ -154,8 +154,8 @@ export const reassurancePoints = [
 ];
 
 export const channels = {
-  active: ["Instagram", "Calendly"],
-  upcoming: ["WhatsApp (prochainement)", "TikTok (prochainement)", "Telegram (prochainement)"],
+  active: ["Instagram", "WhatsApp", "Calendly"],
+  upcoming: ["TikTok (prochainement)", "Telegram (prochainement)"],
 };
 
 export const testimonials = [
@@ -253,13 +253,13 @@ export const roiDisclaimer =
 
 export const pricingData = {
   kicker: "Offre lancement",
-  title: "Essai gratuit 7 jours, puis 100 EUR / mois.",
+  title: "200 EUR / mois. Setup rapide, impact immediat.",
   subtitle:
     "Moins qu'une heure de setter freelance par semaine. Vous recuperez des dizaines d'heures et des leads mieux qualifies.",
   whyPrice: [
     { label: "Avant: setter freelance", value: "1 500 a 3 000 EUR / mois" },
     { label: "Avant: leads froids non traites", value: "Cout invisible, mais reel" },
-    { label: "Maintenant: agent LeadControl", value: "100 EUR / mois, 7 jours gratuits" },
+    { label: "Maintenant: agent LeadControl", value: "200 EUR / mois" },
   ],
   includes: [
     "Agent IA DM configure sur votre offre",
@@ -270,7 +270,7 @@ export const pricingData = {
   ],
   reassurance: [
     "Sans engagement long terme",
-    "Sans carte pendant l'essai",
+    "Demarrage accompagne",
     "Activation rapide",
   ],
   highlights: [
@@ -303,7 +303,7 @@ export const faqItems = [
   {
     question: "Est-ce que ca fonctionne pour Instagram et WhatsApp ?",
     answer:
-      "Instagram est le canal principal au lancement. WhatsApp sera ajoute prochainement.",
+      "Oui. Instagram et WhatsApp sont disponibles des maintenant. TikTok et Telegram arrivent prochainement.",
   },
   {
     question: "Est-ce que je garde le controle des conversations ?",
@@ -328,7 +328,7 @@ export const finalCtaCopy = {
   title: "Passez en mode setter automatique. Sans perdre votre niveau d'exigence.",
   subtitle:
     "Moins de charge mentale sur les DM, plus de rendez vous qualifies, zero lead laisse sans reponse.",
-  reassurance: "7 jours gratuits | Pas de carte | Onboarding accompagne",
+  reassurance: "Sans engagement | Setup 24h | Onboarding accompagne",
 };
 
 export const ctaOptions = [
@@ -349,4 +349,3 @@ export const founderCopy = {
   ],
   signature: "Florian et Louis - Co-founder de LeadControl",
 };
-

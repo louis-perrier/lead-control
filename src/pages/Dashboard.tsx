@@ -1,5 +1,4 @@
 import {
-  ChangeEvent,
   FunctionComponent,
   useEffect,
   useMemo,
@@ -26,7 +25,7 @@ import AudioMessageBubble, {
 type ChannelOption = "Instagram" | "WhatsApp" | "Telegram";
 type ChannelFilterOption = ChannelOption | "All";
 type StatusOption = "Ouvert" | "Clos" | "Handoff";
-type PeriodOption = "7" | "30" | "90";
+type PeriodOption = "today" | "3" | "7" | "14" | "30" | "year";
 type SortOption = "recent" | "unread" | "messages";
 type TabOption = "stats" | "conversation";
 type MessageDirection = "inbound" | "outbound";
@@ -84,9 +83,12 @@ const channelFilterIcons: Record<ChannelOption, string> = {
 };
 
 const periodOptions: { label: string; value: PeriodOption }[] = [
+  { label: "Aujourd'hui", value: "today" },
+  { label: "3j", value: "3" },
   { label: "7j", value: "7" },
+  { label: "14j", value: "14" },
   { label: "30j", value: "30" },
-  { label: "90j", value: "90" },
+  { label: "Cette annee", value: "year" },
 ];
 
 const statusFilterOptions = ["Tous", "Ouvert", "Clos"] as const;
@@ -98,18 +100,243 @@ const sortOptionLabels: Record<SortOption, string> = {
 const sortOptions: SortOption[] = ["recent", "unread", "messages"];
 
 const channelColors: Record<ChannelOption, string> = {
-  Instagram: "var(--app-primary)",
+  Instagram: "#D12E93",
+  WhatsApp: "var(--app-success)",
+  Telegram: "var(--app-accent)",
+};
+const channelFocusColors: Record<ChannelOption, string> = {
+  Instagram: "#D12E93",
   WhatsApp: "var(--app-success)",
   Telegram: "var(--app-accent)",
 };
 
-const periodMultipliers: Record<PeriodOption, number> = {
-  "7": 1,
-  "30": 1.35,
-  "90": 1.75,
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const periodDaySpans: Record<PeriodOption, number> = {
+  today: 1,
+  "3": 3,
+  "7": 7,
+  "14": 14,
+  "30": 30,
+  year: 365,
+};
+
+type PeriodWindow = {
+  daySpan: number;
+  startDate: Date;
+  startMs: number;
+  endMs: number;
+};
+
+const getPeriodWindow = (
+  period: PeriodOption,
+  now: Date = new Date(),
+): PeriodWindow => {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let startDate = startOfToday;
+  let daySpan = periodDaySpans[period];
+
+  if (period === "today") {
+    startDate = startOfToday;
+  } else if (period === "year") {
+    startDate = new Date(now.getFullYear(), 0, 1);
+    daySpan =
+      Math.floor((startOfToday.getTime() - startDate.getTime()) / DAY_IN_MS) + 1;
+  } else {
+    startDate = new Date(startOfToday.getTime() - (daySpan - 1) * DAY_IN_MS);
+  }
+
+  return {
+    daySpan,
+    startDate,
+    startMs: startDate.getTime(),
+    endMs: now.getTime(),
+  };
+};
+
+const isInPeriodWindow = (iso: string, window: PeriodWindow) => {
+  const time = new Date(iso).getTime();
+  if (Number.isNaN(time)) {
+    return false;
+  }
+  return time >= window.startMs && time <= window.endMs;
+};
+
+type EvolutionPoint = {
+  id: string;
+  label: string;
+  tooltip: string;
+  count: number;
+  timestampMs: number;
+};
+
+const formatDayLabel = (date: Date) =>
+  date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+const formatHourLabel = (date: Date) =>
+  date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const TODAY_BUCKET_COUNT = 12;
+
+const buildEvolutionAxisLabels = (
+  period: PeriodOption,
+  points: EvolutionPoint[],
+): string[] => {
+  if (points.length === 0) {
+    return [];
+  }
+  if (period === "today") {
+    return ["00:00", "12:00", "23H59"];
+  }
+  if (points.length === 1) {
+    return [points[0].label];
+  }
+  if (points.length === 2) {
+    return [points[0].label, points[1].label];
+  }
+
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+  const midpointMs = (firstPoint.timestampMs + lastPoint.timestampMs) / 2;
+  let middlePoint = points[1];
+  let minDistance = Math.abs(middlePoint.timestampMs - midpointMs);
+
+  for (let i = 2; i < points.length - 1; i++) {
+    const distance = Math.abs(points[i].timestampMs - midpointMs);
+    if (distance < minDistance) {
+      minDistance = distance;
+      middlePoint = points[i];
+    }
+  }
+
+  return [firstPoint.label, middlePoint.label, lastPoint.label];
+};
+
+const buildDailyEvolutionSeries = (
+  conversations: Conversation[],
+  window: PeriodWindow,
+): EvolutionPoint[] => {
+  const points: EvolutionPoint[] = [];
+  const todayString = new Date().toDateString();
+
+  for (let i = 0; i < window.daySpan; i++) {
+    const targetDate = new Date(window.startDate.getTime() + i * DAY_IN_MS);
+    const targetDateString = targetDate.toDateString();
+    let messagesCount = 0;
+
+    conversations.forEach((conversation) => {
+      conversation.messages.forEach((message) => {
+        if (
+          message.authorType === "agent" &&
+          message.direction === "outbound" &&
+          isInPeriodWindow(message.sentAt, window) &&
+          new Date(message.sentAt).toDateString() === targetDateString
+        ) {
+          messagesCount++;
+        }
+      });
+    });
+
+    const label =
+      targetDateString === todayString ? "Aujourd'hui" : formatDayLabel(targetDate);
+    points.push({
+      id: `${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}`,
+      label,
+      tooltip: `${label}: ${messagesCount} message${messagesCount > 1 ? "s" : ""}`,
+      count: messagesCount,
+      timestampMs: targetDate.getTime(),
+    });
+  }
+
+  return points;
+};
+
+const buildYearlyEvolutionSeries = (
+  conversations: Conversation[],
+  window: PeriodWindow,
+): EvolutionPoint[] => {
+  const year = window.startDate.getFullYear();
+  const points: EvolutionPoint[] = [];
+
+  for (let month = 0; month < 12; month++) {
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 1, 0, 0, 0, -1);
+
+    let messagesCount = 0;
+    conversations.forEach((conversation) => {
+      conversation.messages.forEach((message) => {
+        const messageTime = new Date(message.sentAt).getTime();
+        if (
+          message.authorType === "agent" &&
+          message.direction === "outbound" &&
+          messageTime >= monthStart.getTime() &&
+          messageTime <= monthEnd.getTime() &&
+          isInPeriodWindow(message.sentAt, window)
+        ) {
+          messagesCount++;
+        }
+      });
+    });
+
+    const label = monthStart.toLocaleDateString("fr-FR", { month: "short" });
+    points.push({
+      id: `${year}-${month + 1}`,
+      label,
+      tooltip: `${label} ${year}: ${messagesCount} message${messagesCount > 1 ? "s" : ""}`,
+      count: messagesCount,
+      timestampMs: monthStart.getTime(),
+    });
+  }
+
+  return points;
+};
+
+const buildTodayEvolutionSeries = (
+  conversations: Conversation[],
+  window: PeriodWindow,
+): EvolutionPoint[] => {
+  const points: EvolutionPoint[] = [];
+  const endOfDayMs = window.startMs + DAY_IN_MS - 1;
+  const totalRangeMs = DAY_IN_MS;
+  const bucketRangeMs = totalRangeMs / TODAY_BUCKET_COUNT;
+
+  for (let i = 0; i < TODAY_BUCKET_COUNT; i++) {
+    const bucketStartMs = Math.floor(window.startMs + i * bucketRangeMs);
+    const bucketEndMs =
+      i === TODAY_BUCKET_COUNT - 1
+        ? endOfDayMs
+        : Math.floor(window.startMs + (i + 1) * bucketRangeMs) - 1;
+    let messagesCount = 0;
+
+    conversations.forEach((conversation) => {
+      conversation.messages.forEach((message) => {
+        const messageTime = new Date(message.sentAt).getTime();
+        const isInsideBucket =
+          messageTime >= bucketStartMs && messageTime <= bucketEndMs;
+
+        if (
+          message.authorType === "agent" &&
+          message.direction === "outbound" &&
+          isInsideBucket
+        ) {
+          messagesCount++;
+        }
+      });
+    });
+
+    const startLabel = formatHourLabel(new Date(bucketStartMs));
+    const endLabel = formatHourLabel(new Date(bucketEndMs));
+    points.push({
+      id: `today-${i}`,
+      label: endLabel,
+      tooltip: `${startLabel} - ${endLabel}: ${messagesCount} message${messagesCount > 1 ? "s" : ""}`,
+      count: messagesCount,
+      timestampMs: bucketEndMs,
+    });
+  }
+
+  return points;
 };
 
 const channelCycle: ChannelOption[] = ["Instagram", "WhatsApp", "Telegram"];
+const TOP_CONVERSATIONS_PAGE_SIZE = 3;
 
 const demoAudioMessage: Message = {
   id: "demo-audio-message",
@@ -336,12 +563,17 @@ const getHeatTagStyle = (tag?: string) => {
   return heatTagStyles[normalized] ?? heatTagStyles.unknown;
 };
 
-const ChannelBadge: FunctionComponent<{ channel: ChannelOption }> = ({
-  channel,
-}) => (
+const ChannelBadge: FunctionComponent<{
+  channel: ChannelOption;
+  colorChannel?: ChannelOption;
+}> = ({ channel, colorChannel }) => (
   <span
     className={styles.channelBadge}
-    style={{ backgroundColor: channelColors[channel] }}
+    style={{
+      backgroundColor: colorChannel
+        ? channelFocusColors[colorChannel]
+        : channelColors[channel],
+    }}
   >
     {channel}
   </span>
@@ -386,35 +618,38 @@ const ChannelFilterGroup: FunctionComponent<{
   className?: string;
 }> = ({ active, onChange, className = "" }) => (
   <div className={`${styles.channelFilterRow} ${className}`.trim()}>
-    {channelFilterOptions.map((option) => (
-      <button
-        key={option}
-        type="button"
-        className={`${styles.channelChip} ${
-          active === option ? styles.channelChipActive : ""
-        }`}
-        onClick={() => onChange(option)}
-      >
-        {option === "All" ? (
-          "Tous"
-        ) : (
-          <>
-            <img
-              className={styles.channelChipIcon}
-              src={channelFilterIcons[option]}
-              alt=""
-              aria-hidden="true"
-              onError={(event) => {
-                if (option === "Telegram") {
-                  event.currentTarget.src = "/logoConnectors/telegram.svg";
-                }
-              }}
-            />
-            <span>{option}</span>
-          </>
-        )}
-      </button>
-    ))}
+    {channelFilterOptions.map((option) => {
+      const isActive = active === option;
+      return (
+        <button
+          key={option}
+          type="button"
+          className={`${styles.channelChip} ${
+            isActive ? styles.channelChipActive : ""
+          }`}
+          onClick={() => onChange(option)}
+        >
+          {option === "All" ? (
+            "Tous"
+          ) : (
+            <>
+              <img
+                className={styles.channelChipIcon}
+                src={channelFilterIcons[option]}
+                alt=""
+                aria-hidden="true"
+                onError={(event) => {
+                  if (option === "Telegram") {
+                    event.currentTarget.src = "/logoConnectors/telegram.svg";
+                  }
+                }}
+              />
+              <span>{option}</span>
+            </>
+          )}
+        </button>
+      );
+    })}
   </div>
 );
 
@@ -634,10 +869,9 @@ const Dashboard: FunctionComponent = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = (searchParams.get("tab") ?? "stats") as TabOption;
   const currentTab: TabOption = rawTab === "conversation" ? "conversation" : "stats";
-  const [period, setPeriod] = useState<PeriodOption>("7");
+  const [period, setPeriod] = useState<PeriodOption>("3");
   const [channelFilter, setChannelFilter] =
     useState<ChannelFilterOption>("All");
-  const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("recent");
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterOptions)[number]>("Tous");
@@ -653,6 +887,7 @@ const Dashboard: FunctionComponent = () => {
   const configMenuRef = useRef<HTMLDivElement | null>(null);
   const [isSortMenuOpen, setSortMenuOpen] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement | null>(null);
+  const [topConversationPage, setTopConversationPage] = useState(0);
   const { displayedAgents } = useAgents();
   const agentConfigOptions = useMemo(
     () =>
@@ -782,25 +1017,25 @@ const Dashboard: FunctionComponent = () => {
     setSearchParams(params);
   };
 
-  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const periodWindow = useMemo(() => getPeriodWindow(period), [period]);
+
+  const channelScopedConversations = useMemo(
+    () =>
+      conversationData.filter(
+        (conversation) =>
+          channelFilter === "All" || conversation.channel === channelFilter,
+      ),
+    [conversationData, channelFilter],
+  );
 
   const filteredConversations = useMemo(
     () =>
-      conversationData.filter((conversation) => {
-        const matchesChannel =
-          channelFilter === "All" || conversation.channel === channelFilter;
+      channelScopedConversations.filter((conversation) => {
         const matchesStatus =
           statusFilter === "Tous" || conversation.status === statusFilter;
-        const inSearch =
-          !normalizedSearch ||
-          conversation.contactName.toLowerCase().includes(normalizedSearch) ||
-          conversation.lastMessage.toLowerCase().includes(normalizedSearch) ||
-          conversation.messages.some((message) =>
-            message.text.toLowerCase().includes(normalizedSearch)
-          );
-        return matchesChannel && matchesStatus && inSearch;
+        return matchesStatus;
       }),
-    [conversationData, channelFilter, statusFilter, normalizedSearch]
+    [channelScopedConversations, statusFilter]
   );
 
   const sortedConversations = useMemo(() => {
@@ -934,19 +1169,18 @@ const Dashboard: FunctionComponent = () => {
   }, [activeConversation?.id, activeConversation?.lastErrorMessage]);
 
   const stats = useMemo(() => {
-    const periodMultiplier = periodMultipliers[period];
-    const days = period === "7" ? 7 : period === "30" ? 30 : 90;
-    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     let totalResponseMs = 0;
     let responsePairs = 0;
-    const responses = filteredConversations.reduce((acc, conversation) => {
+    const responses = channelScopedConversations.reduce((acc, conversation) => {
       acc += conversation.messages.filter(
-        (message) => message.authorType === "agent" && new Date(message.sentAt) >= cutoffDate,
+        (message) =>
+          message.authorType === "agent" &&
+          isInPeriodWindow(message.sentAt, periodWindow),
       ).length;
       for (const message of conversation.messages) {
         if (
           message.authorType !== "agent" ||
-          new Date(message.sentAt) < cutoffDate ||
+          !isInPeriodWindow(message.sentAt, periodWindow) ||
           !message.automationStart ||
           !message.automationEnd
         ) {
@@ -962,16 +1196,20 @@ const Dashboard: FunctionComponent = () => {
       }
       return acc;
     }, 0);
-    const messagesReceived = filteredConversations.reduce(
+    const messagesReceived = channelScopedConversations.reduce(
       (acc, conversation) =>
         acc +
         conversation.messages.filter(
-          (message) => message.direction === "inbound" && new Date(message.sentAt) >= cutoffDate,
+          (message) =>
+            message.direction === "inbound" &&
+            isInPeriodWindow(message.sentAt, periodWindow),
         ).length,
       0,
     );
-    const activeConversations = filteredConversations.filter(
-      (conversation) => conversation.status === "Ouvert",
+    const activeConversations = channelScopedConversations.filter(
+      (conversation) =>
+        conversation.status === "Ouvert" &&
+        isInPeriodWindow(conversation.lastAt, periodWindow),
     ).length;
     const averageResponseSeconds =
       responsePairs === 0 ? 0 : Math.round((totalResponseMs / responsePairs) / 1000);
@@ -981,46 +1219,67 @@ const Dashboard: FunctionComponent = () => {
       active: activeConversations,
       responseTime: averageResponseSeconds,
     };
-  }, [filteredConversations, period]);
+  }, [channelScopedConversations, periodWindow]);
 
-  const evolutionData = useMemo(() => {
-    const days = period === "7" ? 7 : period === "30" ? 30 : 90;
-    const now = new Date();
-    const dataPoints: number[] = [];
-
-    for (let i = days - 1; i >= 0; i--) {
-      const targetDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      const targetDateString = targetDate.toDateString();
-      
-      let messagesCount = 0;
-      
-      filteredConversations.forEach(conversation => {
-        conversation.messages.forEach(message => {
-          const messageDate = new Date(message.sentAt);
-          if (message.authorType === "agent" && 
-              message.direction === "outbound" && 
-              messageDate.toDateString() === targetDateString) {
-            messagesCount++;
-          }
-        });
-      });
-      
-      dataPoints.push(messagesCount);
-    }
-    
-    return dataPoints;
-  }, [filteredConversations, period]);
+  const evolutionSeries = useMemo(
+    () =>
+      period === "year"
+        ? buildYearlyEvolutionSeries(channelScopedConversations, periodWindow)
+        : period === "today"
+        ? buildTodayEvolutionSeries(channelScopedConversations, periodWindow)
+        : buildDailyEvolutionSeries(channelScopedConversations, periodWindow),
+    [channelScopedConversations, period, periodWindow],
+  );
 
   const deltas = {
-    responses: period === "7" ? "+12% vs précédent" : "+8% vs précédent",
-    messages: period === "7" ? "+10% vs précédent" : "+6% vs précédent",
-    active: period === "7" ? "+3% vs précédent" : "+1% vs précédent",
-    responseTime:
-      period === "7"
-        ? "-24 s vs précédent"
+    responses:
+      period === "today"
+        ? "+4% vs hier"
+        : period === "3"
+        ? "+12% vs precedent"
+        : period === "7"
+        ? "+10% vs precedent"
+        : period === "14"
+        ? "+9% vs precedent"
         : period === "30"
-        ? "-36 s vs précédent"
-        : "-54 s vs précédent",
+        ? "+8% vs precedent"
+        : "+5% vs annee precedente",
+    messages:
+      period === "today"
+        ? "+3% vs hier"
+        : period === "3"
+        ? "+10% vs precedent"
+        : period === "7"
+        ? "+8% vs precedent"
+        : period === "14"
+        ? "+7% vs precedent"
+        : period === "30"
+        ? "+6% vs precedent"
+        : "+4% vs annee precedente",
+    active:
+      period === "today"
+        ? "+1% vs hier"
+        : period === "3"
+        ? "+3% vs precedent"
+        : period === "7"
+        ? "+2% vs precedent"
+        : period === "14"
+        ? "+2% vs precedent"
+        : period === "30"
+        ? "+1% vs precedent"
+        : "+1% vs annee precedente",
+    responseTime:
+      period === "today"
+        ? "-12 s vs hier"
+        : period === "3"
+        ? "-24 s vs precedent"
+        : period === "7"
+        ? "-28 s vs precedent"
+        : period === "14"
+        ? "-32 s vs precedent"
+        : period === "30"
+        ? "-36 s vs precedent"
+        : "-42 s vs annee precedente",
   };
 
   const kpiCards = [
@@ -1048,42 +1307,102 @@ const Dashboard: FunctionComponent = () => {
   ];
 
   const channelStats = useMemo(() => {
-    const days = period === "7" ? 7 : period === "30" ? 30 : 90;
-    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    
     const bucket: Record<ChannelOption, number> = {
       Instagram: 0,
       WhatsApp: 0,
       Telegram: 0,
     };
-    
-    filteredConversations.forEach((conversation) => {
+
+    conversationData.forEach((conversation) => {
       const agentMessages = conversation.messages.filter(
-        (message) => message.direction === "outbound" && 
-                    message.authorType === "agent" &&
-                    new Date(message.sentAt) >= cutoffDate
+        (message) =>
+          message.direction === "outbound" &&
+          message.authorType === "agent" &&
+          isInPeriodWindow(message.sentAt, periodWindow),
       ).length;
       bucket[conversation.channel] += agentMessages;
     });
-    
+
     const maxBucket = Math.max(...Object.values(bucket), 1);
     return channelCycle.map((channel) => ({
       channel,
       count: bucket[channel],
       normalized: Math.round((bucket[channel] / maxBucket) * 100),
     }));
-  }, [filteredConversations, period]);
+  }, [conversationData, periodWindow]);
 
   const maxChannelCount =
     Math.max(...channelStats.map((stat) => stat.count)) || 1;
+  const sparklineBarColor =
+    channelFilter === "All"
+      ? "var(--app-primary)"
+      : channelFocusColors[channelFilter];
 
-  const sparklineMax = Math.max(...evolutionData, 1);
+  const sparklineValues = evolutionSeries.map((point) => point.count);
+  const sparklineMax = Math.max(...sparklineValues, 1);
+  const evolutionAxisLabels = useMemo(
+    () => buildEvolutionAxisLabels(period, evolutionSeries),
+    [period, evolutionSeries],
+  );
 
-  const topConversations = sortedConversations.slice(0, 5);
+  const topConversations = useMemo(
+    () =>
+      channelScopedConversations
+        .map((conversation) => ({
+          conversation,
+          periodMessageCount: conversation.messages.filter((message) =>
+            isInPeriodWindow(message.sentAt, periodWindow),
+          ).length,
+        }))
+        .filter((row) => row.periodMessageCount > 0)
+        .sort((a, b) => {
+          if (b.periodMessageCount !== a.periodMessageCount) {
+            return b.periodMessageCount - a.periodMessageCount;
+          }
+          return (
+            new Date(b.conversation.lastAt).getTime() -
+            new Date(a.conversation.lastAt).getTime()
+          );
+        }),
+    [channelScopedConversations, periodWindow],
+  );
 
-  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(event.target.value);
-  };
+  const topConversationPageCount = Math.max(
+    1,
+    Math.ceil(topConversations.length / TOP_CONVERSATIONS_PAGE_SIZE),
+  );
+
+  useEffect(() => {
+    if (topConversationPage <= topConversationPageCount - 1) {
+      return;
+    }
+    setTopConversationPage(Math.max(0, topConversationPageCount - 1));
+  }, [topConversationPage, topConversationPageCount]);
+
+  useEffect(() => {
+    setTopConversationPage(0);
+  }, [period, channelFilter, selectedConfigId]);
+
+  const paginatedTopConversations = useMemo(() => {
+    const startIndex = topConversationPage * TOP_CONVERSATIONS_PAGE_SIZE;
+    return topConversations.slice(
+      startIndex,
+      startIndex + TOP_CONVERSATIONS_PAGE_SIZE,
+    );
+  }, [topConversations, topConversationPage]);
+
+  const topConversationSlots = useMemo<
+    Array<{ conversation: Conversation; periodMessageCount: number } | null>
+  >(() => {
+    const slots: Array<{
+      conversation: Conversation;
+      periodMessageCount: number;
+    } | null> = [...paginatedTopConversations];
+    while (slots.length < TOP_CONVERSATIONS_PAGE_SIZE) {
+      slots.push(null);
+    }
+    return slots;
+  }, [paginatedTopConversations]);
 
   const handleSortChange = (value: SortOption) => {
     setSortOption(value);
@@ -1318,13 +1637,6 @@ const Dashboard: FunctionComponent = () => {
             <h1 className={styles.claraHeaderTitle}>
               Dashboard — {activeConfigOption?.label ?? "Clara"}
             </h1>
-            <input
-              className={styles.claraSearch}
-              type="text"
-              placeholder="Rechercher contact ou message"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
           </div>
           <div className={styles.claraHeaderControls}>
             {agentConfigOptions.length > 0 && (
@@ -1418,109 +1730,185 @@ const Dashboard: FunctionComponent = () => {
             </div>
         {effectiveCurrentTab === "stats" ? (
           <section className={styles.claraStatsGrid}>
-            <div className={styles.claraKpiRow}>
-              {kpiCards.map((card) => (
-                <KpiCard
-                  key={card.label}
-                  label={card.label}
-                  value={card.value}
-                  delta={card.delta}
+  <div className={styles.claraKpiRow}>
+    {kpiCards.map((card) => (
+      <KpiCard
+        key={card.label}
+        label={card.label}
+        value={card.value}
+        delta={card.delta}
+      />
+    ))}
+  </div>
+  <section className={`${styles.claraPanel} ${styles.claraPanelWide}`}>
+    <div className={styles.evolutionHeader}>
+      <h3>Messages envoyes par l'agent</h3>
+      <div className={styles.evolutionStats}>
+        <span className={styles.evolutionGranularity}>
+          {period === "year"
+            ? "Agregation mensuelle"
+            : period === "today"
+            ? "Agregation horaire"
+            : "Agregation journaliere"}
+        </span>
+      </div>
+    </div>
+    <div
+      className={`${styles.claraSparkline} ${period === "year" ? styles.claraSparklineYear : ""}`.trim()}
+    >
+      {evolutionSeries.map((point) => {
+        const value = point.count;
+        const zeroBarHeight = 2;
+        const minBarHeight = 12;
+        const height =
+          value === 0
+            ? zeroBarHeight
+            : Math.max(minBarHeight, (value / sparklineMax) * 100);
+        return (
+          <span
+            key={point.id}
+            className={styles.claraSparklineBar}
+            style={{
+              height: `${height}%`,
+              background: sparklineBarColor,
+            }}
+            data-tooltip={point.tooltip}
+          />
+        );
+      })}
+    </div>
+    <div
+      className={`${styles.evolutionAxis} ${
+        evolutionAxisLabels.length <= 2 ? styles.evolutionAxisCompact : ""
+      }`.trim()}
+    >
+      {evolutionAxisLabels.map((label, index) => (
+        <span key={`${label}-${index}`}>{label}</span>
+      ))}
+    </div>
+  </section>
+  <div className={styles.claraPanelRowCompact}>
+    <section className={`${styles.claraPanel} ${styles.lowerPanel}`.trim()}>
+      <h3>Reponses par canal de l'agent</h3>
+      <div className={styles.channelBarRow}>
+        {channelStats.map((item) => {
+          const ratioWidth = Math.round((item.count / maxChannelCount) * 100);
+          const barWidth = item.count === 0 ? 1 : Math.max(5, ratioWidth);
+          const isChannelFocused = channelFilter !== "All";
+          const isSelectedChannel = channelFilter === item.channel;
+          const channelBarStateClass = !isChannelFocused
+            ? ""
+            : isSelectedChannel
+            ? styles.channelBarSelected
+            : styles.channelBarDimmed;
+          const channelBarColor =
+            !isChannelFocused
+              ? channelColors[item.channel]
+              : isSelectedChannel
+              ? channelFocusColors[item.channel]
+              : "rgba(148, 163, 184, 0.72)";
+          return (
+            <div
+              key={item.channel}
+              className={`${styles.channelBar} ${channelBarStateClass}`.trim()}
+            >
+              <span className={styles.channelBarRowLabel}>{item.channel}</span>
+              <div className={styles.channelBarTrack}>
+                <span
+                  className={styles.channelBarFill}
+                  style={{
+                    width: `${barWidth}%`,
+                    backgroundColor: channelBarColor,
+                  }}
                 />
-              ))}
+              </div>
+              <span className={styles.channelBarRowLabel}>{item.count}</span>
             </div>
-            <div className={styles.claraPanelRow}>
-              <section className={styles.claraPanel}>
-                <h3>Réponses par canal de l'agent</h3>
-                <div className={styles.channelBarRow}>
-                  {channelStats.map((item) => {
-                    const barWidth = Math.max(
-                      8,
-                      Math.round((item.count / maxChannelCount) * 100)
-                    );
-                    return (
-                      <div key={item.channel} className={styles.channelBar}>
-                        <span className={styles.channelBarRowLabel}>
-                          {item.channel}
+          );
+        })}
+      </div>
+    </section>
+    <section className={`${styles.claraPanel} ${styles.lowerPanel}`.trim()}>
+      <div className={styles.topConversationHeader}>
+        <h3>Top conversations</h3>
+        {topConversations.length > 0 && topConversationPageCount > 1 && (
+          <span className={styles.topConversationPageIndicator}>
+            {topConversationPage + 1}/{topConversationPageCount}
+          </span>
+        )}
+      </div>
+      <ul className={`${styles.claraPanelList} ${styles.topConversationList}`.trim()}>
+          {topConversationSlots.map((slot, index) =>
+            slot ? (
+              <li key={slot.conversation.id} className={styles.topConversationItem}>
+                <div className={styles.topConversationMain}>
+                  <div className={styles.topConversationHeadline}>
+                    <div className={styles.topConversationIdentity}>
+                      <strong className={styles.topConversationName}>
+                        {slot.conversation.contactName}
+                      </strong>
+                      {slot.conversation.contactHandle && (
+                        <span className={styles.topConversationHandle}>
+                          @{slot.conversation.contactHandle}
                         </span>
-                        <div className={styles.channelBarTrack}>
-                          <span
-                            className={styles.channelBarFill}
-                            style={{
-                              width: `${barWidth}%`,
-                              backgroundColor: channelColors[item.channel],
-                            }}
-                          />
-                        </div>
-                        <span className={styles.channelBarRowLabel}>
-                          {item.count}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-              <section className={styles.claraPanel}>
-                <div className={styles.evolutionHeader}>
-                  <h3>Messages envoyés par l'agent</h3>
-                  <div className={styles.evolutionStats}>
-                    <span className={styles.evolutionMax}>Max: {sparklineMax}</span>
-                    <span className={styles.evolutionTotal}>
-                      Total: {evolutionData.reduce((sum, val) => sum + val, 0)}
-                    </span>
+                      )}
+                    </div>
+                    <ChannelBadge
+                      channel={slot.conversation.channel}
+                      colorChannel={
+                        channelFilter === "All" ? undefined : channelFilter
+                      }
+                    />
                   </div>
                 </div>
-                <div className={styles.claraSparkline}>
-                  {evolutionData.map((value, index) => {
-                    const height = Math.max(12, (value / sparklineMax) * 100);
-                    const daysAgo = evolutionData.length - 1 - index;
-                    const dateLabel = daysAgo === 0 ? "Aujourd'hui" : 
-                                     daysAgo === 1 ? "Hier" : 
-                                     `Il y a ${daysAgo}j`;
-                    return (
-                      <span
-                        key={`${value}-${index}`}
-                        className={styles.claraSparklineBar}
-                        style={{ height: `${height}%` }}
-                        data-tooltip={`${dateLabel}: ${value} message${value !== 1 ? 's' : ''}`}
-                      />
-                    );
-                  })}
+                <div className={styles.topConversationAside}>
+                  <span className={styles.topConversationCount}>
+                    {slot.periodMessageCount} messages
+                  </span>
+                  <span className={styles.topConversationTime}>
+                    {formatRelativeTime(slot.conversation.lastAt)}
+                  </span>
                 </div>
-              </section>
-              <section className={styles.claraPanel}>
-                <h3>Top conversations</h3>
-                {topConversations.length === 0 ? (
-                  <div className={styles.topConversationEmpty}>
-                    Aucune conversation disponible.
-                  </div>
-                ) : (
-                  <ul className={styles.claraPanelList}>
-                    {topConversations.map((conversation) => (
-                      <li key={conversation.id} className={styles.topConversationItem}>
-                        <div>
-                          <div>
-                          <strong>{truncateLabel(conversation.contactName)}</strong>
-                            {conversation.contactHandle && (
-                              <span style={{ fontSize: '0.8em', color: 'var(--app-text-secondary)', marginLeft: '8px' }}>
-                                @{conversation.contactHandle}
-                              </span>
-                            )}
-                          </div>
-                          <div className={styles.topConversationItemMeta}>
-                            {formatRelativeTime(conversation.lastAt)} ·{" "}
-                            <ChannelBadge channel={conversation.channel} />
-                          </div>
-                        </div>
-                        <span className={styles.topConversationItemMeta}>
-                          {conversation.messages.length} messages
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            </div>
-          </section>
+              </li>
+            ) : (
+              <li
+                key={`top-conversation-empty-${index}`}
+                className={`${styles.topConversationItem} ${styles.topConversationItemPlaceholder}`.trim()}
+              >
+                {topConversations.length === 0
+                  ? "Aucune conversation"
+                  : "Aucune autre conversation"}
+              </li>
+            ),
+          )}
+        </ul>
+      {topConversations.length > 0 && topConversationPageCount > 1 && (
+        <div className={styles.topConversationPagination}>
+          <button
+            type="button"
+            className={styles.topConversationPageButton}
+            disabled={topConversationPage === 0}
+            onClick={() => setTopConversationPage((prev) => Math.max(0, prev - 1))}
+          >
+            Precedent
+          </button>
+          <button
+            type="button"
+            className={styles.topConversationPageButton}
+            disabled={topConversationPage >= topConversationPageCount - 1}
+            onClick={() =>
+              setTopConversationPage((prev) =>
+                Math.min(topConversationPageCount - 1, prev + 1),
+              )
+            }
+          >
+            Suivant
+          </button>
+        </div>
+      )}
+    </section>
+  </div>
+</section>
         ) : (
           <section className={styles.claraDetailsLayout}>
             <div className={styles.conversationPanel}>
@@ -1916,3 +2304,7 @@ const Dashboard: FunctionComponent = () => {
 };
 
 export default Dashboard;
+
+
+
+

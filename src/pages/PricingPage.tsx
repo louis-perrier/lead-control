@@ -289,6 +289,11 @@ const PricingPage: FunctionComponent = () => {
                     +
                   </button>
                 </div>
+                <p className={styles.selectorHint}>
+                  1 agent = 1 connexion.
+                  <br />
+                  2 agents = 2 connexions, pas 2 comptes LeadControl.
+                </p>
               </div>
               <p className={styles.creditMessage}>5 000 crédits/mois inclus</p>
               <ul className={styles.featuresList}>
@@ -358,6 +363,11 @@ const PricingPage: FunctionComponent = () => {
                       {agentsSettingsQty} agent{agentsSettingsQty > 1 ? "s" : ""}
                     </span>
                   </div>
+                  <p className={styles.planClarification}>
+                    1 agent = 1 connexion.
+                    <br />
+                    2 agents = 2 connexions, pas 2 comptes LeadControl.
+                  </p>
                   {(billing?.agentsVocalQty || 0) > 0 && (
                     <div className={styles.planDetailsRow}>
                       <span className={styles.planDetailsLabel}>Agents vocaux</span>

@@ -19,9 +19,9 @@ const FooterLanding = () => {
           Contact: louis@lautopreneur.com - Copyright {new Date().getFullYear()} LeadControl.
         </p>
         <div className={styles.bottomBadges}>
-          <span className={styles.bottomBadge}>Instagram actif</span>
-          <span className={styles.bottomBadge}>Calendly connecte</span>
-          <span className={styles.bottomBadge}>WhatsApp prochainement</span>
+          <span className={styles.bottomBadge}>Instagram disponible</span>
+          <span className={styles.bottomBadge}>Calendly disponible</span>
+          <span className={styles.bottomBadge}>WhatsApp disponible</span>
         </div>
       </div>
     </footer>
