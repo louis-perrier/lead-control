@@ -1,4 +1,5 @@
-import { FunctionComponent, RefObject } from "react";
+import { FunctionComponent, RefObject, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
 import type { SubscriptionState } from "../../hooks/useSubscriptionState";
@@ -16,20 +17,19 @@ export type SidebarAccountCardProps = {
 
 const getPlanDisplayName = (planKey: string, status: string): string => {
   if (status === "trialing") return "Essai gratuit";
-  
+
   switch (planKey) {
-    case "basic":
-      return "Plan Basic";
-    case "ultime":
-      return "Plan Ultime";
-    case "custom":
-      return "Plan Custom";
-    case "none":
-      return "Plan Gratuit";
+    case "coach_basic":
+      return "PLAN BASIC";
+    case "coach_premium":
+      return "PLAN PREMIUM";
     case "TESTEUR":
       return "TESTEUR";
+    case "none":
+    case "inactive":
+      return "Plan gratuit";
     default:
-      return "Plan Gratuit";
+      return "Plan LeadControl";
   }
 };
 
@@ -61,6 +61,16 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
   triggerRef,
 }) => {
   const navigate = useNavigate();
+  const hintRef = useRef<HTMLSpanElement>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+
+  const handleHintEnter = () => {
+    if (!hintRef.current) return;
+    const rect = hintRef.current.getBoundingClientRect();
+    setTooltipPos({ top: rect.top - 34, left: rect.right });
+  };
+
+  const handleHintLeave = () => setTooltipPos(null);
 
   if (isCollapsed) {
     return (
@@ -101,9 +111,13 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
     );
   }
 
-  const planDisplayName = subscriptionState 
+  const planDisplayName = subscriptionState
     ? getPlanDisplayName(subscriptionState.planKey, subscriptionState.status)
-    : "Plan Gratuit";
+    : "Plan gratuit";
+  const isFreePlan =
+    !subscriptionState ||
+    subscriptionState.planKey === "none" ||
+    subscriptionState.planKey === "inactive";
   
   const statusMessage = subscriptionState 
     ? getStatusMessage(subscriptionState.status)
@@ -149,7 +163,9 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
             {planDisplayName === "Essai gratuit" ? (
               <span className={styles.trialBadge}>{planDisplayName}</span>
             ) : (
-              <span className={styles.planName}>{planDisplayName}</span>
+              <span className={isFreePlan ? styles.freePlanName : styles.planName}>
+                {planDisplayName}
+              </span>
             )}
             {statusMessage && (
               <span className={styles.statusMessage}>{statusMessage}</span>
@@ -163,6 +179,21 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
           <span className={styles.creditsText}>
             {creditsBalance.toLocaleString("fr-FR")} / {creditsMonthly.toLocaleString("fr-FR")} crédits
           </span>
+          <span
+            ref={hintRef}
+            className={styles.creditsHint}
+            onMouseEnter={handleHintEnter}
+            onMouseLeave={handleHintLeave}
+          >!</span>
+          {tooltipPos && createPortal(
+            <div
+              className={styles.creditsTooltip}
+              style={{ top: tooltipPos.top, left: tooltipPos.left }}
+            >
+              1 message = 1 crédit
+            </div>,
+            document.body
+          )}
         </div>
         <CreditsProgressBar
           current={creditsBalance}

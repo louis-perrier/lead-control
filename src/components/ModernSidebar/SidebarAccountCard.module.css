@@ -136,6 +136,21 @@
   letter-spacing: 0.02em;
 }
 
+.freePlanName {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #6B7280;
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 3px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
 .trialBadge {
   display: inline-block;
   font-size: 11px;
@@ -186,6 +201,43 @@
   white-space: nowrap;
   overflow: visible;
   text-overflow: unset;
+}
+
+.creditsHint {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(100, 116, 139, 0.12);
+  color: #94A3B8;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: default;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.creditsHint:hover {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563EB;
+}
+
+.creditsTooltip {
+  position: fixed;
+  transform: translateX(-100%) translateY(-2px);
+  background: #0F172A;
+  color: #F8FAFC;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border-radius: 7px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
 }
 
 .upgradeButton {

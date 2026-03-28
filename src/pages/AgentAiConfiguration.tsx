@@ -100,11 +100,7 @@ type TimeSlot = {
 
 type SavedTimeSlot = Omit<TimeSlot, "id">;
 
-const DEFAULT_SAVED_SLOTS: SavedTimeSlot[] = [
-  { time: "09:00", durationMinutes: 30 },
-  { time: "14:00", durationMinutes: 30 },
-  { time: "19:00", durationMinutes: 30 },
-];
+const DEFAULT_SAVED_SLOTS: SavedTimeSlot[] = [];
 
 const createTimeSlot = (overrides?: Partial<TimeSlot>): TimeSlot => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -297,6 +293,16 @@ type AgentAiConfigurationState = {
   tabs?: AgentInfo[];
 };
 
+type FieldGroupId = "essential" | "optimize" | "advanced";
+
+const FIELD_GROUPS: { id: FieldGroupId; label: string; collapsible: boolean; keys: string[] }[] = [
+  { id: "essential", label: "Essentiel", collapsible: false, keys: ["product_name", "context", "stopped_condition"] },
+  { id: "optimize", label: "Optimiser l'agent", collapsible: true, keys: ["qualification", "tone"] },
+  { id: "advanced", label: "Paramètres avancés", collapsible: true, keys: ["activation_time"] },
+];
+
+const REQUIRED_DETAIL_KEYS = ["product_name", "context", "stopped_condition"];
+
 const getAgentTabId = (agent: AgentInfo) =>
   agent.display_id ?? agent.agent_id ?? agent.id;
 
@@ -434,6 +440,7 @@ const AgentAi: FunctionComponent = () => {
   const [errors, setErrors] = useState<DetailErrors>({});
   const [lastSavedDetails, setLastSavedDetails] =
     useState<DetailsSnapshot | null>(null);
+  const [openGroups, setOpenGroups] = useState<Set<FieldGroupId>>(new Set<FieldGroupId>(["essential"]));
 
   // Configuration state
   const [activeSocial, setActiveSocial] = useState<string | null>(null);
@@ -707,10 +714,6 @@ const AgentAi: FunctionComponent = () => {
       }
     }
     if (activeComponents.includes("activation_time")) {
-      const hasActiveDay = Object.values(activeDays).some(Boolean);
-      if (!hasActiveDay) {
-        nextErrors.activeDays = "Sélectionne au moins un jour actif.";
-      }
       const startMinutes = toMinutes(timeStart);
       const endMinutes = toMinutes(timeEnd);
       if (startMinutes >= endMinutes) {
@@ -1535,6 +1538,70 @@ const AgentAi: FunctionComponent = () => {
     [customToneValidationErrors]
   );
 
+  // ------------------------------DETAILS GROUP UI---------------------------------
+  const detailsComponents = selectedAgent?.details_component ?? [];
+
+  const activeGroups = useMemo(() =>
+    FIELD_GROUPS
+      .map(g => ({ ...g, activeKeys: g.keys.filter(k => detailsComponents.includes(k)) }))
+      .filter(g => g.activeKeys.length > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [detailsComponents.join(",")]
+  );
+
+  const keyHasError = useCallback((key: string): boolean => {
+    switch (key) {
+      case "product_name": return Boolean(errors.productName);
+      case "context": return Boolean(errors.context || errors.contextPdf);
+      case "stopped_condition": return Boolean(errors.stopText || errors.stopLink);
+      case "activation_time": return Boolean(errors.timeRange || errors.timeSlots);
+      default: return false;
+    }
+  }, [errors]);
+
+  const missingRequiredCount = useMemo(() =>
+    REQUIRED_DETAIL_KEYS
+      .filter(k => detailsComponents.includes(k))
+      .filter(k => {
+        if (k === "product_name") return !productName.trim();
+        if (k === "context") return !contextText.trim() && !contextPdf;
+        if (k === "stopped_condition") return !stopText.trim();
+        return false;
+      }).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [detailsComponents.join(","), productName, contextText, contextPdf, stopText]
+  );
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!lastSavedDetails) return false;
+    const current = getCurrentDetailsSnapshot();
+    return JSON.stringify(current) !== JSON.stringify(lastSavedDetails);
+  }, [lastSavedDetails, getCurrentDetailsSnapshot]);
+
+  const toggleGroup = useCallback((id: FieldGroupId) => {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const groupsToOpen = FIELD_GROUPS
+      .filter(g => g.collapsible)
+      .filter(g => g.keys.some(k => detailsComponents.includes(k) && keyHasError(k)))
+      .map(g => g.id);
+    if (groupsToOpen.length > 0) {
+      setOpenGroups(prev => {
+        const next = new Set(prev);
+        groupsToOpen.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errors]);
+
   // ------------------------------PROMPT---------------------------------
   /**
    * Sauvegarde les champs “Details” (prompt + contexte) dans Supabase.
@@ -1637,7 +1704,7 @@ const AgentAi: FunctionComponent = () => {
             ...selectedAgent.configs.Details,
             context: contextText,
             tone,
-            activeDays: { ...activeDays },
+            activeDays: Object.fromEntries(dayLabels.map((d) => [d.key, true])),
             timeStart,
             timeEnd,
             stopText,
@@ -1772,7 +1839,7 @@ const AgentAi: FunctionComponent = () => {
             <p className={styles.sectionDescription}>
               Définissez les jours et créneaux horaires où l'agent sera actif pour répondre aux prospects.
             </p>
-            <div className={styles.scheduleSubsection}>
+            <div className={styles.scheduleSubsection} style={{ display: "none" }}>
               <h5 className={styles.subsectionTitle}>Jours actifs</h5>
               <div className={styles.dayChips}>
                 {dayLabels.map((day) => (
@@ -2230,21 +2297,55 @@ const AgentAi: FunctionComponent = () => {
               )}
               {activeCorner === "Details" && (
                 <>
-                  <div className={styles.modalContainer}>
-                    <div className={styles.modalHeader}>
-                      <div>
-                        <h3>Configuration de l’agent</h3>
-                        <p className={styles.modalSubtitle}>
-                          Donne suffisamment d’éléments pour guider la prise de parole de ton agent IA.
-                        </p>
-                      </div>
+                  {/* Header compact */}
+                  <div className={styles.detailsHeaderBar}>
+                    <div>
+                      <h3 className={styles.detailsHeaderTitle}>Configurer l’agent</h3>
+                      <p className={styles.detailsHeaderSubtitle}>Paramétrez le comportement de votre agent.</p>
                     </div>
                     {selectedAgent?.details_component?.length ? (
-                      selectedAgent.details_component.map((key, index) => (
-                        <React.Fragment key={key}>
-                          {renderDetailsSection(key, index + 1)}
-                        </React.Fragment>
-                      ))
+                      <span className={`${styles.detailsStatusBadge} ${missingRequiredCount > 0 || hasValidationErrors ? styles.detailsStatusBadgeError : styles.detailsStatusBadgeOk}`}>
+                        {missingRequiredCount > 0
+                          ? `Incomplet — ${missingRequiredCount} champ${missingRequiredCount > 1 ? "s" : ""} requis manquant${missingRequiredCount > 1 ? "s" : ""}`
+                          : hasValidationErrors
+                          ? "Erreurs à corriger"
+                          : "Prêt à enregistrer"}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/* Sections scrollables */}
+                  <div className={styles.modalContainer}>
+                    {selectedAgent?.details_component?.length ? (
+                      activeGroups.map(group => {
+                        const isOpen = !group.collapsible || openGroups.has(group.id);
+                        const hasError = group.activeKeys.some(k => keyHasError(k));
+                        return (
+                          <div key={group.id} className={`${styles.detailsGroup} ${hasError ? styles.detailsGroupError : ""}`}>
+                            <div
+                              className={`${styles.detailsGroupHeader} ${group.collapsible ? styles.detailsGroupHeaderCollapsible : ""}`}
+                              onClick={group.collapsible ? () => toggleGroup(group.id) : undefined}
+                            >
+                              <span className={styles.detailsGroupTitle}>{group.label}</span>
+                              <div className={styles.detailsGroupHeaderRight}>
+                                {hasError && <span className={styles.detailsGroupErrorDot} />}
+                                {group.collapsible && (
+                                  <span className={`${styles.detailsGroupChevron} ${isOpen ? styles.detailsGroupChevronOpen : ""}`}>›</span>
+                                )}
+                              </div>
+                            </div>
+                            {isOpen && (
+                              <div className={styles.detailsGroupBody}>
+                                {group.activeKeys.map((key, index) => (
+                                  <React.Fragment key={key}>
+                                    {renderDetailsSection(key, index + 1)}
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className={styles.noConfigMessage}>
                         <p>Bonne nouvelle !</p>
@@ -2252,10 +2353,16 @@ const AgentAi: FunctionComponent = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Footer sticky */}
                   {selectedAgent?.details_component?.length ? (
                     <div className={styles.modalFooter}>
                       <p className={styles.footerHint}>
-                        Les modifications sont enregistrées uniquement après validation.
+                        {!lastSavedDetails
+                          ? "Complétez les champs requis"
+                          : hasUnsavedChanges
+                          ? "Changements non enregistrés"
+                          : "Tout est à jour"}
                       </p>
                       <button
                         type="button"

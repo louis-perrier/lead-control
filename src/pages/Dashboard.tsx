@@ -1314,20 +1314,66 @@ const Dashboard: FunctionComponent = () => {
         <div className={styles.claraDashboard}>
           <div className={styles.claraDashboardContent}>
         <header className={styles.claraHeader}>
-          <div>
+          <div className={styles.claraHeaderTop}>
             <h1 className={styles.claraHeaderTitle}>
-              DASHBOARD — {(activeConfigOption?.label ?? "Clara").toUpperCase()}
+              Dashboard — {activeConfigOption?.label ?? "Clara"}
             </h1>
-            <p className={styles.claraHeaderSubtitle}>
-              Période :{" "}
-              {
-                periodOptions.find((item) => item.value === period)?.label
-              }{" "}
-              · Canal :{" "}
-              {channelFilter === "All" ? "Tous les canaux" : channelFilter}
-            </p>
+            <input
+              className={styles.claraSearch}
+              type="text"
+              placeholder="Rechercher contact ou message"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
           </div>
           <div className={styles.claraHeaderControls}>
+            {agentConfigOptions.length > 0 && (
+              <div className={styles.claraConfigFocusGroup}>
+                <span className={styles.claraConfigLabel}>Config</span>
+                <div
+                  className={`${styles.claraConfigSelectWrap} ${
+                    isConfigMenuOpen ? styles.claraConfigSelectWrapOpen : ""
+                  }`.trim()}
+                  ref={configMenuRef}
+                >
+                  <button
+                    type="button"
+                    className={styles.claraConfigSelect}
+                    onClick={() => setConfigMenuOpen((prev) => !prev)}
+                    aria-haspopup="listbox"
+                    aria-expanded={isConfigMenuOpen}
+                    aria-label="Choisir une configuration d'agent"
+                  >
+                    <span
+                      className={`${styles.configDot} ${selectedAgent?.is_active === false ? styles.configDotInactive : ""}`}
+                      title={selectedAgent?.is_active === false ? "Inactif" : "Actif"}
+                    />
+                    {(activeConfigOption?.label ?? "Selectionner un agent").toUpperCase()}
+                  </button>
+                  {isConfigMenuOpen && (
+                    <div className={styles.claraConfigMenu} role="listbox">
+                      {agentConfigOptions.map((option) => {
+                        const isActive = selectedConfigId === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            className={`${styles.claraConfigMenuItem} ${
+                              isActive ? styles.claraConfigMenuItemActive : ""
+                            }`.trim()}
+                            onClick={() => handleConfigChange(option.value)}
+                          >
+                            {option.label.toUpperCase()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className={styles.claraPeriodButtons}>
               {periodOptions.map((option) => (
                 <button
@@ -1346,62 +1392,8 @@ const Dashboard: FunctionComponent = () => {
               active={channelFilter}
               onChange={setChannelFilter}
             />
-            <input
-              className={styles.claraSearch}
-              type="text"
-              placeholder="Rechercher contact ou message"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
           </div>
         </header>
-        {agentConfigOptions.length > 0 && (
-          <div className={styles.claraConfigFocus}>
-            <div className={styles.claraConfigFocusGroup}>
-              <span className={styles.claraConfigLabel}>
-                Configuration active
-              </span>
-              <div
-                className={`${styles.claraConfigSelectWrap} ${
-                  isConfigMenuOpen ? styles.claraConfigSelectWrapOpen : ""
-                }`.trim()}
-                ref={configMenuRef}
-              >
-                <button
-                  type="button"
-                  className={styles.claraConfigSelect}
-                  onClick={() => setConfigMenuOpen((prev) => !prev)}
-                  aria-haspopup="listbox"
-                  aria-expanded={isConfigMenuOpen}
-                  aria-label="Choisir une configuration d'agent"
-                >
-                  {(activeConfigOption?.label ?? "Selectionner un agent").toUpperCase()}
-                </button>
-                {isConfigMenuOpen && (
-                  <div className={styles.claraConfigMenu} role="listbox">
-                    {agentConfigOptions.map((option) => {
-                      const isActive = selectedConfigId === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          role="option"
-                          aria-selected={isActive}
-                          className={`${styles.claraConfigMenuItem} ${
-                            isActive ? styles.claraConfigMenuItemActive : ""
-                          }`.trim()}
-                          onClick={() => handleConfigChange(option.value)}
-                        >
-                          {option.label.toUpperCase()}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
         {activeTabs.length === 0 ? (
           <div className={styles.noTabsMessage}>
             <p>Aucune statistique définie pour cet agent.</p>

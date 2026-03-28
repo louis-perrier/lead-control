@@ -1,604 +1,576 @@
-import { FunctionComponent, useMemo, useState, useEffect } from "react";
-import { AppLayout } from "../layouts";
-import Header from "../components/Header";
+import { FunctionComponent, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import supabase from "../lib/supabase";
 import useSubscriptionState, { PlanKey } from "../hooks/useSubscriptionState";
 import styles from "./PricingPage.module.css";
 
-type BillingCycle = "monthly" | "yearly";
-type PlanId = "1_agent" | "2_agents" | "custom";
+const PLAN_LABELS: Record<PlanKey, string> = {
+  coach_basic: "PLAN BASIC",
+  coach_premium: "PLAN PREMIUM",
+  none: "Plan gratuit",
+  TESTEUR: "TESTEUR",
+};
 
-const creditTicks = [0, 500, 1000, 1500, 2000];
-
-const planCatalog: {
-  id: PlanId;
-  title: string;
-  description: string;
-  basePrice: number;
-  badge?: string;
-  features: string[];
-}[] = [
-  {
-    id: "1_agent",
-    title: "Basic",
-    description: "Idéal pour démarrer avec un seul agent.",
-    basePrice: 100,
-    features: [
-      "1 agent au choix",
-      "200 crédits",
-      "Support",
-      "Interface multicanal",
-      "1 agent Assistant Chatbot (bientôt)",
-      "Commission 50%"
-    ],
-  },
-  {
-    id: "2_agents",
-    title: "Ultime",
-    description: "Offre PRO pour scaler ton équipe.",
-    basePrice: 200,
-    badge: "Recommandé",
-    features: [
-      "2 agents au choix + 1 bonus",
-      "500 crédits",
-      "Support",
-      "Interface multicanal",
-      "Conversations configurables",
-      "Ton personnalisable",
-      "Message personnalisés",
-      "Commission 70%",
-      "1 agent Assistant Chatbot (bientôt)"
-    ],
-  },
-  {
-    id: "custom",
-    title: "Custom",
-    description: "Pack sur-mesure, nous contacter pour un devis.",
-    basePrice: 0,
-    features: [
-      "Support dédié",
-      "Intégrations sur-mesure",
-      "Formation + onboarding",
-      "Service-level agreement",
-    ],
-  },
-];
-
-const formatPrice = (value: number) =>
+const formatCurrency = (value: number) =>
   `${value.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`;
 
-// Fonction pour mapper planKey vers PlanId
-const mapPlanKeyToPlanId = (planKey: PlanKey): PlanId | null => {
-  switch (planKey) {
-    case "basic":
-      return "1_agent";
-    case "ultime":
-      return "2_agents";
-    case "custom":
-      return "custom";
-    case "TESTEUR":
-      return "1_agent";
-    case "none":
-      return null; // Pas de plan actuel
-    default:
-      return null;
+const getReadableErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    // Messages d'erreur déjà user-friendly
+    if (
+      error.message.includes("Impossible de") || 
+      error.message.includes("Aucune URL") ||
+      error.message.includes("Session expirée")
+    ) {
+      return error.message;
+    }
+    
+    // Erreurs réseau courantes
+    if (
+      error.message.toLowerCase().includes("failed to fetch") ||
+      error.message.toLowerCase().includes("network error") ||
+      error.message.toLowerCase().includes("fetch")
+    ) {
+      return "Impossible de charger la page de paiement. Vérifiez votre connexion internet et réessayez.";
+    }
+    
+    // Erreurs de timeout
+    if (error.message.toLowerCase().includes("timeout")) {
+      return "La requête a pris trop de temps. Réessayez dans quelques instants.";
+    }
+    
+    // Erreurs d'authentification
+    if (error.message.toLowerCase().includes("unauthorized") || error.message.toLowerCase().includes("401")) {
+      return "Votre session a expiré. Reconnectez-vous et réessayez.";
+    }
+    
+    // Erreurs serveur
+    if (error.message.toLowerCase().includes("500") || error.message.toLowerCase().includes("server")) {
+      return "Problème temporaire de nos serveurs. Réessayez dans quelques minutes.";
+    }
   }
+  
+  return "Une erreur inattendue est survenue. Réessayez ou contactez le support.";
 };
 
-const calculateMonthlyCreditCost = (credits: number) => {
-  const packs = credits / 50;
-  let remaining = packs;
-  let cost = 0;
-  const tiers = [
-    { limit: 10, price: 50 },
-    { limit: 20, price: 40 },
-  ];
-
-  let previousLimit = 0;
-  for (const tier of tiers) {
-    const tierCapacity = tier.limit - previousLimit;
-    const applicablePacks = Math.min(remaining, tierCapacity);
-    if (applicablePacks > 0) {
-      cost += applicablePacks * tier.price;
-      remaining -= applicablePacks;
-    }
-    previousLimit = tier.limit;
-    if (remaining <= 0) {
-      break;
-    }
-  }
-
-  if (remaining > 0) {
-    cost += remaining * 35;
-  }
-
-  return cost;
-};
-
-const calculateYearlyCreditCost = (credits: number) => {
-  const packs = credits / 50;
-  let remaining = packs;
-  let cost = 0;
-  const tiers = [
-    { limit: 10, price: 40 },
-    { limit: 20, price: 32 },
-  ];
-
-  let previousLimit = 0;
-  for (const tier of tiers) {
-    const tierCapacity = tier.limit - previousLimit;
-    const applicablePacks = Math.min(remaining, tierCapacity);
-    if (applicablePacks > 0) {
-      cost += applicablePacks * tier.price;
-      remaining -= applicablePacks;
-    }
-    previousLimit = tier.limit;
-    if (remaining <= 0) {
-      break;
-    }
-  }
-
-  if (remaining > 0) {
-    cost += remaining * 28;
-  }
-
-  return cost;
+const formatRenewalDate = (value: string | null | undefined) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsed);
 };
 
 const PricingPage: FunctionComponent = () => {
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
-  const [credits, setCredits] = useState(500);
-  const [loadingPlanId, setLoadingPlanId] = useState<PlanId | null>(null);
-  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
-  
-  // Récupération de l'état d'abonnement réel
-  const { data: subscriptionState, isLoading: subscriptionLoading, error: subscriptionError } = useSubscriptionState();
-  
-  // Détermination du plan actuel basé sur l'abonnement
-  const userPlanId = subscriptionState ? mapPlanKeyToPlanId(subscriptionState.planKey) : null;
-  const [currentPlan, setCurrentPlan] = useState<PlanId | null>(userPlanId);
+  const [agentsQty, setAgentsQty] = useState(1);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [creditsLoading, setCreditsLoading] = useState(false);
+  const [isCreditsModalOpen, setIsCreditsModalOpen] = useState(false);
+  const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
+  const [packQty, setPackQty] = useState(1);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const PACK_PRICE = 20;
+  const PACK_CREDITS = 50;
 
-  // Synchroniser l'état local avec les données d'abonnement
-  useEffect(() => {
-    if (subscriptionState) {
-      const planId = mapPlanKeyToPlanId(subscriptionState.planKey);
-      setCurrentPlan(planId);
-    }
-  }, [subscriptionState]);
+  const { data: billing, isLoading, error } = useSubscriptionState();
+  const isSubscribed = billing?.status === "active" || billing?.status === "trialing";
 
-  // Condition pour afficher le bouton "Gérer l'abonnement"
-  const showManageButton = subscriptionState && 
-    subscriptionState.planKey !== "none" && 
-    subscriptionState.planKey !== "custom";
+  const planName = billing
+    ? PLAN_LABELS[billing.planKey] ?? billing.planKey
+    : "LeadControl";
+  const agentsSettingsQty = billing?.agentsSettingsQty ?? 1;
+  const pricePerMonth = 350 + Math.max(0, agentsQty - 1) * 60;
+  const showPriceFormula = agentsQty > 1;
 
-  const activePlan = currentPlan 
-    ? planCatalog.find((plan) => plan.id === currentPlan) ?? planCatalog[0]
-    : planCatalog[0]; // Plan par défaut si pas de plan actuel
-  
-  const monthlyCreditCost = useMemo(() => calculateMonthlyCreditCost(credits), [credits]);
-  const yearlyCreditCost = useMemo(() => calculateYearlyCreditCost(credits), [credits]);
-  
-  const monthlyTotal = useMemo(
-    () => activePlan.basePrice + monthlyCreditCost,
-    [activePlan.basePrice, monthlyCreditCost],
+  const creditsRemaining =
+    billing?.creditsRemaining ?? billing?.creditsBalance ?? 0;
+  const creditsMonthly = billing?.creditsMonthly ?? 0;
+  const creditsProgress = creditsMonthly
+    ? Math.min(100, Math.max(0, (creditsRemaining / creditsMonthly) * 100))
+    : 0;
+
+  const renewalDate = useMemo(
+    () => formatRenewalDate(billing?.currentPeriodEnd),
+    [billing?.currentPeriodEnd],
   );
-  const yearlyTotal = useMemo(
-    () => (activePlan.basePrice * 12 * 0.8) + (yearlyCreditCost * 12),
-    [activePlan.basePrice, yearlyCreditCost],
-  );
-  
-  const currentCreditCost = billingCycle === "monthly" ? monthlyCreditCost : yearlyCreditCost;
-  const sliderProgress = (credits / 2000) * 100;
 
-  const onSelectPlan = async (planId: PlanId) => {
-    if (planId === "custom") {
-      return;
+  const badgeLabel = billing && billing.isTrial ? "Période d'essai" : "Actif";
+  const badgeClass = billing && billing.isTrial ? styles.badgeTrial : styles.badgeActive;
+
+  const creditsLabel = creditsMonthly
+    ? `${creditsRemaining.toLocaleString("fr-FR")} / ${creditsMonthly.toLocaleString(
+        "fr-FR",
+      )} crédits restants ce mois`
+    : "Crédits mensuels non définis";
+
+  const generalError = actionError || (error ? "Impossible de récupérer vos informations d'abonnement. Vérifiez votre connexion." : null);
+
+  const adjustAgents = (delta: number) => {
+    setAgentsQty((prev) => {
+      const next = Math.min(5, Math.max(1, prev + delta));
+      return next;
+    });
+  };
+
+  const getAuthHeaders = async () => {
+    const { data, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !data.session) {
+      throw new Error("Session expirée. Merci de vous reconnecter.");
     }
+    return {
+      Authorization: `Bearer ${data.session.access_token}`,
+      "Content-Type": "application/json",
+    };
+  };
 
-    setLoadingPlanId(planId);
-
+  const handleCoachCheckout = async () => {
+    setActionError(null);
+    setCheckoutLoading(true);
     try {
-      // Récupérer la session utilisateur
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error("Erreur session:", sessionError);
-        return;
-      }
-
-      // Debug: afficher les valeurs envoyées
-      console.log("Données envoyées à Stripe:", { plan: planId, credits: credits, cycle: billingCycle });
-
-      // Appel à l'Edge Function pour créer le checkout Stripe
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing/stripe-create-checkout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+      const headers = await getAuthHeaders();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing/stripe-create-checkout-coach`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ agents_qty: agentsQty }),
         },
-        body: JSON.stringify({ 
-          plan: planId, 
-          credits: credits, 
-          cycle: billingCycle 
-        }),
-      });
-      console.log(res)
-
-      if (!res.ok) {
-        throw new Error(`Erreur HTTP: ${res.status}`);
+      );
+      if (!response.ok) {
+        throw new Error("Impossible de générer la redirection Stripe.");
       }
-
-      const { url } = await res.json();
-      
-      if (url) {
-        // Mettre à jour le plan actuel et rediriger vers Stripe
-        setCurrentPlan(planId);
-        window.location.href = url;
-        // Note: pas besoin de setLoadingPlanId(null) ici car la page va être redirigée
-      } else {
-        console.error("Aucune URL de checkout retournée");
-        setLoadingPlanId(null);
+      const payload = await response.json();
+      if (!payload.url) {
+        throw new Error("Aucune URL de paiement disponible pour le moment.");
       }
-    } catch (error) {
-      console.error("Erreur lors de la création du checkout:", error);
-      setLoadingPlanId(null);
+      window.location.href = payload.url;
+    } catch (err) {
+      setActionError(getReadableErrorMessage(err));
+      setCheckoutLoading(false);
     }
   };
 
-  const handleCreditsChange = (value: number) => {
-    const normalized = Math.min(2000, Math.max(0, value));
-    const stepped = Math.round(normalized / 50) * 50;
-    setCredits(stepped);
-  };
-
-  const handleManageSubscription = async () => {
-    setIsManagingSubscription(true);
-
+  const handlePortal = async () => {
+    setActionError(null);
+    setPortalLoading(true);
     try {
-      // Récupérer la session utilisateur
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error("Erreur session:", sessionError);
-        return;
-      }
-
-      // Appel à l'Edge Function pour créer le portail Stripe
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing/stripe-create-portal`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+      const headers = await getAuthHeaders();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing/stripe-create-portal`,
+        {
+          method: "POST",
+          headers,
         },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Erreur HTTP: ${res.status}`);
+      );
+      if (!response.ok) {
+        throw new Error("Impossible de générer le portail Stripe.");
       }
-
-      const { url } = await res.json();
-      
-      if (url) {
-        // Rediriger vers le portail Stripe
-        window.location.href = url;
-        // Note: pas besoin de setIsManagingSubscription(false) ici car la page va être redirigée
-      } else {
-        console.error("Aucune URL de portail retournée");
-        setIsManagingSubscription(false);
+      const payload = await response.json();
+      if (!payload.url) {
+        throw new Error("Aucune URL de portail disponible.");
       }
-    } catch (error) {
-      console.error("Erreur lors de la création du portail:", error);
-      setIsManagingSubscription(false);
+      window.location.href = payload.url;
+    } catch (err) {
+      setActionError(getReadableErrorMessage(err));
+      setPortalLoading(false);
     }
   };
 
-  // Afficher un état de chargement pendant la récupération des données d'abonnement
-  if (subscriptionLoading) {
+  const handleCreditsPurchase = async () => {
+    setActionError(null);
+    setCreditsLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing/stripe-create-checkout-credits`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ quantity: packQty }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error("Impossible de lancer l'achat de crédits.");
+      }
+      const payload = await response.json();
+      if (!payload.url) {
+        throw new Error("Aucune URL de paiement disponible.");
+      }
+      window.location.href = payload.url;
+    } catch (err) {
+      setActionError(getReadableErrorMessage(err));
+      setCreditsLoading(false);
+    }
+  };
+
+  const toggleCreditsModal = () => setIsCreditsModalOpen((prev) => !prev);
+  const togglePortalModal = () => setIsPortalModalOpen((prev) => !prev);
+
+  const handlePortalConfirmed = async () => {
+    setIsPortalModalOpen(false);
+    await handlePortal();
+  };
+
+  if (isLoading) {
     return (
-      <AppLayout>
-        <div className={styles.mainComponent}>
-          <Header minimal showLogo={false} />
-          <div className={styles.container}>
-            <div style={{ padding: "2rem", textAlign: "center" }}>
-              <p>Chargement des informations d'abonnement...</p>
-            </div>
-          </div>
+      <div className={styles.page}>
+        <div className={styles.pageContent}>
+          <p className={styles.loadingText}>Chargement…</p>
         </div>
-      </AppLayout>
+      </div>
     );
   }
 
-  // Afficher une erreur si la récupération a échoué (mais permettre l'utilisation normale)
-  if (subscriptionError) {
-    console.warn("Erreur lors de la récupération de l'abonnement:", subscriptionError);
-  }
-
   return (
-    <AppLayout>
-      <div className={styles.mainComponent}>
-        <Header minimal showLogo={false} />
-        <div className={styles.container}>
-        <section className={styles.headerSection}>
-          <div className={styles.headerTop}>
-            <div className={styles.headerLeft}>
-              <div className={styles.headerContent}>
-                <p className={styles.subtitle}>
-                  Facturation & abonnements
-                </p>
-                <h1>
-                  Pilotez vos paiements avec sérénité
-                </h1>
-                <p className={styles.description}>
-                  Gérez vos abonnements et votre facturation en un seul endroit.
+    <div className={styles.page}>
+      <div className={styles.pageContent}>
+        <div className={styles.logoSection}>
+          <Link to="/app" className={styles.logoLink}>
+            <img 
+              src="/logo@2x.png" 
+              alt="LeadControl" 
+              className={styles.logo}
+            />
+          </Link>
+        </div>
+
+        <header className={styles.header}>
+          <p className={styles.kicker}>LEADCONTROL</p>
+          <h1 className={styles.title}>Choisissez votre offre</h1>
+          <p className={styles.subtitle}>Facturation mensuelle · Sans engagement</p>
+        </header>
+
+        {generalError && <p className={styles.errorText}>{generalError}</p>}
+
+        {!isSubscribed && (
+          <section className={styles.cardsWrapper}>
+            <article className={`${styles.card} ${styles.activeCard}`}>
+              <div className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>Basic</h2>
+                <p className={styles.cardDescription}>
+                  Qualifiez vos prospects et automatisez vos prises de RDV sur Instagram
                 </p>
               </div>
-            </div>
-            <div className={styles.headerRight}>
-              <div className={styles.headerActions}>
-                <div
-                  role="group"
-                  aria-label="Choix de cycle de facturation"
-                  className={styles.cycleToggle}
-                >
+              <div className={styles.priceRow}>
+                <div>
+                  <span className={styles.priceValue}>{formatCurrency(pricePerMonth)}</span>
+                  <span className={styles.priceFormula}>/mois</span>
+                </div>
+                {showPriceFormula && (
+                  <span className={styles.priceFormula}>
+                    350 € + {agentsQty - 1} × 60 €
+                  </span>
+                )}
+              </div>
+              <div className={styles.selector}>
+                <span className={styles.selectorLabel}>Nombre d'agents de setting</span>
+                <div className={styles.selectorControls}>
                   <button
                     type="button"
-                    className={`${styles.cycleButton} ${
-                      billingCycle === "monthly" ? styles.active : ""
-                    }`}
-                    onClick={() => setBillingCycle("monthly")}
+                    onClick={() => adjustAgents(-1)}
+                    disabled={agentsQty === 1}
+                    className={styles.selectorButton}
+                    aria-label="Réduire le nombre d'agents"
                   >
-                    Mensuel
+                    −
                   </button>
+                  <span className={styles.selectorValue}>{agentsQty}</span>
                   <button
                     type="button"
-                    className={`${styles.cycleButton} ${
-                      billingCycle === "yearly" ? styles.active : ""
-                    }`}
-                    onClick={() => setBillingCycle("yearly")}
+                    onClick={() => adjustAgents(1)}
+                    disabled={agentsQty === 5}
+                    className={styles.selectorButton}
+                    aria-label="Augmenter le nombre d'agents"
                   >
-                    Annuel (−20 %)
+                    +
                   </button>
                 </div>
-                {showManageButton && (
-                  <button
-                    type="button"
-                    className={styles.manageButton}
-                    onClick={handleManageSubscription}
-                    disabled={isManagingSubscription}
-                  >
-                    {isManagingSubscription && (
-                      <span className={styles.spinner}></span>
-                    )}
-                    {isManagingSubscription ? "Chargement..." : "Gérer l'abonnement"}
-                  </button>
-                )}
               </div>
-            </div>
-          </div>
-          <div className={styles.creditsSection}>
-            <div className={styles.creditsInfo}>
-              <h3>
-                {credits.toLocaleString("fr-FR")} credits / mois
-              </h3>
-              <p className={styles.label}>
-                Augmentez votre limite de crédits mensuels
-              </p>
-            </div>
-            <div className={styles.creditsExtra}>
-              Crédits actuels : {credits} • Packs: {credits / 50}
-            </div>
-          </div>
-          <div className={styles.sliderContainer}>
-            <div className={styles.sliderTrack}>
-              <div
-                className={styles.sliderProgress}
-                style={{ width: `${sliderProgress}%` }}
-              />
-              <input
-                id="creditsRange"
-                type="range"
-                min={0}
-                max={2000}
-                step={50}
-                value={credits}
-                onChange={(event) =>
-                  handleCreditsChange(Number(event.target.value))
-                }
-                aria-label="Crédits par mois"
-                className={styles.sliderInput}
-              />
-            </div>
-            <div className={styles.sliderTicks}>
-              {creditTicks.map((tick) => (
-                <span key={tick}>{tick}</span>
-              ))}
-            </div>
-            <div className={styles.sliderControls}>
-              <label htmlFor="creditsInput">
-                Ajuster
-              </label>
-              <input
-                id="creditsInput"
-                type="number"
-                min={0}
-                max={2000}
-                step={50}
-                value={credits}
-                onChange={(event) =>
-                  handleCreditsChange(Number(event.target.value))
-                }
-              />
-            </div>
-          </div>
-        </section>
+              <p className={styles.creditMessage}>5 000 crédits/mois inclus</p>
+              <ul className={styles.featuresList}>
+                <li>{`${agentsQty} agent${agentsQty > 1 ? "s" : ""} de setting IA`}</li>
+                <li>Qualification automatique Instagram DM</li>
+                <li>Prise de RDV automatisée</li>
+                <li>5 000 messages/mois</li>
+                <li>Support inclus</li>
+              </ul>
+              <button
+                type="button"
+                className={`${styles.primaryButton} ${
+                  checkoutLoading ? styles.buttonLoading : ""
+                }`}
+                onClick={handleCoachCheckout}
+                disabled={checkoutLoading}
+              >
+                {checkoutLoading ? "Redirection…" : "Commencer maintenant"}
+              </button>
+            </article>
 
-        <section className={styles.plansSection}>
-          <div className={styles.plansHeader}>
-            <div>
-              <h2>
-                Nos offres
-              </h2>
-              <p className={styles.description}>
-                Basculer entre la facturation mensuelle et annuelle pour choisir
-                le format le plus adapté.
-              </p>
-            </div>
-            <div className={styles.plansTotal}>
-              {billingCycle === "monthly"
-                ? `Total mensuel : ${formatPrice(monthlyTotal)}`
-                : `Total annuel : ${formatPrice(yearlyTotal)} (20 % de réduction)`}
-            </div>
-          </div>
+            <article className={`${styles.card} ${styles.premiumCard}`}>
+              <span className={styles.badgeSoon}>Bientôt disponible</span>
+              <div className={styles.cardHeader}>
+                <h2 className={styles.cardTitle}>Premium</h2>
+                <p className={styles.cardDescription}>
+                  Agent setting et agent vocal combinés pour une qualification multicanal
+                </p>
+              </div>
+              <div className={styles.priceRow}>
+                <div>
+                  <span className={styles.priceValue}>950 €</span>
+                  <span className={styles.priceFormula}>/mois</span>
+                </div>
+              </div>
+              <ul className={styles.featuresList} aria-disabled="true">
+                <li>✓ Tout de l'offre Basic</li>
+                <li>✓ Agent vocal IA</li>
+                <li>✓ Qualification par appel automatisé</li>
+                <li>✓ Crédits vocaux inclus</li>
+              </ul>
+              <button type="button" className={styles.disabledButton} disabled>
+                Disponible prochainement
+              </button>
+            </article>
+          </section>
+        )}
 
-          <div className={styles.plansGrid}>
-            {planCatalog.map((plan) => {
-              const isCustom = plan.id === "custom";
-              const isCurrentPlan = currentPlan !== null && currentPlan === plan.id;
-              
-              let displayPrice = 0;
-              if (!isCustom) {
-                const planMonthlyCreditCost = calculateMonthlyCreditCost(credits);
-                const planYearlyCreditCost = calculateYearlyCreditCost(credits);
-                const planMonthly = plan.basePrice + planMonthlyCreditCost;
-                const planYearly = (plan.basePrice * 12 * 0.8) + (planYearlyCreditCost * 12);
-                displayPrice = billingCycle === "monthly" ? planMonthly : planYearly;
-              }
-              
-              const isLoading = loadingPlanId === plan.id;
-              const buttonLabel = isLoading
-                ? "Chargement..."
-                : isCustom
-                ? "Contactez-nous"
-                : isCurrentPlan
-                ? "Plan actuel"
-                : plan.id === "2_agents"
-                ? "Passer à ce plan"
-                : "Choisir ce plan";
-              const buttonDisabled = isCurrentPlan || isLoading;
-
-              return (
-                <article
-                  key={plan.id}
-                  className={`${styles.planCard} ${
-                    plan.id === "2_agents" ? styles.featured : ""
-                  }`}
-                >
-                  <header className={styles.planHeader}>
-                    <div className={styles.planTitleRow}>
-                      <h3 className={styles.planTitle}>
-                        {plan.title}
-                      </h3>
-                      {plan.badge && (
-                        <span className={styles.planBadge}>
-                          {plan.badge}
-                        </span>
-                      )}
-                    </div>
-                    <p className={styles.planDescription}>
-                      {plan.description}
-                    </p>
-                    {isCustom ? (
-                      <p className={styles.planPrice}>
-                        Tarif sur demande
-                      </p>
-                    ) : (
-                      <>
-                        {billingCycle === "yearly" && (
-                          <p className={styles.originalPrice}>
-                            {formatPrice(displayPrice / 0.8)}
-                          </p>
-                        )}
-                        <p className={styles.planPrice}>
-                          {formatPrice(displayPrice)}
-                        </p>
-                        <p className={styles.planCycle}>
-                          {billingCycle === "monthly"
-                            ? "Facturation mensuelle"
-                            : "Facturation annuelle (−20 %)"}
-                        </p>
-                      </>
-                    )}
-                    {isCurrentPlan && (
-                      <span className={styles.currentPlanBadge}>
-                        Plan actuel
-                      </span>
-                    )}
-                  </header>
-                  <ul className={styles.planFeatures}>
-                    {plan.features.map((feature) => (
-                      <li key={feature}>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => onSelectPlan(plan.id)}
-                      disabled={buttonDisabled}
-                      className={`${styles.planButton} ${
-                        isCustom
-                          ? styles.secondary
-                          : buttonDisabled
-                          ? styles.disabled
-                          : styles.primary
-                      }`}
-                    >
-                      {isLoading && (
-                        <span className={styles.spinner}></span>
-                      )}
-                      {buttonLabel}
-                    </button>
+        {isSubscribed && billing && (
+          <>
+            <section className={styles.infoSection}>
+              <div className={styles.infoCard}>
+                <div className={styles.planHeader}>
+                  <div className={styles.planInfo}>
+                    <p className={styles.planLabel}>PLAN</p>
+                    <h3 className={styles.planName}>{planName}</h3>
                   </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
+                  <span className={`${styles.planBadge} ${badgeClass}`}>
+                    {badgeLabel}
+                  </span>
+                </div>
 
-        <section className={styles.breakdownSection}>
-          <div className={styles.breakdownHeader}>
-            <div>
-              <h3>
-                Détail de la facturation
-              </h3>
-              <p className={styles.description}>
-                {billingCycle === "monthly"
-                  ? `Base : ${formatPrice(activePlan.basePrice)} + Crédits : ${formatPrice(currentCreditCost)} (${credits / 50} packs)`
-                  : `Base : ${formatPrice(activePlan.basePrice * 12 * 0.8)} + Crédits : ${formatPrice(currentCreditCost * 12)} (${credits / 50} packs × 12)`}
-              </p>
-            </div>
-            <div className={styles.breakdownTotal}>
-              {billingCycle === "monthly"
-                ? `Total mensuel : ${formatPrice(monthlyTotal)}`
-                : `Total annuel facturé : ${formatPrice(
-                    yearlyTotal,
-                  )} (20 % de réduction)`}
-            </div>
-          </div>
-          <div className={styles.breakdownDetails}>
-            <div className={styles.breakdownRow}>
-              <span>Base {billingCycle === "yearly" ? "(12 mois × 20 % de remise)" : ""}</span>
-              <span>{formatPrice(billingCycle === "monthly" ? activePlan.basePrice : activePlan.basePrice * 12 * 0.8)}</span>
-            </div>
-            <div className={styles.breakdownRow}>
-              <span>Crédits ({credits / 50} packs{billingCycle === "yearly" ? " × 12 mois" : ""})</span>
-              <span>{formatPrice(billingCycle === "monthly" ? currentCreditCost : currentCreditCost * 12)}</span>
-            </div>
-            <div className={`${styles.breakdownRow} ${styles.total}`}>
-              <span>Total {billingCycle === "yearly" ? "annuel" : "mensuel"}</span>
-              <span>
-                {formatPrice(
-                  billingCycle === "monthly" ? monthlyTotal : yearlyTotal,
-                )}
-              </span>
-            </div>
-          </div>
-        </section>
+                <div className={styles.planDetails}>
+                  <div className={styles.planDetailsRow}>
+                    <span className={styles.planDetailsLabel}>Agents de setting</span>
+                    <span className={styles.planDetailsValue}>
+                      {agentsSettingsQty} agent{agentsSettingsQty > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  {(billing?.agentsVocalQty || 0) > 0 && (
+                    <div className={styles.planDetailsRow}>
+                      <span className={styles.planDetailsLabel}>Agents vocaux</span>
+                      <span className={styles.planDetailsValue}>
+                        {billing.agentsVocalQty} agent{billing.agentsVocalQty > 1 ? "s" : ""} vocal
+                      </span>
+                    </div>
+                  )}
+                  {billing.planKey !== 'TESTEUR' && (
+                    <div className={styles.planDetailsRow}>
+                      <span className={styles.planDetailsLabel}>Prix</span>
+                      <span className={styles.planDetailsValue}>
+                        {formatCurrency(350 + Math.max(0, agentsSettingsQty - 1) * 60)} / mois
+                      </span>
+                    </div>
+                  )}
+                  {renewalDate && (
+                    <div className={styles.planDetailsRow}>
+                      <span className={styles.planDetailsLabel}>Renouvellement</span>
+                      <span className={styles.planDetailsValue}>{renewalDate}</span>
+                    </div>
+                  )}
+                </div>
 
-        </div>
+                <div className={styles.progressGroup}>
+                  <div
+                    className={styles.progressBar}
+                    role="progressbar"
+                    aria-valuenow={creditsRemaining}
+                    aria-valuemin={0}
+                    aria-valuemax={creditsMonthly || 1}
+                  >
+                    <div
+                      className={styles.progressFill}
+                      style={{ width: `${creditsProgress}%` }}
+                    />
+                  </div>
+                  <p className={styles.creditsHint}>{creditsLabel}</p>
+                </div>
+
+                <button
+                  type="button"
+                  className={`${styles.manageButton} ${
+                    portalLoading ? styles.buttonLoading : ""
+                  }`}
+                  onClick={togglePortalModal}
+                  disabled={portalLoading}
+                >
+                  {portalLoading ? "Chargement…" : "Gérer mon abonnement"}
+                </button>
+                <p className={styles.portalNote}>
+                  Modifier ou annuler votre abonnement. L'accès reste actif jusqu'à la fin de la période en cours.
+                </p>
+              </div>
+            </section>
+
+            <section className={styles.creditPacksSection}>
+              <div className={styles.creditPacksHeader}>
+                <h3>Acheter des crédits supplémentaires</h3>
+                <p>
+                  20 € pour 50 crédits, disponibles immédiatement et utilisables avant le prochain renouvellement.
+                </p>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  marginBottom: 16,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setPackQty((q) => Math.max(1, q - 1))}
+                  disabled={packQty <= 1}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    border: "1.5px solid #E6EBF2",
+                    background: "#FFFFFF",
+                    fontSize: 20,
+                    color: "#0B1220",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  −
+                </button>
+                <span
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 600,
+                    color: "#0B1220",
+                    minWidth: 24,
+                    textAlign: "center",
+                  }}
+                >
+                  {packQty}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPackQty((q) => Math.min(10, q + 1))}
+                  disabled={packQty >= 10}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    border: "1.5px solid #E6EBF2",
+                    background: "#FFFFFF",
+                    fontSize: 20,
+                    color: "#0B1220",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  +
+                </button>
+                <span style={{ color: "#5B667A", fontSize: 13 }}>
+                  {packQty * PACK_CREDITS} crédits · {packQty * PACK_PRICE} €
+                </span>
+              </div>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={toggleCreditsModal}
+              >
+                Acheter {packQty} pack{packQty > 1 ? "s" : ""} — {packQty * PACK_PRICE} € = {packQty * PACK_CREDITS} crédits
+              </button>
+            </section>
+          </>
+        )}
       </div>
-    </AppLayout>
+
+      {isCreditsModalOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h3>Confirmer l'achat</h3>
+            <p className={styles.modalMessage}>
+              Vous allez acheter <strong>{packQty} pack{packQty > 1 ? "s" : ""}</strong> soit{" "}
+              <strong>{packQty * PACK_CREDITS} crédits</strong> pour <strong>{packQty * PACK_PRICE} €</strong>.
+            </p>
+            <p
+              style={{
+                color: "#5B667A",
+                fontSize: 13,
+                marginTop: 8,
+              }}
+            >
+              ⚠️ Ces crédits s'ajoutent à votre solde mensuel et seront réinitialisés avec vos crédits mensuels
+              à la fin de la période en cours. Pensez à les utiliser avant le renouvellement.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalButtonSecondary}
+                onClick={toggleCreditsModal}
+                disabled={creditsLoading}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                className={`${styles.modalButtonPrimary} ${
+                  creditsLoading ? styles.buttonLoading : ""
+                }`}
+                onClick={handleCreditsPurchase}
+                disabled={creditsLoading}
+              >
+                {creditsLoading ? "Chargement…" : "Procéder au paiement"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPortalModalOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h3>⚠️ Attention</h3>
+            <p className={styles.modalMessage}>
+              En cas d'annulation du plan, toutes les conversations seront perdues et l'agent ne se souviendra de rien.
+              <br /><br />
+              Êtes-vous sûr de vouloir continuer vers la gestion de votre abonnement ?
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalButtonSecondary}
+                onClick={togglePortalModal}
+                disabled={portalLoading}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                className={`${styles.modalButtonPrimary} ${
+                  portalLoading ? styles.buttonLoading : ""
+                }`}
+                onClick={handlePortalConfirmed}
+                disabled={portalLoading}
+              >
+                {portalLoading ? "Chargement…" : "Continuer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

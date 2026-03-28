@@ -52,20 +52,22 @@ const logoutLabel = "Se déconnecter";
 // Fonction pour mapper les planKey vers des noms d'affichage
 const getPlanDisplayName = (planKey: string): string => {
   switch (planKey) {
-    case "basic":
-      return "Plan Basic";
-    case "ultime":
-      return "Plan Ultime";
-    case "custom":
-      return "Plan Custom";
-    case "none":
-      return "Plan Gratuit";
+    case "coach_basic":
+      return "PLAN BASIC";
+    case "coach_premium":
+      return "PLAN PREMIUM";
     case "TESTEUR":
       return "TESTEUR";
+    case "none":
+    case "inactive":
+      return "Plan gratuit";
     default:
       return "Plan inconnu";
   }
 };
+
+const isFreePlanKey = (planKey: string) =>
+  planKey === "none" || planKey === "inactive";
 
 // Fonction pour générer les initiales depuis l'email
 const getInitials = (email: string): string => {
@@ -84,6 +86,7 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
   const { signOut, user } = useAuth();
   const { data: subscriptionState, isLoading: subscriptionLoading } =
     useSubscriptionState();
+  const planKey = subscriptionState?.planKey ?? "none";
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
@@ -169,18 +172,17 @@ const GenericAvatar: FunctionComponent<GenericAvatarType> = ({
             <div className={styles.subscriptionInfo}>
               {subscriptionState ? (
                 <>
-                  <span className={
-                    subscriptionState.planKey === "none" 
-                      ? styles.freePlanName 
-                      : styles.planName
-                  }>
-                    {getPlanDisplayName(subscriptionState.planKey)}
+                  <span
+                    className={
+                      isFreePlanKey(planKey) ? styles.freePlanName : styles.planName
+                    }
+                  >
+                    {getPlanDisplayName(planKey)}
                   </span>
                   <span className={styles.creditsInfo}>
-                    {subscriptionState.planKey === "none" 
+                    {isFreePlanKey(planKey)
                       ? "0 crédit disponible"
-                      : `${subscriptionState.creditsBalance} crédits restants`
-                    }
+                      : `${subscriptionState.creditsBalance} crédits restants`}
                   </span>
                 </>
               ) : subscriptionLoading ? (

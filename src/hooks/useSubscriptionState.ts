@@ -1,14 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import supabase from "../lib/supabase";
+import type { BillingInfo, BillingPlanKey } from "../types/billing";
 
-type SubscriptionStatus =
-  | "active"
-  | "trialing"
-  | "past_due"
-  | "canceled"
-  | "inactive";
-
-type PlanKey = "basic" | "ultime" | "custom" | "none" | "TESTEUR";
+type PlanKey = BillingPlanKey;
 
 type Capabilities = {
   maxSettingsAgents: number;
@@ -17,16 +11,17 @@ type Capabilities = {
   canBuyExtraCredits: boolean;
 };
 
-type SubscriptionState = {
-  status: SubscriptionStatus;
-  planKey: PlanKey;
-  agentsSettingsQty: number;
-  creditsMonthly: number;
-  creditsBalance: number;
+type SubscriptionState = BillingInfo & {
   cycle: "monthly" | "yearly" | null;
-  currentPeriodEnd: string | null;
-  isTrial: boolean;
   capabilities: Capabilities;
+  creditsBalance: number;
+};
+
+const DEFAULT_CAPABILITIES: Capabilities = {
+  maxSettingsAgents: 0,
+  canUseAssistant: false,
+  maxChatBotAgent: false,
+  canBuyExtraCredits: false,
 };
 
 const useSubscriptionState = () => {
@@ -54,8 +49,17 @@ const useSubscriptionState = () => {
         throw new Error(`Erreur API: ${response.status}`);
       }
 
-      const data = (await response.json()) as SubscriptionState;
-      return data;
+      const rawData = (await response.json()) as BillingInfo & {
+        cycle?: SubscriptionState["cycle"];
+        capabilities?: Capabilities;
+      };
+
+      return {
+        ...rawData,
+        creditsBalance: rawData.creditsRemaining ?? 0,
+        cycle: rawData.cycle ?? null,
+        capabilities: rawData.capabilities ?? DEFAULT_CAPABILITIES,
+      };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,

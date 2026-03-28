@@ -109,32 +109,32 @@
 .claraHeader {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+.claraHeaderTop {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 .claraConfigFocus {
-  margin-top: 16px;
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.98),
-    rgba(245, 248, 255, 0.95)
-  );
-  border-radius: 18px;
-  padding: 18px 22px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  box-shadow:
-    0 14px 28px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  padding: 8px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px;
   align-items: center;
 }
 .claraConfigFocusGroup {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 280px;
-  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
 }
 .claraConfigLabel {
   font-size: 11px;
@@ -145,8 +145,8 @@
 }
 .claraConfigSelectWrap {
   position: relative;
-  width: 100%;
-  max-width: 460px;
+  width: auto;
+  max-width: 220px;
   z-index: 10;
 }
 .claraConfigSelectWrap::after {
@@ -166,24 +166,42 @@
   transform: translateY(-20%) rotate(-135deg);
 }
 .claraConfigSelect {
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border: 2px solid #2563EB;
+  border-radius: 8px;
   width: 100%;
-  min-height: 44px;
-  padding: 10px 42px 10px 16px;
-  font-size: 14px;
+  min-height: 34px;
+  padding: 6px 36px 6px 12px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  color: var(--app-text-primary);
-  background: rgba(255, 255, 255, 0.96);
+  color: #2563EB;
+  background: #FFFFFF;
   text-align: left;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
     background-color 0.2s ease;
+}
+.configDot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22D3EE;
+  animation: configPulse 2s ease-in-out infinite;
+}
+@keyframes configPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.75); }
+}
+.configDotInactive {
+  background: #94A3B8;
+  animation: none;
 }
 .claraConfigSelect:hover {
   border-color: rgba(37, 99, 235, 0.42);
@@ -236,8 +254,9 @@
   color: #1d4ed8;
 }
 .claraHeaderTitle {
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
+  color: #0B1220;
   margin: 0;
 }
 .claraHeaderSubtitle {
@@ -266,30 +285,31 @@
   padding: 6px 16px;
   background: var(--app-surface);
   font-size: 13px;
+  color: #5B667A;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .claraPeriodButtonActive {
   background: rgba(37, 99, 235, 0.12);
-  color: var(--app-text-primary);
-  border-color: var(--app-primary);
+  color: #2563EB;
+  border-color: #2563EB;
   box-shadow: inset 0 0 0 1px var(--app-primary);
   outline: none;
 }
 .claraSearch {
-  order: -1;
-  border: 1px solid var(--app-border);
+  border: 1px solid #E6EBF2;
   border-radius: 999px;
-  padding: 10px 16px;
-  min-width: 280px;
-  min-height: 42px;
-  font-size: 15px;
+  padding: 8px 16px;
+  min-width: 220px;
+  max-width: 320px;
+  font-size: 14px;
+  color: #5B667A;
   outline: none;
-  width: 100%;
-  max-width: none;
-  flex: 0 0 100%;
-  background: var(--app-surface);
+  background: #FFFFFF;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.claraSearch::placeholder {
+  color: #5B667A;
 }
 .claraSearch:focus-visible {
   border-color: var(--app-primary);
@@ -976,6 +996,7 @@
   border: 1px solid var(--app-border);
   padding: 7px 14px;
   font-size: 13px;
+  color: #5B667A;
   cursor: pointer;
   background: var(--app-surface);
   transition: all 0.2s ease;
@@ -992,9 +1013,9 @@
 }
 .channelChipActive,
 .statusChipActive {
-  background: rgba(37, 99, 235, 0.15);
-  color: var(--app-primary);
-  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563EB;
+  border-color: #2563EB;
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.35);
 }
 .chatPanel {
@@ -1571,21 +1592,9 @@
   gap: 6px;
 }
 @media (min-width: 1024px) {
-  .claraHeader {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
   .claraHeaderControls {
-    flex: 0 0 60%;
-    justify-content: flex-end;
+    justify-content: flex-start;
     margin-top: 0;
-    padding-right: 64px;
-  }
-  .claraSearch {
-    min-width: 0;
-    max-width: none;
-    flex: 0 0 100%;
   }
   .claraDetailsLayout {
     flex-direction: row;

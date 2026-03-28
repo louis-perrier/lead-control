@@ -26,6 +26,7 @@ import CrmGuard from "./components/GuardComponent/CrmGuard";
 import ScrapingGuard from "./components/GuardComponent/ScrapingGuard";
 import Subscription from "./pages/Subscription";
 import PricingPage from "./pages/PricingPage";
+import useSubscriptionState from "./hooks/useSubscriptionState";
 
 function App() {
   const action = useNavigationType();
@@ -116,7 +117,8 @@ function App() {
     }
   }, [pathname]);
 
-  const showFeedback = pathname.startsWith("/app");
+  const { data: subscriptionState } = useSubscriptionState();
+  const showFeedback = pathname.startsWith("/app") && subscriptionState?.planKey !== "none";
 
   return (
     <>
