@@ -117,7 +117,7 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
   const isFreePlan =
     !subscriptionState ||
     subscriptionState.planKey === "none" ||
-    subscriptionState.planKey === "inactive";
+    subscriptionState.status === "inactive";
   
   const statusMessage = subscriptionState 
     ? getStatusMessage(subscriptionState.status)
