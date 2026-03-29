@@ -290,12 +290,10 @@ const PricingPage: FunctionComponent = () => {
                   </button>
                 </div>
                 <p className={styles.selectorHint}>
-                  1 agent = 1 connexion.
-                  <br />
-                  2 agents = 2 connexions, pas 2 comptes LeadControl.
+                  1 agent = 1 compte par plateforme (1 Instagram, 1 WhatsApp…)
                 </p>
               </div>
-              <p className={styles.creditMessage}>5 000 crédits/mois inclus</p>
+              <p className={styles.creditMessage}>5 000 messages/mois inclus</p>
               <ul className={styles.featuresList}>
                 <li>{`${agentsQty} agent${agentsQty > 1 ? "s" : ""} de setting IA`}</li>
                 <li>Qualification automatique Instagram DM</li>
@@ -364,9 +362,7 @@ const PricingPage: FunctionComponent = () => {
                     </span>
                   </div>
                   <p className={styles.planClarification}>
-                    1 agent = 1 connexion.
-                    <br />
-                    2 agents = 2 connexions, pas 2 comptes LeadControl.
+                    1 agent = 1 compte par plateforme (1 Instagram, 1 WhatsApp…)
                   </p>
                   {(billing?.agentsVocalQty || 0) > 0 && (
                     <div className={styles.planDetailsRow}>
