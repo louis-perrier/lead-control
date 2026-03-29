@@ -30,6 +30,7 @@ type Connection = {
   updated_at: string;
   connector_nb_liaison: number;
   configurations: ConfigurationDetail[];
+  refresh_status: "ok" | "failed";
 };
 
 const CONNECTION_SORT_OPTIONS: Array<{ key: keyof Connection; label: string }> = [
@@ -114,6 +115,7 @@ const Connexion: FunctionComponent = () => {
           updated_at: connection.updated_at,
           connector_nb_liaison: configurationDetails.length,
           configurations: configurationDetails,
+          refresh_status: connection.refresh_status ?? "ok",
         };
       })
     );
@@ -502,7 +504,12 @@ const handleCancelDisconnect = () => {
                   <td>
                     <span className={styles.providerBadge}>{connection.provider}</span>
                   </td>
-                  <td className={styles.dateCell}>{formatDate(connection.updated_at)}</td>
+                  <td className={styles.dateCell}>
+                    {formatDate(connection.updated_at)}
+                    {connection.refresh_status === "failed" && (
+                      <span title="Votre agent ne peut plus envoyer ni recevoir de messages. Cliquez sur Reconnecter." className={styles.expiredBadge}>Connexion expirée</span>
+                    )}
+                  </td>
                   <td>
                     <button
                       type="button"
@@ -555,8 +562,9 @@ const handleCancelDisconnect = () => {
                           variant="secondary"
                           align="none"
                           onClick={handleConnect}
+                          className={connection.refresh_status === "failed" ? styles.reconnectButton : undefined}
                         >
-                          Rafraîchir
+                          {connection.refresh_status === "failed" ? "Reconnecter" : "Rafraîchir"}
                         </Button>
                       </div>
                     );

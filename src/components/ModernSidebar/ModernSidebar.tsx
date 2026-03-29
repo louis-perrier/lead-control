@@ -14,6 +14,7 @@ import SidebarAccountCard from "./SidebarAccountCard";
 import SidebarSection from "./SidebarSection";
 import SidebarNavItem from "./SidebarNavItem";
 import ProfilePopover from "./ProfilePopover";
+import useHasFailedConnector from "../../hooks/useHasFailedConnector";
 import styles from "./ModernSidebar.module.css";
 
 export type ModernSidebarProps = {
@@ -46,6 +47,7 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
   const { user } = useAuth();
   const { data: subscriptionState, isLoading: subscriptionLoading } = useSubscriptionState();
 
+  const { data: hasFailedConnector } = useHasFailedConnector();
   const { displayedAgents } = useAgents();
   const normalizedDisplayedAgentIds = displayedAgents.map((agent) =>
     agent.id.toLowerCase()
@@ -94,6 +96,8 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
       selected: currentPath === "/app/connexion",
       labelText: "Connexion",
       icon: "/connexionIcon.svg",
+      badge: hasFailedConnector ? "!" : undefined,
+      badgeVariant: "error" as const,
     },
   ];
 
@@ -174,6 +178,8 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
                 icon={item.icon}
                 onClick={() => handleNavigation(item.route)}
                 isCollapsed={isCollapsed}
+                badge={"badge" in item ? item.badge : undefined}
+                badgeVariant={"badgeVariant" in item ? item.badgeVariant : undefined}
               />
             ))}
           </SidebarSection>

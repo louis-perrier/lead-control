@@ -9,6 +9,7 @@ export type SidebarNavItemProps = {
   isCollapsed: boolean;
   disabled?: boolean;
   badge?: string;
+  badgeVariant?: "default" | "error";
 };
 
 const SidebarNavItem: FunctionComponent<SidebarNavItemProps> = ({
@@ -19,6 +20,7 @@ const SidebarNavItem: FunctionComponent<SidebarNavItemProps> = ({
   isCollapsed,
   disabled = false,
   badge,
+  badgeVariant = "default",
 }) => {
   const handleClick = () => {
     if (!disabled) {
@@ -60,7 +62,7 @@ const SidebarNavItem: FunctionComponent<SidebarNavItemProps> = ({
           <div className={styles.labelContainer}>
             <span className={styles.navLabel}>{labelText}</span>
             {badge && (
-              <span className={styles.navBadge}>{badge}</span>
+              <span className={[styles.navBadge, badgeVariant === "error" ? styles.navBadgeError : ""].filter(Boolean).join(" ")}>{badge}</span>
             )}
           </div>
         )}

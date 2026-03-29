@@ -116,6 +116,11 @@
   color: white;
 }
 
+.navBadgeError {
+  background-color: var(--Schemes-Error) !important;
+  color: white !important;
+}
+
 /* Focus states pour accessibilité */
 .navItem:focus {
   outline: 2px solid var(--app-accent);

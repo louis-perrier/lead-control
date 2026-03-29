@@ -459,3 +459,21 @@
 .closeButton:hover {
   opacity: 1;
 }
+
+.expiredBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 11px;
+  background: var(--Schemes-Error);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.reconnectButton {
+  border-color: var(--Schemes-Error) !important;
+  color: var(--Schemes-Error) !important;
+}
