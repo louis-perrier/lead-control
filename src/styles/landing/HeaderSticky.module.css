@@ -1,6 +1,6 @@
 .header {
   position: fixed;
-  top: 0;
+  top: var(--banner-h, 2.25rem);
   left: 50%;
   transform: translateX(-50%);
   z-index: 60;

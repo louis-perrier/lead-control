@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import HeaderSticky from "../components/landing/HeaderSticky";
+import PromoBanner from "../components/landing/PromoBanner";
 import HeroSection from "../components/landing/Sections/HeroSection";
 import HowItWorksSection from "../components/landing/Sections/HowItWorksSection";
 import CapabilitiesSection from "../components/landing/Sections/CapabilitiesSection";
@@ -42,6 +43,7 @@ const Landing = () => {
 
   return (
     <>
+      <PromoBanner />
       <HeaderSticky primaryCtaLabel={primaryCtaLabel} />
       <main className={styles.page}>
         <HeroSection primaryCtaLabel={primaryCtaLabel} spotsRemaining={spots} />

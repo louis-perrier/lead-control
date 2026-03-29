@@ -228,6 +228,7 @@ const sections = [
       "Nantes, Pays de la Loire 44300",
       "France",
       "Email: louis@lautopreneur.com",
+      "Lead Control is the trade name of the sole proprietorship PERRIER LOUIS, registered in France under SIRET 94079625300018.",
     ],
   },
 ];

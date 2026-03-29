@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { FormEvent, useEffect, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import AuthLayout, {
   authActionButtonSx,
@@ -66,12 +66,49 @@ const Login = () => {
 
 
   return (
-    <AuthLayout
+    <>
+      <Box
+        component={RouterLink}
+        to="/"
+        sx={{
+          position: "fixed",
+          top: "1.5rem",
+          left: "1.5rem",
+          zIndex: 50,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "0.45rem",
+          padding: "0.5rem 1rem 0.5rem 0.75rem",
+          borderRadius: "999px",
+          border: "1px solid #E6EBF2",
+          background: "rgba(255,255,255,0.80)",
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 4px 20px rgba(11,18,32,0.08)",
+          color: "#0B1220",
+          textDecoration: "none",
+          fontSize: "0.83rem",
+          fontWeight: 600,
+          letterSpacing: 0.1,
+          transition: "transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease",
+          "&:hover": {
+            background: "#ffffff",
+            boxShadow: "0 6px 24px rgba(11,18,32,0.13)",
+            transform: "translateX(-2px)",
+          },
+        }}
+      >
+        <ArrowLeft size={15} strokeWidth={2.5} />
+        Accueil
+      </Box>
+      <AuthLayout
       title="Connexion"
       subtitle="Accède à ton cockpit LeadControl en toute sécurité."
       hint={
         <Typography variant="body2" color="text.secondary">
-          Besoin d’aide ? Contacte l’équipe LeadControl.
+          <Link href="mailto:team@leadcontrol.fr" target="_blank" sx={authLinkSx} underline="hover">
+            Besoin d’aide ?
+          </Link>{" "}
+          Contacte l’équipe LeadControl.
         </Typography>
       }
     >
@@ -136,7 +173,7 @@ const Login = () => {
           spacing={1}
           justifyContent="space-between"
           alignItems="center"
-          sx={{ display: "none" }}
+          sx={{ display: "flex" }}
         >
           <Link component={RouterLink} to="/signup" sx={authLinkSx} underline="hover">
             Créer un compte
@@ -147,6 +184,7 @@ const Login = () => {
         </Stack>
       </Box>
     </AuthLayout>
+    </>
   );
 };
 
