@@ -1,22 +1,5 @@
 import supabase from "../lib/supabase";
 
-function waitForFB(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (window.FB) return resolve();
-    let elapsed = 0;
-    const interval = setInterval(() => {
-      elapsed += 100;
-      if (window.FB) {
-        clearInterval(interval);
-        resolve();
-      } else if (elapsed >= 10000) {
-        clearInterval(interval);
-        reject(new Error("SDK Facebook non chargé après 10s"));
-      }
-    }, 100);
-  });
-}
-
 type ConnectorConnectedRef = {
   connectors_name: string;
   id?: string;
@@ -180,89 +163,38 @@ const createConnectWhatsApp = (
     console.error("❌ No configsId provided");
     return;
   }
-
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error("Not logged in");
 
-    const WA_CONFIG_ID = import.meta.env.VITE_WA_CONFIG_ID;
-    if (!WA_CONFIG_ID) throw new Error("VITE_WA_CONFIG_ID manquant");
+    const res = await fetch(
+      "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/start",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          return_to: `https://leadcontrol.fr${window.location.pathname}`,
+          configs_id: context.configsId,
+        }),
+      }
+    );
 
-    await waitForFB();
-    if (!window.FB) {
-      alert("Le SDK Meta n'a pas pu se charger. Recharge la page et réessaie.");
-      return;
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
 
-    let capturedWabaId: string | null = null;
-    let capturedPhoneNumberId: string | null = null;
+    const { auth_url } = await res.json();
+    if (!auth_url) throw new Error("No auth_url in response");
 
-    const sessionInfoListener = (event: MessageEvent) => {
-      if (
-        event.origin !== "https://www.facebook.com" &&
-        event.origin !== "https://web.facebook.com"
-      ) return;
-      try {
-        const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data?.type === "WA_EMBEDDED_SIGNUP") {
-          capturedWabaId = data.data?.waba_id ?? null;
-          capturedPhoneNumberId = data.data?.phone_number_id ?? null;
-          console.log("✅ WA session info capturée:", { capturedWabaId, capturedPhoneNumberId });
-        }
-      } catch {}
-    };
-
-    window.addEventListener("message", sessionInfoListener);
-
-    const handleFBResponse = async (response: any) => {
-      window.removeEventListener("message", sessionInfoListener);
-
-      if (!response.authResponse?.code) {
-        console.warn("⚠️ FB.login annulé ou refusé", response);
-        return;
-      }
-
-      try {
-        const res = await fetch(
-          "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/connect",
-          {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              "Authorization": `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              code: response.authResponse.code,
-              waba_id: capturedWabaId,
-              phone_number_id: capturedPhoneNumberId,
-              configs_id: context.configsId,
-            }),
-          }
-        );
-
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(`Erreur serveur: ${res.status} ${txt}`);
-        }
-
-        context.onSuccess?.();
-      } catch (err) {
-        console.error("❌ WhatsApp connect error:", err);
-        alert(`Erreur connexion WhatsApp: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    };
-
-    window.FB.login((response: any) => {
-      handleFBResponse(response);
-    }, {
-      config_id: WA_CONFIG_ID,
-      response_type: "code",
-      override_default_response_type: true,
-      extras: {
-        sessionInfoVersion: 2,
-      },
-    });
-
+    const popup = window.open(auth_url, "wa_oauth", "width=600,height=700");
+    if (!popup) {
+      alert("Popup bloquée : autorise les popups pour Lead Control");
+      return;
+    }
+    context.setActivePopup(popup);
   } catch (error) {
     console.error("❌ WhatsApp connection error:", error);
     alert(`Erreur WhatsApp: ${error instanceof Error ? error.message : String(error)}`);
