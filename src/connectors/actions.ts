@@ -1,5 +1,22 @@
 import supabase from "../lib/supabase";
 
+function waitForFB(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.FB) return resolve();
+    let elapsed = 0;
+    const interval = setInterval(() => {
+      elapsed += 100;
+      if (window.FB) {
+        clearInterval(interval);
+        resolve();
+      } else if (elapsed >= 10000) {
+        clearInterval(interval);
+        reject(new Error("SDK Facebook non chargé après 10s"));
+      }
+    }, 100);
+  });
+}
+
 type ConnectorConnectedRef = {
   connectors_name: string;
   id?: string;
@@ -190,6 +207,8 @@ const createConnectWhatsApp = (
     };
 
     window.addEventListener("message", sessionInfoListener);
+
+    await waitForFB();
 
     window.FB.login(async (response: any) => {
       window.removeEventListener("message", sessionInfoListener);
