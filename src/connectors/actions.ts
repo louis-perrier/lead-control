@@ -188,6 +188,12 @@ const createConnectWhatsApp = (
     const WA_CONFIG_ID = import.meta.env.VITE_WA_CONFIG_ID;
     if (!WA_CONFIG_ID) throw new Error("VITE_WA_CONFIG_ID manquant");
 
+    await waitForFB();
+    if (!window.FB) {
+      alert("Le SDK Meta n'a pas pu se charger. Recharge la page et réessaie.");
+      return;
+    }
+
     let capturedWabaId: string | null = null;
     let capturedPhoneNumberId: string | null = null;
 
@@ -208,9 +214,7 @@ const createConnectWhatsApp = (
 
     window.addEventListener("message", sessionInfoListener);
 
-    await waitForFB();
-
-    window.FB.login(async (response: any) => {
+    const handleFBResponse = async (response: any) => {
       window.removeEventListener("message", sessionInfoListener);
 
       if (!response.authResponse?.code) {
@@ -246,6 +250,10 @@ const createConnectWhatsApp = (
         console.error("❌ WhatsApp connect error:", err);
         alert(`Erreur connexion WhatsApp: ${err instanceof Error ? err.message : String(err)}`);
       }
+    };
+
+    window.FB.login((response: any) => {
+      handleFBResponse(response);
     }, {
       config_id: WA_CONFIG_ID,
       response_type: "code",
