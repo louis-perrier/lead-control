@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY: string; 
   readonly VITE_FEEDBACK_KEY: string;
   readonly VITE_META_APP_ID: string;
+  readonly VITE_WA_CONFIG_ID: string;
 }
 
 interface ImportMeta {

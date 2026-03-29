@@ -9,6 +9,7 @@ type ConnectorActionsContext = {
   configsId?: string | null;
   connectorConnected?: ConnectorConnectedRef[];
   setActivePopup?: (popup: Window | null) => void;
+  onSuccess?: () => void;
 };
 
 export type ConnectorAction = {
@@ -22,6 +23,7 @@ const DEFAULT_CONTEXT: Required<ConnectorActionsContext> = {
   configsId: null,
   connectorConnected: [],
   setActivePopup: () => {},
+  onSuccess: () => {},
 };
 
 const normalizeContext = (
@@ -30,6 +32,7 @@ const normalizeContext = (
   configsId: context.configsId ?? null,
   connectorConnected: context.connectorConnected ?? [],
   setActivePopup: context.setActivePopup ?? (() => {}),
+  onSuccess: context.onSuccess ?? (() => {}),
 });
 
 const createConnectInstagram = (
@@ -156,59 +159,83 @@ export const buildConnectorActions = (
 const createConnectWhatsApp = (
   context: Required<ConnectorActionsContext>
 ) => async () => {
-  console.log("🔵 WhatsApp connection - START");
-  console.log("🔍 Context configsId:", context.configsId);
-  
   if (!context.configsId) {
     console.error("❌ No configsId provided");
     return;
   }
-  
+
   try {
-    console.log("🔍 Getting Supabase session...");
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error("Not logged in");
-    console.log("✅ Session OK");
-    
-    console.log("🔍 Checking environment variables...");
-    console.log("VITE_META_APP_ID:", import.meta.env.VITE_META_APP_ID);
-    console.log("VITE_SUPABASE_ANON_KEY:", import.meta.env.VITE_SUPABASE_ANON_KEY ? "✅ Present" : "❌ Missing");
-    
-    // Appel à l'API WhatsApp OAuth start (même pattern qu'Instagram)
-    console.log("🔍 Calling wa-oauth/start...");
-    const res = await fetch(
-      "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/start",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          return_to: `https://leadcontrol.com${window.location.pathname}`,
-          configs_id: context.configsId,
-        }),
+
+    const WA_CONFIG_ID = import.meta.env.VITE_WA_CONFIG_ID;
+    if (!WA_CONFIG_ID) throw new Error("VITE_WA_CONFIG_ID manquant");
+
+    let capturedWabaId: string | null = null;
+    let capturedPhoneNumberId: string | null = null;
+
+    const sessionInfoListener = (event: MessageEvent) => {
+      if (
+        event.origin !== "https://www.facebook.com" &&
+        event.origin !== "https://web.facebook.com"
+      ) return;
+      try {
+        const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        if (data?.type === "WA_EMBEDDED_SIGNUP") {
+          capturedWabaId = data.data?.waba_id ?? null;
+          capturedPhoneNumberId = data.data?.phone_number_id ?? null;
+          console.log("✅ WA session info capturée:", { capturedWabaId, capturedPhoneNumberId });
+        }
+      } catch {}
+    };
+
+    window.addEventListener("message", sessionInfoListener);
+
+    window.FB.login(async (response: any) => {
+      window.removeEventListener("message", sessionInfoListener);
+
+      if (!response.authResponse?.code) {
+        console.warn("⚠️ FB.login annulé ou refusé", response);
+        return;
       }
-    );
-    
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
-    
-    const responseData = await res.json();
-    console.log("✅ wa-oauth/start response:", responseData);
-    const { auth_url } = responseData;
 
-    if (!auth_url) {
-      throw new Error("No auth_url in response");
-    }
+      try {
+        const res = await fetch(
+          "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/connect",
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "Authorization": `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              code: response.authResponse.code,
+              waba_id: capturedWabaId,
+              phone_number_id: capturedPhoneNumberId,
+              configs_id: context.configsId,
+            }),
+          }
+        );
 
-    const popup = window.open(auth_url, "wa_oauth", "width=600,height=700");
-    if (!popup) {
-      alert("Popup bloquée : autorise les popups pour Lead Control");
-      return;
-    }
-    context.setActivePopup(popup);
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(`Erreur serveur: ${res.status} ${txt}`);
+        }
+
+        context.onSuccess?.();
+      } catch (err) {
+        console.error("❌ WhatsApp connect error:", err);
+        alert(`Erreur connexion WhatsApp: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }, {
+      config_id: WA_CONFIG_ID,
+      response_type: "code",
+      override_default_response_type: true,
+      extras: {
+        sessionInfoVersion: 2,
+      },
+    });
+
   } catch (error) {
     console.error("❌ WhatsApp connection error:", error);
     alert(`Erreur WhatsApp: ${error instanceof Error ? error.message : String(error)}`);
