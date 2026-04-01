@@ -189,7 +189,11 @@ const createConnectWhatsApp = (
     const { auth_url } = await res.json();
     if (!auth_url) throw new Error("No auth_url in response");
 
-    const popup = window.open(auth_url, "wa_oauth", "width=600,height=700");
+    const popup = window.open(
+      auth_url,
+      "wa_oauth",
+      "width=600,height=700,left=400,top=100"
+    );
     if (!popup) {
       alert("Popup bloquée : autorise les popups pour Lead Control");
       return;
