@@ -655,11 +655,6 @@ const ChannelFilterGroup: FunctionComponent<{
                 src={channelFilterIcons[option]}
                 alt=""
                 aria-hidden="true"
-                onError={(event) => {
-                  if (option === "Telegram") {
-                    event.currentTarget.src = "/logoConnectors/telegram.svg";
-                  }
-                }}
               />
               <span>{option}</span>
             </>
