@@ -51,6 +51,38 @@
   background-clip: padding-box !important;
 }
 
+/* Bandeau reconnexion */
+.reconnectBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #fef3c7;
+  border-bottom: 1px solid #f59e0b;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 500;
+}
+.reconnectBannerText {
+  text-align: center;
+}
+.reconnectBannerCta {
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+.reconnectBannerCta:hover {
+  background: #1d4ed8;
+}
+
 /* Responsive - layout sur mobile */
 @media screen and (max-width: 975px) {
   .appLayout {

@@ -1,23 +1,21 @@
 .toneSelectorGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .tonePill {
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid var(--app-border);
   background: var(--app-surface);
-  min-height: 150px;
-  padding: 16px 18px;
+  padding: 10px 12px;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  gap: 6px;
+  gap: 3px;
 }
 
 .tonePill:hover {
@@ -26,32 +24,26 @@
 
 .tonePillActive {
   border-color: var(--app-primary);
-  box-shadow: 0 12px 20px rgba(37, 99, 235, 0.15);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
   background: rgba(37, 99, 235, 0.04);
 }
 
 .tonePillLabel {
   font-weight: 600;
+  font-size: 13px;
   display: block;
-  margin-bottom: 4px;
   color: var(--app-text-primary);
 }
 
 .tonePillDescription {
   margin: 0;
-  font-size: var(--fs-13);
+  font-size: 11px;
   color: var(--app-text-secondary);
-  line-height: 1.45;
-  text-wrap: pretty;
+  line-height: 1.35;
 }
 
 @media (max-width: 680px) {
   .toneSelectorGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .tonePill {
-    min-height: 0;
+    grid-template-columns: repeat(2, 1fr);
   }
 }

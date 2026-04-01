@@ -28,6 +28,14 @@
   padding: 48px 24px;
 }
 
+/* Layout dans AppLayout (utilisateur abonné) */
+.pageSubscribed {
+  width: 100%;
+  padding: 40px 40px;
+  display: flex;
+  justify-content: center;
+}
+
 .pageContent {
   width: 100%;
   max-width: 900px;

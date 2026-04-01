@@ -1,0 +1,186 @@
+/* ── Backdrop ────────────────────────────────────────────────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+/* ── Panel flottant ──────────────────────────────────────────── */
+.panel {
+  position: fixed;
+  z-index: 1000;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--app-surface);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+  border: 1px solid var(--app-border);
+}
+
+/* ── Guide banner ────────────────────────────────────────────── */
+.guideBanner {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--br-8);
+  background: rgba(37, 99, 235, 0.07);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  color: var(--app-primary);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s;
+  line-height: 1.4;
+}
+
+.guideBanner:hover {
+  background: rgba(37, 99, 235, 0.13);
+}
+
+/* ── Option list ─────────────────────────────────────────────── */
+.optionList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.optionBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--br-8);
+  border: 1px solid var(--app-border);
+  background: var(--app-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.optionBtn:hover {
+  border-color: var(--app-primary);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.optionLabel {
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.optionSub {
+  font-size: var(--fs-11);
+  color: var(--app-text-secondary);
+}
+
+/* ── Flow states ─────────────────────────────────────────────── */
+.flowRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flowTitle {
+  margin: 0;
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.flowSub {
+  margin: 0;
+  font-size: var(--fs-12);
+  color: var(--app-text-secondary);
+}
+
+/* ── Spinner ─────────────────────────────────────────────────── */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  border-top-color: var(--app-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Waiting state ───────────────────────────────────────────── */
+.phoneRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.phone {
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--app-text);
+  letter-spacing: 0.5px;
+}
+
+.copyBtn {
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  background: transparent;
+  font-size: var(--fs-11);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.copyBtn:hover {
+  background: var(--app-bg);
+}
+
+.waiting {
+  margin: 0;
+  font-size: var(--fs-12);
+  color: var(--app-text-secondary);
+}
+
+.countdown {
+  font-weight: 600;
+  color: var(--app-primary);
+}
+
+/* ── Code received ───────────────────────────────────────────── */
+.code {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--app-text);
+}
+
+/* ── Error ───────────────────────────────────────────────────── */
+.errorMsg {
+  margin: 0;
+  font-size: var(--fs-12);
+  color: var(--app-error, #dc2626);
+  line-height: 1.4;
+}
+
+.retryBtn {
+  padding: 6px 14px;
+  border-radius: var(--br-8);
+  background: var(--app-primary);
+  color: #fff;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: opacity 0.15s;
+}
+
+.retryBtn:hover {
+  opacity: 0.85;
+}

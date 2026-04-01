@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import supabase from "../lib/supabase";
 
 const useHasFailedConnector = () => {
-  return useQuery<boolean>({
+  return useQuery<number>({
     queryKey: ["connectors", "hasFailedConnector"],
     queryFn: async () => {
       const { count, error } = await supabase
@@ -12,10 +12,10 @@ const useHasFailedConnector = () => {
 
       if (error) {
         console.error(error);
-        return false;
+        return 0;
       }
 
-      return (count ?? 0) > 0;
+      return count ?? 0;
     },
     refetchInterval: 60 * 1000,
     staleTime: 60 * 1000,

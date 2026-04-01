@@ -2,6 +2,7 @@ import { FunctionComponent, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import supabase from "../lib/supabase";
 import useSubscriptionState, { PlanKey } from "../hooks/useSubscriptionState";
+import AppLayout from "../layouts/AppLayout";
 import styles from "./PricingPage.module.css";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
@@ -225,23 +226,31 @@ const PricingPage: FunctionComponent = () => {
     );
   }
 
-  return (
-    <div className={styles.page}>
+  const pageContent = (
+    <div className={isSubscribed ? styles.pageSubscribed : styles.page}>
       <div className={styles.pageContent}>
-        <div className={styles.logoSection}>
-          <Link to="/app" className={styles.logoLink}>
-            <img 
-              src="/logo@2x.png" 
-              alt="LeadControl" 
-              className={styles.logo}
-            />
-          </Link>
-        </div>
+        {!isSubscribed && (
+          <div className={styles.logoSection}>
+            <Link to="/app" className={styles.logoLink}>
+              <img
+                src="/logo@2x.png"
+                alt="LeadControl"
+                className={styles.logo}
+              />
+            </Link>
+          </div>
+        )}
 
         <header className={styles.header}>
           <p className={styles.kicker}>LEADCONTROL</p>
-          <h1 className={styles.title}>Choisissez votre offre</h1>
-          <p className={styles.subtitle}>Facturation mensuelle · Sans engagement</p>
+          {isSubscribed ? (
+            <h1 className={styles.title}>Mes paiements</h1>
+          ) : (
+            <>
+              <h1 className={styles.title}>Choisissez votre offre</h1>
+              <p className={styles.subtitle}>Facturation mensuelle · Sans engagement</p>
+            </>
+          )}
         </header>
 
         {generalError && <p className={styles.errorText}>{generalError}</p>}
@@ -578,6 +587,8 @@ const PricingPage: FunctionComponent = () => {
       )}
     </div>
   );
+
+  return isSubscribed ? <AppLayout>{pageContent}</AppLayout> : pageContent;
 };
 
 export default PricingPage;

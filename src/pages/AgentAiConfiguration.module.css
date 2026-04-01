@@ -324,10 +324,10 @@
   background: #FFFFFF;
   border: 1px solid #E6EBF2;
   border-radius: 12px;
-  padding: 24px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: border-color 0.2s ease;
 }
@@ -342,8 +342,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 26px;
+  gap: 10px;
+  padding: 18px;
 }
 
 .newFeatureBadge {
@@ -362,14 +362,13 @@
 }
 
 .toneStateSummary {
-  padding: 12px;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-radius: 12px;
-  background: linear-gradient(165deg, rgba(248, 251, 255, 0.95), rgba(243, 247, 255, 0.9));
+  gap: 4px;
+  border-radius: 8px;
+  background: rgba(248, 250, 255, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.15);
 }
 
 .toneStateRow {
@@ -627,7 +626,7 @@
 }
 
 .sectionTitle {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   color: #0B1220;
   margin: 0;
@@ -637,15 +636,15 @@
 .sectionHeader {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 2px;
+  margin-bottom: 8px;
 }
 
 .sectionDescription {
-  font-size: var(--fs-14);
+  font-size: 12px;
   color: var(--app-text-secondary);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .twoColumnLayout {
@@ -742,6 +741,23 @@
   color: #46536a;
   margin: 0;
   line-height: 1.55;
+}
+
+.slotSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subsectionOptional {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 6px;
+  padding: 2px 7px;
+  line-height: 1.4;
 }
 
 .dayChips {
@@ -1227,37 +1243,26 @@
 }
 
 .languageLine {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 10px 14px;
-  padding: 10px 12px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
-  background: rgba(248, 250, 255, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .languageLabel {
-  font-size: var(--fs-13);
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
 .languageValue {
-  font-size: var(--fs-14);
-  color: var(--app-text-primary);
-  font-weight: 600;
-  line-height: 1.42;
-  text-align: left;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  line-height: 1.4;
 }
 
 .toneStatusWrapper {
-  margin-top: 8px;
+  margin-top: 2px;
 }
 
 .customToneActionButton {
@@ -1897,8 +1902,9 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
+  height: 400px;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-bottom: 4px;
 }
 .connexionSection h4 {
@@ -1912,6 +1918,35 @@
   font-size: var(--fs-16);
   color: var(--app-text-secondary);
 }
+.connexionCardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.connexionHelpBubble {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--app-text-secondary);
+  color: var(--app-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.35;
+  text-decoration: none;
+  transition: none;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.connexionHelpBubble:hover {
+  opacity: 0.9;
+}
+
 .connexionCard {
   display: flex;
   align-items: center;
@@ -1923,7 +1958,7 @@
   border: 1px solid rgba(0, 0, 0, 0.05);
   width: max-content;
   min-width: 320px;
-  max-width: none;
+  max-width: 360px;
   min-height: 50px;
   flex-shrink: 0;
   border-radius: 15px;
@@ -1938,25 +1973,28 @@
   object-fit: contain;
 }
 .connexionCardBody {
-  min-width: fit-content;
+  min-width: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow: hidden;
 }
 .connexionCardBody h5 {
   margin: 0;
   font-size: var(--fs-16);
   min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .connexionCardBody p {
   margin: 0;
   font-size: var(--fs-12);
   color: var(--app-text-secondary);
   white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
-  overflow-wrap: normal;
-  word-break: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
   line-height: 1.35;
 }
 .connexionButton {
@@ -2024,8 +2062,8 @@
 .sectionHeading {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: 8px;
+  margin-bottom: 2px;
 }
 
 .sectionStep {
@@ -2230,7 +2268,12 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow-x: hidden;
+  overflow: hidden;
+  max-height: 2000px;
+  transition: max-height 0.35s ease;
+}
+.detailsGroupBodyClosed {
+  max-height: 0;
 }
 
 /* Aplatir les cartes de section à l'intérieur des groupes */
@@ -2239,7 +2282,7 @@
   border-radius: 0;
   box-shadow: none;
   background: transparent;
-  padding: 20px 20px;
+  padding: 14px 16px;
   border-bottom: 1px solid #F1F5F9;
 }
 

@@ -40,7 +40,7 @@
 .claraConfigMenu,
 .conversationList,
 .detailsSortMenu,
-.summaryModalContent,
+.contactDrawer,
 .errorModalContent,
 .chatMessages {
   scrollbar-width: auto !important;
@@ -52,7 +52,7 @@
 .claraConfigMenu::-webkit-scrollbar,
 .conversationList::-webkit-scrollbar,
 .detailsSortMenu::-webkit-scrollbar,
-.summaryModalContent::-webkit-scrollbar,
+.contactDrawer::-webkit-scrollbar,
 .errorModalContent::-webkit-scrollbar,
 .chatMessages::-webkit-scrollbar {
   width: 11px !important;
@@ -64,7 +64,7 @@
 .claraConfigMenu::-webkit-scrollbar-button,
 .conversationList::-webkit-scrollbar-button,
 .detailsSortMenu::-webkit-scrollbar-button,
-.summaryModalContent::-webkit-scrollbar-button,
+.contactDrawer::-webkit-scrollbar-button,
 .errorModalContent::-webkit-scrollbar-button,
 .chatMessages::-webkit-scrollbar-button {
   width: 0;
@@ -77,7 +77,7 @@
 .claraConfigMenu::-webkit-scrollbar-track,
 .conversationList::-webkit-scrollbar-track,
 .detailsSortMenu::-webkit-scrollbar-track,
-.summaryModalContent::-webkit-scrollbar-track,
+.contactDrawer::-webkit-scrollbar-track,
 .errorModalContent::-webkit-scrollbar-track,
 .chatMessages::-webkit-scrollbar-track {
   background: rgba(148, 163, 184, 0.2) !important;
@@ -87,7 +87,7 @@
 .claraConfigMenu::-webkit-scrollbar-track,
 .conversationList::-webkit-scrollbar-track,
 .detailsSortMenu::-webkit-scrollbar-track,
-.summaryModalContent::-webkit-scrollbar-track,
+.contactDrawer::-webkit-scrollbar-track,
 .errorModalContent::-webkit-scrollbar-track,
 .chatMessages::-webkit-scrollbar-track {
   margin-block: 6px;
@@ -98,7 +98,7 @@
 .claraConfigMenu::-webkit-scrollbar-thumb,
 .conversationList::-webkit-scrollbar-thumb,
 .detailsSortMenu::-webkit-scrollbar-thumb,
-.summaryModalContent::-webkit-scrollbar-thumb,
+.contactDrawer::-webkit-scrollbar-thumb,
 .errorModalContent::-webkit-scrollbar-thumb,
 .chatMessages::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, rgba(37, 99, 235, 0.86), rgba(37, 99, 235, 0.5)) !important;
@@ -484,6 +484,30 @@
 .channelBarDimmed {
   opacity: 0.62;
 }
+.sparklineEmpty {
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+.sparklineEmptyLink {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--app-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sparklineEmptyLink:hover {
+  opacity: 0.75;
+}
 .claraSparkline {
   display: flex;
   align-items: flex-end;
@@ -628,19 +652,23 @@
 }
 .topConversationIdentity {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: nowrap;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
 .topConversationName {
+  font-size: 13px;
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .topConversationHandle {
   font-size: 11px;
   color: var(--app-text-secondary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .topConversationMetaRow {
   display: flex;
@@ -656,32 +684,31 @@
 }
 .topConversationAside {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 2px;
-  min-width: max-content;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topConversationDot {
+  color: var(--app-text-secondary);
+  font-size: 12px;
 }
 .topConversationCount {
   font-size: 12px;
   color: var(--app-text-secondary);
   white-space: nowrap;
-  flex-shrink: 0;
-  align-self: flex-end;
 }
 .topConversationItemMeta {
   font-size: 12px;
   color: var(--app-text-secondary);
 }
 .channelBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 11px;
-  letter-spacing: 0.01em;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
 }
  .claraDetailsLayout {
   margin-top: 26px;
@@ -691,8 +718,8 @@
   flex: 1;
   min-height: 0;
   align-items: stretch;
-  min-height: 800px;
-  max-height: calc(100vh - 100px);
+  min-height: 650px;
+  max-height: calc(100vh - 140px);
 }
 .conversationPanel {
   background: var(--app-surface);
@@ -703,8 +730,9 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 740px;
+  min-height: 640px;
   max-height: 100%;
+  overflow: hidden;
 }
 .conversationPanelHeader {
   display: flex;
@@ -794,6 +822,7 @@
   padding: 10px 12px;
   border-radius: 12px;
   transition: background 0.2s ease;
+  position: relative;
 }
 .conversationItemStopped {
   border: 2px dashed var(--app-warning);
@@ -806,6 +835,16 @@
 .conversationItemCondition {
   border: 2px dashed rgba(16, 185, 129, 0.6);
   background: rgba(16, 185, 129, 0.08);
+}
+.conversationItemNeedsAttention {
+  background: rgba(37, 99, 235, 0.05);
+  border-left: 3px solid var(--app-primary);
+}
+.noReplyBadge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+  font-style: italic;
 }
 .conversationItem:hover {
   background: var(--app-bg);
@@ -829,17 +868,45 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+.conversationItemWithTag .conversationPreview,
+.conversationItemWithTag .conversationBottom {
+  padding-right: 68px;
 }
 .conversationTop {
   display: flex;
   align-items: center;
   gap: 8px;
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.conversationContactBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.conversationContactBlock span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 .conversationTopMeta {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  max-width: 60%;
+  min-width: 0;
+  overflow: hidden;
 }
 .conversationPreview {
   color: var(--app-text-secondary);
@@ -866,6 +933,8 @@
 .conversationTime {
   font-size: 12px;
   color: var(--app-text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .unreadDot {
   width: 8px;
@@ -979,6 +1048,9 @@
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 .scheduledBadge {
   display: inline-flex;
@@ -991,6 +1063,9 @@
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 .pendingDot {
   width: 6px;
@@ -1017,6 +1092,9 @@
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 .stoppedDot {
   width: 6px;
@@ -1066,6 +1144,9 @@
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 .errorDot {
   width: 6px;
@@ -1122,7 +1203,17 @@
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
+.badgeText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .conditionDot {
   width: 6px;
   height: 6px;
@@ -1197,12 +1288,16 @@
   flex: 1;
   min-height: 220px;
   max-height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 .chatHeader {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 14px;
+  position: relative;
+  z-index: 5;
 }
 .chatHeaderTop {
   display: flex;
@@ -1247,67 +1342,180 @@
   border-color: #ea580c !important;
   box-shadow: 0 4px 10px rgba(249, 115, 22, 0.2) !important;
 }
-.summaryModalBackdrop {
-  position: fixed;
+.chatToolButtonActive {
+  border-color: var(--app-primary) !important;
+  background: rgba(37, 99, 235, 0.06) !important;
+  color: var(--app-primary);
+}
+/* Contact Info Drawer */
+.contactDrawerBackdrop {
+  position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  z-index: 100;
+  z-index: 9;
+}
+.contactDrawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  background: #ffffff;
+  border-left: 1px solid #e6ebf2;
+  box-shadow: -6px 0 24px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 10;
+  border-radius: 0 18px 18px 0;
+}
+.contactDrawerHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid #e6ebf2;
+}
+.contactDrawerIdentity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.contactDrawerAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--app-primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
-.summaryModal {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
-  max-width: 600px;
-  min-width: 400px;
-  max-height: 70vh;
-  overflow: hidden;
+.contactDrawerNameBlock {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
-.summaryModalHeader {
+.contactDrawerName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0b1220;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.contactDrawerHandle {
+  font-size: 12px;
+  color: #5b667a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.contactDrawerHeadActions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--app-border);
+  gap: 8px;
+  flex-shrink: 0;
 }
-.summaryModalHeader h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--app-text-primary);
+.contactDrawerPlatformBadge {
+  font-size: 11px;
+  font-weight: 500;
+  background: #eef2ff;
+  color: #3730a3;
+  border-radius: 6px;
+  padding: 2px 8px;
+  white-space: nowrap;
 }
-.summaryModalClose {
-  width: 32px;
-  height: 32px;
+.contactDrawerClose {
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   border: none;
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
+  background: transparent;
+  color: #5b667a;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.summaryModalClose:hover {
-  background: var(--app-border);
-  color: var(--app-text-primary);
+.contactDrawerClose:hover {
+  background: #f1f5f9;
+  color: #0b1220;
 }
-.summaryModalContent {
-  padding: 20px 24px 24px;
-  overflow-y: auto;
-  flex: 1;
+.contactDrawerSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e6ebf2;
 }
-.summaryModalContent p {
+.contactDrawerSection:last-child {
+  border-bottom: none;
+}
+.contactDrawerSectionTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: #5b667a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.contactDrawerHeatBadge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 3px 10px;
+}
+.contactDrawerHeat_cold {
+  background: #eef2ff;
+  color: #3730a3;
+}
+.contactDrawerHeat_warm {
+  background: #fef3c7;
+  color: #92400e;
+}
+.contactDrawerHeat_hot {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.contactDrawerHeatReason {
   margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5b667a;
+}
+.contactDrawerSummaryText {
+  margin: 0;
+  font-size: 13px;
   line-height: 1.6;
-  color: var(--app-text-primary);
+  color: #0b1220;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+.contactDrawerStats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.contactDrawerStat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #0b1220;
+}
+.contactDrawerStatIcon {
+  flex-shrink: 0;
+  color: #5b667a;
 }
 .errorModalBackdrop {
   position: fixed;
@@ -1552,7 +1760,8 @@
 .chatToolButton[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  top: -34px;
+  top: calc(100% + 6px);
+  left: 50%;
   white-space: nowrap;
   background: var(--app-primary);
   color: white;
@@ -1560,13 +1769,17 @@
   padding: 4px 8px;
   border-radius: 999px;
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateX(-50%) translateY(-4px);
   transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
+  z-index: 100;
 }
 .chatToolButton[data-tooltip]:hover::after {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
+}
+.chatToolButton[data-tooltip] {
+  overflow: visible;
 }
 .detailsOverlayBackdrop {
   position: fixed;
@@ -1807,6 +2020,10 @@
   }
 }
 .tagChip {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   padding: 2px 8px;
   font-size: 11px;
@@ -1814,6 +2031,7 @@
   background: rgba(245, 158, 11, 0.15);
   color: var(--app-warning);
   border: 1px solid rgba(245, 158, 11, 0.4);
+  white-space: nowrap;
 }
 .channelFilterRow {
   display: flex;
@@ -1831,15 +2049,16 @@
   .claraDetailsLayout {
     flex-direction: row;
     align-items: stretch;
-    min-height: 900px;
-    max-height: calc(100vh - 100px);
+    min-height: 750px;
+    max-height: calc(100vh - 140px);
   }
   .conversationPanel {
-    flex: 0 0 48%;
-    max-width: 48%;
+    flex: 0 0 30%;
+    max-width: 30%;
+    min-width: 280px;
   }
   .chatPanel {
-    flex: 1 1 52%;
+    flex: 1 1 70%;
     min-height: 0;
   }
 }

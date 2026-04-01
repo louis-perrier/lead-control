@@ -117,8 +117,16 @@
 }
 
 .navBadgeError {
-  background-color: var(--Schemes-Error) !important;
+  background-color: #ef4444 !important;
   color: white !important;
+  border-radius: 9999px !important;
+  padding: 2px 7px !important;
+  min-width: 20px !important;
+  text-align: center !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
 }
 
 /* Focus states pour accessibilité */

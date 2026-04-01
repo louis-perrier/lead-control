@@ -154,7 +154,7 @@ const SidebarAccountCard: FunctionComponent<SidebarAccountCardProps> = ({
             {user?.email ? getInitials(user.email) : "??"}
           </div>
         </button>
-        
+
         <div className={styles.accountDetails}>
           <span className={styles.userEmail}>
             {user?.email || "Non connecté"}

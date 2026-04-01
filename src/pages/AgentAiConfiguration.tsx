@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   ChangeEvent,
   DragEvent,
@@ -36,6 +37,7 @@ import ToneSelector, {
 } from "../components/ToneSelector/ToneSelector";
 import ToneStatusIndicator, { ToneStatus } from "../components/ToneStatusIndicator/ToneStatusIndicator";
 import ProgressiveQuestionModal from "../components/ProgressiveQuestionModal/ProgressiveQuestionModal";
+import WATwilioConnect from "../components/WATwilioConnect/WATwilioConnect";
 import {
   CustomToneAnswers,
   CustomToneKey,
@@ -58,6 +60,8 @@ type ConnexionCardProps = {
   actionLabel: string;
   isAvailable?: boolean;
   onAction?: () => void;
+  helpUrl?: string;
+  helpTooltip?: string;
 };
 
 const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
@@ -67,6 +71,8 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
   actionLabel,
   isAvailable = true,
   onAction,
+  helpUrl,
+  helpTooltip,
 }) => {
   return (
     <div
@@ -76,7 +82,21 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
     >
       <img src={imageSrc} alt={title} className={styles.connexionCardImage} />
       <div className={styles.connexionCardBody}>
-        <h5>{title}</h5>
+        <div className={styles.connexionCardTitleRow}>
+          <h5>{title}</h5>
+          {helpUrl && (
+            <a
+              href={helpUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.connexionHelpBubble}
+              title={helpTooltip}
+              onClick={(e) => e.stopPropagation()}
+            >
+              ?
+            </a>
+          )}
+        </div>
         <p>{description}</p>
       </div>
       <Button
@@ -412,6 +432,8 @@ const AgentAi: FunctionComponent = () => {
   const [customToneLastGeneratedAt, setCustomToneLastGeneratedAt] =
     useState<string | null>(null);
   const [customToneError, setCustomToneError] = useState<string | null>(null);
+  const [showWASelector, setShowWASelector] = useState(false);
+  const waSelectorAnchorRef = useRef<HTMLDivElement | null>(null);
   const [customToneValidationErrors, setCustomToneValidationErrors] =
     useState<Partial<Record<CustomToneKey, string>>>({});
   const [isGeneratingCustomTone, setIsGeneratingCustomTone] =
@@ -1455,7 +1477,8 @@ const AgentAi: FunctionComponent = () => {
         return;
       }
       const raw = data.current_config_connexion;
-      const parsed = raw.map((item: { id: string; value: any }) => ({
+      const rawArray = Array.isArray(raw) ? raw : [];
+      const parsed = rawArray.map((item: { id: string; value: any }) => ({
         id: item.id,
         value: item.value,
       }));
@@ -1753,7 +1776,7 @@ const AgentAi: FunctionComponent = () => {
               className={styles.contextTextarea}
               rows={8}
             />
-            <div className={styles.pdfSection}>
+            <div className={styles.pdfSection} style={{ display: "none" }}>
               <h5 className={styles.pdfSectionTitle}>Documentation complémentaire</h5>
               <p className={styles.pdfSectionDescription}>
                 Importez un PDF avec des informations détaillées que l'agent pourra consulter (brochure produit, FAQ, etc.).
@@ -1856,7 +1879,6 @@ const AgentAi: FunctionComponent = () => {
               </div>
             </div>
             <div className={styles.scheduleSubsection}>
-              <h5 className={styles.subsectionTitle}>Plage horaire principale</h5>
               <div className={styles.timeInputGroup}>
                 <div className={styles.timeField}>
                   <label htmlFor="timeStart">De</label>
@@ -1881,13 +1903,10 @@ const AgentAi: FunctionComponent = () => {
               </div>
             </div>
             <div className={styles.scheduleSubsection}>
-              <h5 className={styles.subsectionTitle}>Créneaux spécifiques (optionnel)</h5>
-              <p className={styles.subsectionDescription}>
-                Si vous ajoutez des créneaux, l'agent répondra uniquement pendant ces créneaux.
-              </p>
-              <p className={styles.subsectionInfo}>
-                Si aucun créneau n'est ajouté, l'agent répondra pendant toute la plage horaire principale.
-              </p>
+              <div className={styles.slotSectionHeader}>
+                <h5 className={styles.subsectionTitle}>Créneaux spécifiques</h5>
+                <span className={styles.subsectionOptional}>optionnel</span>
+              </div>
               <div className={styles.slotSection}>
                 <div className={styles.slotHeader}>
                   <span className={styles.slotHeaderLabel}>Créneaux d'activation</span>
@@ -2334,15 +2353,13 @@ const AgentAi: FunctionComponent = () => {
                                 )}
                               </div>
                             </div>
-                            {isOpen && (
-                              <div className={styles.detailsGroupBody}>
-                                {group.activeKeys.map((key, index) => (
-                                  <React.Fragment key={key}>
-                                    {renderDetailsSection(key, index + 1)}
-                                  </React.Fragment>
-                                ))}
-                              </div>
-                            )}
+                            <div className={`${styles.detailsGroupBody} ${!isOpen ? styles.detailsGroupBodyClosed : ""}`.trim()}>
+                              {group.activeKeys.map((key, index) => (
+                                <React.Fragment key={key}>
+                                  {renderDetailsSection(key, index + 1)}
+                                </React.Fragment>
+                              ))}
+                            </div>
                           </div>
                         );
                       })
@@ -2389,6 +2406,8 @@ const AgentAi: FunctionComponent = () => {
                           imageSrc={connexions[connector.connectors_name].imageSrc}
                           actionLabel="Déconnecter"
                           onAction={connexions[connector.connectors_name].onDisconnect}
+                          helpUrl={connector.connectors_name === "whatsapp" ? "https://lautopreneur.notion.site/Connecter-WhatsApp-LeadControl-331392824e1a812c9657d8d56c77c4e7?source=copy_link" : undefined}
+                          helpTooltip={connector.connectors_name === "whatsapp" ? "Besoin d'aide pour connecter votre compte WhatsApp ?" : undefined}
                         />
                       ))}
                     </div>
@@ -2398,26 +2417,50 @@ const AgentAi: FunctionComponent = () => {
                     <div className={styles.connexionSectionCards}>
                       {availableShow
                         .filter((connector) => !connector.connectors_special)
-                        .map((connector) => (
-                          <ConnexionCard
-                            key={connector.connectors_id}
-                            title={
-                              connector.connectors_name.charAt(0).toUpperCase() +
-                              connector.connectors_name.slice(1)
-                            }
-                            description={`Connecter ${connector.connectors_name}`}
-                            imageSrc={connexions[connector.connectors_name].imageSrc}
-                            actionLabel="Connecter"
-                            isAvailable={connector.connectors_available}
-                            onAction={connexions[connector.connectors_name].onConnect}
-                          />
-                        ))}
+                        .map((connector) =>
+                          connector.connectors_name === "whatsapp" ? (
+                            <div key={connector.connectors_id} ref={waSelectorAnchorRef}>
+                              <ConnexionCard
+                                title="Whatsapp"
+                                description="Connecter whatsapp"
+                                imageSrc={connexions["whatsapp"].imageSrc}
+                                actionLabel="Connecter"
+                                isAvailable={connector.connectors_available}
+                                onAction={() => setShowWASelector(true)}
+                                helpUrl="https://lautopreneur.notion.site/Connecter-WhatsApp-LeadControl-331392824e1a812c9657d8d56c77c4e7?source=copy_link"
+                                helpTooltip="Besoin d'aide pour connecter votre compte WhatsApp ?"
+                              />
+                            </div>
+                          ) : (
+                            <ConnexionCard
+                              key={connector.connectors_id}
+                              title={
+                                connector.connectors_name.charAt(0).toUpperCase() +
+                                connector.connectors_name.slice(1)
+                              }
+                              description={`Connecter ${connector.connectors_name}`}
+                              imageSrc={connexions[connector.connectors_name].imageSrc}
+                              actionLabel="Connecter"
+                              isAvailable={connector.connectors_available}
+                              onAction={connexions[connector.connectors_name].onConnect}
+                            />
+                          )
+                        )}
                     </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
+        )}
+        {selectedAgent?.display_id && (
+          <WATwilioConnect
+            isOpen={showWASelector}
+            onClose={() => setShowWASelector(false)}
+            anchorEl={waSelectorAnchorRef.current}
+            configsId={selectedAgent.display_id}
+            onOAuthConnect={connexions["whatsapp"]?.onConnect ?? (() => {})}
+          />
         )}
         <ProgressiveQuestionModal
           open={customToneModalOpen}

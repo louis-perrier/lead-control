@@ -96,9 +96,6 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
           <div className={styles.headerContent}>
             <p className={styles.meta}>Ton personnalisé</p>
             <h3>Analyse de votre style de communication</h3>
-            <p className={styles.description}>
-              Répondez comme vous le feriez naturellement pour que l’IA reproduise votre ton et votre rythme.
-            </p>
           </div>
           <div className={styles.progressIndicator}>
             <span className={styles.progressLabel}>Question</span>

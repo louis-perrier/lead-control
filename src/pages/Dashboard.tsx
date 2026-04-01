@@ -11,7 +11,6 @@ import ConfirmationDialog from "../components/ConfirmationDialog";
 import {
   IconConversationPlay,
   IconConversationStop,
-  IconDetailsComingSoon,
 } from "../components/DashboardIcons";
 import styles from "./Dashboard.module.css";
 import useAgents from "../hooks/useAgents";
@@ -67,6 +66,12 @@ type Conversation = {
   lastErrorMessage?: string | null;
   nextReplyAt?: string | null;
   summary?: string | null;
+  inboundCount: number;
+  lastAgentReplyAt?: string | null;
+  heatReason?: string | null;
+  agentSentCount: number;
+  humanSentCount: number;
+  createdAt: string;
 };
 
 const channelFilterOptions: ChannelFilterOption[] = [
@@ -91,7 +96,7 @@ const periodOptions: { label: string; value: PeriodOption }[] = [
   { label: "Cette annee", value: "year" },
 ];
 
-const statusFilterOptions = ["Tous", "Ouvert", "Clos"] as const;
+const statusFilterOptions = ["Tous", "Ouvert", "Clos", "Erreur"] as const;
 const sortOptionLabels: Record<SortOption, string> = {
   recent: "Recent",
   unread: "Non lus",
@@ -526,6 +531,12 @@ const mapConversationRecord = (record: any): Conversation => {
       record.last_error_message ?? record.error_message ?? null,
     nextReplyAt: record.next_reply_at ?? null,
     summary: record.summary ?? null,
+    inboundCount: record.inbound_count ?? 0,
+    lastAgentReplyAt: record.last_agent_reply_at ?? null,
+    heatReason: record.heat_reason ?? null,
+    agentSentCount: record.agent_sent_count ?? 0,
+    humanSentCount: record.human_sent_count ?? 0,
+    createdAt: record.created_at ?? new Date().toISOString(),
   };
 };
 
@@ -563,20 +574,26 @@ const getHeatTagStyle = (tag?: string) => {
   return heatTagStyles[normalized] ?? heatTagStyles.unknown;
 };
 
+const heatTagLabels: Record<string, string> = {
+  cold: "Froid",
+  warm: "Tiède",
+  hot: "Chaud",
+};
+
+const getHeatTagLabel = (tag?: string): string | null => {
+  if (!tag) return null;
+  return heatTagLabels[tag.toLowerCase()] ?? null;
+};
+
 const ChannelBadge: FunctionComponent<{
   channel: ChannelOption;
   colorChannel?: ChannelOption;
-}> = ({ channel, colorChannel }) => (
-  <span
+}> = ({ channel }) => (
+  <img
+    src={channelFilterIcons[channel]}
+    alt={channel}
     className={styles.channelBadge}
-    style={{
-      backgroundColor: colorChannel
-        ? channelFocusColors[colorChannel]
-        : channelColors[channel],
-    }}
-  >
-    {channel}
-  </span>
+  />
 );
 
 const truncateLabel = (value: string, maxLength = 18) =>
@@ -618,7 +635,7 @@ const ChannelFilterGroup: FunctionComponent<{
   className?: string;
 }> = ({ active, onChange, className = "" }) => (
   <div className={`${styles.channelFilterRow} ${className}`.trim()}>
-    {channelFilterOptions.map((option) => {
+    {channelFilterOptions.filter((option) => option !== "Telegram").map((option) => {
       const isActive = active === option;
       return (
         <button
@@ -653,6 +670,18 @@ const ChannelFilterGroup: FunctionComponent<{
   </div>
 );
 
+const formatNextReplyShort = (iso?: string | null): string => {
+  if (!iso) return "Planifié";
+  const time = new Date(iso);
+  const now = new Date();
+  const isToday = time.toDateString() === now.toDateString();
+  const isTomorrow = time.toDateString() === new Date(now.getTime() + 86400000).toDateString();
+  const hhmm = time.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  if (isToday) return hhmm;
+  if (isTomorrow) return `Dem. ${hhmm}`;
+  return hhmm;
+};
+
 const formatNextReply = (iso?: string | null) => {
   if (!iso) {
     return null;
@@ -686,6 +715,16 @@ const ConversationItem: FunctionComponent<{
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  const isNoReply = !conversation.contactHandle && conversation.inboundCount === 0;
+
+  const needsAttention =
+    !isActive &&
+    conversation.automationState !== "error" &&
+    conversation.automationState !== "stopped" &&
+    conversation.automationState !== "condition_stop" &&
+    conversation.lastAgentReplyAt &&
+    conversation.lastAt > conversation.lastAgentReplyAt;
   return (
     <button
       type="button"
@@ -699,63 +738,60 @@ const ConversationItem: FunctionComponent<{
           : conversation.automationState === "condition_stop"
           ? styles.conversationItemCondition
           : ""
-      }`.trim()}
+      } ${needsAttention ? styles.conversationItemNeedsAttention : ""} ${getHeatTagLabel(conversation.tags[0]) ? styles.conversationItemWithTag : ""}`.trim()}
       onClick={onSelect}
     >
       <span className={styles.conversationAvatar}>{initials}</span>
       <div className={styles.conversationDetails}>
         <div className={styles.conversationTop}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <span>{conversation.contactName}</span>
-            {conversation.contactHandle && (
-              <span style={{ fontSize: '0.75em', color: 'var(--app-text-secondary)' }}>
-                @{conversation.contactHandle}
-              </span>
+          <div className={styles.conversationContactBlock}>
+            {isNoReply ? (
+              <span className={styles.noReplyBadge}>Pas encore répondu</span>
+            ) : (
+              <>
+                <span>{conversation.contactName}</span>
+                {conversation.contactHandle && (
+                  <span style={{ fontSize: '0.75em', color: 'var(--app-text-secondary)' }}>
+                    @{conversation.contactHandle}
+                  </span>
+                )}
+              </>
             )}
           </div>
           <div className={styles.conversationTopMeta}>
-            <ChannelBadge channel={conversation.channel} />
       {conversation.automationState === "pending" && (
         <span className={styles.pendingBadge}>
           <span className={styles.pendingDot} />
           <span className={styles.pendingDot} />
           <span className={styles.pendingDot} />
-          Agent en attente
+          <span className={styles.badgeText}>Attente</span>
         </span>
       )}
       {conversation.automationState === "scheduled" && (
         <span className={styles.scheduledBadge}>
           <span className={styles.scheduledDot} />
-          {conversation.nextReplyAt ? (
-            (() => {
-              const formatted = formatNextReply(conversation.nextReplyAt);
-              return formatted
-                ? `Réponse prévue à ${formatted.time} (${formatted.relative})`
-                : "Réponse planifiée";
-            })()
-          ) : (
-            "Réponse planifiée"
-          )}
+          <span className={styles.badgeText}>{formatNextReplyShort(conversation.nextReplyAt)}</span>
         </span>
       )}
       {conversation.automationState === "error" && (
         <span className={styles.errorBadge}>
           <span className={styles.errorDot} />
-          Erreur détectée
+          <span className={styles.badgeText}>Erreur</span>
         </span>
       )}
       {conversation.automationState === "condition_stop" && (
         <span className={styles.conditionBadge}>
           <span className={styles.conditionDot} />
-          condition stop
+          <span className={styles.badgeText}>Stop</span>
         </span>
       )}
       {conversation.automationState === "stopped" && (
         <span className={styles.stoppedBadge}>
           <span className={styles.stoppedDot} />
-          Conversation arrêtée
+          <span className={styles.badgeText}>Arrêté</span>
         </span>
       )}
+            <ChannelBadge channel={conversation.channel} />
           </div>
         </div>
         <p className={styles.conversationPreview}>
@@ -777,26 +813,26 @@ const ConversationItem: FunctionComponent<{
           )}
         </div>
       </div>
-      {conversation.tags.length > 0 && (
+      {getHeatTagLabel(conversation.tags[0]) && (
         <span
           className={styles.tagChip}
           style={getHeatTagStyle(conversation.tags[0])}
         >
-          {conversation.tags.join(" • ")}
+          {getHeatTagLabel(conversation.tags[0])}
         </span>
       )}
     </button>
   );
 };
 
-const ChatBubble: FunctionComponent<{ message: Message }> = ({ message }) => {
+const ChatBubble: FunctionComponent<{ message: Message; contactName?: string }> = ({ message, contactName }) => {
   const isOutbound = message.direction === "outbound";
   const label =
     message.authorType === "human"
-      ? "Humain"
+      ? "Vous"
       : message.authorType === "agent"
-      ? "Agent"
-      : "Client";
+      ? "Assistant IA"
+      : contactName || "Client";
   return (
     <div
       className={`${styles.chatBubble} ${
@@ -841,8 +877,9 @@ const DateSeparator: FunctionComponent<{ dateString: string }> = ({ dateString }
   );
 };
 
-const ConversationMessageItem: FunctionComponent<{ message: Message }> = ({
+const ConversationMessageItem: FunctionComponent<{ message: Message; contactName?: string }> = ({
   message,
+  contactName,
 }) => {
   const isMine = message.direction === "outbound";
   
@@ -862,7 +899,7 @@ const ConversationMessageItem: FunctionComponent<{ message: Message }> = ({
       />
     );
   }
-  return <ChatBubble message={message} />;
+  return <ChatBubble message={message} contactName={contactName} />;
 };
 
 const Dashboard: FunctionComponent = () => {
@@ -926,7 +963,7 @@ const Dashboard: FunctionComponent = () => {
   );
   const [isStopDialogOpen, setStopDialogOpen] = useState(false);
   const [isDetailsOverlayOpen, setDetailsOverlayOpen] = useState(false);
-  const [isSummaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [isContactDrawerOpen, setContactDrawerOpen] = useState(false);
   const [isErrorDetailOpen, setErrorDetailOpen] = useState(false);
 
   const handleConfigChange = (value: string) => {
@@ -1032,7 +1069,11 @@ const Dashboard: FunctionComponent = () => {
     () =>
       channelScopedConversations.filter((conversation) => {
         const matchesStatus =
-          statusFilter === "Tous" || conversation.status === statusFilter;
+          statusFilter === "Tous"
+            ? true
+            : statusFilter === "Erreur"
+            ? conversation.automationState === "error"
+            : conversation.status === statusFilter;
         return matchesStatus;
       }),
     [channelScopedConversations, statusFilter]
@@ -1168,6 +1209,7 @@ const Dashboard: FunctionComponent = () => {
     setErrorDetailOpen(false);
   }, [activeConversation?.id, activeConversation?.lastErrorMessage]);
 
+
   const stats = useMemo(() => {
     let totalResponseMs = 0;
     let responsePairs = 0;
@@ -1284,12 +1326,6 @@ const Dashboard: FunctionComponent = () => {
 
   const kpiCards = [
     {
-      label: "Réponses envoyées de l'agent",
-      value: `${stats.responses.toLocaleString("fr-FR")}`,
-      delta: deltas.responses,
-      note: "Agent uniquement",
-    },
-    {
       label: "Messages reçus",
       value: `${stats.messages.toLocaleString("fr-FR")}`,
       delta: deltas.messages,
@@ -1299,11 +1335,17 @@ const Dashboard: FunctionComponent = () => {
       value: `${stats.active}`,
       delta: deltas.active,
     },
-      {
-        label: "Temps de réponse moyen",
-        value: `${stats.responseTime.toLocaleString("fr-FR")} s`,
-        delta: deltas.responseTime,
-      },
+    {
+      label: "Réponses envoyées de l'agent",
+      value: `${stats.responses.toLocaleString("fr-FR")}`,
+      delta: deltas.responses,
+      note: "Agent uniquement",
+    },
+    {
+      label: "Temps de réponse moyen",
+      value: `${stats.responseTime.toLocaleString("fr-FR")} s`,
+      delta: deltas.responseTime,
+    },
   ];
 
   const channelStats = useMemo(() => {
@@ -1324,7 +1366,7 @@ const Dashboard: FunctionComponent = () => {
     });
 
     const maxBucket = Math.max(...Object.values(bucket), 1);
-    return channelCycle.map((channel) => ({
+    return channelCycle.filter((channel) => channel !== "Telegram").map((channel) => ({
       channel,
       count: bucket[channel],
       normalized: Math.round((bucket[channel] / maxBucket) * 100),
@@ -1410,6 +1452,19 @@ const Dashboard: FunctionComponent = () => {
   };
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!activeConversation || activeConversation.unreadCount === 0 || !selectedConfigId) return;
+    const convId = Number(activeConversation.id);
+    const queryKey = ["clara-conversations", selectedConfigId];
+    queryClient.setQueryData(queryKey, (oldData: any) => {
+      if (!Array.isArray(oldData)) return oldData;
+      return oldData.map((record: any) =>
+        record.id === convId ? { ...record, unread_count: 0 } : record
+      );
+    });
+    supabase.from("conversations").update({ unread_count: 0 }).eq("id", convId).then();
+  }, [activeConversation?.id]);
 
   const handleSendMessage = async () => {
     if (!composerText.trim() || !activeConversation || !selectedConfigId) {
@@ -1541,13 +1596,12 @@ const Dashboard: FunctionComponent = () => {
     setDetailsOverlayOpen(false);
   };
 
-  const handleSummaryClick = () => {
-    setSummaryModalOpen(true);
-  };
+  const handleContactDrawerToggle = () => setContactDrawerOpen((prev) => !prev);
+  const closeContactDrawer = () => setContactDrawerOpen(false);
 
-  const closeSummaryModal = () => {
-    setSummaryModalOpen(false);
-  };
+  useEffect(() => {
+    setContactDrawerOpen(false);
+  }, [activeConversation?.id]);
 
   const handleErrorDetailOpen = () => {
     setErrorDetailOpen(true);
@@ -1753,30 +1807,43 @@ const Dashboard: FunctionComponent = () => {
         </span>
       </div>
     </div>
-    <div
-      className={`${styles.claraSparkline} ${period === "year" ? styles.claraSparklineYear : ""}`.trim()}
-    >
-      {evolutionSeries.map((point) => {
-        const value = point.count;
-        const zeroBarHeight = 2;
-        const minBarHeight = 12;
-        const height =
-          value === 0
-            ? zeroBarHeight
-            : Math.max(minBarHeight, (value / sparklineMax) * 100);
-        return (
-          <span
-            key={point.id}
-            className={styles.claraSparklineBar}
-            style={{
-              height: `${height}%`,
-              background: sparklineBarColor,
-            }}
-            data-tooltip={point.tooltip}
-          />
-        );
-      })}
-    </div>
+    {sparklineValues.every((v) => v === 0) ? (
+      <div className={styles.sparklineEmpty}>
+        <span>L'agent n'a pas encore envoyé de réponses sur cette période.</span>
+        <button
+          type="button"
+          className={styles.sparklineEmptyLink}
+          onClick={() => updateTab("conversation")}
+        >
+          Voir toutes les conversations
+        </button>
+      </div>
+    ) : (
+      <div
+        className={`${styles.claraSparkline} ${period === "year" ? styles.claraSparklineYear : ""}`.trim()}
+      >
+        {evolutionSeries.map((point) => {
+          const value = point.count;
+          const zeroBarHeight = 2;
+          const minBarHeight = 12;
+          const height =
+            value === 0
+              ? zeroBarHeight
+              : Math.max(minBarHeight, (value / sparklineMax) * 100);
+          return (
+            <span
+              key={point.id}
+              className={styles.claraSparklineBar}
+              style={{
+                height: `${height}%`,
+                background: sparklineBarColor,
+              }}
+              data-tooltip={point.tooltip}
+            />
+          );
+        })}
+      </div>
+    )}
     <div
       className={`${styles.evolutionAxis} ${
         evolutionAxisLabels.length <= 2 ? styles.evolutionAxisCompact : ""
@@ -1847,11 +1914,6 @@ const Dashboard: FunctionComponent = () => {
                       <strong className={styles.topConversationName}>
                         {slot.conversation.contactName}
                       </strong>
-                      {slot.conversation.contactHandle && (
-                        <span className={styles.topConversationHandle}>
-                          @{slot.conversation.contactHandle}
-                        </span>
-                      )}
                     </div>
                     <ChannelBadge
                       channel={slot.conversation.channel}
@@ -1865,6 +1927,7 @@ const Dashboard: FunctionComponent = () => {
                   <span className={styles.topConversationCount}>
                     {slot.periodMessageCount} messages
                   </span>
+                  <span className={styles.topConversationDot}>·</span>
                   <span className={styles.topConversationTime}>
                     {formatRelativeTime(slot.conversation.lastAt)}
                   </span>
@@ -2077,44 +2140,16 @@ const Dashboard: FunctionComponent = () => {
                     )}
                       </div>
                       <div className={styles.chatHeaderTools}>
-                        {activeConversation?.summary && (
-                          <button
-                            type="button"
-                            className={styles.chatToolButton}
-                            data-tooltip="Résumé de la conversation"
-                            onClick={handleSummaryClick}
-                          >
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 20 20"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <circle cx="10" cy="10" r="9" fill="#2563EB" />
-                              <text
-                                x="10"
-                                y="14"
-                                textAnchor="middle"
-                                fill="white"
-                                fontSize="11"
-                                fontWeight="600"
-                                fontFamily="Inter, sans-serif"
-                              >
-                                ?
-                              </text>
-                            </svg>
-                          </button>
-                        )}
                         <button
                           type="button"
-                          className={styles.chatToolButton}
-                          data-tooltip="Bientôt disponible"
-                          onClick={handleDetailsClick}
-                          disabled
-                          aria-disabled="true"
+                          className={`${styles.chatToolButton} ${isContactDrawerOpen ? styles.chatToolButtonActive : ""}`.trim()}
+                          data-tooltip="Infos contact"
+                          onClick={handleContactDrawerToggle}
                         >
-                          <IconDetailsComingSoon />
+                          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="9" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                            <path d="M2.5 16c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
                         </button>
                   {!isConditionStop && (
                     <button
@@ -2195,6 +2230,87 @@ const Dashboard: FunctionComponent = () => {
                       </div>
                     </div>
                   )}
+                  {isContactDrawerOpen && (
+                    <>
+                      <div className={styles.contactDrawerBackdrop} onClick={closeContactDrawer} />
+                      <div className={styles.contactDrawer}>
+                        <div className={styles.contactDrawerHead}>
+                          <div className={styles.contactDrawerIdentity}>
+                            <span className={styles.contactDrawerAvatar}>
+                              {activeConversation.contactName
+                                .split(" ")
+                                .map((t) => t.charAt(0))
+                                .join("")
+                                .slice(0, 2)
+                                .toUpperCase()}
+                            </span>
+                            <div className={styles.contactDrawerNameBlock}>
+                              <span className={styles.contactDrawerName}>{activeConversation.contactName}</span>
+                              {activeConversation.contactHandle && (
+                                <span className={styles.contactDrawerHandle}>@{activeConversation.contactHandle}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className={styles.contactDrawerHeadActions}>
+                            <span className={styles.contactDrawerPlatformBadge}>{activeConversation.channel}</span>
+                            <button type="button" className={styles.contactDrawerClose} onClick={closeContactDrawer}>
+                              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                                <path d="M7 5.586L11.293 1.293a1 1 0 1 1 1.414 1.414L8.414 7l4.293 4.293a1 1 0 1 1-1.414 1.414L7 8.414l-4.293 4.293a1 1 0 1 1-1.414-1.414L5.586 7 1.293 2.707a1 1 0 0 1 1.414-1.414L7 5.586z"/>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        {activeConversation.tags[0] && getHeatTagLabel(activeConversation.tags[0]) && (
+                          <div className={styles.contactDrawerSection}>
+                            <span className={styles.contactDrawerSectionTitle}>Température</span>
+                            <span className={`${styles.contactDrawerHeatBadge} ${styles[`contactDrawerHeat_${activeConversation.tags[0]}`] ?? ""}`}>
+                              {getHeatTagLabel(activeConversation.tags[0])}
+                            </span>
+                            {activeConversation.heatReason && (
+                              <p className={styles.contactDrawerHeatReason}>{activeConversation.heatReason}</p>
+                            )}
+                          </div>
+                        )}
+                        {activeConversation.summary && (
+                          <div className={styles.contactDrawerSection}>
+                            <span className={styles.contactDrawerSectionTitle}>Résumé IA</span>
+                            <p className={styles.contactDrawerSummaryText}>{activeConversation.summary}</p>
+                          </div>
+                        )}
+                        <div className={styles.contactDrawerSection}>
+                          <span className={styles.contactDrawerSectionTitle}>Conversation</span>
+                          <div className={styles.contactDrawerStats}>
+                            <div className={styles.contactDrawerStat}>
+                              <svg className={styles.contactDrawerStatIcon} width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <rect x="1" y="2.5" width="12" height="10.5" rx="2" stroke="currentColor" strokeWidth="1.3"/>
+                                <path d="M1 6h12" stroke="currentColor" strokeWidth="1.3"/>
+                                <path d="M4.5 1v3M9.5 1v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                              </svg>
+                              <span>{new Date(activeConversation.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}</span>
+                            </div>
+                            <div className={styles.contactDrawerStat}>
+                              <svg className={styles.contactDrawerStatIcon} width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M2 4l5 4 5-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                                <rect x="1" y="2" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.3"/>
+                                <path d="M7 10v-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                                <path d="M5.5 8.5L7 10l1.5-1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              <span>{activeConversation.inboundCount} reçus</span>
+                            </div>
+                            <div className={styles.contactDrawerStat}>
+                              <svg className={styles.contactDrawerStatIcon} width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M2 10l5-4 5 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                                <rect x="1" y="2" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.3"/>
+                                <path d="M7 4v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                                <path d="M5.5 5.5L7 4l1.5 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                              <span>{activeConversation.agentSentCount + activeConversation.humanSentCount} envoyés</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                   <div className={styles.chatMessages} ref={messagesContainerRef}>
                   {messagesForDisplay.map((item) => {
                       if ('type' in item && item.type === 'date-separator') {
@@ -2209,6 +2325,7 @@ const Dashboard: FunctionComponent = () => {
                         <ConversationMessageItem
                           key={item.id}
                           message={item as Message}
+                          contactName={activeConversation?.contactHandle || activeConversation?.contactName}
                         />
                       );
                     })}
@@ -2244,27 +2361,6 @@ const Dashboard: FunctionComponent = () => {
           </section>
         )}
           </>
-        )}
-        {isSummaryModalOpen && (
-          <div className={styles.summaryModalBackdrop} onClick={closeSummaryModal}>
-            <div className={styles.summaryModal} onClick={(e) => e.stopPropagation()}>
-              <div className={styles.summaryModalHeader}>
-                <h3>Résumé conversation</h3>
-                <button 
-                  type="button" 
-                  className={styles.summaryModalClose}
-                  onClick={closeSummaryModal}
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 6.586L12.293 2.293a1 1 0 1 1 1.414 1.414L9.414 8l4.293 4.293a1 1 0 1 1-1.414 1.414L8 9.414l-4.293 4.293a1 1 0 1 1-1.414-1.414L6.586 8 2.293 3.707a1 1 0 0 1 1.414-1.414L8 6.586z"/>
-                  </svg>
-                </button>
-              </div>
-              <div className={styles.summaryModalContent}>
-                <p>{activeConversation?.summary}</p>
-              </div>
-            </div>
-          </div>
         )}
         {isErrorDetailOpen && activeConversation?.lastErrorMessage && (
           <div className={styles.errorModalBackdrop} onClick={closeErrorDetail}>

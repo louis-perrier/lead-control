@@ -118,7 +118,7 @@ function App() {
   }, [pathname]);
 
   const { data: subscriptionState } = useSubscriptionState();
-  const showFeedback = pathname.startsWith("/app") && subscriptionState?.planKey !== "none";
+  const showFeedback = pathname.startsWith("/app") && pathname !== "/app" && subscriptionState?.planKey !== "none";
 
   return (
     <>
