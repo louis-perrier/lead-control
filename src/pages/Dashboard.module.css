@@ -710,6 +710,21 @@
   flex-shrink: 0;
   display: block;
 }
+.agentBadge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--app-text-secondary);
+  background: var(--app-bg);
+  border: 1px solid var(--app-border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 64px;
+  flex-shrink: 0;
+}
  .claraDetailsLayout {
   margin-top: 26px;
   display: flex;
@@ -779,8 +794,6 @@
   gap: 8px;
   flex: 1;
   min-height: 0;
-  max-height: 100%;
-  min-height: 620px;
 }
 .conversationLoading,
 .conversationError {
@@ -941,6 +954,29 @@
   height: 8px;
   border-radius: 50%;
   background: var(--app-error);
+}
+.conversationSearchWrap {
+  margin-bottom: 10px;
+}
+.conversationSearch {
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--app-text-primary);
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.conversationSearch::placeholder {
+  color: var(--app-text-secondary);
+}
+.conversationSearch:focus {
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
 }
 .conversationFilters {
   display: flex;
@@ -1961,6 +1997,11 @@
   border-color: var(--app-primary);
   background: white;
 }
+.chatComposer textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--app-bg);
+}
 .chatComposerActions {
   display: flex;
   gap: 8px;
@@ -1994,6 +2035,11 @@
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+}
+.windowExpiredNotice {
+  font-size: 11px;
+  color: var(--app-text-secondary);
+  font-style: italic;
 }
 .chatComposerSpinner {
   width: 16px;

@@ -15,6 +15,8 @@ import {
 import styles from "./Dashboard.module.css";
 import useAgents from "../hooks/useAgents";
 import useClaraConversations from "../hooks/useClaraConversations";
+import useAllConversations from "../hooks/useAllConversations";
+import useConversationMessages from "../hooks/useConversationMessages";
 import supabase from "../lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import AudioMessageBubble, {
@@ -72,6 +74,7 @@ type Conversation = {
   agentSentCount: number;
   humanSentCount: number;
   createdAt: string;
+  agentConfigId?: string;
 };
 
 const channelFilterOptions: ChannelFilterOption[] = [
@@ -340,6 +343,88 @@ const buildTodayEvolutionSeries = (
   return points;
 };
 
+const buildConversationsStartedSeries = (
+  conversations: Conversation[],
+  window: PeriodWindow,
+): EvolutionPoint[] => {
+  const points: EvolutionPoint[] = [];
+  const todayString = new Date().toDateString();
+  for (let i = 0; i < window.daySpan; i++) {
+    const targetDate = new Date(window.startDate.getTime() + i * DAY_IN_MS);
+    const targetDateString = targetDate.toDateString();
+    let count = 0;
+    conversations.forEach((conv) => {
+      if (new Date(conv.createdAt).toDateString() === targetDateString) count++;
+    });
+    const label = targetDateString === todayString ? "Aujourd'hui" : formatDayLabel(targetDate);
+    points.push({
+      id: `${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}`,
+      label,
+      tooltip: `${label}: ${count} conversation${count > 1 ? "s" : ""}`,
+      count,
+      timestampMs: targetDate.getTime(),
+    });
+  }
+  return points;
+};
+
+const buildConversationsStartedYearlySeries = (
+  conversations: Conversation[],
+  window: PeriodWindow,
+): EvolutionPoint[] => {
+  const year = window.startDate.getFullYear();
+  const points: EvolutionPoint[] = [];
+  for (let month = 0; month < 12; month++) {
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 1, 0, 0, 0, -1);
+    let count = 0;
+    conversations.forEach((conv) => {
+      const t = new Date(conv.createdAt).getTime();
+      if (t >= monthStart.getTime() && t <= monthEnd.getTime()) count++;
+    });
+    const label = monthStart.toLocaleDateString("fr-FR", { month: "short" });
+    points.push({
+      id: `${year}-${month + 1}`,
+      label,
+      tooltip: `${label} ${year}: ${count} conversation${count > 1 ? "s" : ""}`,
+      count,
+      timestampMs: monthStart.getTime(),
+    });
+  }
+  return points;
+};
+
+const buildConversationsStartedTodaySeries = (
+  conversations: Conversation[],
+  window: PeriodWindow,
+): EvolutionPoint[] => {
+  const points: EvolutionPoint[] = [];
+  const endOfDayMs = window.startMs + DAY_IN_MS - 1;
+  const bucketRangeMs = DAY_IN_MS / TODAY_BUCKET_COUNT;
+  for (let i = 0; i < TODAY_BUCKET_COUNT; i++) {
+    const bucketStartMs = Math.floor(window.startMs + i * bucketRangeMs);
+    const bucketEndMs =
+      i === TODAY_BUCKET_COUNT - 1
+        ? endOfDayMs
+        : Math.floor(window.startMs + (i + 1) * bucketRangeMs) - 1;
+    let count = 0;
+    conversations.forEach((conv) => {
+      const t = new Date(conv.createdAt).getTime();
+      if (t >= bucketStartMs && t <= bucketEndMs) count++;
+    });
+    const startLabel = formatHourLabel(new Date(bucketStartMs));
+    const endLabel = formatHourLabel(new Date(bucketEndMs));
+    points.push({
+      id: `today-${i}`,
+      label: endLabel,
+      tooltip: `${startLabel} - ${endLabel}: ${count} conversation${count > 1 ? "s" : ""}`,
+      count,
+      timestampMs: bucketEndMs,
+    });
+  }
+  return points;
+};
+
 const channelCycle: ChannelOption[] = ["Instagram", "WhatsApp", "Telegram"];
 const TOP_CONVERSATIONS_PAGE_SIZE = 3;
 
@@ -410,96 +495,91 @@ const normalizeChannel = (platform?: string): ChannelOption => {
   return "Instagram";
 };
 
+const mapMessageRecord = (convId: string, message: any): Message => {
+  const isAudioMessage = message.message_type === "audio";
+  let mediaPath: string | null = null;
+  let transcriptStatus: TranscriptStatus | undefined = undefined;
+  let transcriptContent: string | null = null;
+  let transcriptError: string | null = null;
+  let attachment: any = undefined;
+
+  if (isAudioMessage) {
+    mediaPath = message.media_path || null;
+    const rawTranscriptStatus = message.transcript_status;
+    transcriptStatus = rawTranscriptStatus === "none" ? undefined : rawTranscriptStatus;
+    transcriptContent = message.transcript || null;
+    transcriptError = message.transcript_error || null;
+    attachment = {
+      type: "audio" as const,
+      label: mediaPath ? "Message vocal" : "Message vocal (fichier manquant)",
+      mediaPath: mediaPath || undefined,
+    };
+  } else {
+    const firstAttachment = Array.isArray(message.attachments)
+      ? message.attachments[0]
+      : null;
+    if (firstAttachment) {
+      const attachmentType =
+        firstAttachment?.type === "audio"
+          ? "audio"
+          : firstAttachment?.type === "file"
+          ? "file"
+          : "image";
+      const attachmentMediaPath =
+        firstAttachment?.media_path ??
+        firstAttachment?.mediaPath ??
+        firstAttachment?.path ??
+        firstAttachment?.url ??
+        null;
+      attachment = {
+        type: attachmentType,
+        label: firstAttachment.label ?? "Pièce jointe",
+        mediaPath: attachmentMediaPath ?? undefined,
+      };
+      if (attachmentType === "audio") {
+        mediaPath = attachmentMediaPath;
+        transcriptStatus =
+          (message.transcript_status as TranscriptStatus | undefined) ??
+          (message.transcription_status as TranscriptStatus | undefined) ??
+          undefined;
+        transcriptContent =
+          message.transcription ??
+          message.transcript ??
+          message.transcribed_text ??
+          null;
+        transcriptError =
+          message.transcription_error ??
+          message.transcript_error ??
+          null;
+      }
+    }
+  }
+  return {
+    id: `${convId}-${message.id}`,
+    direction: message.direction === "out" ? "outbound" : "inbound",
+    text: message.body_text ?? "",
+    sentAt: message.sent_at ?? message.created_at ?? new Date().toISOString(),
+    attachment,
+    mediaPath: mediaPath ?? undefined,
+    transcriptStatus,
+    transcript: transcriptContent,
+    transcriptError,
+    authorType:
+      message.author_type === "human"
+        ? "human"
+        : message.author_type === "customer"
+        ? "customer"
+        : "agent",
+    automationStart: message.automation_start ?? null,
+    automationEnd: message.automation_end ?? null,
+  };
+};
+
 const mapConversationRecord = (record: any): Conversation => {
   const channel = normalizeChannel(record.platform);
   const messages =
     (record.conversation_messages ?? [])
-      .map((message: any) => {
-        // Gestion spécifique des messages vocaux (message_type = 'audio')
-        const isAudioMessage = message.message_type === "audio";
-        let mediaPath: string | null = null;
-        let transcriptStatus: TranscriptStatus | undefined = undefined;
-        let transcriptContent: string | null = null;
-        let transcriptError: string | null = null;
-        let attachment: any = undefined;
-
-        if (isAudioMessage) {
-          // Message vocal : utiliser les colonnes directes
-          mediaPath = message.media_path || null;
-          const rawTranscriptStatus = message.transcript_status;
-          transcriptStatus = rawTranscriptStatus === "none" ? undefined : rawTranscriptStatus;
-          transcriptContent = message.transcript || null;
-          transcriptError = message.transcript_error || null;
-          
-          // Toujours créer un attachment pour les messages audio (même sans media_path)
-          attachment = {
-            type: "audio" as const,
-            label: mediaPath ? "Message vocal" : "Message vocal (fichier manquant)",
-            mediaPath: mediaPath || undefined,
-          };
-        } else {
-          // Message non-vocal : vérifier les attachments
-          const firstAttachment = Array.isArray(message.attachments)
-            ? message.attachments[0]
-            : null;
-          if (firstAttachment) {
-            const attachmentType =
-              firstAttachment?.type === "audio"
-                ? "audio"
-                : firstAttachment?.type === "file"
-                ? "file"
-                : "image";
-            const attachmentMediaPath =
-              firstAttachment?.media_path ??
-              firstAttachment?.mediaPath ??
-              firstAttachment?.path ??
-              firstAttachment?.url ??
-              null;
-            
-            attachment = {
-              type: attachmentType,
-              label: firstAttachment.label ?? "Pièce jointe",
-              mediaPath: attachmentMediaPath ?? undefined,
-            };
-            
-            if (attachmentType === "audio") {
-              mediaPath = attachmentMediaPath;
-              transcriptStatus =
-                (message.transcript_status as TranscriptStatus | undefined) ??
-                (message.transcription_status as TranscriptStatus | undefined) ??
-                undefined;
-              transcriptContent =
-                message.transcription ??
-                message.transcript ??
-                message.transcribed_text ??
-                null;
-              transcriptError =
-                message.transcription_error ??
-                message.transcript_error ??
-                null;
-            }
-          }
-        }
-        return {
-          id: `${record.id}-${message.id}`,
-          direction: message.direction === "out" ? "outbound" : "inbound",
-          text: message.body_text ?? "",
-          sentAt: message.sent_at ?? message.created_at ?? new Date().toISOString(),
-          attachment,
-          mediaPath: mediaPath ?? undefined,
-          transcriptStatus,
-          transcript: transcriptContent,
-          transcriptError,
-          authorType:
-            message.author_type === "human"
-              ? "human"
-              : message.author_type === "customer"
-              ? "customer"
-              : "agent",
-          automationStart: message.automation_start ?? null,
-          automationEnd: message.automation_end ?? null,
-        };
-      })
+      .map((message: any) => mapMessageRecord(String(record.id), message))
       .sort(
         (a: Message, b: Message) =>
           new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
@@ -537,6 +617,7 @@ const mapConversationRecord = (record: any): Conversation => {
     agentSentCount: record.agent_sent_count ?? 0,
     humanSentCount: record.human_sent_count ?? 0,
     createdAt: record.created_at ?? new Date().toISOString(),
+    agentConfigId: record.agent_config_id ?? undefined,
   };
 };
 
@@ -703,7 +784,8 @@ const ConversationItem: FunctionComponent<{
   conversation: Conversation;
   isActive: boolean;
   onSelect: () => void;
-}> = ({ conversation, isActive, onSelect }) => {
+  agentLabel?: string;
+}> = ({ conversation, isActive, onSelect, agentLabel }) => {
   const initials = conversation.contactName
     .split(" ")
     .map((token) => token.charAt(0))
@@ -786,6 +868,11 @@ const ConversationItem: FunctionComponent<{
           <span className={styles.badgeText}>Arrêté</span>
         </span>
       )}
+            {agentLabel && (
+              <span className={styles.agentBadge} title={agentLabel}>
+                {agentLabel.length > 8 ? agentLabel.slice(0, 8) + "…" : agentLabel}
+              </span>
+            )}
             <ChannelBadge channel={conversation.channel} />
           </div>
         </div>
@@ -907,6 +994,7 @@ const Dashboard: FunctionComponent = () => {
   const [sortOption, setSortOption] = useState<SortOption>("recent");
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilterOptions)[number]>("Tous");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
     null
   );
@@ -934,6 +1022,12 @@ const Dashboard: FunctionComponent = () => {
     [displayedAgents],
   );
 
+  const allConfigIds = useMemo(
+    () => agentConfigOptions.map((o) => o.value),
+    [agentConfigOptions],
+  );
+  const isAllMode = selectedConfigId === "all";
+
   const selectedAgent = useMemo(
     () => displayedAgents.find(
       (agent) => (agent.display_id ?? agent.agent_id) === selectedConfigId
@@ -941,17 +1035,34 @@ const Dashboard: FunctionComponent = () => {
     [displayedAgents, selectedConfigId],
   );
 
-  const activeTabs = selectedAgent?.dashboard_tab_component ?? [];
+  const activeTabs = isAllMode
+    ? (["stats", "conversation"] as string[])
+    : (selectedAgent?.dashboard_tab_component ?? []);
   const effectiveCurrentTab: TabOption = activeTabs.includes(currentTab)
     ? currentTab
     : (activeTabs[0] as TabOption) ?? "stats";
 
   const {
-    data: rawConversations = [],
-    isLoading: conversationsLoading,
-    isError: conversationsError,
-    error: conversationsErrorDetails,
-  } = useClaraConversations(selectedConfigId ?? undefined);
+    data: rawConversationsSingle = [],
+    isLoading: conversationsLoadingSingle,
+    isError: conversationsErrorSingle,
+    error: conversationsErrorDetailsSingle,
+  } = useClaraConversations(!isAllMode ? selectedConfigId ?? undefined : undefined);
+
+  const {
+    data: rawConversationsAll = [],
+    isLoading: conversationsLoadingAll,
+  } = useAllConversations(isAllMode ? allConfigIds : []);
+
+  const {
+    data: lazyMessageData = [],
+    isLoading: lazyMessagesLoading,
+  } = useConversationMessages(isAllMode ? selectedConversationId ?? undefined : undefined);
+
+  const rawConversations = isAllMode ? rawConversationsAll : rawConversationsSingle;
+  const conversationsLoading = isAllMode ? conversationsLoadingAll : conversationsLoadingSingle;
+  const conversationsError = isAllMode ? false : conversationsErrorSingle;
+  const conversationsErrorDetails = isAllMode ? null : conversationsErrorDetailsSingle;
   const conversationData = useMemo(
     () => rawConversations.map(mapConversationRecord),
     [rawConversations],
@@ -976,7 +1087,8 @@ const Dashboard: FunctionComponent = () => {
     }
     if (
       !selectedConfigId ||
-      !agentConfigOptions.some((option) => option.value === selectedConfigId)
+      (selectedConfigId !== "all" &&
+        !agentConfigOptions.some((option) => option.value === selectedConfigId))
     ) {
       setSelectedConfigId(agentConfigOptions[0].value);
     }
@@ -1049,6 +1161,32 @@ const Dashboard: FunctionComponent = () => {
     setSearchParams(params);
   };
 
+  const conversationsQueryKey = useMemo(
+    () =>
+      isAllMode
+        ? ["all-conversations", [...allConfigIds].sort().join(",")]
+        : ["clara-conversations", selectedConfigId],
+    [isAllMode, allConfigIds, selectedConfigId],
+  );
+
+  const agentLabelMap = useMemo(
+    () => new Map(agentConfigOptions.map((o) => [o.value, o.label])),
+    [agentConfigOptions],
+  );
+
+  const lazyMessages = useMemo(
+    () =>
+      isAllMode && selectedConversationId
+        ? lazyMessageData
+            .map((msg: any) => mapMessageRecord(selectedConversationId, msg))
+            .sort(
+              (a: Message, b: Message) =>
+                new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+            )
+        : [],
+    [isAllMode, selectedConversationId, lazyMessageData],
+  );
+
   const periodWindow = useMemo(() => getPeriodWindow(period), [period]);
 
   const channelScopedConversations = useMemo(
@@ -1083,10 +1221,24 @@ const Dashboard: FunctionComponent = () => {
     } else if (sortOption === "unread") {
       copy.sort((a, b) => b.unreadCount - a.unreadCount);
     } else {
-      copy.sort((a, b) => b.messages.length - a.messages.length);
+      copy.sort((a, b) =>
+        isAllMode
+          ? (b.agentSentCount + b.humanSentCount) - (a.agentSentCount + a.humanSentCount)
+          : b.messages.length - a.messages.length
+      );
     }
     return copy;
-  }, [filteredConversations, sortOption]);
+  }, [filteredConversations, sortOption, isAllMode]);
+
+  const searchedConversations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sortedConversations;
+    return sortedConversations.filter(
+      (conv) =>
+        conv.contactName.toLowerCase().includes(q) ||
+        conv.contactHandle.toLowerCase().includes(q)
+    );
+  }, [sortedConversations, searchQuery]);
 
   const visibleConversationCount = filteredConversations.length;
 
@@ -1106,6 +1258,15 @@ const Dashboard: FunctionComponent = () => {
       (conversation) => conversation.id === selectedConversationId
     ) ?? sortedConversations[0] ??
     null;
+  const isWindowExpired = useMemo(() => {
+    if (!activeConversation) return false;
+    const messages = isAllMode ? lazyMessages : activeConversation.messages;
+    if (isAllMode && lazyMessagesLoading) return false;
+    const lastInbound = [...messages].reverse().find((m) => m.direction === "inbound");
+    if (!lastInbound) return false;
+    return Date.now() - new Date(lastInbound.sentAt).getTime() > 24 * 60 * 60 * 1000;
+  }, [activeConversation, isAllMode, lazyMessages, lazyMessagesLoading]);
+
   const isConversationStopped = Boolean(
     activeConversation &&
       ["stopped", "condition_stop", "error"].includes(
@@ -1118,7 +1279,7 @@ const Dashboard: FunctionComponent = () => {
     if (!activeConversation) {
       return [];
     }
-    const messages = activeConversation.messages;
+    const messages = isAllMode ? lazyMessages : activeConversation.messages;
     const messagesWithSeparators: Array<Message | { type: 'date-separator'; date: string; id: string }> = [];
 
     for (let i = 0; i < messages.length; i++) {
@@ -1153,7 +1314,7 @@ const Dashboard: FunctionComponent = () => {
     }
 
     return messagesWithSeparators;
-  }, [activeConversation]);
+  }, [isAllMode, lazyMessages, activeConversation]);
 
   const previousConversationRef = useRef<{
     id: string | null;
@@ -1206,6 +1367,20 @@ const Dashboard: FunctionComponent = () => {
 
 
   const stats = useMemo(() => {
+    if (isAllMode) {
+      const active = channelScopedConversations.filter(
+        (conv) => conv.status === "Ouvert" && isInPeriodWindow(conv.lastAt, periodWindow),
+      ).length;
+      const responses = channelScopedConversations.reduce(
+        (acc, conv) => acc + conv.agentSentCount,
+        0,
+      );
+      const messages = channelScopedConversations.reduce(
+        (acc, conv) => acc + conv.inboundCount,
+        0,
+      );
+      return { responses, messages, active, responseTime: 0 };
+    }
     let totalResponseMs = 0;
     let responsePairs = 0;
     const responses = channelScopedConversations.reduce((acc, conversation) => {
@@ -1256,16 +1431,24 @@ const Dashboard: FunctionComponent = () => {
       active: activeConversations,
       responseTime: averageResponseSeconds,
     };
-  }, [channelScopedConversations, periodWindow]);
+  }, [isAllMode, channelScopedConversations, periodWindow]);
 
   const evolutionSeries = useMemo(
-    () =>
-      period === "year"
+    () => {
+      if (isAllMode) {
+        return period === "year"
+          ? buildConversationsStartedYearlySeries(channelScopedConversations, periodWindow)
+          : period === "today"
+          ? buildConversationsStartedTodaySeries(channelScopedConversations, periodWindow)
+          : buildConversationsStartedSeries(channelScopedConversations, periodWindow);
+      }
+      return period === "year"
         ? buildYearlyEvolutionSeries(channelScopedConversations, periodWindow)
         : period === "today"
         ? buildTodayEvolutionSeries(channelScopedConversations, periodWindow)
-        : buildDailyEvolutionSeries(channelScopedConversations, periodWindow),
-    [channelScopedConversations, period, periodWindow],
+        : buildDailyEvolutionSeries(channelScopedConversations, periodWindow);
+    },
+    [isAllMode, channelScopedConversations, period, periodWindow],
   );
 
   const deltas = {
@@ -1351,12 +1534,14 @@ const Dashboard: FunctionComponent = () => {
     };
 
     conversationData.forEach((conversation) => {
-      const agentMessages = conversation.messages.filter(
-        (message) =>
-          message.direction === "outbound" &&
-          message.authorType === "agent" &&
-          isInPeriodWindow(message.sentAt, periodWindow),
-      ).length;
+      const agentMessages = isAllMode
+        ? conversation.agentSentCount
+        : conversation.messages.filter(
+            (message) =>
+              message.direction === "outbound" &&
+              message.authorType === "agent" &&
+              isInPeriodWindow(message.sentAt, periodWindow),
+          ).length;
       bucket[conversation.channel] += agentMessages;
     });
 
@@ -1366,7 +1551,7 @@ const Dashboard: FunctionComponent = () => {
       count: bucket[channel],
       normalized: Math.round((bucket[channel] / maxBucket) * 100),
     }));
-  }, [conversationData, periodWindow]);
+  }, [isAllMode, conversationData, periodWindow]);
 
   const maxChannelCount =
     Math.max(...channelStats.map((stat) => stat.count)) || 1;
@@ -1387,9 +1572,11 @@ const Dashboard: FunctionComponent = () => {
       channelScopedConversations
         .map((conversation) => ({
           conversation,
-          periodMessageCount: conversation.messages.filter((message) =>
-            isInPeriodWindow(message.sentAt, periodWindow),
-          ).length,
+          periodMessageCount: isAllMode
+            ? conversation.agentSentCount + conversation.inboundCount
+            : conversation.messages.filter((message) =>
+                isInPeriodWindow(message.sentAt, periodWindow),
+              ).length,
         }))
         .filter((row) => row.periodMessageCount > 0)
         .sort((a, b) => {
@@ -1401,7 +1588,7 @@ const Dashboard: FunctionComponent = () => {
             new Date(a.conversation.lastAt).getTime()
           );
         }),
-    [channelScopedConversations, periodWindow],
+    [isAllMode, channelScopedConversations, periodWindow],
   );
 
   const topConversationPageCount = Math.max(
@@ -1451,8 +1638,7 @@ const Dashboard: FunctionComponent = () => {
   useEffect(() => {
     if (!activeConversation || activeConversation.unreadCount === 0 || !selectedConfigId) return;
     const convId = Number(activeConversation.id);
-    const queryKey = ["clara-conversations", selectedConfigId];
-    queryClient.setQueryData(queryKey, (oldData: any) => {
+    queryClient.setQueryData(conversationsQueryKey, (oldData: any) => {
       if (!Array.isArray(oldData)) return oldData;
       return oldData.map((record: any) =>
         record.id === convId ? { ...record, unread_count: 0 } : record
@@ -1462,7 +1648,7 @@ const Dashboard: FunctionComponent = () => {
   }, [activeConversation?.id]);
 
   const handleSendMessage = async () => {
-    if (!composerText.trim() || !activeConversation || !selectedConfigId) {
+    if (!composerText.trim() || !activeConversation || !selectedConfigId || isWindowExpired) {
       return;
     }
 
@@ -1485,23 +1671,17 @@ const Dashboard: FunctionComponent = () => {
       automationEnd: null,
     };
 
-    // 2. Mettre à jour React Query optimistiquement
-    const queryKey = ["clara-conversations", selectedConfigId];
-    queryClient.setQueryData(queryKey, (oldData: any) => {
-      if (!Array.isArray(oldData)) return oldData;
-      
-      return oldData.map((conv: any) =>
-        conv.id === activeConversation.id
-          ? {
-              ...conv,
-              messages: [
-                ...conv.messages,
-                optimisticMessage
-              ]
-            }
-          : conv
-      );
-    });
+    // 2. Mettre à jour React Query optimistiquement (uniquement en mode agent simple)
+    if (!isAllMode) {
+      queryClient.setQueryData(conversationsQueryKey, (oldData: any) => {
+        if (!Array.isArray(oldData)) return oldData;
+        return oldData.map((conv: any) =>
+          conv.id === activeConversation.id
+            ? { ...conv, messages: [...conv.messages, optimisticMessage] }
+            : conv
+        );
+      });
+    }
 
     // 3. Vider le champ immédiatement
     setComposerText("");
@@ -1551,19 +1731,20 @@ const Dashboard: FunctionComponent = () => {
     } catch (error) {
       console.error("Erreur lors de l'envoi du message", error);
       
-      // 6. Rollback en cas d'erreur
-      queryClient.setQueryData(queryKey, (oldData: any) => {
-        if (!Array.isArray(oldData)) return oldData;
-        
-        return oldData.map((conv: any) =>
-          conv.id === activeConversation.id
-            ? {
-                ...conv,
-                messages: conv.messages.filter((msg: any) => msg.id !== optimisticMessage.id)
-              }
-            : conv
-        );
-      });
+      // 6. Rollback en cas d'erreur (uniquement en mode agent simple)
+      if (!isAllMode) {
+        queryClient.setQueryData(conversationsQueryKey, (oldData: any) => {
+          if (!Array.isArray(oldData)) return oldData;
+          return oldData.map((conv: any) =>
+            conv.id === activeConversation.id
+              ? {
+                  ...conv,
+                  messages: conv.messages.filter((msg: any) => msg.id !== optimisticMessage.id),
+                }
+              : conv
+          );
+        });
+      }
       
       // Remettre le texte dans le champ
       setComposerText(messageText);
@@ -1684,7 +1865,7 @@ const Dashboard: FunctionComponent = () => {
         <header className={styles.claraHeader}>
           <div className={styles.claraHeaderTop}>
             <h1 className={styles.claraHeaderTitle}>
-              Dashboard — {activeConfigOption?.label ?? "Clara"}
+              Dashboard — {isAllMode ? "Tous les agents" : (activeConfigOption?.label ?? "Clara")}
             </h1>
           </div>
           <div className={styles.claraHeaderControls}>
@@ -1705,14 +1886,30 @@ const Dashboard: FunctionComponent = () => {
                     aria-expanded={isConfigMenuOpen}
                     aria-label="Choisir une configuration d'agent"
                   >
-                    <span
-                      className={`${styles.configDot} ${selectedAgent?.is_active === false ? styles.configDotInactive : ""}`}
-                      title={selectedAgent?.is_active === false ? "Inactif" : "Actif"}
-                    />
-                    {(activeConfigOption?.label ?? "Selectionner un agent").toUpperCase()}
+                    {!isAllMode && (
+                      <span
+                        className={`${styles.configDot} ${selectedAgent?.is_active === false ? styles.configDotInactive : ""}`}
+                        title={selectedAgent?.is_active === false ? "Inactif" : "Actif"}
+                      />
+                    )}
+                    {isAllMode ? "TOUS LES AGENTS" : (activeConfigOption?.label ?? "Selectionner un agent").toUpperCase()}
                   </button>
                   {isConfigMenuOpen && (
                     <div className={styles.claraConfigMenu} role="listbox">
+                      {agentConfigOptions.length > 1 && (
+                        <button
+                          key="all"
+                          type="button"
+                          role="option"
+                          aria-selected={isAllMode}
+                          className={`${styles.claraConfigMenuItem} ${
+                            isAllMode ? styles.claraConfigMenuItemActive : ""
+                          }`.trim()}
+                          onClick={() => handleConfigChange("all")}
+                        >
+                          TOUS LES AGENTS
+                        </button>
+                      )}
                       {agentConfigOptions.map((option) => {
                         const isActive = selectedConfigId === option.value;
                         return (
@@ -1791,7 +1988,7 @@ const Dashboard: FunctionComponent = () => {
   </div>
   <section className={`${styles.claraPanel} ${styles.claraPanelWide}`}>
     <div className={styles.evolutionHeader}>
-      <h3>Messages envoyes par l'agent</h3>
+      <h3>{isAllMode ? "Nouvelles conversations" : "Messages envoyes par l'agent"}</h3>
       <div className={styles.evolutionStats}>
         <span className={styles.evolutionGranularity}>
           {period === "year"
@@ -1804,7 +2001,7 @@ const Dashboard: FunctionComponent = () => {
     </div>
     {sparklineValues.every((v) => v === 0) ? (
       <div className={styles.sparklineEmpty}>
-        <span>L'agent n'a pas encore envoyé de réponses sur cette période.</span>
+        <span>{isAllMode ? "Aucune conversation démarrée sur cette période." : "L'agent n'a pas encore envoyé de réponses sur cette période."}</span>
         <button
           type="button"
           className={styles.sparklineEmptyLink}
@@ -1981,6 +2178,15 @@ const Dashboard: FunctionComponent = () => {
                   </span>
                 </div>
               </div>
+            <div className={styles.conversationSearchWrap}>
+              <input
+                type="text"
+                className={styles.conversationSearch}
+                placeholder="Rechercher..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <div className={styles.conversationFilters}>
               {statusFilterOptions.map((statusOption) => (
                 <button
@@ -2037,7 +2243,7 @@ const Dashboard: FunctionComponent = () => {
                   )}
                 </div>
               </div>
-              {!selectedConfigId ? (
+              {!selectedConfigId && !isAllMode ? (
                 <div className={styles.conversationEmpty}>
                   Sélectionne une configuration pour charger les conversations.
                 </div>
@@ -2050,12 +2256,13 @@ const Dashboard: FunctionComponent = () => {
                 </div>
               ) : (
                 <div className={styles.conversationList}>
-                  {sortedConversations.map((conversation) => (
+                  {searchedConversations.map((conversation) => (
                     <ConversationItem
                       key={conversation.id}
                       conversation={conversation}
                       isActive={conversation.id === activeConversation?.id}
                       onSelect={() => setSelectedConversationId(conversation.id)}
+                      agentLabel={isAllMode ? agentLabelMap.get(conversation.agentConfigId ?? "") : undefined}
                     />
                   ))}
                 </div>
@@ -2307,6 +2514,9 @@ const Dashboard: FunctionComponent = () => {
                     </>
                   )}
                   <div className={styles.chatMessages} ref={messagesContainerRef}>
+                  {isAllMode && lazyMessagesLoading && (
+                    <div className={styles.conversationLoading}>Chargement des messages…</div>
+                  )}
                   {messagesForDisplay.map((item) => {
                       if ('type' in item && item.type === 'date-separator') {
                         return (
@@ -2330,17 +2540,24 @@ const Dashboard: FunctionComponent = () => {
                     <textarea
                       value={composerText}
                       onChange={(event) => setComposerText(event.target.value)}
-                      placeholder="Écrire un message…"
+                      placeholder={isWindowExpired ? "Fenêtre 24h expirée" : "Écrire un message…"}
+                      disabled={isWindowExpired}
                     />
                     <div className={styles.chatComposerActions}>
-                      <span style={{ color: "var(--app-text-secondary)", fontSize: "12px" }}>
-                        Canal actif : {activeConversation.channel}
-                      </span>
+                      {isWindowExpired ? (
+                        <span className={styles.windowExpiredNotice}>
+                          Fenêtre 24h expirée · Impossible de répondre
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--app-text-secondary)", fontSize: "12px" }}>
+                          Canal actif : {activeConversation.channel}
+                        </span>
+                      )}
                     <button
                       type="button"
                       className={styles.chatComposerSend}
                       onClick={handleSendMessage}
-                      disabled={!composerText.trim()}
+                      disabled={!composerText.trim() || isWindowExpired}
                     >
                       Envoyer
                     </button>
