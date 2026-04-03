@@ -59,15 +59,15 @@ const HeroSection = ({ primaryCtaLabel, spotsRemaining }: HeroSectionProps) => {
         <aside className={styles.appPreviewSlot}>
           <div className={styles.appPreviewTop}>
             <div className={styles.appPreviewHeading}>
-              <p className={styles.appPreviewTitle}>Visite guidee LeadControl en 60 secondes</p>
+              <p className={styles.appPreviewTitle}>Visite guidée LeadControl en 60 secondes</p>
               <p className={styles.appPreviewCaption}>
-                Inbox reelle, qualification IA et prise de rendez vous automatique.
+                Inbox réelle, qualification IA et prise de rendez-vous automatique.
               </p>
             </div>
           </div>
 
           <div className={styles.demoMetaRow}>
-            <span className={styles.demoMetaChip}>Cas reel</span>
+            <span className={styles.demoMetaChip}>Cas réel</span>
             <span className={styles.demoMetaChip}>Version produit actuelle</span>
           </div>
 
@@ -84,7 +84,7 @@ const HeroSection = ({ primaryCtaLabel, spotsRemaining }: HeroSectionProps) => {
                 src="/landing/demo-v1.mov"
               >
                 <source src="/landing/demo-v1.mov" type="video/quicktime" />
-                Votre navigateur ne supporte pas la lecture video integree.
+                Votre navigateur ne supporte pas la lecture vidéo intégrée.
               </video>
             </figure>
           </div>

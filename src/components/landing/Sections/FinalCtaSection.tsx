@@ -9,7 +9,7 @@ const FinalCtaSection = (_props: FinalCtaSectionProps) => {
   return (
     <section className={styles.section} data-reveal>
       <div className={styles.finalCtaBox}>
-        <p className={styles.sectionKicker}>Pret a commencer</p>
+        <p className={styles.sectionKicker}>Prêt à commencer</p>
         <h2>{finalCtaCopy.title}</h2>
         <p>{finalCtaCopy.subtitle}</p>
         <button type="button" onClick={openCalendly} className={styles.ctaButton}>
@@ -22,7 +22,7 @@ const FinalCtaSection = (_props: FinalCtaSectionProps) => {
             onClick={openCalendly}
             className={styles.ctaSecondaryLink}
           >
-            Fixer un check up de vos DM (15 min) &gt;
+            Fixer un check-up de vos DM (15 min) &gt;
           </button>
         </p>
       </div>

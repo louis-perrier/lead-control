@@ -8,10 +8,10 @@ const ProofSection = () => {
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
         <p className={styles.sectionKicker}>Preuve rapide</p>
-        <h2>Compatible avec vos canaux prioritaires, pense pour convertir vite.</h2>
+        <h2>Compatible avec vos canaux prioritaires, pensé pour convertir vite.</h2>
         <p>
-          Une mise en place simple, une execution continue et une vision claire des conversations
-          qui avancent vers un rendez vous.
+          Une mise en place simple, une exécution continue et une vision claire des conversations
+          qui avancent vers un rendez-vous.
         </p>
       </div>
 

@@ -13,8 +13,8 @@ const FaqSection = () => {
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
         <p className={styles.sectionKicker}>FAQ conversion</p>
-        <h2>Les objections les plus frequentes, traitees clairement.</h2>
-        <p>Reponses concises pour aider la decision sans surpromesse.</p>
+        <h2>Les objections les plus fréquentes, traitées clairement.</h2>
+        <p>Réponses concises pour aider la décision sans surpromesse.</p>
       </div>
       <div className={styles.faqGrid}>
         {faqItems.map((item, index) => {
@@ -32,13 +32,13 @@ const FaqSection = () => {
                 aria-controls={contentId}
                 onClick={() => handleToggle(index)}
               >
-              <span>{item.question}</span>
+                <span>{item.question}</span>
                 <span
                   className={`${styles.faqIcon} ${isOpen ? styles.faqIconOpen : ""}`}
                   aria-hidden="true"
                 >
-                +
-              </span>
+                  +
+                </span>
               </button>
               {isOpen && (
                 <p id={contentId} className={styles.faqAnswer}>

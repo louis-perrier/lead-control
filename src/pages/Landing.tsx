@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import HeaderSticky from "../components/landing/HeaderSticky";
-import PromoBanner from "../components/landing/PromoBanner";
 import HeroSection from "../components/landing/Sections/HeroSection";
 import HowItWorksSection from "../components/landing/Sections/HowItWorksSection";
 import CapabilitiesSection from "../components/landing/Sections/CapabilitiesSection";
@@ -10,6 +9,7 @@ import ProofSection from "../components/landing/Sections/ProofSection";
 import TestimonialsSection from "../components/landing/Sections/TestimonialsSection";
 import RoiSection from "../components/landing/Sections/RoiSection";
 import PricingSection from "../components/landing/Sections/PricingSection";
+import GuaranteeSection from "../components/landing/Sections/GuaranteeSection";
 import FounderSection from "../components/landing/Sections/FounderSection";
 import FinalCtaSection from "../components/landing/Sections/FinalCtaSection";
 import FaqSection from "../components/landing/Sections/FaqSection";
@@ -43,7 +43,6 @@ const Landing = () => {
 
   return (
     <>
-      <PromoBanner />
       <HeaderSticky primaryCtaLabel={primaryCtaLabel} />
       <main className={styles.page}>
         <HeroSection primaryCtaLabel={primaryCtaLabel} spotsRemaining={spots} />
@@ -53,6 +52,7 @@ const Landing = () => {
         <TestimonialsSection />
         <RoiSection />
         <PricingSection primaryCtaLabel={primaryCtaLabel} />
+        <GuaranteeSection />
         <FounderSection />
         <FaqSection />
         <FinalCtaSection />

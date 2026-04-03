@@ -6,9 +6,9 @@ const RoiSection = () => {
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
         <p className={styles.sectionKicker}>ROI et pilotage</p>
-        <h2>Des indicateurs utiles pour evaluer l'impact reel des DM automatises.</h2>
+        <h2>Des indicateurs utiles pour évaluer l'impact réel des DM automatisés.</h2>
         <p>
-          Objectif: vous aider a mesurer ce qui compte, sans promesse exageree ni chiffre hors
+          Objectif: vous aider à mesurer ce qui compte, sans promesse exagérée ni chiffre hors
           contexte.
         </p>
       </div>

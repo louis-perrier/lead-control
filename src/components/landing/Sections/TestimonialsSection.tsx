@@ -1,4 +1,4 @@
-﻿import { reassurancePoints, testimonials } from "../../../config/landing";
+import { reassurancePoints, testimonials } from "../../../config/landing";
 import styles from "../../../styles/landing/Sections.module.css";
 
 const TestimonialsSection = () => {
@@ -10,7 +10,7 @@ const TestimonialsSection = () => {
         <p className={styles.sectionKicker}>Retours terrain</p>
         <h2>Ce qu'en disent ceux qui l'utilisent au quotidien.</h2>
         <p>
-          Retours de fondateurs, coaches et closers qui ont integre LeadControl dans leur process
+          Retours de fondateurs, coaches et closers qui ont intégré LeadControl dans leur process
           commercial.
         </p>
       </div>

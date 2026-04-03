@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap");
 
 :global(:root) {
-  --banner-h: 2.25rem;
+  --banner-h: 0rem;
   --landing-bg: #050b14;
   --landing-bg-deep: #02060d;
   --landing-surface: rgba(10, 21, 36, 0.72);

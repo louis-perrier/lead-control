@@ -6,12 +6,12 @@ const FooterLanding = () => {
     <footer className={styles.footer} data-reveal>
       <div className={styles.topCard}>
         <div className={styles.top}>
-        <p>LeadControl - DM automation responsable, supervision humaine et approche orientee qualite.</p>
-        <div className={styles.links}>
-          <Link to="/policy/privacy-policy">Politique de confidentialite</Link>
-          <Link to="/policy/terms-et-conditions">Conditions generales</Link>
-          <Link to="/policy/data-deletion">Suppression de donnees</Link>
-        </div>
+          <p>LeadControl - DM automation responsable, supervision humaine et approche orientée qualité.</p>
+          <div className={styles.links}>
+            <Link to="/policy/privacy-policy">Politique de confidentialité</Link>
+            <Link to="/policy/terms-et-conditions">Conditions générales</Link>
+            <Link to="/policy/data-deletion">Suppression de données</Link>
+          </div>
         </div>
       </div>
       <div className={styles.bottomBar}>

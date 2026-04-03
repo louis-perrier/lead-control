@@ -5,11 +5,11 @@ const CapabilitiesSection = () => {
   return (
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
-        <p className={styles.sectionKicker}>Fonctionnalites cles</p>
-        <h2>Un agent IA complet pour qualifier et convertir en rendez vous.</h2>
+        <p className={styles.sectionKicker}>Fonctionnalités clés</p>
+        <h2>Un agent IA complet pour qualifier et convertir en rendez-vous.</h2>
         <p>
-          Chaque bloc est pense pour reduire le travail manuel sans perdre la personnalisation de
-          vos echanges.
+          Chaque bloc est pensé pour réduire le travail manuel sans perdre la personnalisation de
+          vos échanges.
         </p>
       </div>
       <div className={`${styles.cardGrid} ${styles.capabilitiesGrid}`}>

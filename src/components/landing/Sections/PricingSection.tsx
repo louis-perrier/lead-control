@@ -44,7 +44,7 @@ const PricingSection = ({ primaryCtaLabel }: PricingSectionProps) => {
         </article>
 
         <aside className={styles.pricingSide}>
-          <p className={styles.pricingSideTitle}>Ce que vous obtenez des la mise en route</p>
+          <p className={styles.pricingSideTitle}>Ce que vous obtenez dès la mise en route</p>
           {pricingData.highlights.map((item) => (
             <article key={item.label} className={styles.pricingHighlight}>
               <p>{item.label}</p>
