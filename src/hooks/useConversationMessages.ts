@@ -16,6 +16,7 @@ const fetchConversationMessages = async (conversationId: string) => {
       body_text,
       attachments,
       send_state,
+      read_by_contact_at,
       error_code,
       error_message,
       sent_at,

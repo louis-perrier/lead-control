@@ -1950,6 +1950,13 @@
   bottom: -16px;
   right: 12px;
 }
+.chatBubbleVu {
+  font-size: 11px;
+  color: rgba(15, 23, 42, 0.65);
+  position: absolute;
+  bottom: -28px;
+  right: 12px;
+}
 .attachmentChip {
   margin-top: 8px;
   padding: 6px 10px;

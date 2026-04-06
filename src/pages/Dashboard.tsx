@@ -50,6 +50,7 @@ type Message = {
   authorType?: "agent" | "human" | "customer";
   automationStart?: string | null;
   automationEnd?: string | null;
+  readByContactAt?: string | null;
 };
 
 type Conversation = {
@@ -572,6 +573,7 @@ const mapMessageRecord = (convId: string, message: any): Message => {
         : "agent",
     automationStart: message.automation_start ?? null,
     automationEnd: message.automation_end ?? null,
+    readByContactAt: message.read_by_contact_at ?? null,
   };
 };
 
@@ -907,7 +909,7 @@ const ConversationItem: FunctionComponent<{
   );
 };
 
-const ChatBubble: FunctionComponent<{ message: Message; contactName?: string }> = ({ message, contactName }) => {
+const ChatBubble: FunctionComponent<{ message: Message; contactName?: string; isLastOutbound?: boolean }> = ({ message, contactName, isLastOutbound }) => {
   const isOutbound = message.direction === "outbound";
   const label =
     message.authorType === "human"
@@ -943,6 +945,9 @@ const ChatBubble: FunctionComponent<{ message: Message; contactName?: string }> 
           minute: "2-digit",
         })}
       </span>
+      {isOutbound && isLastOutbound && message.readByContactAt && (
+        <span className={styles.chatBubbleVu}>Vu</span>
+      )}
     </div>
   );
 };
@@ -959,9 +964,10 @@ const DateSeparator: FunctionComponent<{ dateString: string }> = ({ dateString }
   );
 };
 
-const ConversationMessageItem: FunctionComponent<{ message: Message; contactName?: string }> = ({
+const ConversationMessageItem: FunctionComponent<{ message: Message; contactName?: string; isLastOutbound?: boolean }> = ({
   message,
   contactName,
+  isLastOutbound,
 }) => {
   const isMine = message.direction === "outbound";
   
@@ -981,7 +987,7 @@ const ConversationMessageItem: FunctionComponent<{ message: Message; contactName
       />
     );
   }
-  return <ChatBubble message={message} contactName={contactName} />;
+  return <ChatBubble message={message} contactName={contactName} isLastOutbound={isLastOutbound} />;
 };
 
 const Dashboard: FunctionComponent = () => {
@@ -2517,23 +2523,29 @@ const Dashboard: FunctionComponent = () => {
                   {isAllMode && lazyMessagesLoading && (
                     <div className={styles.conversationLoading}>Chargement des messages…</div>
                   )}
-                  {messagesForDisplay.map((item) => {
-                      if ('type' in item && item.type === 'date-separator') {
+                  {(() => {
+                      const lastOutboundId = [...messagesForDisplay].reverse().find(
+                        (item) => !('type' in item) && (item as Message).direction === "outbound"
+                      )?.id;
+                      return messagesForDisplay.map((item) => {
+                        if ('type' in item && item.type === 'date-separator') {
+                          return (
+                            <DateSeparator
+                              key={item.id}
+                              dateString={item.date}
+                            />
+                          );
+                        }
                         return (
-                          <DateSeparator
+                          <ConversationMessageItem
                             key={item.id}
-                            dateString={item.date}
+                            message={item as Message}
+                            contactName={activeConversation?.contactHandle || activeConversation?.contactName}
+                            isLastOutbound={item.id === lastOutboundId}
                           />
                         );
-                      }
-                      return (
-                        <ConversationMessageItem
-                          key={item.id}
-                          message={item as Message}
-                          contactName={activeConversation?.contactHandle || activeConversation?.contactName}
-                        />
-                      );
-                    })}
+                      });
+                    })()}
                     <div ref={messagesEndRef} />
                   </div>
                   <div className={styles.chatComposer}>
