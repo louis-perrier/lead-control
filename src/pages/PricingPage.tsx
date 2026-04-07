@@ -84,7 +84,7 @@ const PricingPage: FunctionComponent = () => {
     ? PLAN_LABELS[billing.planKey] ?? billing.planKey
     : "LeadControl";
   const agentsSettingsQty = billing?.agentsSettingsQty ?? 1;
-  const pricePerMonth = 350 + Math.max(0, agentsQty - 1) * 60;
+  const pricePerMonth = 700 + Math.max(0, agentsQty - 1) * 60;
   const showPriceFormula = agentsQty > 1;
 
   const creditsRemaining =
@@ -271,7 +271,7 @@ const PricingPage: FunctionComponent = () => {
                 </div>
                 {showPriceFormula && (
                   <span className={styles.priceFormula}>
-                    350 € + {agentsQty - 1} × 60 €
+                    700 € + {agentsQty - 1} × 60 €
                   </span>
                 )}
               </div>
@@ -385,7 +385,7 @@ const PricingPage: FunctionComponent = () => {
                     <div className={styles.planDetailsRow}>
                       <span className={styles.planDetailsLabel}>Prix</span>
                       <span className={styles.planDetailsValue}>
-                        {formatCurrency(350 + Math.max(0, agentsSettingsQty - 1) * 60)} / mois
+                        {formatCurrency(700 + Math.max(0, agentsSettingsQty - 1) * 60)} / mois
                       </span>
                     </div>
                   )}

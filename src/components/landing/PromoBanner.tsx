@@ -1,6 +1,6 @@
 import styles from "../../styles/landing/PromoBanner.module.css";
 
-const SEGMENT = '✦  -40% avec le code "LANCEMENT40"  ·  Lancement officiel  ·  Jusqu\'au 02/04  ';
+const SEGMENT = '✦  Offre Pâques  ·  -30% avec le code "LEADCONTROL30"  ·  Jusqu\'au 20/04  ';
 
 const PromoBanner = () => (
   <div className={styles.banner}>
