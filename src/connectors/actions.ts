@@ -35,6 +35,64 @@ const normalizeContext = (
   onSuccess: context.onSuccess ?? (() => {}),
 });
 
+const createConnectCalendly = (
+  context: Required<ConnectorActionsContext>
+) => async () => {
+  if (!context.configsId) return;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    const return_to = `https://leadcontrol.fr/app/agentai/configuration?configs_id=${context.configsId}`;
+    const res = await fetch(
+      "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/calendly-oauth/start",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          return_to,
+          configs_id: context.configsId,
+        }),
+      }
+    );
+    const { auth_url } = await res.json();
+    window.location.href = auth_url;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const createDisconnectCalendly = (
+  context: Required<ConnectorActionsContext>
+) => async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    const connectorId = context.connectorConnected.find(
+      (item) => item.connectors_name.toLowerCase() === "calendly"
+    )?.id;
+    const res = await fetch(
+      "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/dynamic-responder/start",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ connector_id: connectorId }),
+      }
+    );
+    const data = await res.text();
+    if (data !== "OK") throw new Error("Failed to disconnect Calendly connector");
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 const createConnectInstagram = (
   context: Required<ConnectorActionsContext>
 ) => async () => {
@@ -104,6 +162,12 @@ export const buildConnectorActions = (
       color:"",
       onConnect: () => {},
       onDisconnect: () => {},
+    },
+    calendly: {
+      imageSrc: "/logoConnectors/calendly.svg",
+      color: "#006BFF",
+      onConnect: createConnectCalendly(ctx),
+      onDisconnect: createDisconnectCalendly(ctx),
     },
     instagram: {
       imageSrc: "/logoConnectors/instagram.svg",

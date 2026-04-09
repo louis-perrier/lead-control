@@ -7,7 +7,7 @@ import {
 import styles from "./CornerSections.module.css";
 
 export type CornerStatus = "available" | "lock" | "unlock";
-export type CornerSection = "Details" | "Connexions" | "BIENTÔT" | "Configurations";
+export type CornerSection = "Details" | "Connexions" | "Templates" | "Configurations";
 
 type CornerBlockProps = {
   className: string;
@@ -80,14 +80,14 @@ const CornerSections: FunctionComponent<CornerSectionsProps> = ({
   const defaultStatuses: Record<CornerSection, CornerStatus> = {
     Details: "available",
     Connexions: "unlock",
-    BIENTÔT: "lock",
+    Templates: "available",
     Configurations: "lock",
   };
 
   const effectiveStatuses: Record<CornerSection, CornerStatus> = {
     Details: statuses?.Details ?? defaultStatuses.Details,
     Connexions: statuses?.Connexions ?? defaultStatuses.Connexions,
-    BIENTÔT: statuses?.BIENTÔT ?? defaultStatuses.BIENTÔT,
+    Templates: statuses?.Templates ?? defaultStatuses.Templates,
     Configurations:
       statuses?.Configurations ?? defaultStatuses.Configurations,
   };
@@ -95,7 +95,7 @@ const CornerSections: FunctionComponent<CornerSectionsProps> = ({
   const orderMap: Record<CornerSection, number | undefined> = {
     Details: 1,
     Connexions: 2,
-    BIENTÔT: undefined,
+    Templates: undefined,
     Configurations: 3,
   };
 
@@ -119,10 +119,10 @@ const CornerSections: FunctionComponent<CornerSectionsProps> = ({
         order: orderMap.Connexions,
       },
       {
-        section: "BIENTÔT",
-        status: effectiveStatuses.BIENTÔT,
+        section: "Templates",
+        status: effectiveStatuses.Templates,
         position: styles.cornerBottomLeft,
-        order: orderMap.BIENTÔT,
+        order: orderMap.Templates,
       },
       {
         section: "Configurations",
@@ -161,7 +161,7 @@ const CornerSections: FunctionComponent<CornerSectionsProps> = ({
       >
         {blocks.map((block) => {
           const canSelect =
-            block.section !== "BIENTÔT" && block.status !== "lock";
+            block.status !== "lock";
           const handleClick = () => {
             if (canSelect) {
               onSelect(block.section);

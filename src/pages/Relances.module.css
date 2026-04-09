@@ -1,0 +1,302 @@
+/* ── Root layout ──────────────────────────────────────────────────────────── */
+
+.relancesRoot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--app-bg);
+  overflow-y: auto;
+}
+
+.relancesContainer {
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+
+.relancesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.relancesTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.relancesTitleText {
+  margin: 0;
+  font-size: var(--fs-24, 24px);
+  font-weight: 700;
+  color: var(--app-text);
+  letter-spacing: -0.3px;
+}
+
+.relancesOverdueBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--app-error, #ef4444);
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+}
+
+/* ── Filters ──────────────────────────────────────────────────────────────── */
+
+.relancesFilters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.relancesFilterBtn {
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: var(--fs-13, 13px);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.relancesFilterBtn:hover {
+  border-color: var(--app-primary);
+  color: var(--app-primary);
+}
+
+.relancesFilterBtnActive {
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.relancesFilterBtnActive:hover {
+  color: #fff;
+}
+
+/* ── States ───────────────────────────────────────────────────────────────── */
+
+.relancesLoading,
+.relancesEmpty {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--app-text-secondary);
+  font-size: var(--fs-14, 14px);
+}
+
+/* ── List ─────────────────────────────────────────────────────────────────── */
+
+.relancesList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.relanceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.relanceRow:hover {
+  border-color: var(--app-primary);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.relanceRowOverdue {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.relanceRowOverdue:hover {
+  border-color: rgba(239, 68, 68, 0.7);
+}
+
+.relanceRowToday {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.03);
+}
+
+/* ── Row left ─────────────────────────────────────────────────────────────── */
+
+.relanceRowLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.relancePlatformIcon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--app-bg);
+  border: 1px solid var(--app-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.relancePlatformIcon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.relancePlatformFallback {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--app-text-secondary);
+}
+
+.relanceRowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.relanceContact {
+  font-size: var(--fs-14, 14px);
+  font-weight: 600;
+  color: var(--app-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.relanceHandle {
+  font-weight: 400;
+  color: var(--app-text-secondary);
+}
+
+.relancePreview {
+  font-size: var(--fs-13, 13px);
+  color: var(--app-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.relanceDate {
+  font-size: var(--fs-12, 12px);
+  color: var(--app-text-secondary);
+}
+
+.relanceDateOverdue {
+  color: var(--app-error, #ef4444);
+  font-weight: 600;
+}
+
+/* ── Row right ────────────────────────────────────────────────────────────── */
+
+.relanceRowRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Status badge ─────────────────────────────────────────────────────────── */
+
+.relanceStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: var(--fs-11, 11px);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.relanceStatus_pending {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--app-warning, #f59e0b);
+}
+
+.relanceStatus_sent {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #16a34a;
+}
+
+.relanceStatus_skipped {
+  background: var(--app-bg);
+  border: 1px solid var(--app-border);
+  color: var(--app-text-secondary);
+}
+
+/* ── Action buttons ───────────────────────────────────────────────────────── */
+
+.relanceSendBtn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--app-primary);
+  background: var(--app-primary);
+  color: #fff;
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.relanceSendBtn:hover {
+  opacity: 0.85;
+}
+
+.relanceSendBtnDisabled {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+  cursor: not-allowed;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.relanceSkipBtn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: var(--fs-12, 12px);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.relanceSkipBtn:hover {
+  border-color: var(--app-error, #ef4444);
+  color: var(--app-error, #ef4444);
+}

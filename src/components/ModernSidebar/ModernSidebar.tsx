@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import supabase from "../../lib/supabase";
 import useAgents from "../../hooks/useAgents";
 import useSubscriptionState from "../../hooks/useSubscriptionState";
 import SidebarHeader from "./SidebarHeader";
@@ -33,6 +34,7 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
 
   const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
   const profileTriggerRef = useRef<HTMLButtonElement>(null);
+  const [pendingRelancesCount, setPendingRelancesCount] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -40,6 +42,19 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
     }
     window.localStorage.setItem("leadcontrol.navCollapsed", String(isCollapsed));
   }, [isCollapsed]);
+
+  useEffect(() => {
+    const fetchPendingRelances = async () => {
+      const now = new Date().toISOString();
+      const { count } = await supabase
+        .from("human_followups")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .lte("scheduled_at", now);
+      setPendingRelancesCount(count ?? 0);
+    };
+    fetchPendingRelances();
+  }, []);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,6 +97,29 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
       selected: currentPath === "/app",
       labelText: "Dashboard",
       icon: "/dashboardIcon.svg",
+    },
+    {
+      key: "conversations",
+      route: "/app/conversations",
+      selected: currentPath === "/app/conversations",
+      labelText: "Conversations",
+      icon: "/conversationIcon.svg",
+    },
+    {
+      key: "contacts",
+      route: "/app/contacts",
+      selected: currentPath === "/app/contacts",
+      labelText: "Contacts",
+      icon: "/contactsIcon.svg",
+    },
+    {
+      key: "relances",
+      route: "/app/relances",
+      selected: currentPath === "/app/relances",
+      labelText: "Relances",
+      icon: "/conversationIcon.svg",
+      badge: pendingRelancesCount > 0 ? String(pendingRelancesCount) : undefined,
+      badgeVariant: "error" as const,
     },
     {
       key: "agentia",

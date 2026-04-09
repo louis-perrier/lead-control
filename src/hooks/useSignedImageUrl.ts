@@ -1,0 +1,66 @@
+import { useQuery } from "@tanstack/react-query";
+import supabase from "../lib/supabase";
+
+const useSignedImageUrl = (mediaPath?: string, messageId?: string, enabled: boolean = false) => {
+  return useQuery({
+    queryKey: ["signed-image-url", messageId],
+    queryFn: async () => {
+      if (!mediaPath || !messageId) {
+        throw new Error("Media path and message ID are required");
+      }
+
+      // Vérifier si c'est déjà une URL complète
+      if (mediaPath.startsWith("http")) {
+        return mediaPath;
+      }
+
+      // Récupérer le token de session
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.access_token) {
+        throw new Error("Session invalide");
+      }
+
+      // Extraire le vrai ID du message de l'ID composite
+      const realMessageId = messageId.includes('-') ? messageId.split('-')[1] : messageId;
+
+      // Appeler l'edge function pour obtenir l'URL signée
+      const response = await fetch(
+        "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/get-supabase/get-signedUrl",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${sessionData.session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message_id: realMessageId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || `HTTP ${response.status}` };
+        }
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.signedUrl) {
+        throw new Error("URL signée non générée");
+      }
+
+      return data.signedUrl;
+    },
+    enabled: enabled && Boolean(mediaPath && messageId),
+    staleTime: 5 * 60 * 1000, // Cache 5 minutes
+    retry: 2,
+  });
+};
+
+export default useSignedImageUrl;

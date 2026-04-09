@@ -578,14 +578,13 @@ const AgentAi: FunctionComponent = () => {
       const originalOverflow = document.body.style.overflow;
       // Bloquer le scroll
       document.body.style.overflow = "hidden";
-
+      
       return () => {
         // Restaurer le scroll original à la fermeture
         document.body.style.overflow = originalOverflow;
       };
     }
   }, [activeCorner]);
-
 
   // Etat de la popup “Details”
   const [contextText, setContextText] = useState("");

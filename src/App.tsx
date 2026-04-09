@@ -9,6 +9,9 @@ import {
 import AgentAi from "./pages/AgentAi";
 import AgentAiConfiguration from "./pages/AgentAiConfiguration";
 import Connexion from "./pages/Connexion";
+import Contacts from "./pages/Contacts";
+import Conversations from "./pages/Conversations";
+import Relances from "./pages/Relances";
 import Crm from "./pages/Crm";
 import Demarer from "./pages/Demarer";
 import Dashboard from "./pages/Dashboard";
@@ -78,6 +81,18 @@ function App() {
         title = "LeadControl - Scraping";
         metaDescription = "Orchestration des runs de scraping, collecte des leads et suivi des quotas.";
         break;
+      case "/app/contacts":
+        title = "LeadControl - Contacts";
+        metaDescription = "Gérez votre base de contacts, importez des leads et suivez leur statut.";
+        break;
+      case "/app/conversations":
+        title = "LeadControl - Conversations";
+        metaDescription = "Visualise et gère toutes les conversations de tes agents LeadControl.";
+        break;
+      case "/app/relances":
+        title = "LeadControl - Relances";
+        metaDescription = "Gère et planifie tes relances Instagram et WhatsApp.";
+        break;
       case "/app/crm":
         title = "LeadControl - CRM";
         metaDescription = "Accede au CRM, filtre les conversations et prepare les handoffs.";
@@ -134,6 +149,9 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/app/demarer" element={<Demarer />} />
           <Route path="/app" element={<Dashboard />} />
+          <Route path="/app/contacts" element={<Contacts />} />
+          <Route path="/app/conversations" element={<Conversations />} />
+          <Route path="/app/relances" element={<Relances />} />
           <Route path="/app/subscription" element={<Subscription />} />
           <Route path="/app/agentai" element={<AgentAi />} />
           <Route

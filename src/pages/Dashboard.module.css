@@ -1,3 +1,60 @@
+/* ── ROI Stats Section */
+.roiSection {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .roiSection {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 540px) {
+  .roiSection {
+    grid-template-columns: 1fr;
+  }
+}
+
+.roiKpiCard {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.roiKpiCard:hover {
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
+}
+
+.roiKpiValue {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--app-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.roiKpiValueGreen {
+  color: #16a34a;
+}
+
+.roiKpiLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+  letter-spacing: 0.01em;
+}
+
+/* ── */
 .claraWrapper {
   display: flex;
   min-height: 100vh;
@@ -1373,6 +1430,16 @@
   border-color: #f97316 !important;
   color: white !important;
 }
+.closeWonButton {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+  color: white !important;
+}
+.closeWonButton:hover {
+  background: #15803d !important;
+  border-color: #15803d !important;
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.25) !important;
+}
 .orangeButton:hover {
   background: #ea580c !important;
   border-color: #ea580c !important;
@@ -2047,6 +2114,25 @@
   font-size: 11px;
   color: var(--app-text-secondary);
   font-style: italic;
+}
+.voiceMicBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--app-border);
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.voiceMicBtn:hover {
+  background: var(--app-bg);
+  color: var(--app-primary);
+  border-color: var(--app-primary);
 }
 .chatComposerSpinner {
   width: 16px;

@@ -26,6 +26,7 @@ type ConnectedConnector = {
   connector_label?: string;
   current_connector_config?: any[];
   refresh_status?: "ok" | "failed";
+  metadata?: Record<string, any> | null;
 };
 
 export type UseConnectorsOptions = {
@@ -91,6 +92,7 @@ export const useConnectors = ({
       connector_label: item.all_connectors_users.connectors_label,
       current_connector_config: item.current_config_connexion,
       refresh_status: item.all_connectors_users.refresh_status ?? "ok",
+      metadata: item.all_connectors_users.metadata ?? null,
     }));
     setCountConnectedConnector(mapped.length);
     setConnectorConnected(mapped);
