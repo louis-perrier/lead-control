@@ -7,11 +7,13 @@ import styles from "./AppLayout.module.css";
 export type AppLayoutProps = {
   children: ReactNode;
   className?: string;
+  mainClassName?: string;
 };
 
 const AppLayout: FunctionComponent<AppLayoutProps> = ({
   children,
   className = "",
+  mainClassName = "",
 }) => {
   const navigate = useNavigate();
   const { data: failedCount } = useHasFailedConnector();
@@ -20,7 +22,7 @@ const AppLayout: FunctionComponent<AppLayoutProps> = ({
   return (
     <div className={[styles.appLayout, className].filter(Boolean).join(" ")}>
       <ModernSidebar />
-      <main className={styles.appMain}>
+      <main className={[styles.appMain, mainClassName].filter(Boolean).join(" ")}>
         {hasFailedConnector && (
           <div className={styles.reconnectBanner}>
             <span className={styles.reconnectBannerText}>

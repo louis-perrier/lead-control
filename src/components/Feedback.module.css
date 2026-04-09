@@ -12,6 +12,10 @@
   overflow: visible;
 }
 
+.bubbleLifted {
+  bottom: 112px;
+}
+
 .button {
   position: relative;
   background: linear-gradient(145deg, #ffffff, #f4f8ff);
@@ -283,6 +287,10 @@
     right: 16px;
     bottom: 16px;
     border-radius: 50%;
+  }
+
+  .bubbleLifted {
+    bottom: 84px;
   }
 
   .button {

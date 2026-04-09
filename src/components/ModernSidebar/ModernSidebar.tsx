@@ -102,7 +102,7 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
       key: "conversations",
       route: "/app/conversations",
       selected: currentPath === "/app/conversations",
-      labelText: "Conversations",
+      labelText: "Inbox",
       icon: "/conversationIcon.svg",
     },
     {

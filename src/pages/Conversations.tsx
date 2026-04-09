@@ -1,4 +1,4 @@
-import {
+﻿import {
   FunctionComponent,
   useCallback,
   useEffect,
@@ -12,14 +12,13 @@ import {
   IconConversationPlay,
   IconConversationStop,
 } from "../components/DashboardIcons";
-// Intentionally reusing Dashboard styles — same layout primitives
-import styles from "./Dashboard.module.css";
+import styles from "./Conversations.module.css";
 import useAgents from "../hooks/useAgents";
 import useClaraConversations from "../hooks/useClaraConversations";
 import useAllConversations from "../hooks/useAllConversations";
 import useConversationMessages from "../hooks/useConversationMessages";
 import supabase from "../lib/supabase";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AudioMessageBubble, {
   TranscriptStatus,
 } from "../components/AudioMessageBubble";
@@ -30,7 +29,6 @@ import useSignedImageUrl from "../hooks/useSignedImageUrl";
 type ChannelOption = "Instagram" | "WhatsApp" | "Telegram";
 type ChannelFilterOption = ChannelOption | "All";
 type StatusOption = "Ouvert" | "Clos" | "Handoff";
-type SortOption = "recent" | "unread" | "messages";
 type MessageDirection = "inbound" | "outbound";
 
 type Attachment = {
@@ -51,6 +49,7 @@ type Message = {
   transcript?: string | null;
   transcriptError?: string | null;
   authorType?: "agent" | "human" | "customer";
+  authorRef?: string | null;
   automationStart?: string | null;
   automationEnd?: string | null;
   readByContactAt?: string | null;
@@ -60,6 +59,7 @@ type Conversation = {
   id: string;
   contactName: string;
   contactHandle: string;
+  contactId?: string | null;
   channel: ChannelOption;
   lastMessage: string;
   lastAt: string;
@@ -96,14 +96,22 @@ const channelFilterIcons: Record<ChannelOption, string> = {
   Telegram: "https://cdn.simpleicons.org/telegram/229ED9",
 };
 
-const statusFilterOptions = ["Tous", "Ouvert", "Clos", "Erreur"] as const;
+const statusFilterOptions = [
+  "all",
+  "hot",
+  "scheduled",
+  "closed",
+  "error",
+] as const;
+type StatusFilterOption = (typeof statusFilterOptions)[number];
 
-const sortOptionLabels: Record<SortOption, string> = {
-  recent: "Recent",
-  unread: "Non lus",
-  messages: "Plus de messages envoyes",
+const statusFilterLabels: Record<StatusFilterOption, string> = {
+  all: "Tous",
+  hot: "Chaud",
+  scheduled: "Relance planifi\u00e9e",
+  closed: "Cl\u00f4tur\u00e9e",
+  error: "Erreur",
 };
-const sortOptions: SortOption[] = ["recent", "unread", "messages"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -139,6 +147,53 @@ const normalizeChannel = (platform?: string): ChannelOption => {
   if (normalized === "telegram") return "Telegram";
   return "Instagram";
 };
+
+const normalizeTextValue = (value: unknown): string => {
+  if (typeof value !== "string" && typeof value !== "number") return "";
+  const text = String(value).trim();
+  if (!text) return "";
+  const lower = text.toLowerCase();
+  if (lower === "null" || lower === "undefined" || lower === "nan") return "";
+  return text;
+};
+
+const isGenericContactName = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized === "contact" ||
+    normalized === "prospect" ||
+    normalized === "utilisateur" ||
+    normalized === "user" ||
+    normalized === "unknown" ||
+    normalized === "inconnu" ||
+    normalized === "-" ||
+    normalized === "—"
+  );
+};
+
+const normalizeContactNameValue = (value: unknown): string => {
+  const text = normalizeTextValue(value);
+  if (!text) return "";
+  return isGenericContactName(text) ? "" : text;
+};
+
+const pickFirstText = (...values: unknown[]): string => {
+  for (const value of values) {
+    const text = normalizeTextValue(value);
+    if (text) return text;
+  }
+  return "";
+};
+
+const pickFirstContactName = (...values: unknown[]): string => {
+  for (const value of values) {
+    const text = normalizeContactNameValue(value);
+    if (text) return text;
+  }
+  return "";
+};
+
+const isDigitsOnly = (value: string): boolean => /^\d+$/.test(value.trim());
 
 const mapMessageRecord = (convId: string, message: any): Message => {
   const isAudioMessage = message.message_type === "audio";
@@ -221,6 +276,7 @@ const mapMessageRecord = (convId: string, message: any): Message => {
         : message.author_type === "customer"
         ? "customer"
         : "agent",
+    authorRef: message.author_ref ?? null,
     automationStart: message.automation_start ?? null,
     automationEnd: message.automation_end ?? null,
     readByContactAt: message.read_by_contact_at ?? null,
@@ -229,6 +285,22 @@ const mapMessageRecord = (convId: string, message: any): Message => {
 
 const mapConversationRecord = (record: any): Conversation => {
   const channel = normalizeChannel(record.platform);
+  const metadata =
+    record.metadata && typeof record.metadata === "object"
+      ? (record.metadata as Record<string, unknown>)
+      : {};
+  const metadataContact =
+    metadata.contact && typeof metadata.contact === "object"
+      ? (metadata.contact as Record<string, unknown>)
+      : {};
+  const metadataProfile =
+    metadata.profile && typeof metadata.profile === "object"
+      ? (metadata.profile as Record<string, unknown>)
+      : {};
+  const metadataCustomer =
+    metadata.customer && typeof metadata.customer === "object"
+      ? (metadata.customer as Record<string, unknown>)
+      : {};
   const messages =
     (record.conversation_messages ?? [])
       .map((message: any) => mapMessageRecord(String(record.id), message))
@@ -238,10 +310,66 @@ const mapConversationRecord = (record: any): Conversation => {
       ) ?? [];
   const lastMessage =
     record.last_message_preview ?? messages[messages.length - 1]?.text ?? "";
+  const inferredHandleFromMessages = normalizeTextValue(
+    messages.find(
+      (message: Message) =>
+        message.authorType === "customer" && normalizeTextValue(message.authorRef),
+    )?.authorRef,
+  ).replace(/^@+/, "");
+  const profileName = pickFirstContactName(
+    record.contact_display_name,
+    record.contact_name,
+    record.full_name,
+    record.profile_name,
+    record.instagram_name,
+    record.contact_full_name,
+    metadata.contact_display_name,
+    metadata.contact_name,
+    metadata.display_name,
+    metadata.full_name,
+    metadata.profile_name,
+    metadata.instagram_name,
+    metadata.instagram_display_name,
+    metadata.customer_name,
+    metadata.name,
+    metadataContact.display_name,
+    metadataContact.full_name,
+    metadataContact.name,
+    metadataProfile.display_name,
+    metadataProfile.full_name,
+    metadataProfile.name,
+    metadataCustomer.display_name,
+    metadataCustomer.full_name,
+    metadataCustomer.name,
+  );
+  const rawHandle = pickFirstText(
+    record.contact_handle,
+    record.instagram_handle,
+    record.contact_username,
+    record.username,
+    metadata.contact_handle,
+    metadata.instagram_handle,
+    metadata.handle,
+    metadata.username,
+    metadata.ig_handle,
+    metadata.ig_username,
+    metadataContact.handle,
+    metadataContact.username,
+    metadataProfile.handle,
+    metadataProfile.username,
+    metadataCustomer.handle,
+    metadataCustomer.username,
+  ).replace(/^@+/, "");
+  const resolvedHandle = rawHandle || inferredHandleFromMessages;
+  const displayHandle =
+    channel === "Instagram" && isDigitsOnly(resolvedHandle) ? "" : resolvedHandle;
+  const contactName = profileName || displayHandle || "Contact";
+  const contactHandle = displayHandle || "";
   return {
     id: String(record.id),
-    contactName: record.contact_display_name ?? record.contact_handle ?? "Contact",
-    contactHandle: record.contact_handle ?? "",
+    contactName,
+    contactHandle,
+    contactId: record.contact_id != null ? String(record.contact_id) : null,
     channel,
     lastMessage,
     lastAt:
@@ -307,7 +435,7 @@ const getHeatTagStyle = (tag?: string) => {
 
 const heatTagLabels: Record<string, string> = {
   cold: "Froid",
-  warm: "Tiède",
+  warm: "Ti\u00e8de",
   hot: "Chaud",
 };
 
@@ -316,8 +444,21 @@ const getHeatTagLabel = (tag?: string): string | null => {
   return heatTagLabels[tag.toLowerCase()] ?? null;
 };
 
+const getConversationStatusLabel = (conversation: Conversation): string => {
+  if (conversation.automationState === "error") return "Erreur";
+  if (conversation.automationState === "scheduled") return "Relance planifi\u00e9e";
+  if (
+    conversation.status === "Clos" ||
+    conversation.automationState === "stopped" ||
+    conversation.automationState === "condition_stop"
+  ) {
+    return "Cl\u00f4tur\u00e9e";
+  }
+  return "Ouverte";
+};
+
 const formatNextReplyShort = (iso?: string | null): string => {
-  if (!iso) return "Planifié";
+  if (!iso) return "Relance planifi\u00e9e";
   const time = new Date(iso);
   const now = new Date();
   const isToday = time.toDateString() === now.toDateString();
@@ -350,6 +491,40 @@ const formatNextReply = (iso?: string | null) => {
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+const getConversationNeedsAttention = (
+  conversation: Conversation,
+  isActive = false,
+) =>
+  !isActive &&
+  conversation.automationState !== "error" &&
+  conversation.automationState !== "stopped" &&
+  conversation.automationState !== "condition_stop" &&
+  Boolean(conversation.lastAgentReplyAt) &&
+  conversation.lastAt > (conversation.lastAgentReplyAt ?? "");
+
+const getAvatarInitials = (name: string): string => {
+  const normalized = name.trim();
+  if (!normalized) return "C";
+  const safeCharPattern = /[A-Za-z0-9]/;
+  const safeCharPatternGlobal = /[A-Za-z0-9]/g;
+
+  const fromTokens = normalized
+    .split(/\s+/)
+    .map((token) => token.match(safeCharPattern)?.[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  if (fromTokens) return fromTokens;
+
+  const fallback = (normalized.match(safeCharPatternGlobal) ?? [])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return fallback || "C";
+};
 
 const ChannelBadge: FunctionComponent<{
   channel: ChannelOption;
@@ -406,23 +581,8 @@ const ConversationItem: FunctionComponent<{
   onSelect: () => void;
   agentLabel?: string;
 }> = ({ conversation, isActive, onSelect, agentLabel }) => {
-  const initials = conversation.contactName
-    .split(" ")
-    .map((token) => token.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  const isNoReply =
-    !conversation.contactHandle && conversation.inboundCount === 0;
-
-  const needsAttention =
-    !isActive &&
-    conversation.automationState !== "error" &&
-    conversation.automationState !== "stopped" &&
-    conversation.automationState !== "condition_stop" &&
-    conversation.lastAgentReplyAt &&
-    conversation.lastAt > conversation.lastAgentReplyAt;
+  const initials = getAvatarInitials(conversation.contactName);
+  const needsAttention = getConversationNeedsAttention(conversation, isActive);
 
   return (
     <button
@@ -448,62 +608,60 @@ const ConversationItem: FunctionComponent<{
       <div className={styles.conversationDetails}>
         <div className={styles.conversationTop}>
           <div className={styles.conversationContactBlock}>
-            {isNoReply ? (
-              <span className={styles.noReplyBadge}>Pas encore répondu</span>
-            ) : (
-              <>
-                <span>{conversation.contactName}</span>
-                {conversation.contactHandle && (
-                  <span
-                    style={{ fontSize: "0.75em", color: "var(--app-text-secondary)" }}
-                  >
-                    @{conversation.contactHandle}
-                  </span>
-                )}
-              </>
+            <span>{conversation.contactName}</span>
+            {conversation.contactHandle && (
+              <span
+                style={{ fontSize: "0.75em", color: "var(--app-text-secondary)" }}
+              >
+                @{conversation.contactHandle}
+              </span>
             )}
-          </div>
+</div>
           <div className={styles.conversationTopMeta}>
-            {conversation.automationState === "pending" && (
-              <span className={styles.pendingBadge}>
-                <span className={styles.pendingDot} />
-                <span className={styles.pendingDot} />
-                <span className={styles.pendingDot} />
-                <span className={styles.badgeText}>Attente</span>
-              </span>
-            )}
-            {conversation.automationState === "scheduled" && (
-              <span className={styles.scheduledBadge}>
-                <span className={styles.scheduledDot} />
-                <span className={styles.badgeText}>
-                  {formatNextReplyShort(conversation.nextReplyAt)}
+            <div className={styles.conversationTopMetaBadges}>
+              {conversation.automationState === "pending" && (
+                <span className={styles.pendingBadge}>
+                  <span className={styles.pendingDot} />
+                  <span className={styles.pendingDot} />
+                  <span className={styles.pendingDot} />
+                  <span className={styles.badgeText}>Attente</span>
                 </span>
-              </span>
-            )}
-            {conversation.automationState === "error" && (
-              <span className={styles.errorBadge}>
-                <span className={styles.errorDot} />
-                <span className={styles.badgeText}>Erreur</span>
-              </span>
-            )}
-            {conversation.automationState === "condition_stop" && (
-              <span className={styles.conditionBadge}>
-                <span className={styles.conditionDot} />
-                <span className={styles.badgeText}>Stop</span>
-              </span>
-            )}
-            {conversation.automationState === "stopped" && (
-              <span className={styles.stoppedBadge}>
-                <span className={styles.stoppedDot} />
-                <span className={styles.badgeText}>Arrêté</span>
-              </span>
-            )}
-            {agentLabel && (
-              <span className={styles.agentBadge} title={agentLabel}>
-                {agentLabel.length > 8 ? agentLabel.slice(0, 8) + "…" : agentLabel}
-              </span>
-            )}
-            <ChannelBadge channel={conversation.channel} />
+              )}
+              {conversation.automationState === "scheduled" && (
+                <span className={styles.scheduledBadge}>
+                  <span className={styles.scheduledDot} />
+                  <span className={styles.badgeText}>
+                    {formatNextReplyShort(conversation.nextReplyAt)}
+                  </span>
+                </span>
+              )}
+              {conversation.automationState === "error" && (
+                <span className={styles.errorBadge}>
+                  <span className={styles.errorDot} />
+                  <span className={styles.badgeText}>Erreur</span>
+                </span>
+              )}
+              {conversation.automationState === "condition_stop" && (
+                <span className={styles.conditionBadge}>
+                  <span className={styles.conditionDot} />
+                  <span className={styles.badgeText}>Stop</span>
+                </span>
+              )}
+              {conversation.automationState === "stopped" && (
+                <span className={styles.stoppedBadge}>
+                  <span className={styles.stoppedDot} />
+                  <span className={styles.badgeText}>Arrêté</span>
+                </span>
+              )}
+              {agentLabel && (
+                <span className={styles.agentBadge} title={agentLabel}>
+                  {agentLabel.length > 8 ? agentLabel.slice(0, 8) + "…" : agentLabel}
+                </span>
+              )}
+            </div>
+            <span className={styles.conversationPlatformBadge}>
+              <ChannelBadge channel={conversation.channel} />
+            </span>
           </div>
         </div>
         <p className={styles.conversationPreview}>
@@ -724,12 +882,8 @@ const Conversations: FunctionComponent = () => {
 
   // ── Conversation filter state
   const [channelFilter, setChannelFilter] = useState<ChannelFilterOption>("All");
-  const [statusFilter, setStatusFilter] =
-    useState<(typeof statusFilterOptions)[number]>("Tous");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterOption>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortOption, setSortOption] = useState<SortOption>("recent");
-  const [isSortMenuOpen, setSortMenuOpen] = useState(false);
-  const sortMenuRef = useRef<HTMLDivElement | null>(null);
 
   // ── Conversation interaction state
   const [selectedConversationId, setSelectedConversationId] = useState<
@@ -841,6 +995,74 @@ const Conversations: FunctionComponent = () => {
     [rawConversations],
   );
 
+  const missingNameContactIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          conversationData
+            .filter(
+              (conv) =>
+                isGenericContactName(conv.contactName) && Boolean(conv.contactId),
+            )
+            .map((conv) => String(conv.contactId)),
+        ),
+      ),
+    [conversationData],
+  );
+
+  const { data: contactNameRows = [] } = useQuery({
+    queryKey: ["conversation-contact-names", [...missingNameContactIds].sort().join(",")],
+    enabled: missingNameContactIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, full_name, instagram_handle, phone_e164")
+        .in("id", missingNameContactIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 30000,
+  });
+
+  const contactNameMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { full_name?: string | null; instagram_handle?: string | null; phone_e164?: string | null }
+    >();
+    for (const row of contactNameRows as Array<{
+      id: string | number;
+      full_name?: string | null;
+      instagram_handle?: string | null;
+      phone_e164?: string | null;
+    }>) {
+      map.set(String(row.id), row);
+    }
+    return map;
+  }, [contactNameRows]);
+
+  const hydratedConversationData = useMemo(
+    () =>
+      conversationData.map((conv) => {
+        if (!isGenericContactName(conv.contactName) || !conv.contactId) return conv;
+        const linkedContact = contactNameMap.get(String(conv.contactId));
+        if (!linkedContact) return conv;
+        const fullName = normalizeTextValue(linkedContact.full_name);
+        const handle = normalizeTextValue(linkedContact.instagram_handle).replace(/^@+/, "");
+        const phone = normalizeTextValue(linkedContact.phone_e164);
+        const nextName = fullName || handle || phone;
+        if (!nextName) return conv;
+        return {
+          ...conv,
+          contactName: nextName,
+          contactHandle:
+            handle && fullName && handle.toLowerCase() !== fullName.toLowerCase()
+              ? handle
+              : conv.contactHandle,
+        };
+      }),
+    [conversationData, contactNameMap],
+  );
+
   const agentLabelMap = useMemo(
     () => new Map(agentConfigOptions.map((o) => [o.value, o.label])),
     [agentConfigOptions],
@@ -870,41 +1092,48 @@ const Conversations: FunctionComponent = () => {
   );
 
   // ── Derived conversation data
+  const repliedConversations = useMemo(
+    () =>
+      hydratedConversationData.filter((conv) => {
+        if (conv.inboundCount > 0) return true;
+        return conv.messages.some((message) => message.direction === "inbound");
+      }),
+    [hydratedConversationData],
+  );
+
   const channelScopedConversations = useMemo(
     () =>
-      conversationData.filter(
+      repliedConversations.filter(
         (conv) => channelFilter === "All" || conv.channel === channelFilter,
       ),
-    [conversationData, channelFilter],
+    [repliedConversations, channelFilter],
   );
 
   const filteredConversations = useMemo(
     () =>
       channelScopedConversations.filter((conv) => {
-        if (statusFilter === "Tous") return true;
-        if (statusFilter === "Erreur") return conv.automationState === "error";
-        return conv.status === statusFilter;
+        if (statusFilter === "all") return true;
+        if (statusFilter === "hot")
+          return conv.tags[0]?.toLowerCase() === "hot";
+        if (statusFilter === "error") return conv.automationState === "error";
+        if (statusFilter === "scheduled")
+          return conv.automationState === "scheduled";
+        if (statusFilter === "closed")
+          return (
+            conv.status === "Clos" ||
+            conv.automationState === "stopped" ||
+            conv.automationState === "condition_stop"
+          );
+        return true;
       }),
     [channelScopedConversations, statusFilter],
   );
 
   const sortedConversations = useMemo(() => {
-    const copy = [...filteredConversations];
-    if (sortOption === "recent") {
-      copy.sort(
-        (a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime(),
-      );
-    } else if (sortOption === "unread") {
-      copy.sort((a, b) => b.unreadCount - a.unreadCount);
-    } else {
-      copy.sort((a, b) =>
-        isAllMode
-          ? b.agentSentCount + b.humanSentCount - (a.agentSentCount + a.humanSentCount)
-          : b.messages.length - a.messages.length,
-      );
-    }
-    return copy;
-  }, [filteredConversations, sortOption, isAllMode]);
+    return [...filteredConversations].sort(
+      (a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime(),
+    );
+  }, [filteredConversations]);
 
   const searchedConversations = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -916,7 +1145,11 @@ const Conversations: FunctionComponent = () => {
     );
   }, [sortedConversations, searchQuery]);
 
-  const visibleConversationCount = filteredConversations.length;
+  const visibleConversationCount = searchedConversations.length;
+  const isSearchActive = searchQuery.trim().length > 0;
+  const selectedScopeLabel = isAllMode
+    ? "Tous les agents"
+    : activeConfigOption?.label ?? "Agent";
 
   const activeConversation =
     sortedConversations.find((conv) => conv.id === selectedConversationId) ??
@@ -1200,20 +1433,6 @@ const Conversations: FunctionComponent = () => {
   }, [isConfigMenuOpen]);
 
   useEffect(() => {
-    if (!isSortMenuOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        sortMenuRef.current &&
-        !sortMenuRef.current.contains(event.target as Node)
-      ) {
-        setSortMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isSortMenuOpen]);
-
-  useEffect(() => {
     if (conversationsLoading) return;
     if (conversationData.length === 0) {
       setSelectedConversationId(null);
@@ -1300,11 +1519,6 @@ const Conversations: FunctionComponent = () => {
   const handleConfigChange = (value: string) => {
     setSelectedConfigId(value);
     setConfigMenuOpen(false);
-  };
-
-  const handleSortChange = (value: SortOption) => {
-    setSortOption(value);
-    setSortMenuOpen(false);
   };
 
   const handleSendMessage = async () => {
@@ -1456,22 +1670,25 @@ const Conversations: FunctionComponent = () => {
 
   // ── Render
   return (
-    <AppLayout>
+    <AppLayout mainClassName={styles.conversationsMainFixed}>
       <div className={styles.claraDashboardArea}>
         <div className={styles.claraDashboard}>
           <div className={styles.claraDashboardContent}>
 
             {/* ── Header */}
-            <header className={styles.claraHeader}>
-              <div className={styles.claraHeaderTop}>
-                <h1 className={styles.claraHeaderTitle}>
-                  Conversations —{" "}
+            <header className={styles.conversationsPageHeader}>
+              <div className={styles.conversationsPageTitleBlock}>
+                <h1 className={styles.conversationsPageTitle}>
+                  Inbox —{" "}
                   {isAllMode
                     ? "Tous les agents"
                     : (activeConfigOption?.label ?? "Clara")}
                 </h1>
+                <p className={styles.conversationsPageSubtitle}>
+                  Suivi quotidien de la boite de reception pour {selectedScopeLabel}.
+                </p>
               </div>
-              <div className={styles.claraHeaderControls}>
+              <div className={styles.conversationsPageControls}>
                 {agentConfigOptions.length > 0 && (
                   <div className={styles.claraConfigFocusGroup}>
                     <span className={styles.claraConfigLabel}>Config</span>
@@ -1550,32 +1767,41 @@ const Conversations: FunctionComponent = () => {
                 <ChannelFilterGroup
                   active={channelFilter}
                   onChange={setChannelFilter}
+                  className={styles.channelFilterRowTight}
                 />
               </div>
             </header>
+
 
             {/* ── Conversations layout */}
             <section className={styles.claraDetailsLayout}>
               <div className={styles.conversationPanel}>
                 <div className={styles.conversationPanelHeader}>
-                  <h3>Conversations</h3>
-                  <div className={styles.conversationCountBadge}>
-                    <span className={styles.conversationCountBadgeLabel}>
-                      Conversations visibles
-                    </span>
-                    <span className={styles.conversationCountBadgeValue}>
-                      {visibleConversationCount.toLocaleString("fr-FR")}
-                    </span>
+                  <div className={styles.conversationPanelTitleBlock}>
+                    <h3 className={styles.conversationPanelTitle}>Boite de reception</h3>
+                    <p className={styles.conversationPanelSubtitle}>
+                      Filtre et traite rapidement chaque conversation.
+                    </p>
+                  </div>
+                  <span className={styles.conversationPanelMetaInline}>
+                    {visibleConversationCount.toLocaleString("fr-FR")} conversations affichees
+                  </span>
+                </div>
+                <div className={styles.conversationPanelTools}>
+                  <div className={styles.conversationSearchWrap}>
+                    <input
+                      type="text"
+                      className={styles.conversationSearch}
+                      placeholder="Rechercher un nom ou handle"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
                 </div>
-                <div className={styles.conversationSearchWrap}>
-                  <input
-                    type="text"
-                    className={styles.conversationSearch}
-                    placeholder="Rechercher..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                <div className={styles.conversationFilterHeader}>
+                  <span className={styles.conversationFilterHeaderLabel}>
+                    Statut conversation
+                  </span>
                 </div>
                 <div className={styles.conversationFilters}>
                   {statusFilterOptions.map((statusOption) => (
@@ -1587,49 +1813,9 @@ const Conversations: FunctionComponent = () => {
                       }`}
                       onClick={() => setStatusFilter(statusOption)}
                     >
-                      {statusOption}
+                      {statusFilterLabels[statusOption]}
                     </button>
                   ))}
-                </div>
-                <div className={styles.conversationFilters}>
-                  <div
-                    className={`${styles.detailsSortWrap} ${
-                      isSortMenuOpen ? styles.detailsSortWrapOpen : ""
-                    }`.trim()}
-                    ref={sortMenuRef}
-                  >
-                    <button
-                      type="button"
-                      className={styles.detailsSortButton}
-                      onClick={() => setSortMenuOpen((prev) => !prev)}
-                      aria-haspopup="listbox"
-                      aria-expanded={isSortMenuOpen}
-                      aria-label="Trier les conversations"
-                    >
-                      {sortOptionLabels[sortOption]}
-                    </button>
-                    {isSortMenuOpen && (
-                      <div className={styles.detailsSortMenu} role="listbox">
-                        {sortOptions.map((option) => {
-                          const isActive = sortOption === option;
-                          return (
-                            <button
-                              key={option}
-                              type="button"
-                              role="option"
-                              aria-selected={isActive}
-                              className={`${styles.detailsSortMenuItem} ${
-                                isActive ? styles.detailsSortMenuItemActive : ""
-                              }`.trim()}
-                              onClick={() => handleSortChange(option)}
-                            >
-                              {sortOptionLabels[option]}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
                 </div>
                 {!selectedConfigId && !isAllMode ? (
                   <div className={styles.conversationEmpty}>
@@ -1641,6 +1827,12 @@ const Conversations: FunctionComponent = () => {
                   <div className={styles.conversationError}>
                     {conversationsErrorDetails?.message ??
                       "Impossible de charger les conversations."}
+                  </div>
+                ) : searchedConversations.length === 0 ? (
+                  <div className={styles.conversationNoResults}>
+                    {isSearchActive
+                      ? "Aucun resultat pour cette recherche."
+                      : "Aucune conversation ne correspond a ces filtres."}
                   </div>
                 ) : (
                   <div className={styles.conversationList}>
@@ -1669,23 +1861,20 @@ const Conversations: FunctionComponent = () => {
                     <div className={styles.chatHeader}>
                       <div className={styles.chatHeaderTop}>
                         <div className={styles.chatHeaderMeta}>
-                          <h3 style={{ margin: 0 }}>
+                          <h3 className={styles.chatContactTitle}>
                             {activeConversation.contactName}
                             {activeConversation.contactHandle && (
-                              <span
-                                style={{
-                                  fontSize: "0.8em",
-                                  color: "var(--app-text-secondary)",
-                                  marginLeft: "8px",
-                                }}
-                              >
+                              <span className={styles.chatContactHandle}>
                                 @{activeConversation.contactHandle}
                               </span>
                             )}
                           </h3>
                           <ChannelBadge channel={activeConversation.channel} />
-                          <span className={styles.topConversationItemMeta}>
-                            Statut : {activeConversation.status}
+                          <span className={styles.chatMetaPill}>
+                            Statut: {getConversationStatusLabel(activeConversation)}
+                          </span>
+                          <span className={styles.chatMetaPill}>
+                            Derniere activite {formatRelativeTime(activeConversation.lastAt)}
                           </span>
                           {activeConversation.automationState === "scheduled" && (
                             <span className={styles.chatScheduledLabel}>
@@ -2144,16 +2333,11 @@ const Conversations: FunctionComponent = () => {
                             Fenêtre 24h expirée · Impossible de répondre
                           </span>
                         ) : (
-                          <span
-                            style={{
-                              color: "var(--app-text-secondary)",
-                              fontSize: "12px",
-                            }}
-                          >
-                            Canal actif : {activeConversation.channel}
+                          <span className={styles.chatComposerMeta}>
+                            Canal actif: {activeConversation.channel}
                           </span>
                         )}
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div className={styles.chatComposerActionButtons}>
                           <button
                             type="button"
                             className={styles.voiceMicBtn}
@@ -2616,3 +2800,10 @@ const Conversations: FunctionComponent = () => {
 };
 
 export default Conversations;
+
+
+
+
+
+
+

@@ -86,8 +86,8 @@ function App() {
         metaDescription = "Gérez votre base de contacts, importez des leads et suivez leur statut.";
         break;
       case "/app/conversations":
-        title = "LeadControl - Conversations";
-        metaDescription = "Visualise et gère toutes les conversations de tes agents LeadControl.";
+        title = "LeadControl - Inbox";
+        metaDescription = "Visualise et gere ton inbox de conversations agents dans LeadControl.";
         break;
       case "/app/relances":
         title = "LeadControl - Relances";
@@ -133,7 +133,23 @@ function App() {
   }, [pathname]);
 
   const { data: subscriptionState } = useSubscriptionState();
-  const showFeedback = pathname.startsWith("/app") && pathname !== "/app" && subscriptionState?.planKey !== "none";
+
+  const feedbackPlacement = (() => {
+    if (pathname === "/app/conversations") return "lifted" as const;
+    if (
+      pathname === "/app/contacts" ||
+      pathname === "/app/relances" ||
+      pathname === "/app/agentai" ||
+      pathname === "/app/connexion" ||
+      pathname === "/app/crm"
+    ) {
+      return "default" as const;
+    }
+    return null;
+  })();
+
+  const showFeedback =
+    feedbackPlacement !== null && subscriptionState?.planKey !== "none";
 
   return (
     <>
@@ -166,7 +182,7 @@ function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {showFeedback && <Feedback />}
+      {showFeedback && <Feedback placement={feedbackPlacement ?? "default"} />}
     </>
   );
 }

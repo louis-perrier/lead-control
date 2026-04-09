@@ -1,4 +1,4 @@
-import {
+﻿import {
     FunctionComponent,
     FormEvent,
     useEffect,
@@ -8,7 +8,13 @@ import {
 import styles from "./Feedback.module.css";
 import { useAuth } from "../context/AuthContext";
 
-const Feedback: FunctionComponent = () => {
+type FeedbackPlacement = "default" | "lifted";
+
+type FeedbackProps = {
+    placement?: FeedbackPlacement;
+};
+
+const Feedback: FunctionComponent<FeedbackProps> = ({ placement = "default" }) => {
     const [showMessage, setShowMessage] = useState(false);
     const [overlayOpen, setOverlayOpen] = useState(false);
     const [message, setMessage] = useState("");
@@ -34,7 +40,7 @@ const Feedback: FunctionComponent = () => {
         };
     }, []);
 
-    const { user } = useAuth(); 
+    const { user } = useAuth();
 
     const resizeTextarea = () => {
         const textarea = textareaRef.current;
@@ -100,7 +106,15 @@ const Feedback: FunctionComponent = () => {
     };
 
     return (
-        <div className={styles.bubble} ref={bubbleRef}>
+        <div
+            className={[
+                styles.bubble,
+                placement === "lifted" ? styles.bubbleLifted : "",
+            ]
+                .filter(Boolean)
+                .join(" ")}
+            ref={bubbleRef}
+        >
             {showMessage && (
                 <span className={styles.message}>Laissez un feedback</span>
             )}
@@ -126,7 +140,7 @@ const Feedback: FunctionComponent = () => {
                     <div className={styles.overlayHeader}>
                         <p className={styles.overlayTitle}>Ton feedback</p>
                         <p className={styles.overlayHint}>
-                            Dis-nous ce qu'on peut ameliorer.
+                            Dis-nous ce qu'on peut améliorer.
                         </p>
                     </div>
                     <div className={styles.textareaWrapper}>
