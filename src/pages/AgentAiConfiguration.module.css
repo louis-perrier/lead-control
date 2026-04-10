@@ -2130,15 +2130,13 @@
   bottom: 0;
   z-index: 6;
   justify-content: flex-end;
-  margin-top: auto;
-  margin-left: -24px;
-  margin-right: -24px;
-  margin-bottom: -24px;
-  padding: 14px 24px 16px;
-  background: #F6F8FC;
-  border-top: 1px solid #E6EBF2;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
+  margin-top: 32px;
+  margin-left: -32px;
+  margin-right: -32px;
+  padding: 16px 32px;
+  background: var(--app-surface);
+  border-top: 1px solid var(--app-border);
+  box-shadow: 0 -2px 12px rgba(11, 18, 32, 0.04);
 }
 
 .footerHint {
@@ -3007,4 +3005,171 @@
   font-size: 13px;
   font-weight: 600;
   color: #dc2626;
+}
+
+/* ═══════════════════════════════════════════════
+   CONFIG TABS
+   ═══════════════════════════════════════════════ */
+
+.configLayout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Tab nav bar ── */
+.configTabNav {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface);
+  padding: 0 32px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.configTabNav::-webkit-scrollbar { display: none; }
+
+.configTabBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 16px 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+  letter-spacing: 0.01em;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.configTabBtn:hover:not(.configTabBtnLocked) {
+  color: var(--app-text-primary);
+}
+
+.configTabBtnActive {
+  color: #1E40AF;
+  border-bottom-color: #2563EB;
+}
+
+.configTabBtnLocked {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.configTabLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Badge ! */
+.configTabAlert {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #EF4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Point verrou */
+.configTabLockDot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--app-text-secondary);
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+
+/* ── Tab content ── */
+.configTabContent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--app-bg);
+}
+
+.configTabContent::-webkit-scrollbar { width: 5px; }
+.configTabContent::-webkit-scrollbar-track { background: transparent; }
+.configTabContent::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 99px;
+}
+
+.configTabPanel {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 32px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── ✓ check badge on tabs ── */
+.configTabCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #22C55E;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Empty state (Voix, Automatisations, Templates) ── */
+.tabEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 32px;
+  text-align: center;
+}
+
+.tabEmptyStateIcon {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.tabEmptyStateTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--app-text-primary);
+  margin: 0;
+}
+
+.tabEmptyStateDesc {
+  font-size: 13px;
+  color: var(--app-text-secondary);
+  max-width: 380px;
+  line-height: 1.5;
+  margin: 0;
 }

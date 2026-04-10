@@ -15,10 +15,6 @@ import Header from "../components/Header";
 import TabComponent from "../components/TabComponent";
 import Button from "../components/Button";
 import buttonStyles from "../components/Button.module.css";
-import CornerSections, {
-  CornerSection,
-  CornerStatus,
-} from "../components/CornerSections";
 import SwitchAnimated from "../components/Tools/SwitchAnimated";
 import DynamicConfig, {
   ConfigItem,
@@ -545,7 +541,8 @@ const AgentAi: FunctionComponent = () => {
   const [isAgentRenaming, setIsAgentRenaming] = useState(false);
 
   // UI state
-  const [activeCorner, setActiveCorner] = useState<CornerSection | null>(null);
+  type TabId = "agent" | "canaux" | "templates" | "voix" | "automatisations" | "avance";
+  const [activeTab, setActiveTab] = useState<TabId>("agent");
   const [headerSwitchOn, setHeaderSwitchOn] = useState(false);
   
   // État de la sidebar pour ajuster l'overlay
@@ -571,20 +568,6 @@ const AgentAi: FunctionComponent = () => {
     };
   }, []);
 
-  // Bloquer le scroll du body quand la modal Details est ouverte
-  useEffect(() => {
-    if (activeCorner === "Details") {
-      // Sauvegarder le style original
-      const originalOverflow = document.body.style.overflow;
-      // Bloquer le scroll
-      document.body.style.overflow = "hidden";
-
-      return () => {
-        // Restaurer le scroll original à la fermeture
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [activeCorner]);
 
 
   // Etat de la popup “Details”
@@ -701,16 +684,16 @@ const AgentAi: FunctionComponent = () => {
   const templateBodyRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    if (activeCorner !== "Configurations") {
+    if (activeTab !== "avance") {
       setActiveSocial(null);
     }
-  }, [activeCorner]);
+  }, [activeTab]);
 
   // Détection du retour OAuth Calendly (?calendly_connected=1)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("calendly_connected") === "1") {
-      setActiveCorner("Connexions");
+      setActiveTab("canaux");
       // Nettoyer le param de l'URL sans recharger la page
       params.delete("calendly_connected");
       const newSearch = params.toString();
@@ -751,7 +734,6 @@ const AgentAi: FunctionComponent = () => {
       setSelectedAgentId(nextSelectedId);
 
       if (nextTabs.length === 0) {
-        setActiveCorner(null);
         navigate("/app/agentai", { state: { tabs: [] } });
       }
     },
@@ -951,7 +933,7 @@ const AgentAi: FunctionComponent = () => {
   }, [customToneModalOpen, handleCloseCustomToneModal]);
 
   const handleCloseDetailsOverlay = useCallback(() => {
-    setActiveCorner(null);
+    // no-op in tab layout
   }, []);
 
   const validateForm = useCallback((): DetailErrors => {
@@ -1370,43 +1352,20 @@ const AgentAi: FunctionComponent = () => {
   const hasAnyConnectors =
     countAvailableConnector + countConnectedConnector > 0;
 
-  const sectionStatuses = useMemo<Record<CornerSection, CornerStatus>>(() => {
-    const statuses: Record<CornerSection, CornerStatus> = {
-      Details: "lock",
-      Connexions: "lock",
-      Templates: "available",
-      Configurations: "lock",
+  const tabLocked = useMemo<Record<TabId, boolean>>(() => {
+    const agentOk = areDetailsFilled;
+    const canauxOk = agentOk && (!hasAnyConnectors || hasActiveConnection);
+    return {
+      agent: false,
+      canaux: !agentOk,
+      templates: !agentOk,
+      automatisations: !agentOk,
+      voix: !agentOk,
+      avance: !canauxOk,
     };
+  }, [areDetailsFilled, hasAnyConnectors, hasActiveConnection]);
 
-    if (!areDetailsFilled) {
-      statuses.Details = "unlock";
-      return statuses;
-    }
-
-    statuses.Details = "available";
-    if (!hasAnyConnectors) {
-      statuses.Connexions = "available";
-      statuses.Configurations = "available";
-      return statuses;
-    }
-
-    statuses.Connexions = hasActiveConnection ? "available" : "unlock";
-
-    if (!hasActiveConnection) {
-      return statuses;
-    }
-
-    statuses.Configurations = hasGlobalMissingRequiredConfig ? "unlock" : "available";
-    return statuses;
-  }, [
-    areDetailsFilled,
-    hasActiveConnection,
-    hasGlobalMissingRequiredConfig,
-    hasAnyConnectors,
-  ]);
-
-  const isConfigSectionAvailable =
-    sectionStatuses.Configurations === "available";
+  const isConfigSectionAvailable = !tabLocked.avance;
   const isHeaderSwitchDisabled = !isConfigSectionAvailable;
   const displayedHeaderSwitchChecked = !connectorsLoaded
     ? Boolean(selectedAgent?.is_active)
@@ -1752,14 +1711,14 @@ const AgentAi: FunctionComponent = () => {
   }, [activeSocial, selectedAgent, connectorConnected]);
 
   useEffect(() => {
-    if (activeCorner === "Configurations") {
+    if (activeTab === "avance") {
       fetchSavedConfig();
     }
-  }, [activeCorner, fetchSavedConfig]);
+  }, [activeTab, fetchSavedConfig]);
 
   // Charger les voix ElevenLabs à l'ouverture du panneau Details
   useEffect(() => {
-    if (activeCorner !== "Details" || voiceList.length > 0) return;
+    if (activeTab !== "voix" || voiceList.length > 0) return;
     setVoiceListLoading(true);
     supabase.auth.getSession().then(({ data }) => {
       const token = data.session?.access_token;
@@ -1772,7 +1731,7 @@ const AgentAi: FunctionComponent = () => {
         .catch(console.error)
         .finally(() => setVoiceListLoading(false));
     });
-  }, [activeCorner, voiceList.length]);
+  }, [activeTab, voiceList.length]);
 
   const buildPayload = () => configValues.map(({ id, value }) => ({ id, value }));
 
@@ -1828,11 +1787,11 @@ const AgentAi: FunctionComponent = () => {
   }, [selectedAgent?.display_id]);
 
   useEffect(() => {
-    if (activeCorner === "Templates") {
+    if (activeTab === "avance" || activeTab === "templates") {
       fetchTemplates();
       fetchFollowups();
     }
-  }, [activeCorner, fetchTemplates, fetchFollowups]);
+  }, [activeTab, fetchTemplates, fetchFollowups]);
 
   const handleCreateTemplate = async () => {
     if (!newTemplateName.trim() || !newTemplateBody.trim()) return;
@@ -1906,7 +1865,6 @@ const AgentAi: FunctionComponent = () => {
     } else {
       console.log("Config enregistrée");
     }
-    setActiveCorner(null);
   };
   const getCurrentDetailsSnapshot = useCallback(
     (): DetailsSnapshot => ({
@@ -1977,6 +1935,24 @@ const AgentAi: FunctionComponent = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [detailsComponents.join(","), productName, contextText, contextPdf, stopText]
   );
+
+  const tabIncomplete: Record<TabId, boolean> = {
+    agent: missingRequiredCount > 0 || hasValidationErrors,
+    canaux: hasAnyConnectors && !hasActiveConnection,
+    templates: false,
+    automatisations: false,
+    voix: false,
+    avance: hasGlobalMissingRequiredConfig,
+  };
+
+  const tabComplete: Record<TabId, boolean> = {
+    agent: !tabIncomplete.agent && areDetailsFilled,
+    canaux: !tabIncomplete.canaux && hasActiveConnection,
+    templates: waTemplates.length > 0,
+    automatisations: false,
+    voix: Boolean(voiceId),
+    avance: !tabIncomplete.avance && isConfigSectionAvailable,
+  };
 
   const hasUnsavedChanges = useMemo(() => {
     if (!lastSavedDetails) return false;
@@ -2273,7 +2249,7 @@ const AgentAi: FunctionComponent = () => {
     setContextPdf(null);
     setContextPdfError(undefined);
     setErrors({});
-    setActiveCorner(null);
+    setActiveTab("canaux");
   };
 
   const renderDetailsSection = (key: string, step: number): React.ReactNode => {
@@ -2729,32 +2705,528 @@ const AgentAi: FunctionComponent = () => {
             </div>
           </div>
         )}
-        <CornerSections
-          backgroundImage={selectedAgent?.backgroundSrc}
-          onSelect={(section) => setActiveCorner(section)}
-          statuses={sectionStatuses}
-        />
-        {activeCorner && selectedAgent && (
-            <div
-              className={styles.cornerOverlay}
-              data-sidebar-collapsed={isSidebarCollapsed}
-              onClick={() => {
-                if (activeCorner === "Details") {
-                  handleCloseDetailsOverlay();
-                } else {
-                  setActiveCorner(null);
-                }
-              }}
-            >
-            <div
-              className={`${styles.cornerOverlayContent} ${
-                activeCorner === "Configurations" ? styles.configurationOverlayContent :
-                activeCorner === "Details" ? styles.detailsOverlayContent : ""
-              }`}
-              onClick={(event) => event.stopPropagation()}
-            >
-              {activeCorner === "Configurations" && (
-                <>
+        {selectedAgent && (
+          <div className={styles.configLayout}>
+
+            {/* ── Tab navigation ── */}
+            <nav className={styles.configTabNav}>
+              {(["agent","canaux","templates","voix","automatisations","avance"] as TabId[]).map((id) => {
+                const labels: Record<TabId, string> = {
+                  agent: "Agent",
+                  canaux: "Canaux",
+                  templates: "Relances",
+                  voix: "Voix",
+                  automatisations: "Actions",
+                  avance: "Avancé",
+                };
+                const locked = tabLocked[id];
+                const incomplete = !locked && tabIncomplete[id];
+                const complete = !locked && !incomplete && tabComplete[id];
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    title={locked ? "Complétez les étapes précédentes pour accéder à cet onglet" : undefined}
+                    className={[
+                      styles.configTabBtn,
+                      activeTab === id ? styles.configTabBtnActive : "",
+                      locked ? styles.configTabBtnLocked : "",
+                    ].filter(Boolean).join(" ")}
+                    onClick={() => { if (!locked) setActiveTab(id); }}
+                  >
+                    <span className={styles.configTabLabel}>{labels[id]}</span>
+                    {incomplete && <span className={styles.configTabAlert}>!</span>}
+                    {complete && <span className={styles.configTabCheck}>✓</span>}
+                    {locked && <span className={styles.configTabLockDot} />}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* ── Tab content ── */}
+            <div className={styles.configTabContent}>
+
+              {/* ───────────────── AGENT ───────────────── */}
+              {activeTab === "agent" && (
+                <div className={styles.configTabPanel}>
+                  <div className={styles.modalContainer}>
+                    {selectedAgent?.details_component?.length ? (
+                      activeGroups.map(group => {
+                        const isOpen = !group.collapsible || openGroups.has(group.id);
+                        const hasError = group.activeKeys.some(k => keyHasError(k));
+                        return (
+                          <div key={group.id} className={`${styles.detailsGroup} ${hasError ? styles.detailsGroupError : ""}`}>
+                            <div
+                              className={`${styles.detailsGroupHeader} ${group.collapsible ? styles.detailsGroupHeaderCollapsible : ""}`}
+                              onClick={group.collapsible ? () => toggleGroup(group.id) : undefined}
+                            >
+                              <span className={styles.detailsGroupTitle}>{group.label}</span>
+                              <div className={styles.detailsGroupHeaderRight}>
+                                {hasError && <span className={styles.detailsGroupErrorDot} />}
+                                {group.collapsible && (
+                                  <span className={`${styles.detailsGroupChevron} ${isOpen ? styles.detailsGroupChevronOpen : ""}`}>›</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className={`${styles.detailsGroupBody} ${!isOpen ? styles.detailsGroupBodyClosed : ""}`.trim()}>
+                              {group.activeKeys.map((key, index) => (
+                                <React.Fragment key={key}>
+                                  {renderDetailsSection(key, index + 1)}
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className={styles.noConfigMessage}>
+                        <p>Bonne nouvelle !</p>
+                        <p>Aucune configuration n'est nécessaire pour cet agent.</p>
+                      </div>
+                    )}
+
+                    {/* Prix moyen de vente */}
+                    {selectedAgent && (
+                      <div className={styles.detailsGroup}>
+                        <div className={styles.detailsGroupHeader}>
+                          <span className={styles.detailsGroupTitle}>Vente</span>
+                        </div>
+                        <div className={styles.detailsGroupBody}>
+                          <section className={styles.modalSection}>
+                            <div className={styles.sectionHeading}>
+                              <h4 className={styles.sectionTitle}>Prix moyen de vente (€)</h4>
+                            </div>
+                            <p className={styles.sectionDescription}>
+                              Valeur pré-remplie dans la modal de closing lors du marquage d'une conversation comme clôturée.
+                            </p>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={avgDealValue}
+                              onChange={(e) => setAvgDealValue(e.target.value)}
+                              placeholder="Ex : 497"
+                              className={styles.avgDealInput}
+                            />
+                          </section>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedAgent ? (
+                    <div className={styles.modalFooter}>
+                      <p className={styles.footerHint}>
+                        {!lastSavedDetails
+                          ? "Complétez les champs requis"
+                          : hasUnsavedChanges
+                          ? "Changements non enregistrés"
+                          : "Tout est à jour"}
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.saveButton}
+                        onClick={handleSaveDetails}
+                        disabled={hasValidationErrors}
+                      >
+                        Enregistrer
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {/* ───────────────── CANAUX ───────────────── */}
+              {activeTab === "canaux" && (
+                <div className={styles.configTabPanel}>
+                  <div className={styles.connexionSections}>
+                    <div className={styles.connexionSection}>
+                      <h4>Connecté ({countConnectedConnector})</h4>
+                      <div className={styles.connexionSectionCards}>
+                        {connectorConnected.map((connector) =>
+                          connector.connectors_name === "calendly" ? (
+                            <CalendlyConnexionCard
+                              key={connector.connectors_id}
+                              configsId={selectedAgent?.display_id ?? ""}
+                              connectorLabel={connector.connector_label ?? ""}
+                              metadata={connector.metadata}
+                              currentEventTypeUri={
+                                (selectedAgent?.configs as Record<string, any>)?.Connexions
+                                  ?.calendly_event_type_uri
+                              }
+                              onDisconnect={connexions["calendly"].onDisconnect}
+                              onSaveEventType={handleSaveCalendlyEventType}
+                            />
+                          ) : (
+                            <ConnexionCard
+                              key={connector.connectors_id}
+                              title={connector.connectors_name.charAt(0).toUpperCase() + connector.connectors_name.slice(1)}
+                              description={connector.connector_label ?? ""}
+                              imageSrc={connexions[connector.connectors_name].imageSrc}
+                              actionLabel="Déconnecter"
+                              onAction={connexions[connector.connectors_name].onDisconnect}
+                              helpUrl={connector.connectors_name === "whatsapp" ? "https://lautopreneur.notion.site/Connecter-WhatsApp-LeadControl-331392824e1a812c9657d8d56c77c4e7?source=copy_link" : undefined}
+                              helpTooltip={connector.connectors_name === "whatsapp" ? "Besoin d'aide pour connecter votre compte WhatsApp ?" : undefined}
+                            />
+                          )
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.connexionSection}>
+                      <h4>Déconnecté ({countAvailableConnector-countConnectedConnector})</h4>
+                      <div className={styles.connexionSectionCards}>
+                        {availableShow
+                          .filter((connector) => !connector.connectors_special)
+                          .map((connector) =>
+                            connector.connectors_name === "whatsapp" ? (
+                              <div key={connector.connectors_id} ref={waSelectorAnchorRef}>
+                                <ConnexionCard
+                                  title="Whatsapp"
+                                  description="Connecter whatsapp"
+                                  imageSrc={connexions["whatsapp"].imageSrc}
+                                  actionLabel="Connecter"
+                                  isAvailable={connector.connectors_available}
+                                  onAction={() => setShowWASelector(true)}
+                                  helpUrl="https://lautopreneur.notion.site/Connecter-WhatsApp-LeadControl-331392824e1a812c9657d8d56c77c4e7?source=copy_link"
+                                  helpTooltip="Besoin d'aide pour connecter votre compte WhatsApp ?"
+                                />
+                              </div>
+                            ) : (
+                              <ConnexionCard
+                                key={connector.connectors_id}
+                                title={
+                                  connector.connectors_name.charAt(0).toUpperCase() +
+                                  connector.connectors_name.slice(1)
+                                }
+                                description={`Connecter ${connector.connectors_name}`}
+                                imageSrc={connexions[connector.connectors_name].imageSrc}
+                                actionLabel="Connecter"
+                                isAvailable={connector.connectors_available}
+                                onAction={connexions[connector.connectors_name].onConnect}
+                              />
+                            )
+                          )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ───────────────── VOIX ───────────────── */}
+              {activeTab === "voix" && (
+                <div className={styles.configTabPanel}>
+                  <div className={styles.modalContainer}>
+                    {selectedAgent && (
+                      <div className={styles.detailsGroup}>
+                        <div className={styles.detailsGroupHeader}>
+                          <span className={styles.detailsGroupTitle}>Voice</span>
+                        </div>
+                        <div className={styles.detailsGroupBody}>
+
+                          {/* 4.1 Bibliothèque */}
+                          <section className={styles.modalSection}>
+                            <div className={styles.sectionHeading}>
+                              <h4 className={styles.sectionTitle}>Bibliothèque de voix</h4>
+                            </div>
+                            <p className={styles.sectionDescription}>
+                              Choisissez une voix parmi la bibliothèque ElevenLabs pour que votre agent parle à votre place.
+                            </p>
+                            {!voiceListLoading && voiceList.length === 0 && !voiceId ? (
+                              <div className={styles.tabEmptyState}>
+                                <span className={styles.tabEmptyStateIcon}>🎙</span>
+                                <p className={styles.tabEmptyStateTitle}>Aucune voix disponible</p>
+                                <p className={styles.tabEmptyStateDesc}>Configurez votre clé API ElevenLabs depuis vos paramètres pour accéder à la bibliothèque de voix.</p>
+                              </div>
+                            ) : voiceId ? (
+                              <div className={styles.voiceActiveCard}>
+                                <div className={styles.voiceActiveInfo}>
+                                  <span className={styles.voiceActiveName}>{voiceName}</span>
+                                  <span className={styles.voiceActiveType}>
+                                    {voiceType === "cloned" ? "Voix clonée" : "Bibliothèque"}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className={styles.voiceChangeBtn}
+                                  onClick={() => { setVoiceId(null); setVoiceName(null); setVoiceType(null); }}
+                                >
+                                  Changer
+                                </button>
+                              </div>
+                            ) : voiceListLoading ? (
+                              <p className={styles.voiceLoadingText}>Chargement des voix…</p>
+                            ) : (
+                              <div className={styles.voiceGrid}>
+                                {voiceList.map((v) => (
+                                  <div key={v.voice_id} className={styles.voiceCard}>
+                                    <span className={styles.voiceCardName}>{v.name}</span>
+                                    <div className={styles.voiceCardActions}>
+                                      <button
+                                        type="button"
+                                        className={styles.voicePreviewBtn}
+                                        onClick={() => handlePlayVoicePreview(v.preview_url, v.voice_id)}
+                                      >
+                                        {voicePreviewingId === v.voice_id ? "⏹" : "▶"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={styles.voiceSelectBtn}
+                                        onClick={() => handleSaveVoiceSelection(v)}
+                                      >
+                                        Sélectionner
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </section>
+
+                          {/* 4.2 Clone vocal */}
+                          <section className={styles.modalSection}>
+                            <div className={styles.sectionHeading}>
+                              <h4 className={styles.sectionTitle}>Cloner ma voix</h4>
+                            </div>
+                            <p className={styles.sectionDescription}>
+                              Enregistrez ou déposez un fichier audio pour créer un clone de votre voix.
+                            </p>
+                            <div
+                              className={`${styles.cloneDropZone} ${cloneDragOver ? styles.cloneDropZoneActive : ""} ${cloneAudioBlob ? styles.cloneDropZoneReady : ""}`}
+                              onDragOver={(e) => { e.preventDefault(); setCloneDragOver(true); }}
+                              onDragLeave={() => setCloneDragOver(false)}
+                              onDrop={handleCloneDrop}
+                            >
+                              {cloneAudioBlob
+                                ? "✓ Fichier audio prêt"
+                                : "Déposez un fichier audio ici (mp3, wav, m4a…)"}
+                            </div>
+                            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                              {!cloneRecording ? (
+                                <button type="button" className={styles.cloneStartBtn} onClick={handleStartRecording}>
+                                  🎙 Enregistrer
+                                </button>
+                              ) : (
+                                <button type="button" className={styles.cloneStopBtn} onClick={handleStopRecording}>
+                                  ⏹ Arrêter
+                                </button>
+                              )}
+                            </div>
+                            {cloneAudioBlob && (
+                              <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+                                <input
+                                  type="text"
+                                  className={styles.cloneNameInput}
+                                  placeholder="Nom de la voix (ex: Louis)"
+                                  value={cloneVoiceName}
+                                  onChange={(e) => setCloneVoiceName(e.target.value)}
+                                />
+                                <button
+                                  type="button"
+                                  className={styles.cloneSubmitBtn}
+                                  onClick={handleCloneVoice}
+                                  disabled={isCloning || !cloneVoiceName.trim()}
+                                >
+                                  {isCloning ? "Clonage…" : "Créer le clone"}
+                                </button>
+                              </div>
+                            )}
+                          </section>
+
+                          {/* 4.3 Auto-send */}
+                          <section className={styles.modalSection}>
+                            <div className={styles.sectionHeading}>
+                              <h4 className={styles.sectionTitle}>Envoi automatique</h4>
+                            </div>
+                            <p className={styles.sectionDescription}>
+                              L'agent envoie automatiquement un message vocal selon le déclencheur choisi.
+                            </p>
+                            <div className={styles.voiceAutoRow}>
+                              <SwitchAnimated
+                                checked={voiceAutoEnabled}
+                                onChange={(val) => setVoiceAutoEnabled(val)}
+                                showLabel
+                              />
+                              {voiceAutoEnabled && (
+                                <select
+                                  className={styles.voiceTriggerSelect}
+                                  value={voiceTrigger}
+                                  onChange={(e) => setVoiceTrigger(e.target.value as "always" | "first_message" | "on_link_sent")}
+                                >
+                                  <option value="always">À chaque message</option>
+                                  <option value="first_message">Premier message seulement</option>
+                                  <option value="on_link_sent">Après envoi du lien Calendly</option>
+                                </select>
+                              )}
+                            </div>
+                          </section>
+
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={styles.modalFooter}>
+                    <button
+                      type="button"
+                      className={styles.saveButton}
+                      onClick={handleSaveDetails}
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ───────────────── AUTOMATISATIONS ───────────────── */}
+              {activeTab === "automatisations" && (
+                <div className={styles.configTabPanel}>
+                  <div className={styles.modalContainer}>
+                    {selectedAgent && (
+                      <div className={styles.detailsGroup}>
+                        <div className={styles.detailsGroupHeader}>
+                          <span className={styles.detailsGroupTitle}>Automatisations</span>
+                        </div>
+                        <div className={styles.detailsGroupBody}>
+
+                          {/* Bloc 1 — Répondre aux commentaires */}
+                          <section className={styles.modalSection}>
+                            <div className={styles.sectionHeading}>
+                              <h4 className={styles.sectionTitle}>Répondre aux commentaires</h4>
+                            </div>
+                            <p className={styles.sectionDescription}>
+                              L'agent répond automatiquement aux commentaires Instagram.
+                            </p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                              <SwitchAnimated
+                                checked={commReplyEnabled}
+                                onChange={setCommReplyEnabled}
+                                showLabel
+                              />
+                              {commReplyEnabled ? "Activé" : "Désactivé"}
+                            </div>
+                            {commReplyEnabled && (
+                              <>
+                                <div style={{ marginBottom: 8 }}>
+                                  <label style={{ fontSize: 13, fontWeight: 600 }}>Mode de déclenchement</label>
+                                  <select
+                                    className={styles.voiceTriggerSelect}
+                                    value={commReplyMode}
+                                    onChange={(e) => setCommReplyMode(e.target.value as "always" | "keywords" | "never")}
+                                    style={{ marginTop: 4, width: "100%" }}
+                                  >
+                                    <option value="always">Toujours</option>
+                                    <option value="keywords">Sur mots-clés</option>
+                                    <option value="never">Jamais</option>
+                                  </select>
+                                </div>
+                                {commReplyMode === "keywords" && (
+                                  <div style={{ marginBottom: 8 }}>
+                                    <label style={{ fontSize: 13, fontWeight: 600 }}>Mots-clés déclencheurs</label>
+                                    <ConfigTextareaTags
+                                      label="Mots-clés"
+                                      placeholder="Ajouter un mot-clé…"
+                                      initialTags={commReplyKeywords}
+                                      onTagsChange={setCommReplyKeywords}
+                                    />
+                                  </div>
+                                )}
+                                <div>
+                                  <label style={{ fontSize: 13, fontWeight: 600 }}>Template de réponse</label>
+                                  <textarea
+                                    className={styles.commTextarea}
+                                    value={commReplyTemplate}
+                                    onChange={(e) => setCommReplyTemplate(e.target.value)}
+                                    placeholder="Merci pour ton commentaire ! Réponds en DM pour en savoir plus 🙌"
+                                    rows={3}
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </section>
+
+                          {/* Bloc 2 — Envoyer un DM après commentaire */}
+                          <section className={styles.modalSection}>
+                            <div className={styles.sectionHeading}>
+                              <h4 className={styles.sectionTitle}>Envoyer un DM après commentaire</h4>
+                            </div>
+                            <p className={styles.sectionDescription}>
+                              L'agent envoie automatiquement un DM aux personnes qui commentent.
+                            </p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                              <SwitchAnimated
+                                checked={commDmEnabled}
+                                onChange={setCommDmEnabled}
+                                showLabel
+                              />
+                              {commDmEnabled ? "Activé" : "Désactivé"}
+                            </div>
+                            {commDmEnabled && (
+                              <>
+                                <div style={{ marginBottom: 8 }}>
+                                  <label style={{ fontSize: 13, fontWeight: 600 }}>Mode de déclenchement</label>
+                                  <select
+                                    className={styles.voiceTriggerSelect}
+                                    value={commDmMode}
+                                    onChange={(e) => setCommDmMode(e.target.value as "always" | "keywords" | "never")}
+                                    style={{ marginTop: 4, width: "100%" }}
+                                  >
+                                    <option value="always">Toujours</option>
+                                    <option value="keywords">Sur mots-clés</option>
+                                    <option value="never">Jamais</option>
+                                  </select>
+                                </div>
+                                {commDmMode === "keywords" && (
+                                  <div style={{ marginBottom: 8 }}>
+                                    <label style={{ fontSize: 13, fontWeight: 600 }}>Mots-clés déclencheurs</label>
+                                    <ConfigTextareaTags
+                                      label="Mots-clés"
+                                      placeholder="Ajouter un mot-clé…"
+                                      initialTags={commDmKeywords}
+                                      onTagsChange={setCommDmKeywords}
+                                    />
+                                  </div>
+                                )}
+                                <div>
+                                  <label style={{ fontSize: 13, fontWeight: 600 }}>Premier message DM</label>
+                                  <textarea
+                                    className={styles.commTextarea}
+                                    value={commDmFirstMessage}
+                                    onChange={(e) => setCommDmFirstMessage(e.target.value)}
+                                    placeholder="Hey {{prenom}}, j'ai vu ton commentaire ! Tu veux en savoir plus ?"
+                                    rows={3}
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </section>
+
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={styles.commSaveRow}>
+                    <button
+                      type="button"
+                      className={styles.commSaveBtn}
+                      onClick={handleSaveComments}
+                      disabled={commSaveStatus === "saving"}
+                    >
+                      {commSaveStatus === "saving" ? "Sauvegarde…" : "Sauvegarder"}
+                    </button>
+                    {commSaveStatus === "saved" && (
+                      <span className={styles.commToastSuccess}>✓ Sauvegardé</span>
+                    )}
+                    {commSaveStatus === "error" && (
+                      <span className={styles.commToastError}>Erreur, réessayez</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ───────────────── AVANCÉ ───────────────── */}
+              {activeTab === "avance" && (
+                <div className={styles.configTabPanel}>
                   <div className={styles.configurationContent}>
                     <div className={styles.availableLogosWrapper}>
                       {configurationLogos.map((logo) => (
@@ -2832,558 +3304,96 @@ const AgentAi: FunctionComponent = () => {
                       </div>
                     )}
                   </div>
-                </>
+
+                </div>
               )}
-              {activeCorner === "Details" && (
-                <>
-                  {/* Header compact */}
-                  <div className={styles.detailsHeaderBar}>
-                    <div>
-                      <h3 className={styles.detailsHeaderTitle}>Configurer l’agent</h3>
-                      <p className={styles.detailsHeaderSubtitle}>Paramétrez le comportement de votre agent.</p>
-                    </div>
-                    {selectedAgent?.details_component?.length ? (
-                      <span className={`${styles.detailsStatusBadge} ${missingRequiredCount > 0 || hasValidationErrors ? styles.detailsStatusBadgeError : styles.detailsStatusBadgeOk}`}>
-                        {missingRequiredCount > 0
-                          ? `Incomplet — ${missingRequiredCount} champ${missingRequiredCount > 1 ? "s" : ""} requis manquant${missingRequiredCount > 1 ? "s" : ""}`
-                          : hasValidationErrors
-                          ? "Erreurs à corriger"
-                          : "Prêt à enregistrer"}
-                      </span>
-                    ) : null}
-                  </div>
 
-                  {/* Sections scrollables */}
-                  <div className={styles.modalContainer}>
-                    {selectedAgent?.details_component?.length ? (
-                      activeGroups.map(group => {
-                        const isOpen = !group.collapsible || openGroups.has(group.id);
-                        const hasError = group.activeKeys.some(k => keyHasError(k));
-                        return (
-                          <div key={group.id} className={`${styles.detailsGroup} ${hasError ? styles.detailsGroupError : ""}`}>
-                            <div
-                              className={`${styles.detailsGroupHeader} ${group.collapsible ? styles.detailsGroupHeaderCollapsible : ""}`}
-                              onClick={group.collapsible ? () => toggleGroup(group.id) : undefined}
-                            >
-                              <span className={styles.detailsGroupTitle}>{group.label}</span>
-                              <div className={styles.detailsGroupHeaderRight}>
-                                {hasError && <span className={styles.detailsGroupErrorDot} />}
-                                {group.collapsible && (
-                                  <span className={`${styles.detailsGroupChevron} ${isOpen ? styles.detailsGroupChevronOpen : ""}`}>›</span>
-                                )}
-                              </div>
+              {/* ───────────────── TEMPLATES ───────────────── */}
+              {activeTab === "templates" && (
+                <div className={styles.configTabPanel}>
+                  <div className={styles.templatesSections}>
+                    <div className={styles.templatesSection}>
+                      <div className={styles.templatesSectionHeader}>
+                        <h4>Templates WhatsApp ({waTemplates.length})</h4>
+                        <Button
+                          className={styles.connexionButton}
+                          style={{ margin: 0, padding: "8px 14px", fontSize: "var(--fs-13)" }}
+                          onClick={() => setIsTemplateModalOpen(true)}
+                        >
+                          + Nouveau template
+                        </Button>
+                      </div>
+                      {waTemplates.length === 0 ? (
+                        <div className={styles.tabEmptyState}>
+                          <span className={styles.tabEmptyStateIcon}>📄</span>
+                          <p className={styles.tabEmptyStateTitle}>Aucun template WhatsApp</p>
+                          <p className={styles.tabEmptyStateDesc}>Créez un template pour envoyer des messages standardisés et relancer vos leads automatiquement.</p>
+                          <Button
+                            className={styles.connexionButton}
+                            style={{ margin: 0 }}
+                            onClick={() => setIsTemplateModalOpen(true)}
+                          >
+                            + Créer un template
+                          </Button>
+                        </div>
+                      ) : (
+                        waTemplates.map((tpl) => (
+                          <div key={tpl.id} className={styles.templateRow}>
+                            <div className={styles.templateRowBody}>
+                              <p className={styles.templateRowName}>{tpl.name}</p>
+                              <p className={styles.templateRowPreview}>{tpl.body.slice(0, 80)}{tpl.body.length > 80 ? "…" : ""}</p>
                             </div>
-                            <div className={`${styles.detailsGroupBody} ${!isOpen ? styles.detailsGroupBodyClosed : ""}`.trim()}>
-                              {group.activeKeys.map((key, index) => (
-                                <React.Fragment key={key}>
-                                  {renderDetailsSection(key, index + 1)}
-                                </React.Fragment>
-                              ))}
-                            </div>
+                            <span className={`${styles.templateStatusBadge} ${
+                              tpl.status === "approved" ? styles.templateStatusApproved
+                              : tpl.status === "rejected" ? styles.templateStatusRejected
+                              : styles.templateStatusPending
+                            }`}>
+                              {tpl.status === "approved" ? "Approuvé" : tpl.status === "rejected" ? "Rejeté" : "En validation"}
+                            </span>
                           </div>
-                        );
-                      })
-                    ) : (
-                      <div className={styles.noConfigMessage}>
-                        <p>Bonne nouvelle !</p>
-                        <p>Aucune configuration n’est nécessaire pour cet agent.</p>
+                        ))
+                      )}
+                    </div>
+
+                    <div className={styles.templatesSection}>
+                      <div className={styles.templatesSectionHeader}>
+                        <h4>Relances planifiées ({followups.filter(f => f.status === "pending").length})</h4>
                       </div>
-                    )}
-
-                    {/* Prix moyen de vente */}
-                    {selectedAgent && (
-                      <div className={styles.detailsGroup}>
-                        <div className={styles.detailsGroupHeader}>
-                          <span className={styles.detailsGroupTitle}>Vente</span>
-                        </div>
-                        <div className={styles.detailsGroupBody}>
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Prix moyen de vente (€)</h4>
+                      {followups.length === 0 ? (
+                        <p className={styles.templateEmpty}>Aucune relance planifiée.</p>
+                      ) : (
+                        followups.map((f) => (
+                          <div key={f.id} className={styles.followupRow}>
+                            <div className={styles.followupRowBody}>
+                              <p className={styles.followupRowContact}>{f.contactName}</p>
+                              <p className={styles.followupRowMeta}>
+                                {f.templateName} · {new Date(f.scheduled_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              </p>
                             </div>
-                            <p className={styles.sectionDescription}>
-                              Valeur pré-remplie dans la modal de closing lors du marquage d'une conversation comme clôturée.
-                            </p>
-                            <input
-                              type="number"
-                              min={0}
-                              step={1}
-                              value={avgDealValue}
-                              onChange={(e) => setAvgDealValue(e.target.value)}
-                              placeholder="Ex : 497"
-                              className={styles.avgDealInput}
-                            />
-                          </section>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Voice */}
-                    {selectedAgent && (
-                      <div className={styles.detailsGroup}>
-                        <div className={styles.detailsGroupHeader}>
-                          <span className={styles.detailsGroupTitle}>Voice</span>
-                        </div>
-                        <div className={styles.detailsGroupBody}>
-
-                          {/* 4.1 Bibliothèque */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Bibliothèque de voix</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              Choisissez une voix parmi la bibliothèque ElevenLabs pour que votre agent parle à votre place.
-                            </p>
-                            {voiceId ? (
-                              <div className={styles.voiceActiveCard}>
-                                <div className={styles.voiceActiveInfo}>
-                                  <span className={styles.voiceActiveName}>{voiceName}</span>
-                                  <span className={styles.voiceActiveType}>
-                                    {voiceType === "cloned" ? "Voix clonée" : "Bibliothèque"}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  className={styles.voiceChangeBtn}
-                                  onClick={() => { setVoiceId(null); setVoiceName(null); setVoiceType(null); }}
-                                >
-                                  Changer
-                                </button>
-                              </div>
-                            ) : voiceListLoading ? (
-                              <p className={styles.voiceLoadingText}>Chargement des voix…</p>
-                            ) : (
-                              <div className={styles.voiceGrid}>
-                                {voiceList.map((v) => (
-                                  <div key={v.voice_id} className={styles.voiceCard}>
-                                    <span className={styles.voiceCardName}>{v.name}</span>
-                                    <div className={styles.voiceCardActions}>
-                                      <button
-                                        type="button"
-                                        className={styles.voicePreviewBtn}
-                                        onClick={() => handlePlayVoicePreview(v.preview_url, v.voice_id)}
-                                      >
-                                        {voicePreviewingId === v.voice_id ? (
-                                          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="2" y="2" width="4" height="10" rx="1"/><rect x="8" y="2" width="4" height="10" rx="1"/></svg>
-                                        ) : (
-                                          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 2l9 5-9 5V2z"/></svg>
-                                        )}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className={styles.voiceSelectBtn}
-                                        onClick={() => handleSaveVoiceSelection(v)}
-                                      >
-                                        Choisir
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </section>
-
-                          {/* 4.2 Clone vocal */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Utiliser votre propre voix</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              Clonez votre voix en 30 secondes. Aucun abonnement supplémentaire requis.
-                            </p>
-                            <div
-                              className={`${styles.cloneDropZone} ${cloneDragOver ? styles.cloneDropZoneActive : ""} ${cloneAudioBlob ? styles.cloneDropZoneReady : ""}`}
-                              onDragOver={(e) => { e.preventDefault(); setCloneDragOver(true); }}
-                              onDragLeave={() => setCloneDragOver(false)}
-                              onDrop={handleCloneDrop}
-                            >
-                              {cloneAudioBlob ? (
-                                <span className={styles.cloneFileReady}>
-                                  Fichier prêt
-                                  <button type="button" className={styles.cloneFileRemove} onClick={() => setCloneAudioBlob(null)}>×</button>
-                                </span>
-                              ) : cloneRecording ? (
-                                <span className={styles.cloneRecordingIndicator}>● Enregistrement en cours…</span>
-                              ) : (
-                                <span>Déposez un fichier audio ici (mp3, wav, m4a)</span>
-                              )}
-                            </div>
-                            <div className={styles.cloneRecordRow}>
-                              {cloneRecording ? (
-                                <button type="button" className={styles.cloneStopBtn} onClick={handleStopRecording}>
-                                  Arrêter l'enregistrement
-                                </button>
-                              ) : (
-                                <button type="button" className={styles.cloneStartBtn} onClick={handleStartRecording} disabled={!!cloneAudioBlob}>
-                                  <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><circle cx="7" cy="7" r="5"/></svg>
-                                  Enregistrer
-                                </button>
-                              )}
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="Nom de votre voix (ex : Ma voix)"
-                              value={cloneVoiceName}
-                              onChange={(e) => setCloneVoiceName(e.target.value)}
-                              className={styles.cloneNameInput}
-                            />
-                            <button
-                              type="button"
-                              className={styles.cloneSubmitBtn}
-                              disabled={!cloneAudioBlob || !cloneVoiceName.trim() || isCloning}
-                              onClick={handleCloneVoice}
-                            >
-                              {isCloning ? "Création en cours…" : "Créer mon clone vocal"}
-                            </button>
-                          </section>
-
-                          {/* 4.3 Envoi automatique */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Envoi automatique de vocaux</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              L'agent envoie automatiquement un message vocal selon le déclencheur choisi.
-                            </p>
-                            <div className={styles.voiceAutoRow}>
-                              <SwitchAnimated
-                                checked={voiceAutoEnabled}
-                                onChange={setVoiceAutoEnabled}
-                                showLabel={false}
-                              />
-                              <span className={styles.voiceAutoLabel}>
-                                {voiceAutoEnabled ? "Activé" : "Désactivé"}
-                              </span>
-                            </div>
-                            {voiceAutoEnabled && (
-                              <select
-                                className={styles.voiceTriggerSelect}
-                                value={voiceTrigger}
-                                onChange={(e) => setVoiceTrigger(e.target.value as typeof voiceTrigger)}
+                            <span className={`${styles.followupStatusBadge} ${
+                              f.status === "sent" ? styles.followupStatusSent
+                              : f.status === "cancelled" ? styles.followupStatusCancelled
+                              : styles.followupStatusPending
+                            }`}>
+                              {f.status === "sent" ? "Envoyé" : f.status === "cancelled" ? "Annulé" : "Planifiée"}
+                            </span>
+                            {f.status === "pending" && (
+                              <button
+                                type="button"
+                                className={styles.followupCancelBtn}
+                                onClick={() => handleCancelFollowup(f.id)}
                               >
-                                <option value="always">À chaque réponse de l'agent</option>
-                                <option value="first_message">Premier message uniquement</option>
-                                <option value="on_link_sent">Quand le lien Calendly est envoyé</option>
-                              </select>
-                            )}
-                          </section>
-
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Automatisations — Comments Instagram */}
-                    {selectedAgent && (
-                      <div className={styles.detailsGroup}>
-                        <div className={styles.detailsGroupHeader}>
-                          <span className={styles.detailsGroupTitle}>Automatisations</span>
-                        </div>
-                        <div className={styles.detailsGroupBody}>
-
-                          {/* Bloc 1 — Réponse aux commentaires */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Réponse automatique aux commentaires</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              L'agent répond publiquement sous chaque commentaire Instagram.
-                            </p>
-                            <div className={styles.voiceAutoRow}>
-                              <SwitchAnimated
-                                checked={commReplyEnabled}
-                                onChange={setCommReplyEnabled}
-                                showLabel={false}
-                              />
-                              <span className={styles.voiceAutoLabel}>
-                                {commReplyEnabled ? "Activé" : "Désactivé"}
-                              </span>
-                            </div>
-                            {commReplyEnabled && (
-                              <>
-                                <select
-                                  className={styles.voiceTriggerSelect}
-                                  value={commReplyMode}
-                                  onChange={(e) => setCommReplyMode(e.target.value as typeof commReplyMode)}
-                                  style={{ marginBottom: 12 }}
-                                >
-                                  <option value="always">Toujours</option>
-                                  <option value="keywords">Si mots-clés spécifiques</option>
-                                  <option value="never">Jamais</option>
-                                </select>
-                                {commReplyMode === "keywords" && (
-                                  <div style={{ marginBottom: 12 }}>
-                                    <ConfigTextareaTags
-                                      label="Mots-clés déclencheurs"
-                                      placeholder="Tapez un mot-clé et appuyez sur Entrée"
-                                      initialTags={commReplyKeywords}
-                                      onTagsChange={setCommReplyKeywords}
-                                    />
-                                  </div>
-                                )}
-                                <textarea
-                                  rows={3}
-                                  className={styles.commTextarea}
-                                  placeholder="Ex : Merci pour votre commentaire ! Je vous envoie les détails en DM 🙂"
-                                  value={commReplyTemplate}
-                                  onChange={(e) => setCommReplyTemplate(e.target.value)}
-                                />
-                                {commReplyTemplate && (
-                                  <div className={styles.commPreview}>
-                                    <span className={styles.commPreviewLabel}>Aperçu</span>
-                                    <p className={styles.commPreviewText}>{commReplyTemplate}</p>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </section>
-
-                          {/* Bloc 2 — DM automatique */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>DM automatique après un commentaire</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              L'agent envoie un DM privé après un commentaire, puis prend le relai automatiquement.
-                            </p>
-                            <div className={styles.voiceAutoRow}>
-                              <SwitchAnimated
-                                checked={commDmEnabled}
-                                onChange={setCommDmEnabled}
-                                showLabel={false}
-                              />
-                              <span className={styles.voiceAutoLabel}>
-                                {commDmEnabled ? "Activé" : "Désactivé"}
-                              </span>
-                            </div>
-                            {commDmEnabled && (
-                              <>
-                                <select
-                                  className={styles.voiceTriggerSelect}
-                                  value={commDmMode}
-                                  onChange={(e) => setCommDmMode(e.target.value as typeof commDmMode)}
-                                  style={{ marginBottom: 12 }}
-                                >
-                                  <option value="always">Toujours</option>
-                                  <option value="keywords">Si mots-clés spécifiques</option>
-                                  <option value="never">Jamais</option>
-                                </select>
-                                {commDmMode === "keywords" && (
-                                  <div style={{ marginBottom: 12 }}>
-                                    <ConfigTextareaTags
-                                      label="Mots-clés déclencheurs"
-                                      placeholder="Tapez un mot-clé et appuyez sur Entrée"
-                                      initialTags={commDmKeywords}
-                                      onTagsChange={setCommDmKeywords}
-                                    />
-                                  </div>
-                                )}
-                                <textarea
-                                  rows={4}
-                                  className={styles.commTextarea}
-                                  placeholder="Ex : Bonjour ! J'ai vu votre commentaire, je vous contacte pour vous donner plus d'infos 😊"
-                                  value={commDmFirstMessage}
-                                  onChange={(e) => setCommDmFirstMessage(e.target.value)}
-                                />
-                                {commDmFirstMessage && (
-                                  <div className={styles.commPreview}>
-                                    <span className={styles.commPreviewLabel}>Aperçu DM</span>
-                                    <p className={styles.commPreviewText}>{commDmFirstMessage}</p>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </section>
-
-                          {/* Bouton Sauvegarder Comments */}
-                          <div className={styles.commSaveRow}>
-                            <button
-                              type="button"
-                              className={styles.commSaveBtn}
-                              onClick={handleSaveComments}
-                              disabled={commSaveStatus === "saving"}
-                            >
-                              {commSaveStatus === "saving" ? "Sauvegarde…" : "Sauvegarder"}
-                            </button>
-                            {commSaveStatus === "saved" && (
-                              <span className={styles.commToastSuccess}>✓ Sauvegardé</span>
-                            )}
-                            {commSaveStatus === "error" && (
-                              <span className={styles.commToastError}>Erreur, réessayez</span>
+                                Annuler
+                              </button>
                             )}
                           </div>
-
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Footer sticky */}
-                  {selectedAgent ? (
-                    <div className={styles.modalFooter}>
-                      <p className={styles.footerHint}>
-                        {!lastSavedDetails
-                          ? "Complétez les champs requis"
-                          : hasUnsavedChanges
-                          ? "Changements non enregistrés"
-                          : "Tout est à jour"}
-                      </p>
-                      <button
-                        type="button"
-                        className={styles.saveButton}
-                        onClick={handleSaveDetails}
-                        disabled={hasValidationErrors}
-                      >
-                        Enregistrer
-                      </button>
-                    </div>
-                  ) : null}
-                </>
-              )}
-              {activeCorner === "Connexions" && (
-                <div className={styles.connexionSections}>
-                  <div className={styles.connexionSection}>
-                    <h4>Connecté ({countConnectedConnector})</h4>
-                    <div className={styles.connexionSectionCards}>
-                      {connectorConnected.map((connector) =>
-                        connector.connectors_name === "calendly" ? (
-                          <CalendlyConnexionCard
-                            key={connector.connectors_id}
-                            configsId={selectedAgent?.display_id ?? ""}
-                            connectorLabel={connector.connector_label ?? ""}
-                            metadata={connector.metadata}
-                            currentEventTypeUri={
-                              (selectedAgent?.configs as Record<string, any>)?.Connexions
-                                ?.calendly_event_type_uri
-                            }
-                            onDisconnect={connexions["calendly"].onDisconnect}
-                            onSaveEventType={handleSaveCalendlyEventType}
-                          />
-                        ) : (
-                          <ConnexionCard
-                            key={connector.connectors_id}
-                            title={connector.connectors_name.charAt(0).toUpperCase() + connector.connectors_name.slice(1)}
-                            description={connector.connector_label ?? ""}
-                            imageSrc={connexions[connector.connectors_name].imageSrc}
-                            actionLabel="Déconnecter"
-                            onAction={connexions[connector.connectors_name].onDisconnect}
-                            helpUrl={connector.connectors_name === "whatsapp" ? "https://lautopreneur.notion.site/Connecter-WhatsApp-LeadControl-331392824e1a812c9657d8d56c77c4e7?source=copy_link" : undefined}
-                            helpTooltip={connector.connectors_name === "whatsapp" ? "Besoin d'aide pour connecter votre compte WhatsApp ?" : undefined}
-                          />
-                        )
+                        ))
                       )}
                     </div>
                   </div>
-                  <div className={styles.connexionSection}>
-                    <h4>Déconnecté ({countAvailableConnector-countConnectedConnector})</h4>
-                    <div className={styles.connexionSectionCards}>
-                      {availableShow
-                        .filter((connector) => !connector.connectors_special)
-                        .map((connector) =>
-                          connector.connectors_name === "whatsapp" ? (
-                            <div key={connector.connectors_id} ref={waSelectorAnchorRef}>
-                              <ConnexionCard
-                                title="Whatsapp"
-                                description="Connecter whatsapp"
-                                imageSrc={connexions["whatsapp"].imageSrc}
-                                actionLabel="Connecter"
-                                isAvailable={connector.connectors_available}
-                                onAction={() => setShowWASelector(true)}
-                                helpUrl="https://lautopreneur.notion.site/Connecter-WhatsApp-LeadControl-331392824e1a812c9657d8d56c77c4e7?source=copy_link"
-                                helpTooltip="Besoin d'aide pour connecter votre compte WhatsApp ?"
-                              />
-                            </div>
-                          ) : (
-                            <ConnexionCard
-                              key={connector.connectors_id}
-                              title={
-                                connector.connectors_name.charAt(0).toUpperCase() +
-                                connector.connectors_name.slice(1)
-                              }
-                              description={`Connecter ${connector.connectors_name}`}
-                              imageSrc={connexions[connector.connectors_name].imageSrc}
-                              actionLabel="Connecter"
-                              isAvailable={connector.connectors_available}
-                              onAction={connexions[connector.connectors_name].onConnect}
-                            />
-                          )
-                        )}
-                    </div>
-                  </div>
                 </div>
               )}
-              {activeCorner === "Templates" && (
-                <div className={styles.templatesSections}>
-                  {/* Liste des templates */}
-                  <div className={styles.templatesSection}>
-                    <div className={styles.templatesSectionHeader}>
-                      <h4>Templates WhatsApp ({waTemplates.length})</h4>
-                      <Button
-                        className={styles.connexionButton}
-                        style={{ margin: 0, padding: "8px 14px", fontSize: "var(--fs-13)" }}
-                        onClick={() => setIsTemplateModalOpen(true)}
-                      >
-                        + Nouveau template
-                      </Button>
-                    </div>
-                    {waTemplates.length === 0 ? (
-                      <p className={styles.templateEmpty}>Aucun template. Créez-en un pour commencer.</p>
-                    ) : (
-                      waTemplates.map((tpl) => (
-                        <div key={tpl.id} className={styles.templateRow}>
-                          <div className={styles.templateRowBody}>
-                            <p className={styles.templateRowName}>{tpl.name}</p>
-                            <p className={styles.templateRowPreview}>{tpl.body.slice(0, 80)}{tpl.body.length > 80 ? "…" : ""}</p>
-                          </div>
-                          <span className={`${styles.templateStatusBadge} ${
-                            tpl.status === "approved" ? styles.templateStatusApproved
-                            : tpl.status === "rejected" ? styles.templateStatusRejected
-                            : styles.templateStatusPending
-                          }`}>
-                            {tpl.status === "approved" ? "Approuvé" : tpl.status === "rejected" ? "Rejeté" : "En validation"}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
 
-                  {/* Relances planifiées */}
-                  <div className={styles.templatesSection}>
-                    <div className={styles.templatesSectionHeader}>
-                      <h4>Relances planifiées ({followups.filter(f => f.status === "pending").length})</h4>
-                    </div>
-                    {followups.length === 0 ? (
-                      <p className={styles.templateEmpty}>Aucune relance planifiée.</p>
-                    ) : (
-                      followups.map((f) => (
-                        <div key={f.id} className={styles.followupRow}>
-                          <div className={styles.followupRowBody}>
-                            <p className={styles.followupRowContact}>{f.contactName}</p>
-                            <p className={styles.followupRowMeta}>
-                              {f.templateName} · {new Date(f.scheduled_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          </div>
-                          <span className={`${styles.followupStatusBadge} ${
-                            f.status === "sent" ? styles.followupStatusSent
-                            : f.status === "cancelled" ? styles.followupStatusCancelled
-                            : styles.followupStatusPending
-                          }`}>
-                            {f.status === "sent" ? "Envoyé" : f.status === "cancelled" ? "Annulé" : "Planifiée"}
-                          </span>
-                          {f.status === "pending" && (
-                            <button
-                              type="button"
-                              className={styles.followupCancelBtn}
-                              onClick={() => handleCancelFollowup(f.id)}
-                            >
-                              Annuler
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
