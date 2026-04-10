@@ -86,7 +86,7 @@ function App() {
         metaDescription = "Gérez votre base de contacts, importez des leads et suivez leur statut.";
         break;
       case "/app/conversations":
-        title = "LeadControl - Inbox";
+        title = "LeadControl - Conversations";
         metaDescription = "Visualise et gere ton inbox de conversations agents dans LeadControl.";
         break;
       case "/app/relances":

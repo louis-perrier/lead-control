@@ -2321,7 +2321,7 @@
 .claraDetailsLayout {
   margin-top: 0;
   display: grid;
-  grid-template-columns: clamp(420px, 34vw, 520px) minmax(0, 1fr);
+  grid-template-columns: clamp(340px, 30vw, 440px) minmax(0, 1fr);
   align-items: stretch;
   gap: 18px;
   min-height: 0;
@@ -2787,7 +2787,7 @@
 
 @media (max-width: 1260px) {
   .claraDetailsLayout {
-    grid-template-columns: clamp(340px, 37vw, 440px) minmax(0, 1fr);
+    grid-template-columns: clamp(320px, 34vw, 400px) minmax(0, 1fr);
   }
 }
 

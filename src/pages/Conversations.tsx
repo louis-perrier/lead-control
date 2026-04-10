@@ -1679,7 +1679,7 @@ const Conversations: FunctionComponent = () => {
             <header className={styles.conversationsPageHeader}>
               <div className={styles.conversationsPageTitleBlock}>
                 <h1 className={styles.conversationsPageTitle}>
-                  Inbox —{" "}
+                  Conversations —{" "}
                   {isAllMode
                     ? "Tous les agents"
                     : (activeConfigOption?.label ?? "Clara")}
