@@ -39,12 +39,13 @@ type Attachment = {
 
 type Message = {
   id: string;
+  messageRecordId: string;
   direction: MessageDirection;
   text: string;
   sentAt: string;
   attachment?: Attachment;
   mediaPath?: string;
-  messageType?: "text" | "audio" | "image";
+  messageType?: "text" | "audio" | "image" | "reaction";
   transcriptStatus?: TranscriptStatus;
   transcript?: string | null;
   transcriptError?: string | null;
@@ -53,6 +54,11 @@ type Message = {
   automationStart?: string | null;
   automationEnd?: string | null;
   readByContactAt?: string | null;
+  externalMessageId?: string | null;
+  reactionEmoji?: string | null;
+  reactionTargetExternalMessageId?: string | null;
+  reactionTargetMessageId?: string | null;
+  isReactionEvent?: boolean;
 };
 
 type Conversation = {
@@ -195,7 +201,131 @@ const pickFirstContactName = (...values: unknown[]): string => {
 
 const isDigitsOnly = (value: string): boolean => /^\d+$/.test(value.trim());
 
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+const reactionMessageTypes = new Set([
+  "reaction",
+  "message_reaction",
+  "emoji_reaction",
+  "reaction_added",
+]);
+
+const getReactionEmoji = (message: any): string | null => {
+  const metadata = toRecord(message.metadata);
+  const metadataReaction = toRecord(metadata.reaction);
+  const payload = toRecord(message.payload);
+  const payloadReaction = toRecord(payload.reaction);
+  const attachmentReaction = Array.isArray(message.attachments)
+    ? message.attachments
+        .map((attachment: any) => toRecord(attachment))
+        .find((attachment: Record<string, unknown>) => attachment.type === "reaction") ?? {}
+    : {};
+
+  const reactionText = pickFirstText(
+    message.reaction_emoji,
+    message.emoji,
+    message.reaction,
+    metadata.reaction_emoji,
+    metadata.emoji,
+    typeof metadata.reaction === "string" ? metadata.reaction : "",
+    metadataReaction.emoji,
+    metadataReaction.value,
+    payload.reaction_emoji,
+    payload.reaction,
+    payloadReaction.emoji,
+    payloadReaction.value,
+    attachmentReaction.emoji,
+    attachmentReaction.value,
+  );
+
+  if (reactionText) return reactionText;
+
+  const messageType = normalizeTextValue(message.message_type).toLowerCase();
+  const bodyText = normalizeTextValue(message.body_text);
+  if (
+    reactionMessageTypes.has(messageType) &&
+    bodyText &&
+    bodyText.length <= 10 &&
+    !bodyText.includes(" ")
+  ) {
+    return bodyText;
+  }
+  return null;
+};
+
+const getReactionTargetExternalMessageId = (message: any): string | null => {
+  const metadata = toRecord(message.metadata);
+  const metadataReaction = toRecord(metadata.reaction);
+  const metadataReactionTo = toRecord(metadata.reaction_to);
+  const payload = toRecord(message.payload);
+  const payloadReaction = toRecord(payload.reaction);
+  const payloadReactionTo = toRecord(payload.reaction_to);
+  const messageReactionTo = toRecord(message.reaction_to);
+
+  const target = pickFirstText(
+    message.reaction_to_external_message_id,
+    message.target_external_message_id,
+    message.parent_external_message_id,
+    metadata.reaction_to_external_message_id,
+    metadata.target_external_message_id,
+    metadataReaction.target_external_message_id,
+    metadataReactionTo.external_message_id,
+    metadataReactionTo.target_external_message_id,
+    payload.reaction_to_external_message_id,
+    payloadReaction.target_external_message_id,
+    payloadReactionTo.external_message_id,
+    payloadReactionTo.target_external_message_id,
+    messageReactionTo.external_message_id,
+    messageReactionTo.target_external_message_id,
+  );
+
+  return target || null;
+};
+
+const getReactionTargetMessageId = (message: any): string | null => {
+  const metadata = toRecord(message.metadata);
+  const metadataReaction = toRecord(metadata.reaction);
+  const metadataReactionTo = toRecord(metadata.reaction_to);
+  const payload = toRecord(message.payload);
+  const payloadReaction = toRecord(payload.reaction);
+  const payloadReactionTo = toRecord(payload.reaction_to);
+  const messageReactionTo = toRecord(message.reaction_to);
+
+  const target = pickFirstText(
+    message.reaction_to_message_id,
+    message.parent_message_id,
+    message.target_message_id,
+    metadata.reaction_to_message_id,
+    metadata.target_message_id,
+    metadataReaction.target_message_id,
+    metadataReactionTo.message_id,
+    metadataReactionTo.target_message_id,
+    payload.reaction_to_message_id,
+    payloadReaction.target_message_id,
+    payloadReactionTo.message_id,
+    payloadReactionTo.target_message_id,
+    messageReactionTo.message_id,
+    messageReactionTo.target_message_id,
+  );
+
+  return target || null;
+};
+
+const isReactionMessage = (message: any, reactionEmoji: string | null): boolean => {
+  const messageType = normalizeTextValue(message.message_type).toLowerCase();
+  return reactionMessageTypes.has(messageType) || Boolean(reactionEmoji);
+};
+
+const buildReactionFallbackText = (reactionEmoji: string | null): string =>
+  reactionEmoji ? `Réaction ${reactionEmoji}` : "Réaction";
+
 const mapMessageRecord = (convId: string, message: any): Message => {
+  const reactionEmoji = getReactionEmoji(message);
+  const reactionTargetExternalMessageId =
+    getReactionTargetExternalMessageId(message);
+  const reactionTargetMessageId = getReactionTargetMessageId(message);
+  const isReactionEvent = isReactionMessage(message, reactionEmoji);
   const isAudioMessage = message.message_type === "audio";
   const isImageMessage = message.message_type === "image";
   let mediaPath: string | null = null;
@@ -259,14 +389,23 @@ const mapMessageRecord = (convId: string, message: any): Message => {
     }
   }
 
+  const normalizedDirection = normalizeTextValue(message.direction).toLowerCase();
+  const textValue = normalizeTextValue(message.body_text);
+
   return {
     id: `${convId}-${message.id}`,
-    direction: message.direction === "out" ? "outbound" : "inbound",
-    text: message.body_text ?? "",
+    messageRecordId: String(message.id),
+    direction:
+      normalizedDirection === "out" || normalizedDirection === "outbound"
+        ? "outbound"
+        : "inbound",
+    text: textValue || (isReactionEvent ? buildReactionFallbackText(reactionEmoji) : ""),
     sentAt: message.sent_at ?? message.created_at ?? new Date().toISOString(),
     attachment,
     mediaPath: mediaPath ?? undefined,
-    messageType: (message.message_type as Message["messageType"]) ?? "text",
+    messageType: isReactionEvent
+      ? "reaction"
+      : (message.message_type as Message["messageType"]) ?? "text",
     transcriptStatus,
     transcript: transcriptContent,
     transcriptError,
@@ -280,6 +419,13 @@ const mapMessageRecord = (convId: string, message: any): Message => {
     automationStart: message.automation_start ?? null,
     automationEnd: message.automation_end ?? null,
     readByContactAt: message.read_by_contact_at ?? null,
+    externalMessageId: message.external_message_id
+      ? String(message.external_message_id)
+      : null,
+    reactionEmoji,
+    reactionTargetExternalMessageId,
+    reactionTargetMessageId,
+    isReactionEvent,
   };
 };
 
@@ -700,7 +846,8 @@ const ChatBubble: FunctionComponent<{
   message: Message;
   contactName?: string;
   isLastOutbound?: boolean;
-}> = ({ message, contactName, isLastOutbound }) => {
+  inlineReactions?: string[];
+}> = ({ message, contactName, isLastOutbound, inlineReactions = [] }) => {
   const isOutbound = message.direction === "outbound";
   const label =
     message.authorType === "human"
@@ -708,6 +855,10 @@ const ChatBubble: FunctionComponent<{
       : message.authorType === "agent"
       ? "Assistant IA"
       : contactName || "Client";
+  const visibleReactions = [...inlineReactions];
+  if (message.reactionEmoji && !visibleReactions.includes(message.reactionEmoji)) {
+    visibleReactions.push(message.reactionEmoji);
+  }
   return (
     <div
       className={`${styles.chatBubble} ${
@@ -715,7 +866,12 @@ const ChatBubble: FunctionComponent<{
       }`}
     >
       {label && <span className={styles.chatBubbleSender}>{label}</span>}
-      <p style={{ whiteSpace: "pre-wrap" }}>{message.text}</p>
+      <p
+        className={message.isReactionEvent ? styles.chatReactionText : ""}
+        style={{ whiteSpace: "pre-wrap" }}
+      >
+        {message.text}
+      </p>
       {message.attachment && (
         <div className={styles.attachmentChip}>
           <span>
@@ -727,6 +883,15 @@ const ChatBubble: FunctionComponent<{
             :
           </span>
           <strong>{message.attachment.label}</strong>
+        </div>
+      )}
+      {visibleReactions.length > 0 && (
+        <div className={styles.chatReactionsRow}>
+          {visibleReactions.map((emoji, index) => (
+            <span key={`${emoji}-${index}`} className={styles.chatReactionBadge}>
+              {emoji}
+            </span>
+          ))}
         </div>
       )}
       <span className={styles.chatBubbleTimestamp}>
@@ -837,7 +1002,8 @@ const ConversationMessageItem: FunctionComponent<{
   message: Message;
   contactName?: string;
   isLastOutbound?: boolean;
-}> = ({ message, contactName, isLastOutbound }) => {
+  inlineReactions?: string[];
+}> = ({ message, contactName, isLastOutbound, inlineReactions }) => {
   const isMine = message.direction === "outbound";
   const isImageMessage = message.messageType === "image" && message.mediaPath;
   const isAudioMessage = !isImageMessage && (message.messageType === "audio" || message.attachment?.type === "audio");
@@ -868,6 +1034,7 @@ const ConversationMessageItem: FunctionComponent<{
       message={message}
       contactName={contactName}
       isLastOutbound={isLastOutbound}
+      inlineReactions={inlineReactions}
     />
   );
 };
@@ -1211,6 +1378,13 @@ const Conversations: FunctionComponent = () => {
     setFollowupModalOpen(false);
   }, [activeConversation, useSequence, followupDate, followupTemplateId, followupMessage]);
 
+  const isFollowupSubmitDisabled =
+    isScheduling ||
+    (!useSequence && !followupDate) ||
+    (activeConversation?.channel === "WhatsApp"
+      ? !followupTemplateId
+      : !followupMessage.trim());
+
   // Check if active conversation has a calendly booking
   useEffect(() => {
     if (!activeConversation?.id) { setConvHasBooking(false); return; }
@@ -1359,7 +1533,13 @@ const Conversations: FunctionComponent = () => {
 
   const messagesForDisplay = useMemo(() => {
     if (!activeConversation) return [];
-    const messages = isAllMode ? lazyMessages : activeConversation.messages;
+    const messages = (isAllMode ? lazyMessages : activeConversation.messages).filter(
+      (message) =>
+        !(
+          message.isReactionEvent &&
+          (message.reactionTargetExternalMessageId || message.reactionTargetMessageId)
+        ),
+    );
     const result: Array<
       Message | { type: "date-separator"; date: string; id: string }
     > = [];
@@ -1378,6 +1558,39 @@ const Conversations: FunctionComponent = () => {
     }
     return result;
   }, [isAllMode, lazyMessages, activeConversation]);
+
+  const inlineReactionsByExternalMessageId = useMemo(() => {
+    if (!activeConversation) return new Map<string, string[]>();
+    const messages = isAllMode ? lazyMessages : activeConversation.messages;
+    const map = new Map<string, string[]>();
+
+    const addReaction = (key: string | null | undefined, emoji: string) => {
+      if (!key) return;
+      const current = map.get(key) ?? [];
+      if (!current.includes(emoji)) {
+        current.push(emoji);
+      }
+      map.set(key, current);
+    };
+
+    for (const message of messages) {
+      if (!message.isReactionEvent) continue;
+      if (!message.reactionEmoji) continue;
+      addReaction(
+        message.reactionTargetExternalMessageId
+          ? `external:${message.reactionTargetExternalMessageId}`
+          : null,
+        message.reactionEmoji,
+      );
+      addReaction(
+        message.reactionTargetMessageId
+          ? `record:${message.reactionTargetMessageId}`
+          : null,
+        message.reactionEmoji,
+      );
+    }
+    return map;
+  }, [activeConversation, isAllMode, lazyMessages]);
 
   const previousConversationRef = useRef<{
     id: string | null;
@@ -2307,6 +2520,18 @@ const Conversations: FunctionComponent = () => {
                                 activeConversation?.contactName
                               }
                               isLastOutbound={item.id === lastOutboundId}
+                              inlineReactions={
+                                [
+                                  ...(inlineReactionsByExternalMessageId.get(
+                                    (item as Message).externalMessageId
+                                      ? `external:${(item as Message).externalMessageId}`
+                                      : "",
+                                  ) ?? []),
+                                  ...(inlineReactionsByExternalMessageId.get(
+                                    `record:${(item as Message).messageRecordId}`,
+                                  ) ?? []),
+                                ].filter((emoji, index, arr) => arr.indexOf(emoji) === index)
+                              }
                             />
                           );
                         });
@@ -2649,147 +2874,114 @@ const Conversations: FunctionComponent = () => {
 
       {isFollowupModalOpen && (
         <div
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-            zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
-          }}
+          className={styles.followupModalBackdrop}
           onClick={() => setFollowupModalOpen(false)}
         >
           <div
-            style={{
-              background: "var(--app-bg)", borderRadius: 16, padding: 24,
-              width: 440, maxWidth: "calc(100vw - 40px)",
-              display: "flex", flexDirection: "column", gap: 16,
-              boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
-              border: "1px solid var(--app-border)",
-            }}
+            className={styles.followupModal}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h3 style={{ margin: 0, fontSize: "var(--fs-18)" }}>Planifier une relance</h3>
+            <div className={styles.followupModalHeader}>
+              <div className={styles.followupModalTitleBlock}>
+                <h3 className={styles.followupModalTitle}>Planifier une relance</h3>
+                <p className={styles.followupModalSubtitle}>
+                  {activeConversation?.contactName ?? "Conversation active"}
+                </p>
+              </div>
               <button
                 type="button"
-                style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--app-text-secondary)", lineHeight: 1 }}
+                className={styles.followupModalClose}
                 onClick={() => setFollowupModalOpen(false)}
-              >×</button>
-            </div>
-
-            {/* Séquence rapide */}
-            <div>
-              <p style={{ margin: "0 0 8px", fontSize: "var(--fs-13)", fontWeight: 600 }}>Séquence rapide</p>
-              <button
-                type="button"
-                onClick={() => { setUseSequence(true); setFollowupDate(""); }}
-                style={{
-                  width: "100%", padding: "10px 16px", borderRadius: 10,
-                  border: `1.5px solid ${useSequence ? "var(--app-primary)" : "var(--app-border)"}`,
-                  background: useSequence ? "rgba(99,102,241,0.08)" : "var(--app-surface)",
-                  color: useSequence ? "var(--app-primary)" : "var(--app-text)",
-                  fontSize: "var(--fs-13)", fontWeight: 600, cursor: "pointer", textAlign: "center",
-                  boxSizing: "border-box",
-                }}
               >
-                J+1 · J+3 · J+7 — créer les 3 relances d'un coup
+                ×
               </button>
             </div>
 
-            {/* Séparateur */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ flex: 1, height: 1, background: "var(--app-border)" }} />
-              <span style={{ fontSize: "var(--fs-12)", color: "var(--app-text-secondary)" }}>ou</span>
-              <div style={{ flex: 1, height: 1, background: "var(--app-border)" }} />
+            <div className={styles.followupSection}>
+              <p className={styles.followupSectionLabel}>Séquence rapide</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setUseSequence(true);
+                  setFollowupDate("");
+                }}
+                className={`${styles.followupSequenceBtn} ${
+                  useSequence ? styles.followupSequenceBtnActive : ""
+                }`}
+              >
+                J+1 · J+3 · J+7 - créer les 3 relances d'un coup
+              </button>
             </div>
 
-            {/* Date manuelle */}
-            <div>
-              <p style={{ margin: "0 0 8px", fontSize: "var(--fs-13)", fontWeight: 600 }}>Date personnalisée</p>
+            <div className={styles.followupDivider}>
+              <div className={styles.followupDividerLine} />
+              <span className={styles.followupDividerText}>ou</span>
+              <div className={styles.followupDividerLine} />
+            </div>
+
+            <div className={styles.followupSection}>
+              <p className={styles.followupSectionLabel}>Date personnalisée</p>
               <input
                 type="datetime-local"
                 value={followupDate}
-                onChange={(e) => { setFollowupDate(e.target.value); setUseSequence(false); }}
-                style={{
-                  width: "100%", boxSizing: "border-box", padding: "8px 12px",
-                  borderRadius: 8, border: "1px solid var(--app-border)",
-                  background: "var(--app-surface)", color: "var(--app-text)",
-                  fontSize: "var(--fs-13)", outline: "none",
+                onChange={(e) => {
+                  setFollowupDate(e.target.value);
+                  setUseSequence(false);
                 }}
+                className={styles.followupInput}
               />
             </div>
 
-            {/* Message (selon plateforme) */}
             {activeConversation?.channel === "WhatsApp" ? (
-              <div>
-                <p style={{ margin: "0 0 8px", fontSize: "var(--fs-13)", fontWeight: 600 }}>Template</p>
+              <div className={styles.followupSection}>
+                <p className={styles.followupSectionLabel}>Template</p>
                 {followupTemplates.length === 0 ? (
-                  <p style={{ fontSize: "var(--fs-12)", color: "var(--app-text-secondary)", background: "var(--app-surface)", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--app-border)", margin: 0 }}>
+                  <p className={styles.followupInfo}>
                     Aucun template approuvé. Créez-en un dans la config agent.
                   </p>
                 ) : (
                   <select
                     value={followupTemplateId}
                     onChange={(e) => setFollowupTemplateId(e.target.value)}
-                    style={{
-                      width: "100%", padding: "8px 12px", borderRadius: 8,
-                      border: "1px solid var(--app-border)", background: "var(--app-surface)",
-                      color: "var(--app-text)", fontSize: "var(--fs-13)", outline: "none",
-                    }}
+                    className={styles.followupSelect}
                   >
                     <option value="">Choisir un template</option>
                     {followupTemplates.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
                     ))}
                   </select>
                 )}
               </div>
             ) : (
-              <div>
-                <p style={{ margin: "0 0 8px", fontSize: "var(--fs-13)", fontWeight: 600 }}>Message</p>
+              <div className={styles.followupSection}>
+                <p className={styles.followupSectionLabel}>Message</p>
                 <textarea
                   value={followupMessage}
                   onChange={(e) => setFollowupMessage(e.target.value)}
-                  placeholder="Écris le message de relance…"
+                  placeholder="Ecris le message de relance..."
                   rows={3}
-                  style={{
-                    width: "100%", boxSizing: "border-box", padding: "8px 12px",
-                    borderRadius: 8, border: "1px solid var(--app-border)",
-                    background: "var(--app-surface)", color: "var(--app-text)",
-                    fontSize: "var(--fs-13)", outline: "none", resize: "vertical",
-                    fontFamily: "inherit",
-                  }}
+                  className={styles.followupTextarea}
                 />
               </div>
             )}
 
-            {/* Actions */}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div className={styles.followupModalFooter}>
               <button
                 type="button"
                 onClick={() => setFollowupModalOpen(false)}
-                style={{
-                  padding: "9px 18px", borderRadius: 8, border: "1px solid var(--app-border)",
-                  background: "var(--app-surface)", color: "var(--app-text)",
-                  fontSize: "var(--fs-13)", fontWeight: 600, cursor: "pointer",
-                }}
+                className={`${styles.followupBtn} ${styles.followupBtnSecondary}`}
               >
                 Annuler
               </button>
               <button
                 type="button"
                 onClick={handleScheduleFollowup}
-                disabled={
-                  isScheduling ||
-                  (!useSequence && !followupDate) ||
-                  (activeConversation?.channel === "WhatsApp" ? !followupTemplateId : !followupMessage.trim())
-                }
-                style={{
-                  padding: "9px 18px", borderRadius: 8, border: "1px solid var(--app-primary)",
-                  background: "var(--app-primary)", color: "#fff",
-                  fontSize: "var(--fs-13)", fontWeight: 600, cursor: "pointer",
-                  opacity: ((!useSequence && !followupDate) || (activeConversation?.channel === "WhatsApp" ? !followupTemplateId : !followupMessage.trim())) ? 0.5 : 1,
-                }}
+                disabled={isFollowupSubmitDisabled}
+                className={`${styles.followupBtn} ${styles.followupBtnPrimary}`}
               >
-                {isScheduling ? "…" : useSequence ? "Planifier 3 relances" : "Planifier"}
+                {isScheduling ? "..." : useSequence ? "Planifier 3 relances" : "Planifier"}
               </button>
             </div>
           </div>

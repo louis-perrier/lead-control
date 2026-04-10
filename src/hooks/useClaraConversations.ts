@@ -8,32 +8,7 @@ const fetchConversations = async (agentConfigId: string) => {
     .select(
       `
       *,
-      conversation_messages (
-        id,
-        conversation_id,
-        platform,
-        external_message_id,
-        direction,
-        author_type,
-        author_ref,
-        body_text,
-        attachments,
-        send_state,
-        read_by_contact_at,
-        error_code,
-        error_message,
-        sent_at,
-        created_at,
-        message_type,
-        media_path,
-        media_mime,
-        media_duration_ms,
-        transcript,
-        transcript_status,
-        transcript_error,
-        automation_start,
-        automation_end
-      )
+      conversation_messages (*)
     `,
     )
     .eq("agent_config_id", agentConfigId)

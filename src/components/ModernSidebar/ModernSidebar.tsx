@@ -1,4 +1,4 @@
-import {
+﻿import {
   FunctionComponent,
   useState,
   useEffect,
@@ -117,7 +117,7 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
       route: "/app/relances",
       selected: currentPath === "/app/relances",
       labelText: "Relances",
-      icon: "/conversationIcon.svg",
+      icon: "/relanceIcon.svg",
       badge: pendingRelancesCount > 0 ? String(pendingRelancesCount) : undefined,
       badgeVariant: "error" as const,
     },
@@ -275,3 +275,4 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
 };
 
 export default ModernSidebar;
+

@@ -1,4 +1,4 @@
-import {
+﻿import {
   FunctionComponent,
   useCallback,
   useEffect,
@@ -75,7 +75,7 @@ const SOURCE_LABELS: Record<ContactSource, string> = {
 
 const MAPPED_FIELDS = [
   { key: "full_name", label: "Nom complet" },
-  { key: "phone_e164", label: "Téléphone (E164)" },
+  { key: "phone_e164", label: "Téléphone" },
   { key: "instagram_handle", label: "Handle Instagram" },
   { key: "email", label: "Email" },
 ] as const;
@@ -131,7 +131,7 @@ function formatDate(iso: string): string {
 function validatePhone(phone: string): string | null {
   if (!phone) return null;
   if (!/^\+[1-9]\d{6,14}$/.test(phone.trim())) {
-    return "Téléphone invalide — format E164 requis (ex: +33612345678)";
+    return "Téléphone invalide — format international requis (ex: +33612345678)";
   }
   return null;
 }
@@ -345,16 +345,22 @@ const AddManualModal: FunctionComponent<{
 
   return createPortal(
     <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div className={`${styles.modal} ${styles.manualModal}`} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>Ajouter un contact</h2>
+          <div className={styles.manualModalTitleBlock}>
+            <h2 className={styles.modalTitle}>Ajouter un prospect</h2>
+            <p className={styles.manualModalLead}>
+              Crée une fiche propre avec les informations utiles pour le suivi commercial.
+            </p>
+          </div>
           <button className={styles.modalClose} onClick={onClose} type="button">
             ×
           </button>
         </div>
 
-        <div className={styles.modalBody}>
-          <div className={styles.fieldGroup}>
+        <div className={`${styles.modalBody} ${styles.manualModalBody}`}>
+          <div className={styles.manualFieldsGrid}>
+          <div className={`${styles.fieldGroup} ${styles.manualFieldSpanFull}`}>
             <label className={styles.fieldLabel}>Nom complet<span className={styles.fieldRequired}>*</span></label>
             <input
               className={styles.fieldInput}
@@ -375,7 +381,7 @@ const AddManualModal: FunctionComponent<{
           </div>
 
           <div className={styles.fieldGroup}>
-            <label className={styles.fieldLabel}>Téléphone (E164)</label>
+            <label className={styles.fieldLabel}>Téléphone</label>
             <input
               className={styles.fieldInput}
               value={form.phone_e164}
@@ -384,7 +390,7 @@ const AddManualModal: FunctionComponent<{
             />
           </div>
 
-          <div className={styles.fieldGroup}>
+          <div className={`${styles.fieldGroup} ${styles.manualFieldSpanFull}`}>
             <label className={styles.fieldLabel}>Email</label>
             <input
               className={styles.fieldInput}
@@ -395,7 +401,7 @@ const AddManualModal: FunctionComponent<{
             />
           </div>
 
-          <div className={styles.fieldGroup}>
+          <div className={`${styles.fieldGroup} ${styles.manualFieldSpanFull}`}>
             <label className={styles.fieldLabel}>Tags</label>
             <TagsInput
               tags={form.tags}
@@ -403,7 +409,7 @@ const AddManualModal: FunctionComponent<{
             />
           </div>
 
-          <div className={styles.fieldGroup}>
+          <div className={`${styles.fieldGroup} ${styles.manualFieldSpanFull}`}>
             <label className={styles.fieldLabel}>Notes</label>
             <textarea
               className={styles.fieldTextarea}
@@ -411,6 +417,7 @@ const AddManualModal: FunctionComponent<{
               onChange={(e) => set("notes")(e.target.value)}
               placeholder="Notes libres…"
             />
+          </div>
           </div>
 
           {error && <p className={styles.fieldError}>{error}</p>}
@@ -593,48 +600,55 @@ const CsvImportModal: FunctionComponent<{
 
   return createPortal(
     <div className={styles.backdrop} onClick={onClose}>
-      <div
-        className={`${styles.modal} ${styles.csvModal}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>Import CSV</h2>
-          <button className={styles.modalClose} onClick={onClose} type="button">
-            ×
-          </button>
-        </div>
-
-        <div className={styles.modalBody}>
-          {/* Dropzone */}
-          <div
-            className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={onDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <div className={styles.dropzoneIcon}>📂</div>
-            <div>Glisse ton fichier CSV ici ou clique pour le sélectionner</div>
-            {fileName && <div className={styles.dropzoneName}>📄 {fileName}</div>}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFile(file);
-              }}
-            />
+        <div
+          className={`${styles.modal} ${styles.csvModal}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.modalHeader}>
+            <div className={styles.csvModalTitleBlock}>
+              <h2 className={styles.modalTitle}>Import CSV</h2>
+              <p className={styles.csvModalLead}>
+                Charge un fichier propre, mappe les colonnes et valide l’import des prospects.
+              </p>
+            </div>
+            <button className={styles.modalClose} onClick={onClose} type="button">
+              ×
+            </button>
           </div>
 
-          {/* Column mapping */}
-          {csv && (
-            <>
-              <p className={styles.csvSectionTitle}>
-                Correspondance des colonnes
-              </p>
-              <div className={styles.mappingGrid}>
+          <div className={`${styles.modalBody} ${styles.csvModalBody}`}>
+            {/* Dropzone */}
+            <div className={styles.csvSectionCard}>
+              <div
+                className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ""}`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={onDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className={styles.dropzoneIcon}>📂</div>
+                <div>Glisse ton fichier CSV ici ou clique pour le sélectionner</div>
+                {fileName && <div className={styles.dropzoneName}>📄 {fileName}</div>}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFile(file);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Column mapping */}
+            {csv && (
+              <div className={styles.csvSectionCard}>
+                <p className={styles.csvSectionTitle}>
+                  Correspondance des colonnes
+                </p>
+                <div className={styles.mappingGrid}>
                 <span className={styles.mappingLabel}>Champ LeadControl</span>
                 <span />
                 <span className={styles.mappingLabel}>Colonne CSV</span>
@@ -662,17 +676,17 @@ const CsvImportModal: FunctionComponent<{
                     </select>
                   </>
                 ))}
+                </div>
               </div>
-            </>
-          )}
+            )}
 
-          {/* Preview */}
-          {csv && previewRows.length > 0 && (
-            <>
-              <p className={styles.csvSectionTitle}>
-                Aperçu ({previewRows.length} première{previewRows.length > 1 ? "s" : ""} ligne{previewRows.length > 1 ? "s" : ""})
-              </p>
-              <div className={styles.csvPreview}>
+            {/* Preview */}
+            {csv && previewRows.length > 0 && (
+              <div className={styles.csvSectionCard}>
+                <p className={styles.csvSectionTitle}>
+                  Aperçu ({previewRows.length} première{previewRows.length > 1 ? "s" : ""} ligne{previewRows.length > 1 ? "s" : ""})
+                </p>
+                <div className={styles.csvPreview}>
                 <table className={styles.csvPreviewTable}>
                   <thead>
                     <tr>
@@ -695,9 +709,9 @@ const CsvImportModal: FunctionComponent<{
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
-            </>
-          )}
+            )}
 
           {error && <p className={styles.fieldError}>{error}</p>}
         </div>
@@ -955,6 +969,7 @@ const Contacts: FunctionComponent = () => {
   const [showManualModal, setShowManualModal] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
   // ── Fetch
@@ -1012,6 +1027,45 @@ const Contacts: FunctionComponent = () => {
       if (updated) setSelectedContact(updated);
     }
   }, [contacts]);
+
+  const handleDeleteContact = async (contact: Contact) => {
+    if (deletingContactId) return;
+
+    const contactLabel =
+      contact.full_name ?? contact.instagram_handle ?? contact.phone_e164 ?? "ce contact";
+    const confirmed = window.confirm(
+      `Supprimer ${contactLabel} de la liste ? Cette action est irréversible.`
+    );
+    if (!confirmed) return;
+
+    setDeletingContactId(contact.id);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setDeletingContactId(null);
+      window.alert("Session expirée. Reconnecte-toi puis réessaie.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("contacts")
+      .delete()
+      .eq("id", contact.id)
+      .eq("user_id", user.id);
+
+    setDeletingContactId(null);
+
+    if (error) {
+      window.alert("Impossible de supprimer ce contact pour le moment.");
+      return;
+    }
+
+    setContacts((prev) => prev.filter((c) => c.id !== contact.id));
+    if (selectedContact?.id === contact.id) {
+      setSelectedContact(null);
+    }
+  };
 
   return (
     <AppLayout>
@@ -1074,93 +1128,159 @@ const Contacts: FunctionComponent = () => {
 
         {/* Toolbar */}
         <div className={styles.toolbar}>
-          <div className={styles.searchWrapper}>
-            <svg
-              className={styles.searchIcon}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              className={styles.searchInput}
-              placeholder="Rechercher un contact…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className={styles.toolbarSearchBlock}>
+            <span className={styles.toolbarLabel}>Recherche</span>
+            <div className={styles.searchWrapper}>
+              <svg
+                className={styles.searchIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                className={styles.searchInput}
+                placeholder="Rechercher un contact..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
-          <select
-            className={styles.filterSelect}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as ContactStatus | "all")}
-          >
-            <option value="all">Tous les statuts</option>
-            {(Object.entries(STATUS_CONFIG) as [ContactStatus, { label: string }][]).map(
-              ([key, cfg]) => (
-                <option key={key} value={key}>
-                  {cfg.label}
-                </option>
-              )
-            )}
-          </select>
+          <div className={styles.toolbarFilterGrid}>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Statut</span>
+              <select
+                className={styles.filterSelect}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as ContactStatus | "all")}
+              >
+                <option value="all">Tous les statuts</option>
+                {(Object.entries(STATUS_CONFIG) as [ContactStatus, { label: string }][]).map(
+                  ([key, cfg]) => (
+                    <option key={key} value={key}>
+                      {cfg.label}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
 
-          <select
-            className={styles.filterSelect}
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value as ContactSource | "all")}
-          >
-            <option value="all">Toutes les sources</option>
-            {(Object.entries(SOURCE_LABELS) as [ContactSource, string][]).map(
-              ([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              )
-            )}
-          </select>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Source</span>
+              <select
+                className={styles.filterSelect}
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value as ContactSource | "all")}
+              >
+                <option value="all">Toutes les sources</option>
+                {(Object.entries(SOURCE_LABELS) as [ContactSource, string][]).map(
+                  ([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  )
+                )}
+              </select>
+            </label>
 
-          <select
-            className={styles.filterSelect}
-            value={platformFilter}
-            onChange={(e) =>
-              setPlatformFilter(e.target.value as "all" | "instagram" | "whatsapp")
-            }
-          >
-            <option value="all">Toutes les plateformes</option>
-            <option value="instagram">Instagram</option>
-            <option value="whatsapp">WhatsApp</option>
-          </select>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Plateforme</span>
+              <select
+                className={styles.filterSelect}
+                value={platformFilter}
+                onChange={(e) =>
+                  setPlatformFilter(e.target.value as "all" | "instagram" | "whatsapp")
+                }
+              >
+                <option value="all">Toutes les plateformes</option>
+                <option value="instagram">Instagram</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+            </label>
+          </div>
 
-          <span className={styles.contactCount}>
-            {filtered.length} contact{filtered.length !== 1 ? "s" : ""}
-          </span>
+          <div className={styles.contactCount}>
+            <span className={styles.contactCountLabel}>Résultats</span>
+            <span className={styles.contactCountValue}>
+              {filtered.length} contact{filtered.length !== 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
-
         {/* Table */}
         <div className={styles.tableWrapper}>
           {isLoading ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyStateIcon}>⏳</div>
+            <div className={`${styles.emptyState} ${styles.emptyStateLoading}`}>
+              <div className={`${styles.emptyStateVisual} ${styles.emptyStateLoadingVisual}`}>
+                <span className={styles.emptyStateSpinner} />
+              </div>
               <p className={styles.emptyStateText}>Chargement…</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.emptyStateIcon}>👥</div>
+              <div className={styles.emptyStateVisual}>
+                <svg
+                  className={styles.emptyStateGlyph}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M16 20a4 4 0 0 0-8 0" />
+                  <circle cx="12" cy="11" r="3.5" />
+                  <path d="M5.2 18.2A3.6 3.6 0 0 0 2 22" />
+                  <path d="M18.8 18.2A3.6 3.6 0 0 1 22 22" />
+                  <path d="M6.5 10.4a2.8 2.8 0 1 1 0-5.6" />
+                  <path d="M17.5 10.4a2.8 2.8 0 1 0 0-5.6" />
+                </svg>
+              </div>
               <p className={styles.emptyStateText}>
                 {contacts.length === 0
-                  ? "Aucun contact pour l'instant"
+                  ? "Aucun contact pour le moment"
                   : "Aucun résultat pour ces filtres"}
               </p>
               {contacts.length === 0 && (
                 <p className={styles.emptyStateSub}>
                   Ajoute ton premier contact manuellement ou importe un CSV.
                 </p>
+              )}
+              {contacts.length === 0 ? (
+                <div className={styles.emptyStateActions}>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    onClick={() => setShowManualModal(true)}
+                  >
+                    Ajouter un contact
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={() => setShowCsvModal(true)}
+                  >
+                    Importer un CSV
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnSecondary}`}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStatusFilter("all");
+                    setSourceFilter("all");
+                    setPlatformFilter("all");
+                  }}
+                >
+                  Réinitialiser les filtres
+                </button>
               )}
             </div>
           ) : (
@@ -1226,6 +1346,15 @@ const Contacts: FunctionComponent = () => {
                       >
                         Démarrer →
                       </button>
+                      <button
+                        type="button"
+                        className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+                        style={{ marginLeft: 8 }}
+                        onClick={() => void handleDeleteContact(contact)}
+                        disabled={deletingContactId === contact.id}
+                      >
+                        {deletingContactId === contact.id ? "Suppression…" : "Supprimer"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1262,3 +1391,5 @@ const Contacts: FunctionComponent = () => {
 };
 
 export default Contacts;
+
+

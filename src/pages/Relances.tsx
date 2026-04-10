@@ -4,10 +4,9 @@ import { AppLayout } from "../layouts";
 import supabase from "../lib/supabase";
 import styles from "./Relances.module.css";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type FollowupStatus = "pending" | "sent" | "skipped";
-type FilterOption = "Toutes" | "Aujourd'hui" | "En retard" | "Envoyées";
+type PeriodFilter = "all" | "today" | "overdue";
+type PlatformFilter = "all" | "instagram" | "whatsapp" | "telegram";
 
 type Followup = {
   id: string;
@@ -22,10 +21,6 @@ type Followup = {
   contactName: string | null;
   contactHandle: string | null;
 };
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const FILTERS: FilterOption[] = ["Toutes", "Aujourd'hui", "En retard", "Envoyées"];
 
 const platformIcon: Record<string, string> = {
   instagram: "/logoConnectors/instagram.svg",
@@ -44,8 +39,6 @@ const statusLabel: Record<FollowupStatus, string> = {
   skipped: "Ignorée",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const formatScheduledAt = (iso: string): string => {
   const date = new Date(iso);
   const now = new Date();
@@ -55,18 +48,17 @@ const formatScheduledAt = (iso: string): string => {
   const hhmm = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   if (msgDate.getTime() === today.getTime()) return `Aujourd'hui à ${hhmm}`;
   if (msgDate.getTime() === tomorrow.getTime()) return `Demain à ${hhmm}`;
-  return (
-    date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) + ` à ${hhmm}`
-  );
+  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) + ` à ${hhmm}`;
 };
-
-// ─── Main component ───────────────────────────────────────────────────────────
 
 const Relances: FunctionComponent = () => {
   const navigate = useNavigate();
   const [followups, setFollowups] = useState<Followup[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<FilterOption>("Toutes");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | FollowupStatus>("all");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
 
   const fetchFollowups = useCallback(async () => {
     setLoading(true);
@@ -119,184 +111,279 @@ const Relances: FunctionComponent = () => {
     [navigate]
   );
 
-  const now = useMemo(() => new Date(), []);
+  const handleOpenConversation = useCallback(
+    (followup: Followup) => {
+      const params = new URLSearchParams();
+      params.set("conversation_id", String(followup.conversationId));
+      navigate(`/app/conversations?${params.toString()}`);
+    },
+    [navigate]
+  );
 
-  const todayStart = useMemo(
-    () => new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-    [now]
-  );
-  const tomorrowStart = useMemo(
-    () => new Date(todayStart.getTime() + 86400000),
-    [todayStart]
-  );
+  const pendingOverdueCount = useMemo(() => {
+    const now = new Date();
+    return followups.filter((f) => f.status === "pending" && new Date(f.scheduledAt) <= now)
+      .length;
+  }, [followups]);
 
   const filteredFollowups = useMemo(() => {
-    switch (activeFilter) {
-      case "Aujourd'hui":
-        return followups.filter((f) => {
-          const d = new Date(f.scheduledAt);
-          const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-          return day.getTime() === todayStart.getTime();
-        });
-      case "En retard":
-        return followups.filter(
-          (f) => f.status === "pending" && new Date(f.scheduledAt) < now
-        );
-      case "Envoyées":
-        return followups.filter((f) => f.status === "sent");
-      default:
-        return followups;
-    }
-  }, [followups, activeFilter, now, todayStart]);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+    const query = searchQuery.trim().toLowerCase();
 
-  const pendingOverdueCount = useMemo(
-    () =>
-      followups.filter((f) => f.status === "pending" && new Date(f.scheduledAt) <= now)
-        .length,
-    [followups, now]
-  );
+    return followups.filter((f) => {
+      if (statusFilter !== "all" && f.status !== statusFilter) {
+        return false;
+      }
+
+      if (platformFilter !== "all" && f.platform !== platformFilter) {
+        return false;
+      }
+
+      if (periodFilter === "today") {
+        const d = new Date(f.scheduledAt);
+        if (d < todayStart || d >= tomorrowStart) return false;
+      } else if (periodFilter === "overdue") {
+        if (!(f.status === "pending" && new Date(f.scheduledAt) < now)) return false;
+      }
+
+      if (query) {
+        const match =
+          (f.contactName ?? "").toLowerCase().includes(query) ||
+          (f.contactHandle ?? "").toLowerCase().includes(query) ||
+          (f.messageBody ?? "").toLowerCase().includes(query) ||
+          (f.templateName ?? "").toLowerCase().includes(query) ||
+          String(f.conversationId).includes(query);
+        if (!match) return false;
+      }
+
+      return true;
+    });
+  }, [followups, periodFilter, platformFilter, searchQuery, statusFilter]);
 
   return (
     <AppLayout>
-      <div className={styles.relancesRoot}>
-        <div className={styles.relancesContainer}>
-          <div className={styles.relancesHeader}>
-            <div className={styles.relancesTitle}>
-              <h1 className={styles.relancesTitleText}>Relances</h1>
-              {pendingOverdueCount > 0 && (
-                <span className={styles.relancesOverdueBadge}>
-                  {pendingOverdueCount} en retard
-                </span>
-              )}
-            </div>
+      <div className={styles.page}>
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <h1 className={styles.title}>Relances</h1>
+            <p className={styles.subtitle}>Gérez vos relances Instagram et WhatsApp</p>
           </div>
+          {pendingOverdueCount > 0 && (
+            <span className={styles.overdueBadge}>{pendingOverdueCount} en retard</span>
+          )}
+        </div>
 
-          <div className={styles.relancesFilters}>
-            {FILTERS.map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                className={`${styles.relancesFilterBtn} ${
-                  activeFilter === filter ? styles.relancesFilterBtnActive : ""
-                }`}
-                onClick={() => setActiveFilter(filter)}
+        <div className={styles.toolbar}>
+          <div className={styles.toolbarSearchBlock}>
+            <span className={styles.toolbarLabel}>Recherche</span>
+            <div className={styles.searchWrapper}>
+              <svg
+                className={styles.searchIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                {filter}
-              </button>
-            ))}
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                className={styles.searchInput}
+                placeholder="Rechercher une relance..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
-          {loading ? (
-            <div className={styles.relancesLoading}>Chargement…</div>
-          ) : filteredFollowups.length === 0 ? (
-            <div className={styles.relancesEmpty}>
-              Aucune relance{activeFilter !== "Toutes" ? " pour ce filtre" : ""}
-            </div>
-          ) : (
-            <div className={styles.relancesList}>
-              {filteredFollowups.map((followup) => {
-                const isOverdue =
-                  followup.status === "pending" &&
-                  new Date(followup.scheduledAt) < now;
-                const messagePreview = followup.messageBody
-                  ? followup.messageBody.length > 60
-                    ? followup.messageBody.slice(0, 60) + "…"
-                    : followup.messageBody
-                  : followup.templateName
-                  ? `Template : ${followup.templateName}`
-                  : "—";
-                const canAct = followup.status === "pending";
-                const isInstagram = followup.platform === "instagram";
-                const isWhatsApp = followup.platform === "whatsapp";
-                const scheduledDate = new Date(followup.scheduledAt);
-                const isUpcoming =
-                  scheduledDate >= todayStart && scheduledDate < tomorrowStart;
+          <div className={styles.toolbarFilterGrid}>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Statut</span>
+              <select
+                className={styles.filterSelect}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as "all" | FollowupStatus)}
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="sent">Envoyée</option>
+                <option value="skipped">Ignorée</option>
+              </select>
+            </label>
 
-                return (
-                  <div
-                    key={followup.id}
-                    className={`${styles.relanceRow} ${
-                      isOverdue ? styles.relanceRowOverdue : ""
-                    } ${isUpcoming && !isOverdue ? styles.relanceRowToday : ""}`}
-                  >
-                    <div className={styles.relanceRowLeft}>
-                      <div className={styles.relancePlatformIcon}>
-                        {platformIcon[followup.platform] ? (
-                          <img
-                            src={platformIcon[followup.platform]}
-                            alt={platformLabel[followup.platform] ?? followup.platform}
-                            width={22}
-                            height={22}
-                          />
-                        ) : (
-                          <span className={styles.relancePlatformFallback}>
-                            {followup.platform.slice(0, 2).toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <div className={styles.relanceRowBody}>
-                        <span className={styles.relanceContact}>
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Période</span>
+              <select
+                className={styles.filterSelect}
+                value={periodFilter}
+                onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
+              >
+                <option value="all">Toutes les périodes</option>
+                <option value="today">Aujourd'hui</option>
+                <option value="overdue">En retard</option>
+              </select>
+            </label>
+
+            <label className={styles.filterField}>
+              <span className={styles.filterLabel}>Plateforme</span>
+              <select
+                className={styles.filterSelect}
+                value={platformFilter}
+                onChange={(e) => setPlatformFilter(e.target.value as PlatformFilter)}
+              >
+                <option value="all">Toutes les plateformes</option>
+                <option value="instagram">Instagram</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="telegram">Telegram</option>
+              </select>
+            </label>
+          </div>
+
+          <div className={styles.resultCount}>
+            <span className={styles.resultCountLabel}>Résultats</span>
+            <span className={styles.resultCountValue}>
+              {filteredFollowups.length} relance{filteredFollowups.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.tableWrapper}>
+          {loading ? (
+            <div className={styles.emptyState}>Chargement…</div>
+          ) : filteredFollowups.length === 0 ? (
+            <div className={styles.emptyState}>Aucune relance pour ces filtres.</div>
+          ) : (
+            <table className={styles.table}>
+              <thead className={styles.thead}>
+                <tr>
+                  <th className={styles.th}>Contact</th>
+                  <th className={styles.th}>Plateforme</th>
+                  <th className={styles.th}>Statut</th>
+                  <th className={styles.th}>Planifiée</th>
+                  <th className={styles.th}>Message</th>
+                  <th className={styles.th}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredFollowups.map((followup) => {
+                  const now = new Date();
+                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                  const tomorrow = new Date(today.getTime() + 86400000);
+                  const scheduledDate = new Date(followup.scheduledAt);
+                  const isOverdue =
+                    followup.status === "pending" && scheduledDate < now;
+                  const isToday = scheduledDate >= today && scheduledDate < tomorrow;
+                  const canAct = followup.status === "pending";
+                  const isInstagram = followup.platform === "instagram";
+                  const isWhatsApp = followup.platform === "whatsapp";
+                  const preview = followup.messageBody
+                    ? followup.messageBody.length > 72
+                      ? `${followup.messageBody.slice(0, 72)}…`
+                      : followup.messageBody
+                    : followup.templateName
+                    ? `Template: ${followup.templateName}`
+                    : "—";
+
+                  return (
+                    <tr
+                      key={followup.id}
+                      className={`${styles.tr} ${isOverdue ? styles.trOverdue : ""} ${
+                        isToday && !isOverdue ? styles.trToday : ""
+                      }`}
+                    >
+                      <td className={styles.td}>
+                        <div className={styles.contactName}>
                           {followup.contactName ?? `Conv. #${followup.conversationId}`}
-                          {followup.contactHandle && (
-                            <span className={styles.relanceHandle}>
-                              {" "}
-                              @{followup.contactHandle}
+                        </div>
+                        {followup.contactHandle && (
+                          <div className={styles.contactHandle}>@{followup.contactHandle}</div>
+                        )}
+                      </td>
+
+                      <td className={styles.td}>
+                        <div className={styles.platformBadge}>
+                          {platformIcon[followup.platform] ? (
+                            <img
+                              src={platformIcon[followup.platform]}
+                              alt={platformLabel[followup.platform] ?? followup.platform}
+                              className={styles.platformIcon}
+                            />
+                          ) : (
+                            <span className={styles.platformFallback}>
+                              {followup.platform.slice(0, 2).toUpperCase()}
                             </span>
                           )}
-                        </span>
-                        <span className={styles.relancePreview}>{messagePreview}</span>
+                          <span>{platformLabel[followup.platform] ?? followup.platform}</span>
+                        </div>
+                      </td>
+
+                      <td className={styles.td}>
                         <span
-                          className={`${styles.relanceDate} ${
-                            isOverdue ? styles.relanceDateOverdue : ""
-                          }`}
+                          className={`${styles.statusBadge} ${styles[`status_${followup.status}`]}`}
                         >
-                          {isOverdue && "⚠ En retard · "}
+                          {statusLabel[followup.status]}
+                        </span>
+                      </td>
+
+                      <td className={styles.td}>
+                        <span className={`${styles.dateText} ${isOverdue ? styles.dateOverdue : ""}`}>
+                          {isOverdue ? "En retard - " : ""}
                           {formatScheduledAt(followup.scheduledAt)}
                         </span>
-                      </div>
-                    </div>
+                      </td>
 
-                    <div className={styles.relanceRowRight}>
-                      <span
-                        className={`${styles.relanceStatusBadge} ${
-                          styles[`relanceStatus_${followup.status}`]
-                        }`}
-                      >
-                        {statusLabel[followup.status]}
-                      </span>
-                      {canAct && isInstagram && (
-                        <button
-                          type="button"
-                          className={styles.relanceSendBtn}
-                          onClick={() => handleSendInstagram(followup)}
-                        >
-                          Envoyer
-                        </button>
-                      )}
-                      {canAct && isWhatsApp && (
-                        <button
-                          type="button"
-                          className={styles.relanceSendBtnDisabled}
-                          title="L'envoi WhatsApp est automatique"
-                          disabled
-                        >
-                          Envoi auto
-                        </button>
-                      )}
-                      {canAct && (
-                        <button
-                          type="button"
-                          className={styles.relanceSkipBtn}
-                          onClick={() => handleSkip(followup.id)}
-                        >
-                          Ignorer
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                      <td className={styles.td}>
+                        <span className={styles.previewText}>{preview}</span>
+                      </td>
+
+                      <td className={styles.tdActions}>
+                        <div className={styles.actionGroup}>
+                          <button
+                            type="button"
+                            className={styles.actionBtn}
+                            onClick={() => handleOpenConversation(followup)}
+                          >
+                            Voir
+                          </button>
+                          {canAct && isInstagram && (
+                            <button
+                              type="button"
+                              className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+                              onClick={() => handleSendInstagram(followup)}
+                            >
+                              Envoyer
+                            </button>
+                          )}
+                          {canAct && isWhatsApp && (
+                            <button
+                              type="button"
+                              className={`${styles.actionBtn} ${styles.actionBtnMuted}`}
+                              title="L'envoi WhatsApp est automatique"
+                              disabled
+                            >
+                              Envoi auto
+                            </button>
+                          )}
+                          {canAct && (
+                            <button
+                              type="button"
+                              className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
+                              onClick={() => void handleSkip(followup.id)}
+                            >
+                              Ignorer
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       </div>

@@ -302,8 +302,28 @@ const OptionSearch: FunctionComponent<OptionSearchType> = ({
             .filter(Boolean)
             .join(" ")}
         >
+          {enlargedSearch && (
+            <svg
+              className={styles.searchIconLarge}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          )}
           <input
-            className={styles.searchtext}
+            className={[
+              styles.searchtext,
+              enlargedSearch ? styles.searchtextLarge : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             placeholder="Rechercher"
             type="text"
             value={effectiveSearchValue}
@@ -315,17 +335,19 @@ const OptionSearch: FunctionComponent<OptionSearchType> = ({
               }
             }}
           />
-          <button
-            type="button"
-            className={styles.searchButton}
-            onClick={() => onSearchSubmit?.(effectiveSearchValue)}
-          >
-            <img
-              className={styles.searchlogoIcon}
-              alt="Rechercher"
-              src="/searchLogo.svg"
-            />
-          </button>
+          {!enlargedSearch && (
+            <button
+              type="button"
+              className={styles.searchButton}
+              onClick={() => onSearchSubmit?.(effectiveSearchValue)}
+            >
+              <img
+                className={styles.searchlogoIcon}
+                alt="Rechercher"
+                src="/searchLogo.svg"
+              />
+            </button>
+          )}
         </div>
       )}
       {sortButton && (
@@ -504,4 +526,3 @@ const OptionSearch: FunctionComponent<OptionSearchType> = ({
 };
 
 export default OptionSearch;
-

@@ -1,302 +1,478 @@
-/* ── Root layout ──────────────────────────────────────────────────────────── */
-
-.relancesRoot {
-  flex: 1;
+.page {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  background: var(--app-bg);
+  height: 100%;
+  min-height: 100vh;
+  padding: 28px 32px;
+  gap: var(--gap-20);
+  box-sizing: border-box;
   overflow-y: auto;
 }
 
-.relancesContainer {
-  max-width: 860px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 32px 24px 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* ── Header ───────────────────────────────────────────────────────────────── */
-
-.relancesHeader {
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--gap-12);
 }
 
-.relancesTitle {
+.headerLeft {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.relancesTitleText {
+.title {
   margin: 0;
-  font-size: var(--fs-24, 24px);
+  font-size: var(--fs-24);
   font-weight: 700;
-  color: var(--app-text);
+  color: var(--app-text-primary);
   letter-spacing: -0.3px;
 }
 
-.relancesOverdueBadge {
+.subtitle {
+  margin: 0;
+  font-size: var(--fs-14);
+  color: var(--app-text-secondary);
+}
+
+.overdueBadge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: 20px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--app-error, #ef4444);
-  font-size: var(--fs-12, 12px);
-  font-weight: 600;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-/* ── Filters ──────────────────────────────────────────────────────────────── */
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.2fr) minmax(420px, 1.8fr) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 255, 0.96) 100%);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
 
-.relancesFilters {
+.toolbarSearchBlock {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.toolbarFilterGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.toolbarLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.searchWrapper {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--app-text-secondary);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px 10px 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--app-text-primary);
+  font-size: var(--fs-14);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.searchInput:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  position: relative;
+}
+
+.filterField::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  bottom: 15px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.6px solid #64748b;
+  border-bottom: 1.6px solid #64748b;
+  transform: rotate(45deg);
+  pointer-events: none;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.filterLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.filterSelect {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 34px 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--app-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.filterSelect:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.filterField:focus-within::after {
+  transform: rotate(-135deg);
+  border-color: #2563eb;
+}
+
+.filterField:focus-within .filterSelect {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.resultCount {
+  justify-self: end;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.resultCountLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #64748b;
+}
+
+.resultCountValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.tableWrapper {
+  background: var(--app-surface);
+  border-radius: var(--br-14);
+  border: 1px solid var(--app-border);
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.thead {
+  background: rgba(37, 99, 235, 0.04);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--app-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.th:last-child {
+  text-align: right;
+}
+
+.tr {
+  border-bottom: 1px solid var(--app-border);
+  transition: background 0.1s ease;
+}
+
+.tr:last-child {
+  border-bottom: none;
+}
+
+.tr:hover {
+  background: rgba(37, 99, 235, 0.025);
+}
+
+.trOverdue {
+  background: rgba(254, 242, 242, 0.9);
+}
+
+.trToday {
+  background: rgba(255, 251, 235, 0.9);
+}
+
+.td {
+  padding: 14px 16px;
+  font-size: var(--fs-14);
+  color: var(--app-text-primary);
+  vertical-align: middle;
+}
+
+.tdActions {
+  padding: 14px 16px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.actionGroup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.relancesFilterBtn {
-  padding: 7px 16px;
-  border-radius: 20px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
-  font-size: var(--fs-13, 13px);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.relancesFilterBtn:hover {
-  border-color: var(--app-primary);
-  color: var(--app-primary);
-}
-
-.relancesFilterBtnActive {
-  background: var(--app-primary);
-  border-color: var(--app-primary);
-  color: #fff;
+.contactName {
   font-weight: 600;
+  color: var(--app-text-primary);
 }
 
-.relancesFilterBtnActive:hover {
-  color: #fff;
-}
-
-/* ── States ───────────────────────────────────────────────────────────────── */
-
-.relancesLoading,
-.relancesEmpty {
-  padding: 48px 24px;
-  text-align: center;
+.contactHandle {
+  font-size: var(--fs-12);
   color: var(--app-text-secondary);
-  font-size: var(--fs-14, 14px);
+  margin-top: 2px;
 }
 
-/* ── List ─────────────────────────────────────────────────────────────────── */
-
-.relancesList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.relanceRow {
-  display: flex;
+.platformBadge {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 18px;
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  gap: 6px;
+  font-size: var(--fs-12);
+  color: var(--app-text-secondary);
 }
 
-.relanceRow:hover {
-  border-color: var(--app-primary);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-
-.relanceRowOverdue {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.03);
-}
-
-.relanceRowOverdue:hover {
-  border-color: rgba(239, 68, 68, 0.7);
-}
-
-.relanceRowToday {
-  border-color: rgba(245, 158, 11, 0.4);
-  background: rgba(245, 158, 11, 0.03);
-}
-
-/* ── Row left ─────────────────────────────────────────────────────────────── */
-
-.relanceRowLeft {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-}
-
-.relancePlatformIcon {
+.platformIcon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: var(--app-bg);
-  border: 1px solid var(--app-border);
-  display: flex;
+}
+
+.platformFallback {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.relancePlatformIcon img {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-  border-radius: 4px;
-}
-
-.relancePlatformFallback {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.18);
+  color: #64748b;
   font-size: 10px;
   font-weight: 700;
-  color: var(--app-text-secondary);
 }
 
-.relanceRowBody {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.relanceContact {
-  font-size: var(--fs-14, 14px);
-  font-weight: 600;
-  color: var(--app-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.relanceHandle {
-  font-weight: 400;
-  color: var(--app-text-secondary);
-}
-
-.relancePreview {
-  font-size: var(--fs-13, 13px);
-  color: var(--app-text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.relanceDate {
-  font-size: var(--fs-12, 12px);
-  color: var(--app-text-secondary);
-}
-
-.relanceDateOverdue {
-  color: var(--app-error, #ef4444);
-  font-weight: 600;
-}
-
-/* ── Row right ────────────────────────────────────────────────────────────── */
-
-.relanceRowRight {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* ── Status badge ─────────────────────────────────────────────────────────── */
-
-.relanceStatusBadge {
+.statusBadge {
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
-  border-radius: 20px;
-  font-size: var(--fs-11, 11px);
+  border-radius: var(--br-100);
+  font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.relanceStatus_pending {
+.status_pending {
   background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  color: var(--app-warning, #f59e0b);
+  color: #a16207;
 }
 
-.relanceStatus_sent {
-  background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #16a34a;
+.status_sent {
+  background: rgba(5, 150, 105, 0.12);
+  color: #059669;
 }
 
-.relanceStatus_skipped {
-  background: var(--app-bg);
-  border: 1px solid var(--app-border);
+.status_skipped {
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+}
+
+.dateText {
+  font-size: var(--fs-12);
   color: var(--app-text-secondary);
 }
 
-/* ── Action buttons ───────────────────────────────────────────────────────── */
-
-.relanceSendBtn {
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--app-primary);
-  background: var(--app-primary);
-  color: #fff;
-  font-size: var(--fs-12, 12px);
+.dateOverdue {
+  color: #dc2626;
   font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
+}
+
+.previewText {
+  font-size: 13px;
+  color: #475569;
+  display: inline-block;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.relanceSendBtn:hover {
-  opacity: 0.85;
-}
-
-.relanceSendBtnDisabled {
-  padding: 6px 14px;
-  border-radius: 8px;
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--br-8);
   border: 1px solid var(--app-border);
   background: var(--app-surface);
-  color: var(--app-text-secondary);
-  font-size: var(--fs-12, 12px);
-  font-weight: 600;
-  cursor: not-allowed;
-  opacity: 0.6;
-  white-space: nowrap;
-}
-
-.relanceSkipBtn {
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--app-border);
-  background: transparent;
-  color: var(--app-text-secondary);
-  font-size: var(--fs-12, 12px);
+  color: var(--app-text-primary);
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.1s ease, border-color 0.1s ease;
   white-space: nowrap;
 }
 
-.relanceSkipBtn:hover {
-  border-color: var(--app-error, #ef4444);
-  color: var(--app-error, #ef4444);
+.actionBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.actionBtnPrimary {
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+  color: #fff;
+}
+
+.actionBtnPrimary:hover:not(:disabled) {
+  background: var(--app-primary-hover);
+  border-color: var(--app-primary-hover);
+}
+
+.actionBtnMuted {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.actionBtnDanger {
+  background: #fff1f2;
+  border-color: rgba(244, 63, 94, 0.38);
+  color: #be123c;
+}
+
+.actionBtnDanger:hover:not(:disabled) {
+  background: #ffe4e6;
+  border-color: rgba(225, 29, 72, 0.5);
+}
+
+.emptyState {
+  padding: 46px 24px;
+  text-align: center;
+  color: var(--app-text-secondary);
+  font-size: var(--fs-14);
+}
+
+@media (max-width: 1180px) {
+  .toolbar {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  .toolbarSearchBlock {
+    grid-column: 1 / -1;
+  }
+
+  .toolbarFilterGrid {
+    grid-column: 1 / -1;
+  }
+
+  .resultCount {
+    justify-self: start;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding: 22px 16px;
+  }
+
+  .tableWrapper {
+    overflow-x: auto;
+  }
+
+  .previewText {
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 760px) {
+  .toolbar {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .toolbarFilterGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .resultCount {
+    width: 100%;
+    justify-self: stretch;
+    align-items: flex-start;
+  }
 }

@@ -813,9 +813,16 @@ const Dashboard: FunctionComponent = () => {
   );
 
   const stats = useMemo(() => {
+    const hasProspectReply = (conversation: Conversation) =>
+      conversation.inboundCount > 0 ||
+      conversation.messages.some((message) => message.direction === "inbound");
+
     if (isAllMode) {
       const active = channelScopedConversations.filter(
-        (conv) => conv.status === "Ouvert" && isInPeriodWindow(conv.lastAt, periodWindow),
+        (conv) =>
+          conv.status === "Ouvert" &&
+          hasProspectReply(conv) &&
+          isInPeriodWindow(conv.lastAt, periodWindow),
       ).length;
       const responses = channelScopedConversations.reduce(
         (acc, conv) => acc + conv.agentSentCount,
@@ -867,6 +874,7 @@ const Dashboard: FunctionComponent = () => {
     const activeConversations = channelScopedConversations.filter(
       (conversation) =>
         conversation.status === "Ouvert" &&
+        hasProspectReply(conversation) &&
         isInPeriodWindow(conversation.lastAt, periodWindow),
     ).length;
     const averageResponseSeconds =

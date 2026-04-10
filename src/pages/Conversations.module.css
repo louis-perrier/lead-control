@@ -2041,6 +2041,34 @@
   bottom: -28px;
   right: 12px;
 }
+
+.chatReactionText {
+  margin: 0;
+  font-style: italic;
+}
+
+.chatReactionsRow {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chatReactionBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
+  font-size: 13px;
+  line-height: 1;
+}
 .attachmentChip {
   margin-top: 8px;
   padding: 6px 10px;
@@ -2785,6 +2813,227 @@
   font-style: normal;
 }
 
+.followupModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.44);
+  backdrop-filter: blur(2px);
+}
+
+.followupModal {
+  width: min(500px, calc(100vw - 28px));
+  max-height: min(88vh, 740px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow:
+    0 24px 54px rgba(15, 23, 42, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.followupModalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.followupModalTitleBlock {
+  min-width: 0;
+}
+
+.followupModalTitle {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 700;
+  color: #0b1220;
+}
+
+.followupModalSubtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.followupModalClose {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  background: rgba(248, 250, 252, 0.9);
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.followupModalClose:hover {
+  border-color: rgba(100, 116, 139, 0.5);
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.followupSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.followupSectionLabel {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.followupSequenceBtn {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(255, 255, 255, 0.9);
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.followupSequenceBtn:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: #f8fbff;
+}
+
+.followupSequenceBtnActive {
+  border-color: rgba(37, 99, 235, 0.56);
+  background: rgba(219, 234, 254, 0.72);
+  color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.followupDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.followupDividerLine {
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.38);
+}
+
+.followupDividerText {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.followupInput,
+.followupSelect,
+.followupTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--app-text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.followupTextarea {
+  resize: vertical;
+  min-height: 88px;
+  font-family: inherit;
+  line-height: 1.45;
+}
+
+.followupInput:focus,
+.followupSelect:focus,
+.followupTextarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.followupInfo {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  background: rgba(248, 250, 252, 0.88);
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.followupModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.followupBtn {
+  padding: 9px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.followupBtnSecondary {
+  border-color: rgba(148, 163, 184, 0.42);
+  background: #ffffff;
+  color: #334155;
+}
+
+.followupBtnSecondary:hover {
+  background: #f8fafc;
+  border-color: rgba(100, 116, 139, 0.46);
+}
+
+.followupBtnPrimary {
+  border-color: #1d4ed8;
+  background: linear-gradient(145deg, #2563eb 0%, #1e40af 100%);
+  color: #ffffff;
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.28);
+}
+
+.followupBtnPrimary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(37, 99, 235, 0.34);
+}
+
+.followupBtnPrimary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 @media (max-width: 1260px) {
   .claraDetailsLayout {
     grid-template-columns: clamp(320px, 34vw, 400px) minmax(0, 1fr);
@@ -2876,5 +3125,20 @@
 
   .chatComposerActionButtons {
     justify-content: flex-end;
+  }
+
+  .followupModal {
+    padding: 18px 16px;
+    border-radius: 16px;
+  }
+
+  .followupModalFooter {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .followupBtn {
+    width: 100%;
+    justify-content: center;
   }
 }
