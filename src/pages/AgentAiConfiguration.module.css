@@ -3119,7 +3119,7 @@
 }
 
 .configTabPanel {
-  max-width: 860px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 32px 32px 64px;
   display: flex;
@@ -3172,4 +3172,52 @@
   max-width: 380px;
   line-height: 1.5;
   margin: 0;
+}
+
+/* ─── Agent form — layout grille 2 colonnes ─────────────────────────────────── */
+
+.agentFormCard {
+  background: #FFFFFF;
+  border: 1px solid #E6EBF2;
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 28px;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.formFieldFull {
+  grid-column: span 2;
+}
+
+.compactLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #5B667A;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Taille réduite pour les champs dans la card */
+.agentFormCard .detailsInput,
+.agentFormCard .timeInput {
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.agentFormCard .contextTextarea,
+.agentFormCard .stopTextarea {
+  font-size: 13px;
+  padding: 10px 12px;
 }

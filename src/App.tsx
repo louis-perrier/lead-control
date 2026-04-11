@@ -135,7 +135,6 @@ function App() {
   const { data: subscriptionState } = useSubscriptionState();
 
   const feedbackPlacement = (() => {
-    if (pathname === "/app/conversations") return "lifted" as const;
     if (
       pathname === "/app/contacts" ||
       pathname === "/app/relances" ||

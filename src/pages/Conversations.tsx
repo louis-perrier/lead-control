@@ -1083,6 +1083,7 @@ const Conversations: FunctionComponent = () => {
   const [closingIsWon, setClosingIsWon] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
   const [convHasBooking, setConvHasBooking] = useState(false);
+  const [convBookingData, setConvBookingData] = useState<{ id: string; created_at: string } | null>(null);
 
   // Voice modal state
   const [isVoiceModalOpen, setVoiceModalOpen] = useState(false);
@@ -1092,6 +1093,7 @@ const Conversations: FunctionComponent = () => {
   const [voiceModalSending, setVoiceModalSending] = useState(false);
   const [voiceModalError, setVoiceModalError] = useState<string | null>(null);
   const voiceModalAudioRef = useRef<HTMLAudioElement | null>(null);
+  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
 
   // ── Hooks
@@ -1387,12 +1389,18 @@ const Conversations: FunctionComponent = () => {
 
   // Check if active conversation has a calendly booking
   useEffect(() => {
-    if (!activeConversation?.id) { setConvHasBooking(false); return; }
+    if (!activeConversation?.id) { setConvHasBooking(false); setConvBookingData(null); return; }
     supabase
       .from("calendly_bookings")
-      .select("id", { count: "exact", head: true })
+      .select("id, created_at")
       .eq("conversation_id", Number(activeConversation.id))
-      .then(({ count }) => setConvHasBooking((count ?? 0) > 0));
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        setConvHasBooking(!!data);
+        setConvBookingData(data ?? null);
+      });
   }, [activeConversation?.id]);
 
   const openClosingModal = useCallback(async () => {
@@ -1771,6 +1779,9 @@ const Conversations: FunctionComponent = () => {
       });
     }
     setComposerText("");
+    if (composerTextareaRef.current) {
+      composerTextareaRef.current.style.height = "40px";
+    }
 
     try {
       const { data: sessionData, error: sessionError } =
@@ -1892,10 +1903,10 @@ const Conversations: FunctionComponent = () => {
             <header className={styles.conversationsPageHeader}>
               <div className={styles.conversationsPageTitleBlock}>
                 <h1 className={styles.conversationsPageTitle}>
-                  Conversations —{" "}
+                  Conversations{" "}
                   {isAllMode
-                    ? "Tous les agents"
-                    : (activeConfigOption?.label ?? "Clara")}
+                    ? "· Tous les agents"
+                    : `· ${activeConfigOption?.label ?? "Clara"}`}
                 </h1>
                 <p className={styles.conversationsPageSubtitle}>
                   Suivi quotidien de la boite de reception pour {selectedScopeLabel}.
@@ -2076,11 +2087,30 @@ const Conversations: FunctionComponent = () => {
                         <div className={styles.chatHeaderMeta}>
                           <h3 className={styles.chatContactTitle}>
                             {activeConversation.contactName}
-                            {activeConversation.contactHandle && (
-                              <span className={styles.chatContactHandle}>
-                                @{activeConversation.contactHandle}
-                              </span>
-                            )}
+                            {activeConversation.contactHandle && (() => {
+                              const handle = activeConversation.contactHandle;
+                              const channel = activeConversation.channel;
+                              const href =
+                                channel === "Instagram"
+                                  ? `https://instagram.com/${handle}`
+                                  : channel === "WhatsApp"
+                                  ? `https://wa.me/${handle.replace(/\D/g, "")}`
+                                  : null;
+                              return href ? (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={styles.chatContactHandle}
+                                >
+                                  @{handle}
+                                </a>
+                              ) : (
+                                <span className={styles.chatContactHandle}>
+                                  @{handle}
+                                </span>
+                              );
+                            })()}
                           </h3>
                           <ChannelBadge channel={activeConversation.channel} />
                           <span className={styles.chatMetaPill}>
@@ -2319,12 +2349,12 @@ const Conversations: FunctionComponent = () => {
                               </button>
                             </div>
                           </div>
-                          {activeConversation.tags[0] &&
-                            getHeatTagLabel(activeConversation.tags[0]) && (
-                              <div className={styles.contactDrawerSection}>
-                                <span className={styles.contactDrawerSectionTitle}>
-                                  Température
-                                </span>
+                          <div className={styles.contactDrawerSection}>
+                            <span className={styles.contactDrawerSectionTitle}>
+                              Qualification
+                            </span>
+                            {activeConversation.tags[0] && getHeatTagLabel(activeConversation.tags[0]) ? (
+                              <>
                                 <span
                                   className={`${styles.contactDrawerHeatBadge} ${
                                     styles[
@@ -2339,18 +2369,45 @@ const Conversations: FunctionComponent = () => {
                                     {activeConversation.heatReason}
                                   </p>
                                 )}
-                              </div>
+                              </>
+                            ) : (
+                              <p className={styles.contactDrawerEmptyText}>Non définie</p>
                             )}
-                          {activeConversation.summary && (
-                            <div className={styles.contactDrawerSection}>
-                              <span className={styles.contactDrawerSectionTitle}>
-                                Résumé IA
-                              </span>
+                          </div>
+                          <div className={styles.contactDrawerSection}>
+                            <span className={styles.contactDrawerSectionTitle}>
+                              Résumé IA
+                            </span>
+                            {activeConversation.summary ? (
                               <p className={styles.contactDrawerSummaryText}>
                                 {activeConversation.summary}
                               </p>
-                            </div>
-                          )}
+                            ) : (
+                              <p className={styles.contactDrawerEmptyText}>Aucun résumé disponible</p>
+                            )}
+                          </div>
+                          <div className={styles.contactDrawerSection}>
+                            <span className={styles.contactDrawerSectionTitle}>
+                              Call
+                            </span>
+                            {convBookingData ? (
+                              <div className={styles.contactDrawerBookingCard}>
+                                <span className={styles.contactDrawerBookingBadge}>
+                                  Call booké
+                                </span>
+                                <p className={styles.contactDrawerBookingDate}>
+                                  Réservé le{" "}
+                                  {new Date(convBookingData.created_at).toLocaleDateString("fr-FR", {
+                                    day: "2-digit",
+                                    month: "long",
+                                    year: "numeric",
+                                  })}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className={styles.contactDrawerEmptyText}>Aucun call booké</p>
+                            )}
+                          </div>
                           <div className={styles.contactDrawerSection}>
                             <span className={styles.contactDrawerSectionTitle}>
                               Conversation
@@ -2541,10 +2598,14 @@ const Conversations: FunctionComponent = () => {
 
                     <div className={styles.chatComposer}>
                       <textarea
+                        ref={composerTextareaRef}
                         value={composerText}
-                        onChange={(event) =>
-                          setComposerText(event.target.value)
-                        }
+                        onChange={(event) => {
+                          setComposerText(event.target.value);
+                          const el = event.target;
+                          el.style.height = "40px";
+                          el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                        }}
                         placeholder={
                           isWindowExpired
                             ? "Fenêtre 24h expirée"

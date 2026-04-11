@@ -2257,14 +2257,8 @@ const AgentAi: FunctionComponent = () => {
     switch (key) {
       case "context":
         return (
-          <section className={styles.modalSection}>
-            <div className={styles.sectionHeading}>
-              <span className={styles.sectionStep}>{stepLabel}</span>
-              <h4 className={styles.sectionTitle}>Contexte</h4>
-            </div>
-            <p className={styles.sectionDescription}>
-              Décris ton produit ou service en détail pour que l'agent puisse répondre à toutes les questions des prospects sur ton offre.
-            </p>
+          <div className={`${styles.formField} ${styles.formFieldFull}`}>
+            <label className={styles.compactLabel}>Contexte</label>
             <textarea
               value={contextText}
               onChange={(event) => setContextText(event.target.value)}
@@ -2272,70 +2266,15 @@ const AgentAi: FunctionComponent = () => {
               className={styles.contextTextarea}
               rows={8}
             />
-            <div className={styles.pdfSection} style={{ display: "none" }}>
-              <h5 className={styles.pdfSectionTitle}>Documentation complémentaire</h5>
-              <p className={styles.pdfSectionDescription}>
-                Importez un PDF avec des informations détaillées que l'agent pourra consulter (brochure produit, FAQ, etc.).
-              </p>
-              <div className={styles.dropzoneWrapper}>
-                <label
-                  htmlFor="contextPdfInput"
-                  className={`${styles.dropzone} ${!CONTEXT_PDF_UPLOAD_ENABLED ? styles.dropzoneDisabled : ""}`}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={handlePdfDrop}
-                  aria-disabled={!CONTEXT_PDF_UPLOAD_ENABLED}
-                >
-                  <span>
-                    {CONTEXT_PDF_UPLOAD_ENABLED
-                      ? "Importer un PDF (max 20 Mo)"
-                      : "Importer un PDF (Bientôt disponible)"}
-                  </span>
-                </label>
-                <input
-                  id="contextPdfInput"
-                  type="file"
-                  accept="application/pdf"
-                  className={styles.dropzoneInput}
-                  onChange={handlePdfInputChange}
-                  disabled={!CONTEXT_PDF_UPLOAD_ENABLED}
-                />
-                {contextPdf && (
-                  <div className={styles.pdfPreview}>
-                    <div>
-                      <span className={styles.pdfName}>{contextPdf.name}</span>
-                      <span className={styles.pdfSize}>
-                        {(contextPdf.size / 1024 / 1024).toFixed(1)} Mo
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.pdfRemove}
-                      onClick={() => handleFileSelection(null)}
-                    >
-                      Retirer
-                    </button>
-                  </div>
-                )}
-                {errors.context && (
-                  <p className={styles.fieldError}>{errors.context}</p>
-                )}
-                {errors.contextPdf && (
-                  <p className={styles.fieldError}>{errors.contextPdf}</p>
-                )}
-              </div>
-            </div>
-          </section>
+            {errors.context && (
+              <p className={styles.fieldError}>{errors.context}</p>
+            )}
+          </div>
         );
       case "product_name":
         return (
-          <section className={styles.modalSection}>
-            <div className={styles.sectionHeading}>
-              <span className={styles.sectionStep}>{stepLabel}</span>
-              <h4 className={styles.sectionTitle}>Produit</h4>
-            </div>
-            <p className={styles.sectionDescription}>
-              Nom du produit ou service que cet agent représente.
-            </p>
+          <div className={styles.formField}>
+            <label className={styles.compactLabel}>Produit</label>
             <input
               type="text"
               value={productName}
@@ -2346,153 +2285,114 @@ const AgentAi: FunctionComponent = () => {
             {errors.productName && (
               <p className={styles.fieldError}>{errors.productName}</p>
             )}
-          </section>
+          </div>
         );
       case "activation_time":
         return (
-          <section className={styles.modalSection}>
-            <div className={styles.sectionHeading}>
-              <span className={styles.sectionStep}>{stepLabel}</span>
-              <h4 className={styles.sectionTitle}>Horaires d'activation</h4>
-            </div>
-            <p className={styles.sectionDescription}>
-              Définissez les jours et créneaux horaires où l'agent sera actif pour répondre aux prospects.
-            </p>
-            <div className={styles.scheduleSubsection} style={{ display: "none" }}>
-              <h5 className={styles.subsectionTitle}>Jours actifs</h5>
-              <div className={styles.dayChips}>
-                {dayLabels.map((day) => (
-                  <button
-                    key={day.key}
-                    type="button"
-                    className={`${styles.dayChip} ${activeDays[day.key] ? styles.dayChipActive : ""}`}
-                    aria-pressed={activeDays[day.key]}
-                    onClick={() => toggleDay(day.key)}
-                  >
-                    {day.label}
-                  </button>
-                ))}
+          <div className={`${styles.formField} ${styles.formFieldFull}`}>
+            <label className={styles.compactLabel}>Horaires d'activation</label>
+            <div className={styles.timeInputGroup}>
+              <div className={styles.timeField}>
+                <label htmlFor="timeStart">De</label>
+                <input
+                  id="timeStart"
+                  type="time"
+                  value={timeStart}
+                  onChange={(event) => setTimeStart(event.target.value)}
+                  className={styles.timeInput}
+                />
+              </div>
+              <div className={styles.timeField}>
+                <label htmlFor="timeEnd">À</label>
+                <input
+                  id="timeEnd"
+                  type="time"
+                  value={timeEnd}
+                  onChange={(event) => setTimeEnd(event.target.value)}
+                  className={styles.timeInput}
+                />
               </div>
             </div>
-            <div className={styles.scheduleSubsection}>
-              <div className={styles.timeInputGroup}>
-                <div className={styles.timeField}>
-                  <label htmlFor="timeStart">De</label>
-                  <input
-                    id="timeStart"
-                    type="time"
-                    value={timeStart}
-                    onChange={(event) => setTimeStart(event.target.value)}
-                    className={styles.timeInput}
-                  />
-                </div>
-                <div className={styles.timeField}>
-                  <label htmlFor="timeEnd">À</label>
-                  <input
-                    id="timeEnd"
-                    type="time"
-                    value={timeEnd}
-                    onChange={(event) => setTimeEnd(event.target.value)}
-                    className={styles.timeInput}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className={styles.scheduleSubsection}>
-              <div className={styles.slotSectionHeader}>
-                <h5 className={styles.subsectionTitle}>Créneaux spécifiques</h5>
-                <span className={styles.subsectionOptional}>optionnel</span>
-              </div>
-              <div className={styles.slotSection}>
-                <div className={styles.slotHeader}>
-                  <span className={styles.slotHeaderLabel}>Créneaux d'activation</span>
-                  <button
-                    type="button"
-                    className={styles.slotAddButton}
-                    onClick={handleAddTimeSlot}
-                  >
-                    Ajouter un créneau
-                  </button>
-                </div>
-                <div className={styles.slotList}>
-                  {timeSlots.map((slot, slotIndex) => (
-                    <div key={slot.id} className={styles.slotRow}>
-                      <div className={styles.slotFieldGroup}>
-                        <label className={styles.fieldLabel}>
-                          Heure (créneau {slotIndex + 1})
-                        </label>
-                        <input
-                          type="text"
-                          pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
-                          value={slot.time}
-                          placeholder="HH:MM"
-                          inputMode="numeric"
-                          onChange={(event) =>
-                            handleSlotTimeChange(slot.id, event.target.value)
-                          }
-                          className={styles.timeInput}
-                        />
-                      </div>
-                      <div className={styles.slotFieldGroup}>
-                        <label className={styles.fieldLabel}>
-                          Intervalle (minutes)
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          step={5}
-                          value={slot.durationMinutes}
-                          onChange={(event) =>
-                            handleSlotDurationChange(slot.id, event.target.value)
-                          }
-                          className={styles.detailsInput}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.slotRemoveButton}
-                        onClick={() => handleRemoveTimeSlot(slot.id)}
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <p className={styles.slotHelper}>
-                  {timeSlots.length > 0 ? (
-                    `Le créneau + intervalle doit rester compris entre ${timeStart} et ${timeEnd}.`
-                  ) : (
-                    <span className={styles.slotFullRange}>
-                      L'agent répondra sur toute la plage horaire définie.
-                    </span>
-                  )}
-                </p>
-                {errors.timeSlots && (
-                  <p className={styles.fieldError}>{errors.timeSlots}</p>
-                )}
-              </div>
-            </div>
-            {errors.activeDays && (
-              <p className={styles.fieldError}>{errors.activeDays}</p>
-            )}
             {errors.timeRange && (
               <p className={styles.fieldError}>{errors.timeRange}</p>
             )}
-          </section>
+            <div className={styles.slotSection}>
+              <div className={styles.slotHeader}>
+                <span className={styles.slotHeaderLabel}>Créneaux spécifiques</span>
+                <button
+                  type="button"
+                  className={styles.slotAddButton}
+                  onClick={handleAddTimeSlot}
+                >
+                  Ajouter un créneau
+                </button>
+              </div>
+              <div className={styles.slotList}>
+                {timeSlots.map((slot, slotIndex) => (
+                  <div key={slot.id} className={styles.slotRow}>
+                    <div className={styles.slotFieldGroup}>
+                      <label className={styles.fieldLabel}>
+                        Heure (créneau {slotIndex + 1})
+                      </label>
+                      <input
+                        type="text"
+                        pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
+                        value={slot.time}
+                        placeholder="HH:MM"
+                        inputMode="numeric"
+                        onChange={(event) =>
+                          handleSlotTimeChange(slot.id, event.target.value)
+                        }
+                        className={styles.timeInput}
+                      />
+                    </div>
+                    <div className={styles.slotFieldGroup}>
+                      <label className={styles.fieldLabel}>
+                        Intervalle (minutes)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        step={5}
+                        value={slot.durationMinutes}
+                        onChange={(event) =>
+                          handleSlotDurationChange(slot.id, event.target.value)
+                        }
+                        className={styles.detailsInput}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.slotRemoveButton}
+                      onClick={() => handleRemoveTimeSlot(slot.id)}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className={styles.slotHelper}>
+                {timeSlots.length > 0 ? (
+                  `Le créneau + intervalle doit rester compris entre ${timeStart} et ${timeEnd}.`
+                ) : (
+                  <span className={styles.slotFullRange}>
+                    L'agent répondra sur toute la plage horaire définie.
+                  </span>
+                )}
+              </p>
+              {errors.timeSlots && (
+                <p className={styles.fieldError}>{errors.timeSlots}</p>
+              )}
+            </div>
+          </div>
         );
       case "tone":
         return (
-          <section className={`${styles.modalSection} ${styles.toneSection}`}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionHeading}>
-                <span className={styles.sectionStep}>{stepLabel}</span>
-                <h4 className={styles.sectionTitle}>Ton & Langage</h4>
-                <span className={styles.newFeatureBadge}>Nouveau</span>
-              </div>
-              <p className={styles.sectionDescription}>
-                Construis un ton cohérent, le langage est automatiquement inclus.
-              </p>
-            </div>
+          <div className={`${styles.formField} ${styles.formFieldFull}`}>
+            <label className={styles.compactLabel}>
+              Ton & Langage{" "}
+              <span className={styles.newFeatureBadge}>Nouveau</span>
+            </label>
             <ToneSelector
               value={tone}
               options={toneOptions}
@@ -2542,20 +2442,12 @@ const AgentAi: FunctionComponent = () => {
                 Modifier les réponses
               </Button>
             )}
-          </section>
+          </div>
         );
       case "stopped_condition":
         return (
-          <section className={styles.modalSection}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionHeading}>
-                <span className={styles.sectionStep}>{stepLabel}</span>
-                <h4 className={styles.sectionTitle}>Condition d'arrêt</h4>
-              </div>
-              <p className={styles.sectionDescription}>
-                Si vous mettez un lien (ex: Calendly), décrivez à quoi il sert pour que l'agent comprenne quand s'arrêter.
-              </p>
-            </div>
+          <div className={styles.formField}>
+            <label className={styles.compactLabel}>Condition d'arrêt</label>
             <textarea
               value={stopText}
               onChange={(event) => setStopText(event.target.value)}
@@ -2575,19 +2467,15 @@ const AgentAi: FunctionComponent = () => {
             {errors.stopLink && (
               <p className={styles.fieldError}>{errors.stopLink}</p>
             )}
-          </section>
+          </div>
         );
       case "qualification":
         return (
-          <section className={styles.modalSection}>
-            <div className={styles.sectionHeading}>
-              <span className={styles.sectionStep}>{stepLabel}</span>
-              <h4 className={styles.sectionTitle}>Qualification</h4>
+          <div className={styles.formField}>
+            <label className={styles.compactLabel}>
+              Qualification{" "}
               <span className={styles.newFeatureBadge}>Bêta</span>
-            </div>
-            <p className={styles.sectionDescription}>
-              Décris les critères que le prospect doit remplir pour que l'agent continue la conversation. Si ce champ est vide, l'agent discutera avec tout le monde.
-            </p>
+            </label>
             <textarea
               value={qualification}
               onChange={(event) => setQualification(event.target.value)}
@@ -2595,7 +2483,7 @@ const AgentAi: FunctionComponent = () => {
               className={styles.stopTextarea}
               rows={5}
             />
-          </section>
+          </div>
         );
       default:
         return null;
@@ -2751,65 +2639,46 @@ const AgentAi: FunctionComponent = () => {
                 <div className={styles.configTabPanel}>
                   <div className={styles.modalContainer}>
                     {selectedAgent?.details_component?.length ? (
-                      activeGroups.map(group => {
-                        const isOpen = !group.collapsible || openGroups.has(group.id);
-                        const hasError = group.activeKeys.some(k => keyHasError(k));
-                        return (
-                          <div key={group.id} className={`${styles.detailsGroup} ${hasError ? styles.detailsGroupError : ""}`}>
-                            <div
-                              className={`${styles.detailsGroupHeader} ${group.collapsible ? styles.detailsGroupHeaderCollapsible : ""}`}
-                              onClick={group.collapsible ? () => toggleGroup(group.id) : undefined}
-                            >
-                              <span className={styles.detailsGroupTitle}>{group.label}</span>
-                              <div className={styles.detailsGroupHeaderRight}>
-                                {hasError && <span className={styles.detailsGroupErrorDot} />}
-                                {group.collapsible && (
-                                  <span className={`${styles.detailsGroupChevron} ${isOpen ? styles.detailsGroupChevronOpen : ""}`}>›</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className={`${styles.detailsGroupBody} ${!isOpen ? styles.detailsGroupBodyClosed : ""}`.trim()}>
-                              {group.activeKeys.map((key, index) => (
-                                <React.Fragment key={key}>
-                                  {renderDetailsSection(key, index + 1)}
-                                </React.Fragment>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })
+                      <div className={styles.agentFormCard}>
+                        {(() => {
+                          const allKeys = activeGroups.flatMap(g => g.activeKeys);
+                          const productIdx = allKeys.indexOf("product_name");
+                          const ordered = [...allKeys];
+                          if (productIdx >= 0) {
+                            ordered.splice(productIdx + 1, 0, "__avg_deal_value__");
+                          } else {
+                            ordered.push("__avg_deal_value__");
+                          }
+                          return ordered.map((key, index) => {
+                            if (key === "__avg_deal_value__") {
+                              return (
+                                <div key="avg_deal_value" className={styles.formField}>
+                                  <label className={styles.compactLabel}>Prix moyen de vente (€)</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={avgDealValue}
+                                    onChange={(e) => setAvgDealValue(e.target.value)}
+                                    placeholder="Ex : 497"
+                                    className={styles.detailsInput}
+                                    style={{ maxWidth: 200 }}
+                                  />
+                                </div>
+                              );
+                            }
+                            return (
+                              <React.Fragment key={key}>
+                                {renderDetailsSection(key, index + 1)}
+                              </React.Fragment>
+                            );
+                          });
+                        })()}
+                      </div>
                     ) : (
                       <div className={styles.noConfigMessage}>
                         <p>Bonne nouvelle !</p>
                         <p>Aucune configuration n'est nécessaire pour cet agent.</p>
-                      </div>
-                    )}
-
-                    {/* Prix moyen de vente */}
-                    {selectedAgent && (
-                      <div className={styles.detailsGroup}>
-                        <div className={styles.detailsGroupHeader}>
-                          <span className={styles.detailsGroupTitle}>Vente</span>
-                        </div>
-                        <div className={styles.detailsGroupBody}>
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Prix moyen de vente (€)</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              Valeur pré-remplie dans la modal de closing lors du marquage d'une conversation comme clôturée.
-                            </p>
-                            <input
-                              type="number"
-                              min={0}
-                              step={1}
-                              value={avgDealValue}
-                              onChange={(e) => setAvgDealValue(e.target.value)}
-                              placeholder="Ex : 497"
-                              className={styles.avgDealInput}
-                            />
-                          </section>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -2917,150 +2786,130 @@ const AgentAi: FunctionComponent = () => {
                 <div className={styles.configTabPanel}>
                   <div className={styles.modalContainer}>
                     {selectedAgent && (
-                      <div className={styles.detailsGroup}>
-                        <div className={styles.detailsGroupHeader}>
-                          <span className={styles.detailsGroupTitle}>Voice</span>
-                        </div>
-                        <div className={styles.detailsGroupBody}>
+                      <div className={styles.agentFormCard}>
 
-                          {/* 4.1 Bibliothèque */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Bibliothèque de voix</h4>
+                        {/* Bibliothèque */}
+                        <div className={`${styles.formField} ${styles.formFieldFull}`}>
+                          <label className={styles.compactLabel}>Bibliothèque de voix</label>
+                          {!voiceListLoading && voiceList.length === 0 && !voiceId ? (
+                            <div className={styles.tabEmptyState}>
+                              <span className={styles.tabEmptyStateIcon}>🎙</span>
+                              <p className={styles.tabEmptyStateTitle}>Aucune voix disponible</p>
+                              <p className={styles.tabEmptyStateDesc}>Configurez votre clé API ElevenLabs depuis vos paramètres pour accéder à la bibliothèque de voix.</p>
                             </div>
-                            <p className={styles.sectionDescription}>
-                              Choisissez une voix parmi la bibliothèque ElevenLabs pour que votre agent parle à votre place.
-                            </p>
-                            {!voiceListLoading && voiceList.length === 0 && !voiceId ? (
-                              <div className={styles.tabEmptyState}>
-                                <span className={styles.tabEmptyStateIcon}>🎙</span>
-                                <p className={styles.tabEmptyStateTitle}>Aucune voix disponible</p>
-                                <p className={styles.tabEmptyStateDesc}>Configurez votre clé API ElevenLabs depuis vos paramètres pour accéder à la bibliothèque de voix.</p>
+                          ) : voiceId ? (
+                            <div className={styles.voiceActiveCard}>
+                              <div className={styles.voiceActiveInfo}>
+                                <span className={styles.voiceActiveName}>{voiceName}</span>
+                                <span className={styles.voiceActiveType}>
+                                  {voiceType === "cloned" ? "Voix clonée" : "Bibliothèque"}
+                                </span>
                               </div>
-                            ) : voiceId ? (
-                              <div className={styles.voiceActiveCard}>
-                                <div className={styles.voiceActiveInfo}>
-                                  <span className={styles.voiceActiveName}>{voiceName}</span>
-                                  <span className={styles.voiceActiveType}>
-                                    {voiceType === "cloned" ? "Voix clonée" : "Bibliothèque"}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  className={styles.voiceChangeBtn}
-                                  onClick={() => { setVoiceId(null); setVoiceName(null); setVoiceType(null); }}
-                                >
-                                  Changer
-                                </button>
-                              </div>
-                            ) : voiceListLoading ? (
-                              <p className={styles.voiceLoadingText}>Chargement des voix…</p>
-                            ) : (
-                              <div className={styles.voiceGrid}>
-                                {voiceList.map((v) => (
-                                  <div key={v.voice_id} className={styles.voiceCard}>
-                                    <span className={styles.voiceCardName}>{v.name}</span>
-                                    <div className={styles.voiceCardActions}>
-                                      <button
-                                        type="button"
-                                        className={styles.voicePreviewBtn}
-                                        onClick={() => handlePlayVoicePreview(v.preview_url, v.voice_id)}
-                                      >
-                                        {voicePreviewingId === v.voice_id ? "⏹" : "▶"}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className={styles.voiceSelectBtn}
-                                        onClick={() => handleSaveVoiceSelection(v)}
-                                      >
-                                        Sélectionner
-                                      </button>
-                                    </div>
+                              <button
+                                type="button"
+                                className={styles.voiceChangeBtn}
+                                onClick={() => { setVoiceId(null); setVoiceName(null); setVoiceType(null); }}
+                              >
+                                Changer
+                              </button>
+                            </div>
+                          ) : voiceListLoading ? (
+                            <p className={styles.voiceLoadingText}>Chargement des voix…</p>
+                          ) : (
+                            <div className={styles.voiceGrid}>
+                              {voiceList.map((v) => (
+                                <div key={v.voice_id} className={styles.voiceCard}>
+                                  <span className={styles.voiceCardName}>{v.name}</span>
+                                  <div className={styles.voiceCardActions}>
+                                    <button
+                                      type="button"
+                                      className={styles.voicePreviewBtn}
+                                      onClick={() => handlePlayVoicePreview(v.preview_url, v.voice_id)}
+                                    >
+                                      {voicePreviewingId === v.voice_id ? "⏹" : "▶"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.voiceSelectBtn}
+                                      onClick={() => handleSaveVoiceSelection(v)}
+                                    >
+                                      Sélectionner
+                                    </button>
                                   </div>
-                                ))}
-                              </div>
-                            )}
-                          </section>
-
-                          {/* 4.2 Clone vocal */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Cloner ma voix</h4>
+                                </div>
+                              ))}
                             </div>
-                            <p className={styles.sectionDescription}>
-                              Enregistrez ou déposez un fichier audio pour créer un clone de votre voix.
-                            </p>
-                            <div
-                              className={`${styles.cloneDropZone} ${cloneDragOver ? styles.cloneDropZoneActive : ""} ${cloneAudioBlob ? styles.cloneDropZoneReady : ""}`}
-                              onDragOver={(e) => { e.preventDefault(); setCloneDragOver(true); }}
-                              onDragLeave={() => setCloneDragOver(false)}
-                              onDrop={handleCloneDrop}
-                            >
-                              {cloneAudioBlob
-                                ? "✓ Fichier audio prêt"
-                                : "Déposez un fichier audio ici (mp3, wav, m4a…)"}
-                            </div>
-                            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                              {!cloneRecording ? (
-                                <button type="button" className={styles.cloneStartBtn} onClick={handleStartRecording}>
-                                  🎙 Enregistrer
-                                </button>
-                              ) : (
-                                <button type="button" className={styles.cloneStopBtn} onClick={handleStopRecording}>
-                                  ⏹ Arrêter
-                                </button>
-                              )}
-                            </div>
-                            {cloneAudioBlob && (
-                              <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
-                                <input
-                                  type="text"
-                                  className={styles.cloneNameInput}
-                                  placeholder="Nom de la voix (ex: Louis)"
-                                  value={cloneVoiceName}
-                                  onChange={(e) => setCloneVoiceName(e.target.value)}
-                                />
-                                <button
-                                  type="button"
-                                  className={styles.cloneSubmitBtn}
-                                  onClick={handleCloneVoice}
-                                  disabled={isCloning || !cloneVoiceName.trim()}
-                                >
-                                  {isCloning ? "Clonage…" : "Créer le clone"}
-                                </button>
-                              </div>
-                            )}
-                          </section>
-
-                          {/* 4.3 Auto-send */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Envoi automatique</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              L'agent envoie automatiquement un message vocal selon le déclencheur choisi.
-                            </p>
-                            <div className={styles.voiceAutoRow}>
-                              <SwitchAnimated
-                                checked={voiceAutoEnabled}
-                                onChange={(val) => setVoiceAutoEnabled(val)}
-                                showLabel
-                              />
-                              {voiceAutoEnabled && (
-                                <select
-                                  className={styles.voiceTriggerSelect}
-                                  value={voiceTrigger}
-                                  onChange={(e) => setVoiceTrigger(e.target.value as "always" | "first_message" | "on_link_sent")}
-                                >
-                                  <option value="always">À chaque message</option>
-                                  <option value="first_message">Premier message seulement</option>
-                                  <option value="on_link_sent">Après envoi du lien Calendly</option>
-                                </select>
-                              )}
-                            </div>
-                          </section>
-
+                          )}
                         </div>
+
+                        {/* Clone vocal */}
+                        <div className={styles.formField}>
+                          <label className={styles.compactLabel}>Cloner ma voix</label>
+                          <div
+                            className={`${styles.cloneDropZone} ${cloneDragOver ? styles.cloneDropZoneActive : ""} ${cloneAudioBlob ? styles.cloneDropZoneReady : ""}`}
+                            onDragOver={(e) => { e.preventDefault(); setCloneDragOver(true); }}
+                            onDragLeave={() => setCloneDragOver(false)}
+                            onDrop={handleCloneDrop}
+                          >
+                            {cloneAudioBlob
+                              ? "✓ Fichier audio prêt"
+                              : "Déposez un fichier audio ici (mp3, wav, m4a…)"}
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            {!cloneRecording ? (
+                              <button type="button" className={styles.cloneStartBtn} onClick={handleStartRecording}>
+                                🎙 Enregistrer
+                              </button>
+                            ) : (
+                              <button type="button" className={styles.cloneStopBtn} onClick={handleStopRecording}>
+                                ⏹ Arrêter
+                              </button>
+                            )}
+                          </div>
+                          {cloneAudioBlob && (
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <input
+                                type="text"
+                                className={styles.cloneNameInput}
+                                placeholder="Nom de la voix (ex: Louis)"
+                                value={cloneVoiceName}
+                                onChange={(e) => setCloneVoiceName(e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                className={styles.cloneSubmitBtn}
+                                onClick={handleCloneVoice}
+                                disabled={isCloning || !cloneVoiceName.trim()}
+                              >
+                                {isCloning ? "Clonage…" : "Créer le clone"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Envoi automatique */}
+                        <div className={styles.formField}>
+                          <label className={styles.compactLabel}>Envoi automatique</label>
+                          <div className={styles.voiceAutoRow}>
+                            <SwitchAnimated
+                              checked={voiceAutoEnabled}
+                              onChange={(val) => setVoiceAutoEnabled(val)}
+                              showLabel
+                            />
+                            {voiceAutoEnabled && (
+                              <select
+                                className={styles.voiceTriggerSelect}
+                                value={voiceTrigger}
+                                onChange={(e) => setVoiceTrigger(e.target.value as "always" | "first_message" | "on_link_sent")}
+                              >
+                                <option value="always">À chaque message</option>
+                                <option value="first_message">Premier message seulement</option>
+                                <option value="on_link_sent">Après envoi du lien Calendly</option>
+                              </select>
+                            )}
+                          </div>
+                        </div>
+
                       </div>
                     )}
                   </div>
@@ -3082,125 +2931,108 @@ const AgentAi: FunctionComponent = () => {
                 <div className={styles.configTabPanel}>
                   <div className={styles.modalContainer}>
                     {selectedAgent && (
-                      <div className={styles.detailsGroup}>
-                        <div className={styles.detailsGroupHeader}>
-                          <span className={styles.detailsGroupTitle}>Automatisations</span>
-                        </div>
-                        <div className={styles.detailsGroupBody}>
+                      <div className={styles.agentFormCard}>
 
-                          {/* Bloc 1 — Répondre aux commentaires */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Répondre aux commentaires</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              L'agent répond automatiquement aux commentaires Instagram.
-                            </p>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                              <SwitchAnimated
-                                checked={commReplyEnabled}
-                                onChange={setCommReplyEnabled}
-                                showLabel
-                              />
-                              {commReplyEnabled ? "Activé" : "Désactivé"}
-                            </div>
-                            {commReplyEnabled && (
-                              <>
-                                <div style={{ marginBottom: 8 }}>
-                                  <label style={{ fontSize: 13, fontWeight: 600 }}>Mode de déclenchement</label>
-                                  <select
-                                    className={styles.voiceTriggerSelect}
-                                    value={commReplyMode}
-                                    onChange={(e) => setCommReplyMode(e.target.value as "always" | "keywords" | "never")}
-                                    style={{ marginTop: 4, width: "100%" }}
-                                  >
-                                    <option value="always">Toujours</option>
-                                    <option value="keywords">Sur mots-clés</option>
-                                    <option value="never">Jamais</option>
-                                  </select>
-                                </div>
-                                {commReplyMode === "keywords" && (
-                                  <div style={{ marginBottom: 8 }}>
-                                    <label style={{ fontSize: 13, fontWeight: 600 }}>Mots-clés déclencheurs</label>
-                                    <ConfigTextareaTags
-                                      label="Mots-clés"
-                                      placeholder="Ajouter un mot-clé…"
-                                      initialTags={commReplyKeywords}
-                                      onTagsChange={setCommReplyKeywords}
-                                    />
-                                  </div>
-                                )}
-                                <div>
-                                  <label style={{ fontSize: 13, fontWeight: 600 }}>Template de réponse</label>
-                                  <textarea
-                                    className={styles.commTextarea}
-                                    value={commReplyTemplate}
-                                    onChange={(e) => setCommReplyTemplate(e.target.value)}
-                                    placeholder="Merci pour ton commentaire ! Réponds en DM pour en savoir plus 🙌"
-                                    rows={3}
+                        {/* Répondre aux commentaires */}
+                        <div className={styles.formField}>
+                          <label className={styles.compactLabel}>Répondre aux commentaires</label>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <SwitchAnimated
+                              checked={commReplyEnabled}
+                              onChange={setCommReplyEnabled}
+                              showLabel
+                            />
+                            {commReplyEnabled ? "Activé" : "Désactivé"}
+                          </div>
+                          {commReplyEnabled && (
+                            <>
+                              <div className={styles.formField}>
+                                <label className={styles.compactLabel}>Mode de déclenchement</label>
+                                <select
+                                  className={styles.voiceTriggerSelect}
+                                  value={commReplyMode}
+                                  onChange={(e) => setCommReplyMode(e.target.value as "always" | "keywords" | "never")}
+                                >
+                                  <option value="always">Toujours</option>
+                                  <option value="keywords">Sur mots-clés</option>
+                                  <option value="never">Jamais</option>
+                                </select>
+                              </div>
+                              {commReplyMode === "keywords" && (
+                                <div className={styles.formField}>
+                                  <label className={styles.compactLabel}>Mots-clés déclencheurs</label>
+                                  <ConfigTextareaTags
+                                    label="Mots-clés"
+                                    placeholder="Ajouter un mot-clé…"
+                                    initialTags={commReplyKeywords}
+                                    onTagsChange={setCommReplyKeywords}
                                   />
                                 </div>
-                              </>
-                            )}
-                          </section>
+                              )}
+                              <div className={styles.formField}>
+                                <label className={styles.compactLabel}>Template de réponse</label>
+                                <textarea
+                                  className={styles.commTextarea}
+                                  value={commReplyTemplate}
+                                  onChange={(e) => setCommReplyTemplate(e.target.value)}
+                                  placeholder="Merci pour ton commentaire ! Réponds en DM pour en savoir plus 🙌"
+                                  rows={3}
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
 
-                          {/* Bloc 2 — Envoyer un DM après commentaire */}
-                          <section className={styles.modalSection}>
-                            <div className={styles.sectionHeading}>
-                              <h4 className={styles.sectionTitle}>Envoyer un DM après commentaire</h4>
-                            </div>
-                            <p className={styles.sectionDescription}>
-                              L'agent envoie automatiquement un DM aux personnes qui commentent.
-                            </p>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                              <SwitchAnimated
-                                checked={commDmEnabled}
-                                onChange={setCommDmEnabled}
-                                showLabel
-                              />
-                              {commDmEnabled ? "Activé" : "Désactivé"}
-                            </div>
-                            {commDmEnabled && (
-                              <>
-                                <div style={{ marginBottom: 8 }}>
-                                  <label style={{ fontSize: 13, fontWeight: 600 }}>Mode de déclenchement</label>
-                                  <select
-                                    className={styles.voiceTriggerSelect}
-                                    value={commDmMode}
-                                    onChange={(e) => setCommDmMode(e.target.value as "always" | "keywords" | "never")}
-                                    style={{ marginTop: 4, width: "100%" }}
-                                  >
-                                    <option value="always">Toujours</option>
-                                    <option value="keywords">Sur mots-clés</option>
-                                    <option value="never">Jamais</option>
-                                  </select>
-                                </div>
-                                {commDmMode === "keywords" && (
-                                  <div style={{ marginBottom: 8 }}>
-                                    <label style={{ fontSize: 13, fontWeight: 600 }}>Mots-clés déclencheurs</label>
-                                    <ConfigTextareaTags
-                                      label="Mots-clés"
-                                      placeholder="Ajouter un mot-clé…"
-                                      initialTags={commDmKeywords}
-                                      onTagsChange={setCommDmKeywords}
-                                    />
-                                  </div>
-                                )}
-                                <div>
-                                  <label style={{ fontSize: 13, fontWeight: 600 }}>Premier message DM</label>
-                                  <textarea
-                                    className={styles.commTextarea}
-                                    value={commDmFirstMessage}
-                                    onChange={(e) => setCommDmFirstMessage(e.target.value)}
-                                    placeholder="Hey {{prenom}}, j'ai vu ton commentaire ! Tu veux en savoir plus ?"
-                                    rows={3}
+                        {/* Envoyer un DM après commentaire */}
+                        <div className={styles.formField}>
+                          <label className={styles.compactLabel}>Envoyer un DM après commentaire</label>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <SwitchAnimated
+                              checked={commDmEnabled}
+                              onChange={setCommDmEnabled}
+                              showLabel
+                            />
+                            {commDmEnabled ? "Activé" : "Désactivé"}
+                          </div>
+                          {commDmEnabled && (
+                            <>
+                              <div className={styles.formField}>
+                                <label className={styles.compactLabel}>Mode de déclenchement</label>
+                                <select
+                                  className={styles.voiceTriggerSelect}
+                                  value={commDmMode}
+                                  onChange={(e) => setCommDmMode(e.target.value as "always" | "keywords" | "never")}
+                                >
+                                  <option value="always">Toujours</option>
+                                  <option value="keywords">Sur mots-clés</option>
+                                  <option value="never">Jamais</option>
+                                </select>
+                              </div>
+                              {commDmMode === "keywords" && (
+                                <div className={styles.formField}>
+                                  <label className={styles.compactLabel}>Mots-clés déclencheurs</label>
+                                  <ConfigTextareaTags
+                                    label="Mots-clés"
+                                    placeholder="Ajouter un mot-clé…"
+                                    initialTags={commDmKeywords}
+                                    onTagsChange={setCommDmKeywords}
                                   />
                                 </div>
-                              </>
-                            )}
-                          </section>
-
+                              )}
+                              <div className={styles.formField}>
+                                <label className={styles.compactLabel}>Premier message DM</label>
+                                <textarea
+                                  className={styles.commTextarea}
+                                  value={commDmFirstMessage}
+                                  onChange={(e) => setCommDmFirstMessage(e.target.value)}
+                                  placeholder="Hey {{prenom}}, j'ai vu ton commentaire ! Tu veux en savoir plus ?"
+                                  rows={3}
+                                />
+                              </div>
+                            </>
+                          )}
                         </div>
+
                       </div>
                     )}
                   </div>
