@@ -287,6 +287,7 @@ type TimeSlot = {
 type SavedTimeSlot = Omit<TimeSlot, "id">;
 
 const DEFAULT_SAVED_SLOTS: SavedTimeSlot[] = [];
+const TEMPLATE_VARIABLES = ["{{prenom}}", "{{lien_calendly}}"];
 
 const createTimeSlot = (overrides?: Partial<TimeSlot>): TimeSlot => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -390,6 +391,16 @@ const CUSTOM_TONE_QUESTIONS: CustomToneQuestion[] = [
   },
 ];
 
+const CUSTOM_TONE_MIN_LENGTH = 200;
+const CUSTOM_TONE_MAX_LENGTH = 900;
+const LAST_CUSTOM_TONE_QUESTION_KEY =
+  CUSTOM_TONE_QUESTIONS[CUSTOM_TONE_QUESTIONS.length - 1].key;
+
+const isCustomToneAnswerReady = (value: string) => {
+  const length = value.trim().length;
+  return length >= CUSTOM_TONE_MIN_LENGTH && length <= CUSTOM_TONE_MAX_LENGTH;
+};
+
 const createDefaultCustomToneAnswers = (): CustomToneAnswers =>
   CUSTOM_TONE_QUESTIONS.reduce(
     (acc, question) => ({ ...acc, [question.key]: "" }),
@@ -402,12 +413,12 @@ const buildCustomToneValidationErrors = (
   const errors: Partial<Record<CustomToneKey, string>> = {};
   CUSTOM_TONE_QUESTIONS.forEach((question) => {
     const value = answers[question.key]?.trim() ?? "";
-    if (value.length < 200) {
+    if (value.length < CUSTOM_TONE_MIN_LENGTH) {
       errors[question.key] =
-        "Chaque réponse doit contenir au minimum 200 caractères.";
-    } else if (value.length > 900) {
+        `Chaque réponse doit contenir au minimum ${CUSTOM_TONE_MIN_LENGTH} caractères.`;
+    } else if (value.length > CUSTOM_TONE_MAX_LENGTH) {
       errors[question.key] =
-        "Chaque réponse doit contenir au maximum 900 caractères.";
+        `Chaque réponse doit contenir au maximum ${CUSTOM_TONE_MAX_LENGTH} caractères.`;
     }
   });
   return errors;
@@ -503,9 +514,9 @@ const FIELD_GROUP_PRESENTATION: Record<
     singleColumn: true,
   },
   advanced: {
-    title: "Disponibilités",
+    title: "Horaires d'activation",
     description:
-      "Définis les plages horaires pendant lesquelles l'agent peut répondre automatiquement.",
+      "Définis les heures globales de Clara. Les créneaux précis sont optionnels.",
     singleColumn: true,
   },
 };
@@ -620,6 +631,10 @@ const AgentAi: FunctionComponent = () => {
       {} as Record<CustomToneKey, boolean>
     )
   );
+  const [activeCustomToneQuestionKey, setActiveCustomToneQuestionKey] =
+    useState<CustomToneKey>(CUSTOM_TONE_QUESTIONS[0].key);
+  const [isLastCustomToneQuestionValidated, setIsLastCustomToneQuestionValidated] =
+    useState(false);
   const [lastGeneratedAnswers, setLastGeneratedAnswers] =
     useState<CustomToneAnswers | null>(null);
   const [activeDays, setActiveDays] = useState<ActiveDays>({
@@ -855,6 +870,7 @@ const AgentAi: FunctionComponent = () => {
       setCustomToneGeneratedPrompt("");
       setCustomToneLastGeneratedAt(null);
       setCustomToneError(null);
+      setIsLastCustomToneQuestionValidated(false);
       setTouchedQuestions(
         CUSTOM_TONE_QUESTIONS.reduce(
           (acc, question) => ({ ...acc, [question.key]: false }),
@@ -873,8 +889,8 @@ const AgentAi: FunctionComponent = () => {
       generated_prompt?: string;
       last_generated_at?: string | null;
     };
-    if (savedCustomTone.answers) {
-      setCustomToneAnswers({
+    const nextCustomToneAnswers = savedCustomTone.answers
+      ? {
         ...createDefaultCustomToneAnswers(),
         ...Object.fromEntries(
           CUSTOM_TONE_QUESTIONS.map((question) => [
@@ -882,14 +898,29 @@ const AgentAi: FunctionComponent = () => {
             savedCustomTone.answers?.[question.key] ?? "",
           ])
         ),
-      });
-    } else {
-      setCustomToneAnswers(createDefaultCustomToneAnswers());
-    }
+      }
+      : createDefaultCustomToneAnswers();
+    setCustomToneAnswers(nextCustomToneAnswers);
     setCustomToneStatus(savedCustomTone.status ?? "idle");
     setCustomToneGeneratedPrompt(savedCustomTone.generated_prompt ?? "");
     setCustomToneLastGeneratedAt(savedCustomTone.last_generated_at ?? null);
     setCustomToneError(null);
+    const firstPendingQuestion =
+      CUSTOM_TONE_QUESTIONS.find((question) => {
+        const value = nextCustomToneAnswers[question.key]?.trim() ?? "";
+        return (
+          value.length === 0 ||
+          value.length < CUSTOM_TONE_MIN_LENGTH ||
+          value.length > CUSTOM_TONE_MAX_LENGTH
+        );
+      }) ?? null;
+    const allLoadedAnswersReady = CUSTOM_TONE_QUESTIONS.every((question) =>
+      isCustomToneAnswerReady(nextCustomToneAnswers[question.key] ?? "")
+    );
+    setIsLastCustomToneQuestionValidated(allLoadedAnswersReady);
+    setActiveCustomToneQuestionKey(
+      firstPendingQuestion?.key ?? LAST_CUSTOM_TONE_QUESTION_KEY
+    );
   }, [selectedAgent]);
 
   useEffect(() => {
@@ -1106,10 +1137,55 @@ const AgentAi: FunctionComponent = () => {
       setCustomToneStatus("idle");
       setCustomToneGeneratedPrompt("");
       setCustomToneLastGeneratedAt(null);
+      if (key === LAST_CUSTOM_TONE_QUESTION_KEY) {
+        setIsLastCustomToneQuestionValidated(false);
+      }
       handleQuestionTouch(key);
     },
     [handleQuestionTouch]
   );
+
+  const handleOpenCustomToneQuestion = useCallback((key: CustomToneKey) => {
+    if (key === LAST_CUSTOM_TONE_QUESTION_KEY) {
+      setIsLastCustomToneQuestionValidated(false);
+    }
+    setActiveCustomToneQuestionKey(key);
+  }, []);
+
+  const handleClearCustomToneAnswer = useCallback((key: CustomToneKey) => {
+    setCustomToneAnswers((prev) => ({ ...prev, [key]: "" }));
+    setTouchedQuestions((prev) => ({ ...prev, [key]: false }));
+    setShowToneErrors(false);
+    setCustomToneStatus("idle");
+    setCustomToneGeneratedPrompt("");
+    setCustomToneLastGeneratedAt(null);
+    setCustomToneError(null);
+    if (key === LAST_CUSTOM_TONE_QUESTION_KEY) {
+      setIsLastCustomToneQuestionValidated(false);
+    }
+    setActiveCustomToneQuestionKey(key);
+  }, []);
+
+  const handleAdvanceCustomToneQuestion = useCallback((key: CustomToneKey) => {
+    const currentIndex = CUSTOM_TONE_QUESTIONS.findIndex(
+      (question) => question.key === key
+    );
+    const nextQuestion = CUSTOM_TONE_QUESTIONS[currentIndex + 1];
+    if (nextQuestion) {
+      setActiveCustomToneQuestionKey(nextQuestion.key);
+    }
+  }, []);
+
+  const handleValidateLastCustomToneQuestion = useCallback(() => {
+    const value = customToneAnswers[LAST_CUSTOM_TONE_QUESTION_KEY] ?? "";
+    handleQuestionTouch(LAST_CUSTOM_TONE_QUESTION_KEY);
+    setShowToneErrors(true);
+    if (!isCustomToneAnswerReady(value)) {
+      return;
+    }
+    setCustomToneError(null);
+    setIsLastCustomToneQuestionValidated(true);
+  }, [customToneAnswers, handleQuestionTouch]);
 
   // ------------------------------CONNEXIONS---------------------------------
   const [activePopup, setActivePopup] = useState<Window | null>(null);
@@ -1314,6 +1390,13 @@ const AgentAi: FunctionComponent = () => {
   const hasActiveConnection = countConnectedConnector > 0;
   const hasAnyConnectors =
     countAvailableConnector + countConnectedConnector > 0;
+  const isCalendlyConnected = useMemo(
+    () =>
+      connectorConnected.some(
+        (connector) => connector.connectors_name.toLowerCase() === "calendly"
+      ),
+    [connectorConnected]
+  );
 
   const tabLocked = useMemo<Record<TabId, boolean>>(() => {
     const agentOk = areDetailsFilled;
@@ -1485,8 +1568,15 @@ const AgentAi: FunctionComponent = () => {
     setCustomToneValidationErrors(validation);
     if (Object.values(validation).some(Boolean)) {
       setCustomToneError(
-        "Chaque réponse doit contenir entre 200 et 900 caractères."
+        `Chaque réponse doit contenir entre ${CUSTOM_TONE_MIN_LENGTH} et ${CUSTOM_TONE_MAX_LENGTH} caractères.`
       );
+      return;
+    }
+    if (!isLastCustomToneQuestionValidated) {
+      setCustomToneError(
+        "Valide la dernière réponse avant de générer le ton personnalisé."
+      );
+      setActiveCustomToneQuestionKey(LAST_CUSTOM_TONE_QUESTION_KEY);
       return;
     }
     setShowToneErrors(true);
@@ -1554,6 +1644,7 @@ const AgentAi: FunctionComponent = () => {
   }, [
     customToneAnswers,
     getTrimmedCustomToneAnswers,
+    isLastCustomToneQuestionValidated,
     refreshDisplayedAgents,
     selectedAgent,
   ]);
@@ -1562,6 +1653,43 @@ const AgentAi: FunctionComponent = () => {
     () => getTrimmedCustomToneAnswers(),
     [getTrimmedCustomToneAnswers]
   );
+
+  const customToneRevealCount = useMemo(() => {
+    const firstPendingIndex = CUSTOM_TONE_QUESTIONS.findIndex((question) => {
+      const value = trimmedCustomToneAnswers[question.key] ?? "";
+      return !isCustomToneAnswerReady(value);
+    });
+    const highestStartedIndex = CUSTOM_TONE_QUESTIONS.reduce(
+      (highestIndex, question, index) => {
+        const value = trimmedCustomToneAnswers[question.key] ?? "";
+        return value.length > 0 ? index : highestIndex;
+      },
+      -1
+    );
+    const nextProgressIndex =
+      firstPendingIndex === -1
+        ? CUSTOM_TONE_QUESTIONS.length
+        : firstPendingIndex + 1;
+    const retainedProgressIndex = Math.max(1, highestStartedIndex + 1);
+    return Math.max(nextProgressIndex, retainedProgressIndex);
+  }, [trimmedCustomToneAnswers]);
+
+  const customToneFirstPendingIndex = useMemo(() => {
+    const firstPendingIndex = CUSTOM_TONE_QUESTIONS.findIndex((question) => {
+      const value = trimmedCustomToneAnswers[question.key] ?? "";
+      return !isCustomToneAnswerReady(value);
+    });
+    return firstPendingIndex === -1
+      ? CUSTOM_TONE_QUESTIONS.length - 1
+      : firstPendingIndex;
+  }, [trimmedCustomToneAnswers]);
+
+  const visibleCustomToneQuestions = useMemo(
+    () => CUSTOM_TONE_QUESTIONS.slice(0, customToneRevealCount),
+    [customToneRevealCount]
+  );
+
+  const hiddenCustomToneCount = CUSTOM_TONE_QUESTIONS.length - customToneRevealCount;
 
   const hasValidCustomToneAnswers = useMemo(
     () => !Object.values(customToneValidationErrors).some(Boolean),
@@ -1588,7 +1716,7 @@ const AgentAi: FunctionComponent = () => {
     }
     const allAnswered = CUSTOM_TONE_QUESTIONS.every((question) => {
       const value = trimmedCustomToneAnswers[question.key] ?? "";
-      return value.length >= 200 && value.length <= 900;
+      return isCustomToneAnswerReady(value);
     });
     if (allAnswered && hasValidCustomToneAnswers) {
       return "answers_saved";
@@ -1620,13 +1748,50 @@ const AgentAi: FunctionComponent = () => {
   }, [isGeneratingCustomTone, toneStatus]);
 
   const customToneHelperText = useMemo(() => {
+    if (hiddenCustomToneCount > 0) {
+      return `Encore ${hiddenCustomToneCount} question${
+        hiddenCustomToneCount > 1 ? "s" : ""
+      } à remplir pour terminer la personnalisation.`;
+    }
     if (customToneInvalidCount > 0) {
       return `${customToneInvalidCount} réponse${
         customToneInvalidCount > 1 ? "s" : ""
       } à compléter avant génération.`;
     }
+    if (!isLastCustomToneQuestionValidated) {
+      return "Valide la dernière réponse pour afficher la génération.";
+    }
     return "Tes réponses sont prêtes pour générer le ton personnalisé.";
-  }, [customToneInvalidCount]);
+  }, [
+    customToneInvalidCount,
+    hiddenCustomToneCount,
+    isLastCustomToneQuestionValidated,
+  ]);
+
+  const shouldShowCustomToneActions =
+    hiddenCustomToneCount === 0 &&
+    customToneInvalidCount === 0 &&
+    isLastCustomToneQuestionValidated;
+
+  useEffect(() => {
+    if (tone !== "custom") {
+      return;
+    }
+    const visibleKeys = visibleCustomToneQuestions.map((question) => question.key);
+    if (visibleKeys.includes(activeCustomToneQuestionKey)) {
+      return;
+    }
+    const fallbackQuestion =
+      visibleCustomToneQuestions[
+        Math.min(customToneFirstPendingIndex, visibleCustomToneQuestions.length - 1)
+      ] ?? CUSTOM_TONE_QUESTIONS[0];
+    setActiveCustomToneQuestionKey(fallbackQuestion.key);
+  }, [
+    activeCustomToneQuestionKey,
+    customToneFirstPendingIndex,
+    tone,
+    visibleCustomToneQuestions,
+  ]);
 
   /**
    * Récupère les valeurs sauvegardées dans Supabase pour pré-remplir la section
@@ -1804,6 +1969,12 @@ const AgentAi: FunctionComponent = () => {
       textarea.focus();
     }, 0);
   };
+
+  const canCreateTemplate =
+    !isCreatingTemplate &&
+    Boolean(newTemplateName.trim()) &&
+    Boolean(newTemplateBody.trim());
+  const templateBodyCharCount = newTemplateBody.length;
 
   /**
    * Envoie la configuration côté connexion vers Supabase et referme la popup.
@@ -2250,13 +2421,15 @@ const AgentAi: FunctionComponent = () => {
             <p className={styles.fieldAssist}>
               Explique l'offre, la promesse, le type de client, les objections fréquentes et le parcours de conversion.
             </p>
-            <textarea
-              value={contextText}
-              onChange={(event) => setContextText(event.target.value)}
-              placeholder="Exemple : Mon produit est une formation en ligne sur le dropshipping à 497€. Elle comprend 25 modules vidéo, un groupe privé Discord, 3 sessions de coaching en live par mois, et un accès à vie. Les avantages principaux sont : méthode testée sur +1000 élèves, accompagnement personnalisé, garantie remboursé 30j. Le processus : appel découverte gratuit de 30min → présentation de l'offre → paiement en 1x ou 3x sans frais."
-              className={styles.contextTextarea}
-              rows={8}
-            />
+            <div className={styles.textareaFieldShell}>
+              <textarea
+                value={contextText}
+                onChange={(event) => setContextText(event.target.value)}
+                placeholder="Exemple : Mon produit est une formation en ligne sur le dropshipping à 497€. Elle comprend 25 modules vidéo, un groupe privé Discord, 3 sessions de coaching en live par mois, et un accès à vie. Les avantages principaux sont : méthode testée sur +1000 élèves, accompagnement personnalisé, garantie remboursé 30j. Le processus : appel découverte gratuit de 30min → présentation de l'offre → paiement en 1x ou 3x sans frais."
+                className={styles.contextTextarea}
+                rows={8}
+              />
+            </div>
             {errors.context && (
               <p className={styles.fieldError}>{errors.context}</p>
             )}
@@ -2287,18 +2460,14 @@ const AgentAi: FunctionComponent = () => {
           <div
             className={`${styles.formField} ${styles.formFieldFull} ${styles.availabilityField}`}
           >
-            <label className={styles.compactLabel}>Horaires d'activation</label>
-            <p className={styles.fieldAssist}>
-              Clara répondra uniquement dans cette plage, sauf si tu ajoutes des créneaux spécifiques.
-            </p>
             <div className={styles.availabilityPanel}>
               <section className={styles.availabilitySegment}>
                 <div className={styles.availabilitySegmentHeader}>
                   <div className={styles.availabilitySegmentCopy}>
                     <p className={styles.availabilitySegmentTitle}>Plage principale</p>
                     <p className={styles.availabilitySegmentLead}>
-                      Clara suit cette plage par défaut. Si tu ne rajoutes rien en dessous,
-                      elle pourra répondre pendant tout ce créneau.
+                      Cette plage sert de cadre général. Si tu ne rajoutes aucun créneau,
+                      Clara répondra pendant toute cette amplitude.
                     </p>
                   </div>
                   <span className={styles.availabilitySummaryChip}>
@@ -2370,13 +2539,6 @@ const AgentAi: FunctionComponent = () => {
                             <span className={styles.slotRowIndex}>
                               Créneau {slotIndex + 1}
                             </span>
-                            <button
-                              type="button"
-                              className={styles.slotRemoveButton}
-                              onClick={() => handleRemoveTimeSlot(slot.id)}
-                            >
-                              Supprimer
-                            </button>
                           </div>
                           <div className={styles.slotRowFields}>
                             <div className={styles.slotFieldGroup}>
@@ -2419,6 +2581,13 @@ const AgentAi: FunctionComponent = () => {
                               />
                             </div>
                           </div>
+                          <button
+                            type="button"
+                            className={styles.slotRemoveButton}
+                            onClick={() => handleRemoveTimeSlot(slot.id)}
+                          >
+                            Supprimer ce créneau
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -2468,13 +2637,30 @@ const AgentAi: FunctionComponent = () => {
                       Personnalisation du ton
                     </p>
                     <p className={styles.customToneInlineLead}>
-                      Réponds comme tu le ferais naturellement aux situations
-                      ci-dessous pour entraîner Clara sur ton style.
+                      Réponds une situation à la fois pour entraîner Clara sur
+                      ton style.
                     </p>
                   </div>
                   <div className={styles.customToneQuestions}>
-                    {CUSTOM_TONE_QUESTIONS.map((question, index) => {
+                    {visibleCustomToneQuestions.map((question, index) => {
                       const value = customToneAnswers[question.key] ?? "";
+                      const answerLength = value.trim().length;
+                      const isReady = isCustomToneAnswerReady(value);
+                      const isLastQuestion =
+                        question.key === LAST_CUSTOM_TONE_QUESTION_KEY;
+                      const isExpanded =
+                        activeCustomToneQuestionKey === question.key;
+                      const isCollapsed =
+                        !isExpanded ||
+                        (isLastQuestion && isLastCustomToneQuestionValidated);
+                      const nextQuestion =
+                        CUSTOM_TONE_QUESTIONS[index + 1] ?? null;
+                      const canUnlockNext = isReady;
+                      const stepHint = !nextQuestion
+                        ? canUnlockNext
+                          ? "Dernière étape avant la génération."
+                          : `Minimum ${CUSTOM_TONE_MIN_LENGTH} caractères pour valider cette réponse.`
+                        : "";
                       const hasError = Boolean(
                         customToneValidationErrors[question.key]
                       );
@@ -2490,6 +2676,80 @@ const AgentAi: FunctionComponent = () => {
                               `Q${index + 1}`,
                               question.title,
                             ];
+
+                      if (isCollapsed && !isReady) {
+                        return null;
+                      }
+
+                      if (isCollapsed) {
+                        return (
+                          <div
+                            key={question.key}
+                            className={[
+                              styles.customToneQuestion,
+                              styles.customToneQuestionCollapsed,
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
+                            <div className={styles.customToneQuestionCompact}>
+                              <div className={styles.customToneQuestionCompactMain}>
+                                <p className={styles.customToneQuestionTitle}>
+                                  {questionTitle}
+                                </p>
+                              </div>
+                              <div className={styles.customToneQuestionCompactMeta}>
+                                <div className={styles.customToneQuestionHeaderMeta}>
+                                  <span className={styles.customToneQuestionBadge}>
+                                    {questionLabel}
+                                  </span>
+                                  <span
+                                    className={[
+                                      styles.customToneQuestionState,
+                                      isReady
+                                        ? styles.customToneQuestionStateReady
+                                        : styles.customToneQuestionStateDraft,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" ")}
+                                  >
+                                    {isReady
+                                      ? "Réponse prête"
+                                      : `${answerLength} caractères`}
+                                  </span>
+                                </div>
+                                <div
+                                  className={styles.customToneQuestionCompactActions}
+                                >
+                                  <button
+                                    type="button"
+                                    className={styles.customToneCompactButton}
+                                    onClick={() =>
+                                      handleOpenCustomToneQuestion(question.key)
+                                    }
+                                  >
+                                    Modifier
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={[
+                                      styles.customToneCompactButton,
+                                      styles.customToneCompactButtonDanger,
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" ")}
+                                    onClick={() =>
+                                      handleClearCustomToneAnswer(question.key)
+                                    }
+                                  >
+                                    Supprimer
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
 
                       return (
                         <div
@@ -2554,9 +2814,48 @@ const AgentAi: FunctionComponent = () => {
                               {value.length} / 900 caractères
                               <span className={styles.customToneCharCountHint}>
                                 {" "}
-                                · minimum 200
+                                · minimum {CUSTOM_TONE_MIN_LENGTH}
                               </span>
                             </span>
+                          </div>
+                          <div className={styles.customToneQuestionActions}>
+                            {stepHint ? (
+                              <p className={styles.customToneStepHint}>
+                                {stepHint}
+                              </p>
+                            ) : null}
+                            <div className={styles.customToneQuestionActionButtons}>
+                              <button
+                                type="button"
+                                className={styles.customToneClearButton}
+                                onClick={() =>
+                                  handleClearCustomToneAnswer(question.key)
+                                }
+                              >
+                                Supprimer la réponse
+                              </button>
+                              {nextQuestion ? (
+                                <button
+                                  type="button"
+                                  className={styles.customToneNextButton}
+                                  onClick={() =>
+                                    handleAdvanceCustomToneQuestion(question.key)
+                                  }
+                                  disabled={!canUnlockNext}
+                                >
+                                  Question suivante
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={styles.customToneNextButton}
+                                  onClick={handleValidateLastCustomToneQuestion}
+                                  disabled={!canUnlockNext}
+                                >
+                                  Valider la réponse
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -2567,37 +2866,45 @@ const AgentAi: FunctionComponent = () => {
                       {customToneError}
                     </p>
                   )}
-                  <div className={styles.customToneInlineActions}>
-                    <p
-                      className={[
-                        styles.customToneInlineHelper,
-                        customToneInvalidCount > 0
-                          ? styles.customToneInlineHelperWarning
-                          : styles.customToneInlineHelperReady,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
+                  {shouldShowCustomToneActions ? (
+                    <div className={styles.customToneInlineActions}>
+                      <p
+                        className={[
+                          styles.customToneInlineHelper,
+                          customToneInvalidCount > 0
+                            ? styles.customToneInlineHelperWarning
+                            : styles.customToneInlineHelperReady,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        {customToneHelperText}
+                      </p>
+                      <Button
+                        className={styles.customToneActionButton}
+                        onClick={handleGenerateCustomTone}
+                        disabled={
+                          customToneInvalidCount > 0 || isGeneratingCustomTone
+                        }
+                      >
+                        {customToneActionLabel}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className={styles.customToneRevealHint}>
                       {customToneHelperText}
                     </p>
-                    <Button
-                      className={styles.customToneActionButton}
-                      onClick={handleGenerateCustomTone}
-                      disabled={
-                        customToneInvalidCount > 0 || isGeneratingCustomTone
-                      }
-                    >
-                      {customToneActionLabel}
-                    </Button>
+                  )}
+                </div>
+                {toneStatus !== "answers_saved" ? (
+                  <div className={styles.toneStatusWrapper}>
+                    <ToneStatusIndicator
+                      status={toneStatus}
+                      lastGenerated={customToneLastGeneratedAt}
+                      isGenerating={isGeneratingCustomTone}
+                    />
                   </div>
-                </div>
-                <div className={styles.toneStatusWrapper}>
-                  <ToneStatusIndicator
-                    status={toneStatus}
-                    lastGenerated={customToneLastGeneratedAt}
-                    isGenerating={isGeneratingCustomTone}
-                  />
-                </div>
+                ) : null}
               </>
             )}
           </div>
@@ -2609,12 +2916,14 @@ const AgentAi: FunctionComponent = () => {
             <p className={styles.fieldAssist}>
               Décris le moment où Clara doit arrêter l'automatisation et, si besoin, le lien à envoyer.
             </p>
-            <textarea
-              value={stopText}
-              onChange={(event) => setStopText(event.target.value)}
-              placeholder="Décris ce qui doit déclencher l'arrêt."
-              className={styles.stopTextarea}
-            />
+            <div className={styles.textareaFieldShell}>
+              <textarea
+                value={stopText}
+                onChange={(event) => setStopText(event.target.value)}
+                placeholder="Décris ce qui doit déclencher l'arrêt."
+                className={styles.stopTextarea}
+              />
+            </div>
             {errors.stopText && (
               <p className={styles.fieldError}>{errors.stopText}</p>
             )}
@@ -2640,13 +2949,15 @@ const AgentAi: FunctionComponent = () => {
             <p className={styles.fieldAssist}>
               Liste les critères à vérifier avant qu'un prospect soit considéré comme pertinent.
             </p>
-            <textarea
-              value={qualification}
-              onChange={(event) => setQualification(event.target.value)}
-              placeholder="Décris les critères que le prospect doit remplir pour que l'agent continue la conversation (ex : budget minimum, secteur d'activité, localisation...)"
-              className={styles.stopTextarea}
-              rows={5}
-            />
+            <div className={styles.textareaFieldShell}>
+              <textarea
+                value={qualification}
+                onChange={(event) => setQualification(event.target.value)}
+                placeholder="Décris les critères que le prospect doit remplir pour que l'agent continue la conversation (ex : budget minimum, secteur d'activité, localisation...)"
+                className={styles.stopTextarea}
+                rows={5}
+              />
+            </div>
           </div>
         );
       default:
@@ -3010,6 +3321,14 @@ const AgentAi: FunctionComponent = () => {
               {activeTab === "canaux" && (
                 <div className={styles.configTabPanel}>
                   <div className={styles.connexionSections}>
+                    <div className={styles.channelInfoNotice}>
+                      <span className={styles.channelInfoBadge}>Calendly</span>
+                      <p className={styles.channelInfoText}>
+                        {isCalendlyConnected
+                          ? "Calendly est connecté. Les appels bookés pourront remonter dans ton dashboard."
+                          : "Pour suivre les appels bookés dans ton dashboard, connecte ton compte Calendly."}
+                      </p>
+                    </div>
                     <div className={styles.connexionSection}>
                       <h4>Connecté ({countConnectedConnector})</h4>
                       <div className={styles.connexionSectionCards}>
@@ -3447,80 +3766,195 @@ const AgentAi: FunctionComponent = () => {
                   <div className={styles.templatesSections}>
                     <div className={styles.templatesSection}>
                       <div className={styles.templatesSectionHeader}>
-                        <h4>Templates WhatsApp ({waTemplates.length})</h4>
-                        <Button
-                          className={styles.connexionButton}
-                          style={{ margin: 0, padding: "8px 14px", fontSize: "var(--fs-13)" }}
-                          onClick={() => setIsTemplateModalOpen(true)}
-                        >
-                          + Nouveau template
-                        </Button>
+                        <div className={styles.templatesSectionHeading}>
+                          <div className={styles.templatesSectionTitleRow}>
+                            <h4>Templates WhatsApp</h4>
+                            <span className={styles.templatesSectionCount}>
+                              {waTemplates.length}
+                            </span>
+                          </div>
+                          <p className={styles.templatesSectionLead}>
+                            Prépare ici les messages validés que Clara utilisera
+                            sur WhatsApp.
+                          </p>
+                        </div>
+                        {waTemplates.length > 0 ? (
+                          <Button
+                            className={[
+                              styles.connexionButton,
+                              styles.templatesPrimaryAction,
+                              styles.templatesSectionHeaderAction,
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            onClick={() => setIsTemplateModalOpen(true)}
+                          >
+                            + Nouveau template
+                          </Button>
+                        ) : null}
                       </div>
                       {waTemplates.length === 0 ? (
                         <div className={styles.tabEmptyState}>
-                          <span className={styles.tabEmptyStateIcon}>📄</span>
-                          <p className={styles.tabEmptyStateTitle}>Aucun template WhatsApp</p>
-                          <p className={styles.tabEmptyStateDesc}>Créez un template pour envoyer des messages standardisés et relancer vos leads automatiquement.</p>
-                          <Button
-                            className={styles.connexionButton}
-                            style={{ margin: 0 }}
-                            onClick={() => setIsTemplateModalOpen(true)}
-                          >
-                            + Créer un template
-                          </Button>
+                          <div className={styles.tabEmptyStateContent}>
+                            <span
+                              className={[
+                                styles.tabEmptyStateIconShell,
+                                styles.tabEmptyStateIconShellWhatsapp,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              aria-hidden="true"
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                className={styles.tabEmptyStateIconSvg}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M7 19.5L7.8 16.7C6.66 15.48 6 13.89 6 12.2C6 8.5 8.91 5.5 12.5 5.5C16.09 5.5 19 8.5 19 12.2C19 15.9 16.09 18.9 12.5 18.9H7Z" />
+                                <path d="M9.7 11.1H15.3" />
+                                <path d="M9.7 13.8H13.2" />
+                              </svg>
+                            </span>
+                            <p className={styles.tabEmptyStateTitle}>Aucun template WhatsApp</p>
+                            <p className={styles.tabEmptyStateDesc}>Créez un template pour envoyer des messages standardisés et relancer vos leads automatiquement.</p>
+                          </div>
+                          <div className={styles.tabEmptyStateAction}>
+                            <Button
+                              className={[styles.connexionButton, styles.templatesPrimaryAction]
+                                .filter(Boolean)
+                                .join(" ")}
+                              onClick={() => setIsTemplateModalOpen(true)}
+                            >
+                              + Créer un template
+                            </Button>
+                          </div>
                         </div>
                       ) : (
-                        waTemplates.map((tpl) => (
-                          <div key={tpl.id} className={styles.templateRow}>
-                            <div className={styles.templateRowBody}>
-                              <p className={styles.templateRowName}>{tpl.name}</p>
-                              <p className={styles.templateRowPreview}>{tpl.body.slice(0, 80)}{tpl.body.length > 80 ? "…" : ""}</p>
+                        <div className={styles.templatesSectionList}>
+                          {waTemplates.map((tpl) => (
+                            <div key={tpl.id} className={styles.templateRow}>
+                              <div className={styles.templateRowBody}>
+                                <p className={styles.templateRowName}>{tpl.name}</p>
+                                <p className={styles.templateRowPreview}>{tpl.body.slice(0, 80)}{tpl.body.length > 80 ? "…" : ""}</p>
+                              </div>
+                              <span className={`${styles.templateStatusBadge} ${
+                                tpl.status === "approved" ? styles.templateStatusApproved
+                                : tpl.status === "rejected" ? styles.templateStatusRejected
+                                : styles.templateStatusPending
+                              }`}>
+                                {tpl.status === "approved" ? "Approuvé" : tpl.status === "rejected" ? "Rejeté" : "En validation"}
+                              </span>
                             </div>
-                            <span className={`${styles.templateStatusBadge} ${
-                              tpl.status === "approved" ? styles.templateStatusApproved
-                              : tpl.status === "rejected" ? styles.templateStatusRejected
-                              : styles.templateStatusPending
-                            }`}>
-                              {tpl.status === "approved" ? "Approuvé" : tpl.status === "rejected" ? "Rejeté" : "En validation"}
-                            </span>
-                          </div>
-                        ))
+                          ))}
+                        </div>
                       )}
                     </div>
 
-                    <div className={styles.templatesSection}>
+                    <div className={[styles.templatesSection, styles.followupSection]
+                      .filter(Boolean)
+                      .join(" ")}>
                       <div className={styles.templatesSectionHeader}>
-                        <h4>Relances planifiées ({followups.filter(f => f.status === "pending").length})</h4>
+                        <div className={styles.templatesSectionHeading}>
+                          <div className={styles.templatesSectionTitleRow}>
+                            <h4>Relances planifiées</h4>
+                            <span className={styles.templatesSectionCount}>
+                              {followups.filter(f => f.status === "pending").length}
+                            </span>
+                          </div>
+                          <p className={styles.templatesSectionLead}>
+                            Suis ici les relances déjà programmées et leur état
+                            d’envoi.
+                          </p>
+                        </div>
                       </div>
                       {followups.length === 0 ? (
-                        <p className={styles.templateEmpty}>Aucune relance planifiée.</p>
-                      ) : (
-                        followups.map((f) => (
-                          <div key={f.id} className={styles.followupRow}>
-                            <div className={styles.followupRowBody}>
-                              <p className={styles.followupRowContact}>{f.contactName}</p>
-                              <p className={styles.followupRowMeta}>
-                                {f.templateName} · {new Date(f.scheduled_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                              </p>
-                            </div>
-                            <span className={`${styles.followupStatusBadge} ${
-                              f.status === "sent" ? styles.followupStatusSent
-                              : f.status === "cancelled" ? styles.followupStatusCancelled
-                              : styles.followupStatusPending
-                            }`}>
-                              {f.status === "sent" ? "Envoyé" : f.status === "cancelled" ? "Annulé" : "Planifiée"}
-                            </span>
-                            {f.status === "pending" && (
-                              <button
-                                type="button"
-                                className={styles.followupCancelBtn}
-                                onClick={() => handleCancelFollowup(f.id)}
+                        <div className={styles.tabEmptyState}>
+                          <div className={styles.tabEmptyStateContent}>
+                            <span
+                              className={[
+                                styles.tabEmptyStateIconShell,
+                                styles.tabEmptyStateIconShellFollowup,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              aria-hidden="true"
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                className={styles.tabEmptyStateIconSvg}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
                               >
-                                Annuler
-                              </button>
-                            )}
+                                <path d="M12 7.2V12L15.1 14.1" />
+                                <circle cx="12" cy="12" r="6.8" />
+                                <path d="M7.5 4.8L5.7 3.2" />
+                                <path d="M16.5 4.8L18.3 3.2" />
+                              </svg>
+                            </span>
+                            <p className={styles.tabEmptyStateTitle}>
+                              Aucune relance planifiée
+                            </p>
+                            <p className={styles.tabEmptyStateDesc}>
+                              Les relances programmées apparaîtront ici dès qu’un
+                              lead aura une prochaine action prévue.
+                            </p>
                           </div>
-                        ))
+                          <div
+                            className={styles.tabEmptyStateActionSpacer}
+                            aria-hidden="true"
+                          />
+                        </div>
+                      ) : (
+                        <div className={styles.templatesSectionList}>
+                          {followups.map((f) => (
+                            <div key={f.id} className={styles.followupRow}>
+                              <div className={styles.followupRowBody}>
+                                <p className={styles.followupRowContact}>
+                                  {f.contactName}
+                                </p>
+                                <p className={styles.followupRowMeta}>
+                                  <span className={styles.followupRowTemplate}>
+                                    {f.templateName}
+                                  </span>
+                                  <span className={styles.followupRowMetaDot}>•</span>
+                                  <span>
+                                    {new Date(f.scheduled_at).toLocaleDateString("fr-FR", {
+                                      day: "numeric",
+                                      month: "short",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                </p>
+                              </div>
+                              <div className={styles.followupRowAside}>
+                                <span className={`${styles.followupStatusBadge} ${
+                                  f.status === "sent" ? styles.followupStatusSent
+                                  : f.status === "cancelled" ? styles.followupStatusCancelled
+                                  : styles.followupStatusPending
+                                }`}>
+                                  {f.status === "sent" ? "Envoyé" : f.status === "cancelled" ? "Annulé" : "Planifiée"}
+                                </span>
+                                {f.status === "pending" && (
+                                  <button
+                                    type="button"
+                                    className={styles.followupCancelBtn}
+                                    onClick={() => handleCancelFollowup(f.id)}
+                                  >
+                                    Annuler
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -3533,61 +3967,147 @@ const AgentAi: FunctionComponent = () => {
 
         {/* Modal création de template */}
         {isTemplateModalOpen && (
-          <div className={styles.templateModalBackdrop} onClick={() => setIsTemplateModalOpen(false)}>
-            <div className={styles.templateModal} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={styles.templateModalBackdrop}
+            onClick={() => setIsTemplateModalOpen(false)}
+          >
+            <div
+              className={styles.templateModal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="template-modal-title"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setIsTemplateModalOpen(false);
+                  return;
+                }
+                if (
+                  (event.metaKey || event.ctrlKey) &&
+                  event.key === "Enter" &&
+                  canCreateTemplate
+                ) {
+                  event.preventDefault();
+                  void handleCreateTemplate();
+                }
+              }}
+            >
               <div className={styles.templateModalHeader}>
-                <h3>Nouveau template</h3>
-                <button type="button" className={styles.templateModalClose} onClick={() => setIsTemplateModalOpen(false)}>×</button>
-              </div>
-              <div className={styles.templateModalField}>
-                <label>Nom du template</label>
-                <input
-                  className={styles.templateModalInput}
-                  type="text"
-                  placeholder="Ex: Relance J+3"
-                  value={newTemplateName}
-                  onChange={(e) => setNewTemplateName(e.target.value)}
-                />
-              </div>
-              <div className={styles.templateModalField}>
-                <label>Message</label>
-                <div className={styles.templateVariableChips}>
-                  {["{{prenom}}", "{{lien_calendly}}"].map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      className={styles.templateVariableChip}
-                      onClick={() => insertVariable(v)}
-                    >
-                      {v}
-                    </button>
-                  ))}
+                <div className={styles.templateModalHeaderCopy}>
+                  <p className={styles.templateModalEyebrow}>Relances WhatsApp</p>
+                  <h3 id="template-modal-title">Créer un template</h3>
+                  <p className={styles.templateModalLead}>
+                    Prépare un message réutilisable que Clara pourra envoyer
+                    dans tes relances WhatsApp.
+                  </p>
                 </div>
-                <textarea
-                  ref={templateBodyRef}
-                  className={styles.templateModalTextarea}
-                  placeholder="Bonjour {{prenom}}, ..."
-                  value={newTemplateBody}
-                  onChange={(e) => setNewTemplateBody(e.target.value)}
-                />
-                <p className={styles.templateModalHint}>Ce template sera soumis à validation Meta avant utilisation.</p>
-              </div>
-              <div className={styles.templateModalFooter}>
-                <Button
-                  className={styles.connexionButton}
-                  style={{ margin: 0, background: "var(--app-surface)", borderColor: "var(--app-border)", color: "var(--app-text)" }}
+                <button
+                  type="button"
+                  className={styles.templateModalClose}
+                  aria-label="Fermer la fenêtre"
                   onClick={() => setIsTemplateModalOpen(false)}
                 >
-                  Annuler
-                </Button>
-                <Button
-                  className={styles.connexionButton}
-                  style={{ margin: 0 }}
-                  onClick={handleCreateTemplate}
-                  disabled={isCreatingTemplate || !newTemplateName.trim() || !newTemplateBody.trim()}
-                >
-                  {isCreatingTemplate ? "…" : "Enregistrer"}
-                </Button>
+                  ×
+                </button>
+              </div>
+              <div className={styles.templateModalBody}>
+                <div className={styles.templateModalField}>
+                  <label htmlFor="template-name-input">Nom du template</label>
+                  <p className={styles.templateModalFieldHint}>
+                    Choisis un nom court pour le retrouver facilement dans tes
+                    relances.
+                  </p>
+                  <input
+                    id="template-name-input"
+                    className={styles.templateModalInput}
+                    type="text"
+                    placeholder="Ex: Relance J+3"
+                    value={newTemplateName}
+                    autoFocus
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                  />
+                </div>
+                <div className={styles.templateModalField}>
+                  <div className={styles.templateModalFieldHeader}>
+                    <label htmlFor="template-body-input">Message</label>
+                    <span className={styles.templateModalCounter}>
+                      {templateBodyCharCount} caractères
+                    </span>
+                  </div>
+                  <p className={styles.templateModalFieldHint}>
+                    Rédige un message clair puis ajoute, si besoin, une variable
+                    pour personnaliser l’envoi.
+                  </p>
+                  <div className={styles.templateVariablesPanel}>
+                    <div className={styles.templateVariablesHeader}>
+                      <span className={styles.templateVariablesLabel}>
+                        Variables rapides
+                      </span>
+                      <span className={styles.templateVariablesHint}>
+                        Clique pour insérer
+                      </span>
+                    </div>
+                    <div className={styles.templateVariableChips}>
+                      {TEMPLATE_VARIABLES.map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          className={styles.templateVariableChip}
+                          onClick={() => insertVariable(v)}
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <textarea
+                    id="template-body-input"
+                    ref={templateBodyRef}
+                    className={styles.templateModalTextarea}
+                    placeholder="Bonjour {{prenom}}, je reviens vers vous suite à notre dernier échange..."
+                    value={newTemplateBody}
+                    onChange={(e) => setNewTemplateBody(e.target.value)}
+                  />
+                  <div className={styles.templateModalInfoRow}>
+                    <p className={styles.templateModalHint}>
+                      Ce template sera soumis à validation Meta avant
+                      utilisation.
+                    </p>
+                    <span className={styles.templateModalShortcut}>
+                      Ctrl + Entrée pour enregistrer
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.templateModalFooter}>
+                <p className={styles.templateModalFooterNote}>
+                  Enregistre ce brouillon pour l’envoyer ensuite en validation.
+                </p>
+                <div className={styles.templateModalFooterActions}>
+                  <Button
+                    className={[
+                      styles.connexionButton,
+                      styles.templateModalSecondaryButton,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => setIsTemplateModalOpen(false)}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    className={[
+                      styles.connexionButton,
+                      styles.templateModalPrimaryButton,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={handleCreateTemplate}
+                    disabled={!canCreateTemplate}
+                  >
+                    {isCreatingTemplate ? "Enregistrement..." : "Enregistrer"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
