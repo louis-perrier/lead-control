@@ -8,11 +8,10 @@ import React, {
   ChangeEvent,
   DragEvent,
 } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import { AppLayout } from "../layouts";
 import Header from "../components/Header";
-import TabComponent from "../components/TabComponent";
 import Button from "../components/Button";
 import buttonStyles from "../components/Button.module.css";
 import SwitchAnimated from "../components/Tools/SwitchAnimated";
@@ -32,7 +31,6 @@ import ToneSelector, {
   ToneOptionConfig,
 } from "../components/ToneSelector/ToneSelector";
 import ToneStatusIndicator, { ToneStatus } from "../components/ToneStatusIndicator/ToneStatusIndicator";
-import ProgressiveQuestionModal from "../components/ProgressiveQuestionModal/ProgressiveQuestionModal";
 import WATwilioConnect from "../components/WATwilioConnect/WATwilioConnect";
 import ConfigTextareaTags from "../components/Tools/TextAreaTags";
 import {
@@ -484,10 +482,33 @@ type AgentAiConfigurationState = {
 type FieldGroupId = "essential" | "optimize" | "advanced";
 
 const FIELD_GROUPS: { id: FieldGroupId; label: string; collapsible: boolean; keys: string[] }[] = [
-  { id: "essential", label: "Essentiel", collapsible: false, keys: ["product_name", "context", "stopped_condition"] },
-  { id: "optimize", label: "Optimiser l'agent", collapsible: true, keys: ["qualification", "tone"] },
+  { id: "essential", label: "Essentiel", collapsible: true, keys: ["product_name", "context", "qualification", "stopped_condition"] },
+  { id: "optimize", label: "Optimiser l'agent", collapsible: true, keys: ["tone"] },
   { id: "advanced", label: "Paramètres avancés", collapsible: true, keys: ["activation_time"] },
 ];
+
+const FIELD_GROUP_PRESENTATION: Record<
+  FieldGroupId,
+  { title: string; description: string; singleColumn?: boolean }
+> = {
+  essential: {
+    title: "Offre et contexte",
+    description:
+      "Renseigne ce que Clara vend, son contexte, les critères utiles, et quand elle doit passer le relais.",
+  },
+  optimize: {
+    title: "Ton, langage et structure des messages",
+    description:
+      "Définis la manière d'écrire de Clara et la structure de ses réponses.",
+    singleColumn: true,
+  },
+  advanced: {
+    title: "Disponibilités",
+    description:
+      "Définis les plages horaires pendant lesquelles l'agent peut répondre automatiquement.",
+    singleColumn: true,
+  },
+};
 
 const REQUIRED_DETAIL_KEYS = ["product_name", "context", "stopped_condition"];
 
@@ -495,7 +516,6 @@ const getAgentTabId = (agent: AgentInfo) =>
   agent.display_id ?? agent.agent_id ?? agent.id;
 
 const AgentAi: FunctionComponent = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const navigationState = location.state as AgentAiConfigurationState | undefined;
   const { displayedAgents, refreshDisplayedAgents } = useAgents();
@@ -534,7 +554,6 @@ const AgentAi: FunctionComponent = () => {
     return undefined;
   }, [displayedAgents, selectedAgentId, tabs]);
 
-  const activeTabId = selectedAgent ? getAgentTabId(selectedAgent) : undefined;
   const [isRenamingAgent, setIsRenamingAgent] = useState(false);
   const [agentRenameValue, setAgentRenameValue] = useState("");
   const [agentRenameError, setAgentRenameError] = useState("");
@@ -570,15 +589,13 @@ const AgentAi: FunctionComponent = () => {
 
 
 
-  // Etat de la popup “Details”
+  // Etat de la popup "Details"
   const [contextText, setContextText] = useState("");
   const [contextPdf, setContextPdf] = useState<File | null>(null);
   const [contextPdfError, setContextPdfError] = useState<string | undefined>(
     undefined
   );
   const [tone, setTone] = useState<ToneOption>("normal");
-  const [customToneModalOpen, setCustomToneModalOpen] =
-    useState<boolean>(false);
   const [customToneAnswers, setCustomToneAnswers] =
     useState<CustomToneAnswers>(() => createDefaultCustomToneAnswers());
   const [customToneStatus, setCustomToneStatus] =
@@ -618,8 +635,14 @@ const AgentAi: FunctionComponent = () => {
   const [errors, setErrors] = useState<DetailErrors>({});
   const [lastSavedDetails, setLastSavedDetails] =
     useState<DetailsSnapshot | null>(null);
-  const [openGroups, setOpenGroups] = useState<Set<FieldGroupId>>(new Set<FieldGroupId>(["essential"]));
+  const [openGroups, setOpenGroups] = useState<Set<FieldGroupId>>(
+    new Set<FieldGroupId>()
+  );
   const [avgDealValue, setAvgDealValue] = useState<string>("");
+
+  useEffect(() => {
+    setOpenGroups(new Set<FieldGroupId>());
+  }, [selectedAgentId]);
 
   // Voice state
   type VoiceOption = {
@@ -701,44 +724,6 @@ const AgentAi: FunctionComponent = () => {
       window.history.replaceState(null, "", newUrl);
     }
   }, []);
-
-  // ------------------------------Navigation helpers---------------------------------
-  const goToAgentAi = useCallback(() => {
-    navigate("/app/agentai", { state: { tabs } });
-  }, [navigate, tabs]);
-
-  const handleSelectTab = useCallback((agent: AgentInfo) => {
-    setSelectedAgentId(getAgentTabId(agent));
-    setTabs((prevTabs) => {
-      if (prevTabs.some((tab) => getAgentTabId(tab) === getAgentTabId(agent))) {
-        return prevTabs;
-      }
-      return [...prevTabs, agent];
-    });
-  }, []);
-
-  const handleCloseTab = useCallback(
-    (agent: AgentInfo) => {
-      const closedTabId = getAgentTabId(agent);
-      const nextTabs = tabs.filter(
-        (tab) => getAgentTabId(tab) !== closedTabId
-      );
-      const nextSelectedId =
-        selectedAgentId === closedTabId
-          ? nextTabs[0]
-            ? getAgentTabId(nextTabs[0])
-            : undefined
-          : selectedAgentId;
-
-      setTabs(nextTabs);
-      setSelectedAgentId(nextSelectedId);
-
-      if (nextTabs.length === 0) {
-        navigate("/app/agentai", { state: { tabs: [] } });
-      }
-    },
-    [navigate, selectedAgentId, tabs]
-  );
 
   const handleHeaderSwitchChange = useCallback(
     async (nextState: boolean) => {
@@ -907,30 +892,11 @@ const AgentAi: FunctionComponent = () => {
     setCustomToneError(null);
   }, [selectedAgent]);
 
-  const handleOpenCustomToneModal = useCallback(() => {
-    setCustomToneModalOpen(true);
-  }, []);
-
-  const handleCloseCustomToneModal = useCallback(() => {
-    setCustomToneModalOpen(false);
-  }, []);
-
   useEffect(() => {
     setCustomToneValidationErrors(
       buildCustomToneValidationErrors(customToneAnswers)
     );
   }, [customToneAnswers]);
-
-  useEffect(() => {
-    if (!customToneModalOpen) return;
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        handleCloseCustomToneModal();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [customToneModalOpen, handleCloseCustomToneModal]);
 
   const handleCloseDetailsOverlay = useCallback(() => {
     // no-op in tab layout
@@ -1125,9 +1091,6 @@ const AgentAi: FunctionComponent = () => {
   const handleToneSelectionChange = useCallback(
     (nextTone: ToneOption) => {
       setTone(nextTone);
-      if (nextTone === "custom") {
-        setCustomToneModalOpen(true);
-      }
       setShowToneErrors(false);
     },
     []
@@ -1196,7 +1159,7 @@ const AgentAi: FunctionComponent = () => {
 
   // ------------------------------CONFIGURATIONS---------------------------------
   /**
-   * Les logos affichés dans la zone “Configurations” sont triés pour prioriser
+   * Les logos affichés dans la zone "Configurations" sont triés pour prioriser
    * les connecteurs déjà reliés, les spéciales puis le reste disponible.
    */
   const configurationLogos = useMemo<ConfigurationLogo[]>(() => {
@@ -1263,8 +1226,8 @@ const AgentAi: FunctionComponent = () => {
   };
 
   /**
-   * Liste à plat des identifiants marqués “required” (y compris les champs imbriqués)
-   * afin de pouvoir valider l’état “Configurations”.
+   * Liste à plat des identifiants marqués "required" (y compris les champs imbriqués)
+   * afin de pouvoir valider l'état "Configurations".
    */
   const requiredConfigIds = useMemo(() => {
     return collectRequiredConfigIds(selectedConfigItems);
@@ -1322,7 +1285,7 @@ const AgentAi: FunctionComponent = () => {
   }, [connectorAvailable, connectorConnected]);
 
   /**
-   * Vérifie si des champs “required” attendent encore une valeur valable.
+   * Vérifie si des champs "required" attendent encore une valeur valable.
    */
   const hasMissingRequiredConfig = useMemo(() => {
     if (requiredConfigIds.length === 0) return false;
@@ -1341,7 +1304,7 @@ const AgentAi: FunctionComponent = () => {
   }, [requiredConfigIds, configValues]);
 
   /**
-   * Indique si la section “Details” est complète et si une connexion est active,
+   * Indique si la section "Details" est complète et si une connexion est active,
    * afin d’alimenter les statuts des coins.
    */
   const areDetailsFilled = useMemo(() => {
@@ -1640,29 +1603,31 @@ const AgentAi: FunctionComponent = () => {
     trimmedCustomToneAnswers,
   ]);
 
-  const selectedToneLabel = useMemo(() => {
-    return toneOptions.find((option) => option.value === tone)?.label ?? "Normal";
-  }, [tone]);
+  const customToneInvalidCount = useMemo(() => {
+    return CUSTOM_TONE_QUESTIONS.filter((question) =>
+      Boolean(customToneValidationErrors[question.key])
+    ).length;
+  }, [customToneValidationErrors]);
 
-  const activeToneDescription = useMemo(() => {
-    if (tone !== "custom") {
-      return `${selectedToneLabel} (actif)`;
+  const customToneActionLabel = useMemo(() => {
+    if (isGeneratingCustomTone) {
+      return "Génération en cours...";
     }
-    if (toneStatus === "configured" && customToneLastGeneratedAt) {
-      const formattedDate = new Date(customToneLastGeneratedAt).toLocaleString("fr-FR", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
-      return `Ton personnalisé généré le ${formattedDate}`;
+    if (toneStatus === "configured" || toneStatus === "modified") {
+      return "Régénérer le ton personnalisé";
     }
-    if (toneStatus === "modified") {
-      return "Ton personnalisé prêt, régénération recommandée.";
+    return "Générer le ton personnalisé";
+  }, [isGeneratingCustomTone, toneStatus]);
+
+  const customToneHelperText = useMemo(() => {
+    if (customToneInvalidCount > 0) {
+      return `${customToneInvalidCount} réponse${
+        customToneInvalidCount > 1 ? "s" : ""
+      } à compléter avant génération.`;
     }
-    if (toneStatus === "answers_saved") {
-      return "Ton personnalisé prêt à être généré.";
-    }
-    return "Ton Normal (utilisé tant que le ton personnalisé n’est pas généré).";
-  }, [tone, toneStatus, selectedToneLabel, customToneLastGeneratedAt]);
+    return "Tes réponses sont prêtes pour générer le ton personnalisé.";
+  }, [customToneInvalidCount]);
+
   /**
    * Récupère les valeurs sauvegardées dans Supabase pour pré-remplir la section
    * lorsque l’utilisateur ouvre Configurations.
@@ -1960,6 +1925,30 @@ const AgentAi: FunctionComponent = () => {
     return JSON.stringify(current) !== JSON.stringify(lastSavedDetails);
   }, [lastSavedDetails, getCurrentDetailsSnapshot]);
 
+  const canSaveAgentDetails =
+    Boolean(selectedAgent) && !hasValidationErrors && hasUnsavedChanges;
+
+  const agentFooterHintText = !lastSavedDetails
+    ? "Complétez les champs requis"
+    : hasValidationErrors
+    ? "Corrigez les champs en erreur pour enregistrer"
+    : hasUnsavedChanges
+    ? "Changements non enregistrés"
+    : "Tout est à jour";
+
+  const agentFooterHintClassName = [
+    styles.footerHint,
+    !lastSavedDetails
+      ? styles.footerHintNeutral
+      : hasValidationErrors
+      ? styles.footerHintError
+      : hasUnsavedChanges
+      ? styles.footerHintWarning
+      : styles.footerHintSuccess,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   const toggleGroup = useCallback((id: FieldGroupId) => {
     setOpenGroups(prev => {
       const next = new Set(prev);
@@ -1986,7 +1975,7 @@ const AgentAi: FunctionComponent = () => {
 
   // ------------------------------PROMPT---------------------------------
   /**
-   * Sauvegarde les champs “Details” (prompt + contexte) dans Supabase.
+   * Sauvegarde les champs "Details" (prompt + contexte) dans Supabase.
    */
   const handleSaveComments = async () => {
     if (!selectedAgent) return;
@@ -2252,13 +2241,15 @@ const AgentAi: FunctionComponent = () => {
     setActiveTab("canaux");
   };
 
-  const renderDetailsSection = (key: string, step: number): React.ReactNode => {
-    const stepLabel = String(step).padStart(2, "0");
+  const renderDetailsSection = (key: string): React.ReactNode => {
     switch (key) {
       case "context":
         return (
           <div className={`${styles.formField} ${styles.formFieldFull}`}>
-            <label className={styles.compactLabel}>Contexte</label>
+            <label className={styles.compactLabel}>Contexte de vente</label>
+            <p className={styles.fieldAssist}>
+              Explique l'offre, la promesse, le type de client, les objections fréquentes et le parcours de conversion.
+            </p>
             <textarea
               value={contextText}
               onChange={(event) => setContextText(event.target.value)}
@@ -2274,12 +2265,16 @@ const AgentAi: FunctionComponent = () => {
       case "product_name":
         return (
           <div className={styles.formField}>
-            <label className={styles.compactLabel}>Produit</label>
+            <label className={styles.compactLabel}>Offre</label>
+            <p className={styles.fieldAssist}>
+              Indique le nom de l'offre, du service ou de l'accompagnement que
+              Clara doit présenter.
+            </p>
             <input
               type="text"
               value={productName}
               onChange={(event) => setProductName(event.target.value)}
-              placeholder="Nom du produit"
+              placeholder="Nom de l'offre ou du service"
               className={styles.detailsInput}
             />
             {errors.productName && (
@@ -2289,165 +2284,331 @@ const AgentAi: FunctionComponent = () => {
         );
       case "activation_time":
         return (
-          <div className={`${styles.formField} ${styles.formFieldFull}`}>
+          <div
+            className={`${styles.formField} ${styles.formFieldFull} ${styles.availabilityField}`}
+          >
             <label className={styles.compactLabel}>Horaires d'activation</label>
-            <div className={styles.timeInputGroup}>
-              <div className={styles.timeField}>
-                <label htmlFor="timeStart">De</label>
-                <input
-                  id="timeStart"
-                  type="time"
-                  value={timeStart}
-                  onChange={(event) => setTimeStart(event.target.value)}
-                  className={styles.timeInput}
-                />
-              </div>
-              <div className={styles.timeField}>
-                <label htmlFor="timeEnd">À</label>
-                <input
-                  id="timeEnd"
-                  type="time"
-                  value={timeEnd}
-                  onChange={(event) => setTimeEnd(event.target.value)}
-                  className={styles.timeInput}
-                />
-              </div>
-            </div>
-            {errors.timeRange && (
-              <p className={styles.fieldError}>{errors.timeRange}</p>
-            )}
-            <div className={styles.slotSection}>
-              <div className={styles.slotHeader}>
-                <span className={styles.slotHeaderLabel}>Créneaux spécifiques</span>
-                <button
-                  type="button"
-                  className={styles.slotAddButton}
-                  onClick={handleAddTimeSlot}
-                >
-                  Ajouter un créneau
-                </button>
-              </div>
-              <div className={styles.slotList}>
-                {timeSlots.map((slot, slotIndex) => (
-                  <div key={slot.id} className={styles.slotRow}>
-                    <div className={styles.slotFieldGroup}>
-                      <label className={styles.fieldLabel}>
-                        Heure (créneau {slotIndex + 1})
-                      </label>
-                      <input
-                        type="text"
-                        pattern="^([01]\\d|2[0-3]):[0-5]\\d$"
-                        value={slot.time}
-                        placeholder="HH:MM"
-                        inputMode="numeric"
-                        onChange={(event) =>
-                          handleSlotTimeChange(slot.id, event.target.value)
-                        }
-                        className={styles.timeInput}
-                      />
-                    </div>
-                    <div className={styles.slotFieldGroup}>
-                      <label className={styles.fieldLabel}>
-                        Intervalle (minutes)
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        step={5}
-                        value={slot.durationMinutes}
-                        onChange={(event) =>
-                          handleSlotDurationChange(slot.id, event.target.value)
-                        }
-                        className={styles.detailsInput}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.slotRemoveButton}
-                      onClick={() => handleRemoveTimeSlot(slot.id)}
-                    >
-                      Supprimer
-                    </button>
+            <p className={styles.fieldAssist}>
+              Clara répondra uniquement dans cette plage, sauf si tu ajoutes des créneaux spécifiques.
+            </p>
+            <div className={styles.availabilityPanel}>
+              <section className={styles.availabilitySegment}>
+                <div className={styles.availabilitySegmentHeader}>
+                  <div className={styles.availabilitySegmentCopy}>
+                    <p className={styles.availabilitySegmentTitle}>Plage principale</p>
+                    <p className={styles.availabilitySegmentLead}>
+                      Clara suit cette plage par défaut. Si tu ne rajoutes rien en dessous,
+                      elle pourra répondre pendant tout ce créneau.
+                    </p>
                   </div>
-                ))}
-              </div>
-              <p className={styles.slotHelper}>
-                {timeSlots.length > 0 ? (
-                  `Le créneau + intervalle doit rester compris entre ${timeStart} et ${timeEnd}.`
-                ) : (
-                  <span className={styles.slotFullRange}>
-                    L'agent répondra sur toute la plage horaire définie.
+                  <span className={styles.availabilitySummaryChip}>
+                    {timeStart} - {timeEnd}
                   </span>
+                </div>
+                <div className={styles.timeInputGroup}>
+                  <div className={styles.timeField}>
+                    <label htmlFor="timeStart">Heure de début</label>
+                    <input
+                      id="timeStart"
+                      type="time"
+                      step={300}
+                      value={timeStart}
+                      onChange={(event) => setTimeStart(event.target.value)}
+                      className={styles.timeInput}
+                    />
+                  </div>
+                  <div className={styles.timeField}>
+                    <label htmlFor="timeEnd">Heure de fin</label>
+                    <input
+                      id="timeEnd"
+                      type="time"
+                      step={300}
+                      value={timeEnd}
+                      onChange={(event) => setTimeEnd(event.target.value)}
+                      className={styles.timeInput}
+                    />
+                  </div>
+                </div>
+                {errors.timeRange && (
+                  <p className={styles.fieldError}>{errors.timeRange}</p>
                 )}
-              </p>
-              {errors.timeSlots && (
-                <p className={styles.fieldError}>{errors.timeSlots}</p>
-              )}
+              </section>
+
+              <section className={`${styles.availabilitySegment} ${styles.slotSection}`}>
+                <div className={styles.slotHeader}>
+                  <div className={styles.slotHeaderCopy}>
+                    <div className={styles.slotHeaderTitleRow}>
+                      <span className={styles.slotHeaderLabel}>Créneaux spécifiques</span>
+                      <span className={styles.slotCounter}>
+                        {timeSlots.length > 0
+                          ? `${timeSlots.length} ${
+                              timeSlots.length > 1 ? "créneaux" : "créneau"
+                            }`
+                          : "Optionnel"}
+                      </span>
+                    </div>
+                    <p className={styles.slotHeaderAssist}>
+                      Ajoute seulement les moments précis où Clara doit intervenir à
+                      l'intérieur de la plage principale.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.slotAddButton}
+                    onClick={handleAddTimeSlot}
+                  >
+                    Ajouter un créneau
+                  </button>
+                </div>
+
+                {timeSlots.length > 0 ? (
+                  <>
+                    <div className={styles.slotList}>
+                      {timeSlots.map((slot, slotIndex) => (
+                        <div key={slot.id} className={styles.slotRow}>
+                          <div className={styles.slotRowHeader}>
+                            <span className={styles.slotRowIndex}>
+                              Créneau {slotIndex + 1}
+                            </span>
+                            <button
+                              type="button"
+                              className={styles.slotRemoveButton}
+                              onClick={() => handleRemoveTimeSlot(slot.id)}
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                          <div className={styles.slotRowFields}>
+                            <div className={styles.slotFieldGroup}>
+                              <label
+                                className={styles.fieldLabel}
+                                htmlFor={`slot-time-${slot.id}`}
+                              >
+                                Heure de début
+                              </label>
+                              <input
+                                id={`slot-time-${slot.id}`}
+                                type="time"
+                                min={timeStart}
+                                max={timeEnd}
+                                step={300}
+                                value={slot.time}
+                                onChange={(event) =>
+                                  handleSlotTimeChange(slot.id, event.target.value)
+                                }
+                                className={styles.timeInput}
+                              />
+                            </div>
+                            <div className={styles.slotFieldGroup}>
+                              <label
+                                className={styles.fieldLabel}
+                                htmlFor={`slot-duration-${slot.id}`}
+                              >
+                                Durée (minutes)
+                              </label>
+                              <input
+                                id={`slot-duration-${slot.id}`}
+                                type="number"
+                                min={1}
+                                step={5}
+                                value={slot.durationMinutes}
+                                onChange={(event) =>
+                                  handleSlotDurationChange(slot.id, event.target.value)
+                                }
+                                className={styles.detailsInput}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className={styles.slotHelper}>
+                      Chaque créneau doit rester compris entre {timeStart} et {timeEnd}.
+                    </p>
+                  </>
+                ) : (
+                  <div className={styles.slotEmptyState}>
+                    <span className={styles.slotFullRange}>Aucun créneau ajouté</span>
+                    <p className={styles.slotHelper}>
+                      Clara répondra simplement sur toute la plage principale définie
+                      ci-dessus.
+                    </p>
+                  </div>
+                )}
+
+                {errors.timeSlots && (
+                  <p className={styles.fieldError}>{errors.timeSlots}</p>
+                )}
+              </section>
             </div>
           </div>
         );
       case "tone":
         return (
-          <div className={`${styles.formField} ${styles.formFieldFull}`}>
+          <div
+            className={`${styles.formField} ${styles.formFieldFull} ${styles.toneFieldBlock}`}
+          >
             <label className={styles.compactLabel}>
               Ton & Langage{" "}
               <span className={styles.newFeatureBadge}>Nouveau</span>
             </label>
+            <p className={styles.fieldAssist}>
+              Choisis la manière d'écrire de Clara. Le mode personnalisé sert si tu veux un ton plus proche de ta marque.
+            </p>
             <ToneSelector
               value={tone}
               options={toneOptions}
               onChange={handleToneSelectionChange}
             />
-            <div className={styles.languageLine}>
-              <span className={styles.languageLabel}>Langage</span>
-              <span className={styles.languageValue}>
-                Français (automatiquement adapté selon le ton choisi)
-              </span>
-            </div>
-            <div className={styles.toneStateSummary}>
-              <div className={styles.toneStateRow}>
-                <span className={styles.toneStateLabel}>Ton sélectionné :</span>
-                <span className={styles.toneStateValue}>
-                  {tone === "custom" ? "Personnalisé" : selectedToneLabel}
-                </span>
-              </div>
-              <div className={styles.toneStateRow}>
-                <span className={styles.toneStateLabel}>Agent utilise :</span>
-                <span className={styles.toneStateValue}>
-                  {activeToneDescription}
-                </span>
-              </div>
-              {tone === "custom" && toneStatus !== "configured" && (
-                <p className={styles.toneFallbackNote}>
-                  Si le ton personnalisé n'est pas généré, le ton Normal reste
-                  actif par défaut.
-                </p>
-              )}
-            </div>
-            <div className={styles.toneStatusWrapper}>
-              <ToneStatusIndicator
-                status={toneStatus}
-                lastGenerated={customToneLastGeneratedAt}
-                onAction={
-                  toneStatus === "idle" ? undefined : handleGenerateCustomTone
-                }
-                isGenerating={isGeneratingCustomTone}
-              />
-            </div>
             {tone === "custom" && (
-              <Button
-                className={styles.customToneActionButton}
-                onClick={handleOpenCustomToneModal}
-              >
-                Modifier les réponses
-              </Button>
+              <>
+                <div className={styles.customToneInlineSection}>
+                  <div className={styles.customToneInlineHeader}>
+                    <p className={styles.customToneInlineTitle}>
+                      Personnalisation du ton
+                    </p>
+                    <p className={styles.customToneInlineLead}>
+                      Réponds comme tu le ferais naturellement aux situations
+                      ci-dessous pour entraîner Clara sur ton style.
+                    </p>
+                  </div>
+                  <div className={styles.customToneQuestions}>
+                    {CUSTOM_TONE_QUESTIONS.map((question, index) => {
+                      const value = customToneAnswers[question.key] ?? "";
+                      const hasError = Boolean(
+                        customToneValidationErrors[question.key]
+                      );
+                      const shouldShowError =
+                        hasError &&
+                        (showToneErrors || touchedQuestions[question.key]);
+                      const [questionLabel, questionTitle] =
+                        question.title.includes("—")
+                          ? question.title
+                              .split("—")
+                              .map((segment) => segment.trim())
+                          : [
+                              `Q${index + 1}`,
+                              question.title,
+                            ];
+
+                      return (
+                        <div
+                          key={question.key}
+                          className={styles.customToneQuestion}
+                        >
+                          <div className={styles.customToneQuestionHeader}>
+                            <div>
+                              <p className={styles.customToneQuestionTitle}>
+                                {questionTitle}
+                              </p>
+                              <p className={styles.customToneQuestionExample}>
+                                {question.example}
+                              </p>
+                            </div>
+                            <span className={styles.customToneQuestionBadge}>
+                              {questionLabel}
+                            </span>
+                          </div>
+                          <textarea
+                            className={[
+                              styles.customToneTextarea,
+                              shouldShowError
+                                ? styles.customToneTextareaWarning
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            placeholder="Écris ici comment tu répondrais naturellement dans cette situation..."
+                            value={value}
+                            onChange={(event) =>
+                              handleCustomToneAnswerChange(
+                                question.key,
+                                event.target.value
+                              )
+                            }
+                            onBlur={() => handleQuestionTouch(question.key)}
+                            rows={5}
+                          />
+                          <div className={styles.customToneQuestionFooter}>
+                            {shouldShowError ? (
+                              <p className={styles.customToneInlineFieldError}>
+                                {customToneValidationErrors[question.key]}
+                              </p>
+                            ) : (
+                              <div />
+                            )}
+                            <span
+                              className={[
+                                styles.customToneCharCount,
+                                value.length > 900
+                                  ? styles.customToneCharCountError
+                                  : value.length < 200 &&
+                                    (showToneErrors ||
+                                      touchedQuestions[question.key])
+                                  ? styles.customToneCharCountWarning
+                                  : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            >
+                              {value.length} / 900 caractères
+                              <span className={styles.customToneCharCountHint}>
+                                {" "}
+                                · minimum 200
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {customToneError && (
+                    <p className={styles.customToneInlineError}>
+                      {customToneError}
+                    </p>
+                  )}
+                  <div className={styles.customToneInlineActions}>
+                    <p
+                      className={[
+                        styles.customToneInlineHelper,
+                        customToneInvalidCount > 0
+                          ? styles.customToneInlineHelperWarning
+                          : styles.customToneInlineHelperReady,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {customToneHelperText}
+                    </p>
+                    <Button
+                      className={styles.customToneActionButton}
+                      onClick={handleGenerateCustomTone}
+                      disabled={
+                        customToneInvalidCount > 0 || isGeneratingCustomTone
+                      }
+                    >
+                      {customToneActionLabel}
+                    </Button>
+                  </div>
+                </div>
+                <div className={styles.toneStatusWrapper}>
+                  <ToneStatusIndicator
+                    status={toneStatus}
+                    lastGenerated={customToneLastGeneratedAt}
+                    isGenerating={isGeneratingCustomTone}
+                  />
+                </div>
+              </>
             )}
           </div>
         );
       case "stopped_condition":
         return (
-          <div className={styles.formField}>
-            <label className={styles.compactLabel}>Condition d'arrêt</label>
+          <div className={`${styles.formField} ${styles.formFieldFull}`}>
+            <label className={styles.compactLabel}>Passage de relais</label>
+            <p className={styles.fieldAssist}>
+              Décris le moment où Clara doit arrêter l'automatisation et, si besoin, le lien à envoyer.
+            </p>
             <textarea
               value={stopText}
               onChange={(event) => setStopText(event.target.value)}
@@ -2471,11 +2632,14 @@ const AgentAi: FunctionComponent = () => {
         );
       case "qualification":
         return (
-          <div className={styles.formField}>
+          <div className={`${styles.formField} ${styles.formFieldFull}`}>
             <label className={styles.compactLabel}>
               Qualification{" "}
               <span className={styles.newFeatureBadge}>Bêta</span>
             </label>
+            <p className={styles.fieldAssist}>
+              Liste les critères à vérifier avant qu'un prospect soit considéré comme pertinent.
+            </p>
             <textarea
               value={qualification}
               onChange={(event) => setQualification(event.target.value)}
@@ -2490,111 +2654,271 @@ const AgentAi: FunctionComponent = () => {
     }
   };
 
+  const renderAvgDealValueField = (): React.ReactNode => (
+    <div key="avg_deal_value" className={styles.formField}>
+      <label className={styles.compactLabel}>Prix moyen de vente (EUR)</label>
+      <p className={styles.fieldAssist}>
+        Sert a donner un repere economique a Clara pendant la qualification.
+      </p>
+      <input
+        type="number"
+        min={0}
+        step={1}
+        value={avgDealValue}
+        onChange={(e) => setAvgDealValue(e.target.value)}
+        placeholder="Ex : 497"
+        className={styles.detailsInput}
+        style={{ maxWidth: 220 }}
+      />
+    </div>
+  );
+
+  const getOrderedGroupKeys = useCallback(
+    (groupId: FieldGroupId, keys: string[]) => {
+      if (groupId !== "essential") {
+        return keys;
+      }
+
+      const ordered = [...keys];
+      const productIdx = ordered.indexOf("product_name");
+      if (productIdx >= 0) {
+        ordered.splice(productIdx + 1, 0, "__avg_deal_value__");
+      } else {
+        ordered.unshift("__avg_deal_value__");
+      }
+      return ordered;
+    },
+    []
+  );
+
+  const renderAgentDetailSections = (): React.ReactNode => (
+    <div className={styles.agentDetailsSections}>
+      {activeGroups.map((group, groupIndex) => {
+        const presentation = FIELD_GROUP_PRESENTATION[group.id];
+        const isOpen = !group.collapsible || openGroups.has(group.id);
+        const hasGroupError = group.activeKeys.some((key) => keyHasError(key));
+        const orderedKeys = getOrderedGroupKeys(group.id, group.activeKeys);
+
+        return (
+          <section
+            key={group.id}
+            className={[
+              styles.detailsGroup,
+              styles.agentDetailsSection,
+              hasGroupError ? styles.detailsGroupError : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <div
+              className={[
+                styles.detailsGroupHeader,
+                styles.agentDetailsSectionHeader,
+                group.collapsible ? styles.detailsGroupHeaderCollapsible : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={group.collapsible ? () => toggleGroup(group.id) : undefined}
+              onKeyDown={
+                group.collapsible
+                  ? (event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        toggleGroup(group.id);
+                      }
+                    }
+                  : undefined
+              }
+              role={group.collapsible ? "button" : undefined}
+              tabIndex={group.collapsible ? 0 : undefined}
+              aria-expanded={group.collapsible ? isOpen : undefined}
+            >
+              <div className={styles.agentDetailsSectionIntro}>
+                <span className={styles.agentDetailsSectionIndex}>
+                  {String(groupIndex + 1).padStart(2, "0")}
+                </span>
+                <div className={styles.sectionHeader}>
+                  <h3 className={styles.sectionTitle}>{presentation.title}</h3>
+                  <p className={styles.sectionDescription}>{presentation.description}</p>
+                </div>
+              </div>
+              <div className={styles.detailsGroupHeaderRight}>
+                {hasGroupError && <span className={styles.detailsGroupErrorDot} />}
+                {group.collapsible && (
+                  <>
+                    <span className={styles.detailsGroupActionHint}>
+                      {isOpen ? "Section ouverte" : "Ouvrir pour remplir"}
+                    </span>
+                    <span
+                      className={[
+                        styles.detailsGroupChevron,
+                        !isOpen ? styles.detailsGroupChevronClosed : "",
+                        isOpen ? styles.detailsGroupChevronOpen : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {"\u203A"}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div
+              className={[
+                styles.detailsGroupBody,
+                styles.agentDetailsSectionBody,
+                !isOpen ? styles.detailsGroupBodyClosed : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              <div
+                className={[
+                  styles.agentFormCard,
+                  styles.agentTabFormCard,
+                  styles.agentSectionGrid,
+                  presentation.singleColumn ? styles.agentSectionGridSingle : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {orderedKeys.map((key) =>
+                  key === "__avg_deal_value__" ? (
+                    renderAvgDealValueField()
+                  ) : (
+                    <React.Fragment key={key}>{renderDetailsSection(key)}</React.Fragment>
+                  )
+                )}
+              </div>
+              {group.collapsible && isOpen && (
+                <div className={styles.detailsGroupFooter}>
+                  <button
+                    type="button"
+                    className={styles.detailsGroupFooterAction}
+                    onClick={() => toggleGroup(group.id)}
+                  >
+                    <span className={styles.detailsGroupActionHint}>
+                      Refermer ce bloc
+                    </span>
+                    <span
+                      className={[
+                        styles.detailsGroupChevron,
+                        styles.detailsGroupChevronCollapse,
+                        styles.detailsGroupChevronFooter,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {"\u203A"}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+
   return (
     <AppLayout>
       <div className={styles.rightcomponent}>
         <Header minimal showLogo={false} />
-        <div className={styles.tabcomponent}>
-          <TabComponent
-            label="Mes agents"
-            active={false}
-            onClick={goToAgentAi}
-            iconSrc="/tabComponentNotSelect.svg"
-          />
-          {tabs.map((agent) => {
-            const tabId = getAgentTabId(agent);
-            return (
-              <TabComponent
-                key={tabId}
-                label={agent.name.toUpperCase()}
-                active={activeTabId === tabId}
-                iconSrc={
-                  activeTabId === tabId
-                    ? "/tabComponentSelect.svg"
-                    : "/tabComponentNotSelect.svg"
-                }
-                closable
-                onClick={() => handleSelectTab(agent)}
-                onClose={() => handleCloseTab(agent)}
-              />
-            );
-          })}
-        </div>
         {selectedAgent && (
           <div className={styles.agentTitleWrapper}>
             <div className={styles.agentTitleText}>
               <div className={styles.agentNameBlock}>
-                {isRenamingAgent ? (
-                  <>
-                    <div className={styles.renameEditor}>
-                      <input
-                        className={styles.renameInput}
-                        type="text"
-                        value={agentRenameValue}
-                        onChange={(event) => {
-                          setAgentRenameValue(
-                            event.target.value.slice(0, AGENT_NAME_MAX_LENGTH)
-                          );
-                          if (agentRenameError) {
-                            setAgentRenameError("");
-                          }
-                        }}
-                        onKeyDown={handleRenameKeyDown}
-                        maxLength={AGENT_NAME_MAX_LENGTH}
-                        autoFocus
-                      />
-                      <div className={styles.renameActions}>
-                        <button
-                          type="button"
-                          className={styles.renameSecondaryButton}
-                          onClick={handleCancelRenaming}
-                          disabled={isAgentRenaming}
-                        >
-                          Annuler
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.renamePrimaryButton}
-                          onClick={() => {
-                            void handleSubmitRenaming();
-                          }}
-                          disabled={!canSaveRename}
-                        >
-                          {isAgentRenaming ? "Enregistrement..." : "Enregistrer"}
-                        </button>
-                      </div>
-                    </div>
-                    <p className={styles.renameErrorText}>
-                      {displayedRenameError || "\u00A0"}
-                    </p>
-                  </>
-                ) : (
-                  <div className={styles.agentNameDisplay}>
-                    <h2 title={selectedAgent.name.toUpperCase()}>
-                      {selectedAgent.name.toUpperCase()}
-                    </h2>
-                    <button
-                      type="button"
-                      className={styles.renameAgentButton}
-                      onClick={handleStartRenaming}
-                    >
-                      Renommer
-                    </button>
-                  </div>
-                )}
+                <h1 className={styles.agentPageTitle}>
+                  Configure ton agent et fais-le briller
+                </h1>
+                <p className={styles.agentPageLead}>
+                  On peaufine le fond, la forme et le bon ton.
+                </p>
               </div>
-              <SwitchAnimated
-                checked={displayedHeaderSwitchChecked}
-                onChange={handleHeaderSwitchChange}
-                showLabel={false}
-                disabled={isHeaderSwitchDisabled}
-                className={styles.agentActivationSwitch}
-              />
             </div>
           </div>
         )}
         {selectedAgent && (
           <div className={styles.configLayout}>
+            <div className={styles.agentPanelHeader}>
+              <div className={styles.agentPanelHeaderInner}>
+                <div className={styles.agentPanelIdentity}>
+                  {isRenamingAgent ? (
+                    <>
+                      <div className={styles.renameEditor}>
+                        <input
+                          className={styles.renameInput}
+                          type="text"
+                          value={agentRenameValue}
+                          onChange={(event) => {
+                            setAgentRenameValue(
+                              event.target.value.slice(0, AGENT_NAME_MAX_LENGTH)
+                            );
+                            if (agentRenameError) {
+                              setAgentRenameError("");
+                            }
+                          }}
+                          onKeyDown={handleRenameKeyDown}
+                          maxLength={AGENT_NAME_MAX_LENGTH}
+                          autoFocus
+                        />
+                        <div className={styles.renameActions}>
+                          <button
+                            type="button"
+                            className={styles.renameSecondaryButton}
+                            onClick={handleCancelRenaming}
+                            disabled={isAgentRenaming}
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.renamePrimaryButton}
+                            onClick={() => {
+                              void handleSubmitRenaming();
+                            }}
+                            disabled={!canSaveRename}
+                          >
+                            {isAgentRenaming ? "Enregistrement..." : "Enregistrer"}
+                          </button>
+                        </div>
+                      </div>
+                      <p className={styles.renameErrorText}>
+                        {displayedRenameError || "\u00A0"}
+                      </p>
+                    </>
+                  ) : (
+                    <div className={styles.agentNameDisplay}>
+                      <p
+                        className={styles.agentNameCaption}
+                        title={selectedAgent.name}
+                      >
+                        {selectedAgent.name}
+                      </p>
+                      <button
+                        type="button"
+                        className={styles.renameAgentButton}
+                        onClick={handleStartRenaming}
+                      >
+                        Renommer
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className={styles.agentPanelSwitchRow}>
+                  <SwitchAnimated
+                    checked={displayedHeaderSwitchChecked}
+                    onChange={handleHeaderSwitchChange}
+                    showLabel={false}
+                    disabled={isHeaderSwitchDisabled}
+                    className={styles.agentActivationSwitch}
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* ── Tab navigation ── */}
             <nav className={styles.configTabNav}>
@@ -2636,44 +2960,19 @@ const AgentAi: FunctionComponent = () => {
 
               {/* ───────────────── AGENT ───────────────── */}
               {activeTab === "agent" && (
-                <div className={styles.configTabPanel}>
-                  <div className={styles.modalContainer}>
+                <div
+                  className={[styles.configTabPanel, styles.agentTabPanel]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <div
+                    className={[styles.modalContainer, styles.agentTabModalContainer]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
                     {selectedAgent?.details_component?.length ? (
-                      <div className={styles.agentFormCard}>
-                        {(() => {
-                          const allKeys = activeGroups.flatMap(g => g.activeKeys);
-                          const productIdx = allKeys.indexOf("product_name");
-                          const ordered = [...allKeys];
-                          if (productIdx >= 0) {
-                            ordered.splice(productIdx + 1, 0, "__avg_deal_value__");
-                          } else {
-                            ordered.push("__avg_deal_value__");
-                          }
-                          return ordered.map((key, index) => {
-                            if (key === "__avg_deal_value__") {
-                              return (
-                                <div key="avg_deal_value" className={styles.formField}>
-                                  <label className={styles.compactLabel}>Prix moyen de vente (€)</label>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    step={1}
-                                    value={avgDealValue}
-                                    onChange={(e) => setAvgDealValue(e.target.value)}
-                                    placeholder="Ex : 497"
-                                    className={styles.detailsInput}
-                                    style={{ maxWidth: 200 }}
-                                  />
-                                </div>
-                              );
-                            }
-                            return (
-                              <React.Fragment key={key}>
-                                {renderDetailsSection(key, index + 1)}
-                              </React.Fragment>
-                            );
-                          });
-                        })()}
+                      <div className={styles.agentDetailsSectionsWrapper}>
+                        {renderAgentDetailSections()}
                       </div>
                     ) : (
                       <div className={styles.noConfigMessage}>
@@ -2684,19 +2983,21 @@ const AgentAi: FunctionComponent = () => {
                   </div>
 
                   {selectedAgent ? (
-                    <div className={styles.modalFooter}>
-                      <p className={styles.footerHint}>
-                        {!lastSavedDetails
-                          ? "Complétez les champs requis"
-                          : hasUnsavedChanges
-                          ? "Changements non enregistrés"
-                          : "Tout est à jour"}
+                    <div
+                      className={[styles.modalFooter, styles.agentTabFooter]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <p className={agentFooterHintClassName} aria-live="polite">
+                        {agentFooterHintText}
                       </p>
                       <button
                         type="button"
-                        className={styles.saveButton}
+                        className={[styles.saveButton, styles.agentTabSaveButton]
+                          .filter(Boolean)
+                          .join(" ")}
                         onClick={handleSaveDetails}
-                        disabled={hasValidationErrors}
+                        disabled={!canSaveAgentDetails}
                       >
                         Enregistrer
                       </button>
@@ -2826,7 +3127,7 @@ const AgentAi: FunctionComponent = () => {
                                       className={styles.voicePreviewBtn}
                                       onClick={() => handlePlayVoicePreview(v.preview_url, v.voice_id)}
                                     >
-                                      {voicePreviewingId === v.voice_id ? "⏹" : "▶"}
+                                      {voicePreviewingId === v.voice_id ? "\u23F9" : "\u25B6"}
                                     </button>
                                     <button
                                       type="button"
@@ -2862,7 +3163,7 @@ const AgentAi: FunctionComponent = () => {
                               </button>
                             ) : (
                               <button type="button" className={styles.cloneStopBtn} onClick={handleStopRecording}>
-                                ⏹ Arrêter
+                                {"\u23F9"} Arrêter
                               </button>
                             )}
                           </div>
@@ -3301,19 +3602,6 @@ const AgentAi: FunctionComponent = () => {
             onOAuthConnect={connexions["whatsapp"]?.onConnect ?? (() => {})}
           />
         )}
-        <ProgressiveQuestionModal
-          open={customToneModalOpen}
-          questions={CUSTOM_TONE_QUESTIONS}
-          answers={customToneAnswers}
-          validationErrors={customToneValidationErrors}
-          showValidationErrors={showToneErrors}
-          touched={touchedQuestions}
-          onAnswerChange={handleCustomToneAnswerChange}
-          onFieldTouch={handleQuestionTouch}
-          onClose={handleCloseCustomToneModal}
-          onGenerate={handleGenerateCustomTone}
-          isGenerating={isGeneratingCustomTone}
-        />
       </div>
     </AppLayout>
   );
