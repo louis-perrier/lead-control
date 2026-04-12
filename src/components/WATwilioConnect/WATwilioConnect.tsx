@@ -46,6 +46,7 @@ const WATwilioConnect: React.FC<WATwilioConnectProps> = ({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handledRef = useRef(false);
+  const backdropPointerDownRef = useRef(false);
 
   // Recalculate position when opening
   useEffect(() => {
@@ -232,11 +233,36 @@ const WATwilioConnect: React.FC<WATwilioConnectProps> = ({
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
+  const handleBackdropPointerDown = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    backdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleBackdropPointerUp = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    const shouldClose =
+      backdropPointerDownRef.current && event.target === event.currentTarget;
+    backdropPointerDownRef.current = false;
+    if (shouldClose) {
+      onClose();
+    }
+  };
+  const resetBackdropPointer = () => {
+    backdropPointerDownRef.current = false;
+  };
+
   if (!isOpen) return null;
 
   return createPortal(
     <>
-      <div className={styles.backdrop} onClick={onClose} />
+      <div
+        className={styles.backdrop}
+        onPointerDown={handleBackdropPointerDown}
+        onPointerUp={handleBackdropPointerUp}
+        onPointerCancel={resetBackdropPointer}
+        onPointerLeave={resetBackdropPointer}
+      />
       <div
         className={styles.panel}
         style={{

@@ -1,4 +1,4 @@
-import { FunctionComponent, MouseEvent } from "react";
+import { FunctionComponent, MouseEvent, PointerEvent, useRef } from "react";
 import styles from "./OverlayRenameAgent.module.css";
 import { AgentInfo } from "../data/agents";
 
@@ -27,6 +27,8 @@ const OverlayRenameAgent: FunctionComponent<OverlayRenameAgentProps> = ({
   errorMessage,
   isSubmitting = false,
 }) => {
+  const backdropPointerDownRef = useRef(false);
+
   if (!isOpen || !agent) {
     return null;
   }
@@ -34,9 +36,29 @@ const OverlayRenameAgent: FunctionComponent<OverlayRenameAgentProps> = ({
   const stopPropagation = (event: MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
   };
+  const handleBackdropPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    backdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleBackdropPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const shouldClose =
+      backdropPointerDownRef.current && event.target === event.currentTarget;
+    backdropPointerDownRef.current = false;
+    if (shouldClose) {
+      onClose();
+    }
+  };
+  const resetBackdropPointer = () => {
+    backdropPointerDownRef.current = false;
+  };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div
+      className={styles.overlay}
+      onPointerDown={handleBackdropPointerDown}
+      onPointerUp={handleBackdropPointerUp}
+      onPointerCancel={resetBackdropPointer}
+      onPointerLeave={resetBackdropPointer}
+    >
       <div className={styles.content} onClick={stopPropagation}>
         <h2 className={styles.title}>Renommer l’agent</h2>
         <p className={styles.description}>

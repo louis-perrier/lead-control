@@ -1,8 +1,10 @@
 import {
   FunctionComponent,
+  PointerEvent,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useLocation } from "react-router-dom";
@@ -72,6 +74,7 @@ const Connexion: FunctionComponent = () => {
   const providerFiltersActive = providerFilters.length > 0;
   const [oauthMessage, setOauthMessage] = useState<string | null>(null);
   const [oauthMessageType, setOauthMessageType] = useState<'success' | 'error' | null>(null);
+  const configurationBackdropPointerDownRef = useRef(false);
 
   const fetchConnections = useCallback(async () => {
     const { data, error } = await supabase
@@ -395,6 +398,26 @@ const handleCancelDisconnect = () => {
     setActiveConfigs(null);
     setSelectedAccount(null);
   }, []);
+  const handleConfigurationBackdropPointerDown = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    configurationBackdropPointerDownRef.current =
+      event.target === event.currentTarget;
+  };
+  const handleConfigurationBackdropPointerUp = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    const shouldClose =
+      configurationBackdropPointerDownRef.current &&
+      event.target === event.currentTarget;
+    configurationBackdropPointerDownRef.current = false;
+    if (shouldClose) {
+      closeConfigurationOverlay();
+    }
+  };
+  const resetConfigurationBackdropPointer = () => {
+    configurationBackdropPointerDownRef.current = false;
+  };
 
   useEffect(() => {
     if (!activeConfigs) {
@@ -585,7 +608,10 @@ const handleCancelDisconnect = () => {
         {activeConfigs && (
           <div
             className={styles.configurationOverlay}
-            onClick={closeConfigurationOverlay}
+            onPointerDown={handleConfigurationBackdropPointerDown}
+            onPointerUp={handleConfigurationBackdropPointerUp}
+            onPointerCancel={resetConfigurationBackdropPointer}
+            onPointerLeave={resetConfigurationBackdropPointer}
           >
             <div
               className={styles.configurationOverlayContent}

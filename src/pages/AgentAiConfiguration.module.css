@@ -2027,6 +2027,14 @@
   font-size: var(--fs-16);
   color: var(--app-text-secondary);
 }
+
+.connexionSection .calendlyDashboardHint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.35;
+  font-weight: 500;
+}
 .connexionCardTitleRow {
   display: flex;
   align-items: center;
@@ -2700,6 +2708,39 @@
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+.templateRowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.templateDeleteButton {
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 10px;
+  border: 1px solid #dbe4ef;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.templateDeleteButton:hover:not(:disabled) {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.templateDeleteButton:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
 .templateEmpty {
   color: var(--app-text-secondary);
   font-size: var(--fs-13);
@@ -2723,9 +2764,9 @@
 .templateModal {
   background: #ffffff;
   border-radius: 24px;
-  width: 560px;
-  max-width: min(560px, calc(100vw - 32px));
-  max-height: min(88vh, 760px);
+  width: 540px;
+  max-width: min(540px, calc(100vw - 32px));
+  max-height: min(90vh, 720px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2735,10 +2776,10 @@
 
 .templateModalHeader {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 22px 24px 18px;
+  gap: 12px;
+  padding: 18px 20px 14px;
   border-bottom: 1px solid #e8edf5;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
@@ -2746,8 +2787,11 @@
 .templateModalHeaderCopy {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
+  margin: 0 auto;
+  text-align: center;
 }
 
 .templateModalEyebrow {
@@ -2761,7 +2805,7 @@
 
 .templateModalHeader h3 {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #0f172a;
@@ -2769,19 +2813,19 @@
 
 .templateModalLead {
   margin: 0;
-  max-width: 420px;
-  font-size: 13px;
-  line-height: 1.55;
+  max-width: 400px;
+  font-size: 12px;
+  line-height: 1.5;
   color: #64748b;
 }
 
 .templateModalClose {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 12px;
   border: 1px solid #dbe4ef;
   background: #ffffff;
-  font-size: 22px;
+  font-size: 20px;
   cursor: pointer;
   color: #64748b;
   line-height: 1;
@@ -2799,15 +2843,18 @@
 .templateModalBody {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 20px 24px 18px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px 12px;
   overflow-y: auto;
 }
 
 .templateModalField {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
+  width: 100%;
+  max-width: 472px;
 }
 
 .templateModalField label {
@@ -2826,8 +2873,8 @@
 
 .templateModalFieldHint {
   margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
   color: #64748b;
 }
 
@@ -2847,12 +2894,12 @@
 }
 
 .templateModalInput {
-  padding: 11px 13px;
-  border-radius: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
   border: 1px solid #dbe4ef;
   background: #ffffff;
   color: #0f172a;
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
   width: 100%;
   box-sizing: border-box;
@@ -2866,19 +2913,19 @@
 }
 
 .templateModalTextarea {
-  padding: 12px 13px;
-  border-radius: 16px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid #dbe4ef;
   background: #ffffff;
   color: #0f172a;
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
-  min-height: 168px;
+  min-height: 132px;
   font-family: inherit;
-  line-height: 1.5;
+  line-height: 1.45;
   transition: border-color 0.18s ease, box-shadow 0.18s ease,
     background-color 0.18s ease;
 }
@@ -2891,17 +2938,17 @@
 .templateVariablesPanel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 10px 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 14px;
   background: linear-gradient(180deg, #fbfdff 0%, #f8fbff 100%);
 }
 
 .templateVariablesHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -2921,16 +2968,17 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .templateVariableChip {
-  min-height: 32px;
-  padding: 0 12px;
+  min-height: 30px;
+  padding: 0 10px;
   border-radius: 999px;
   background: #ffffff;
   border: 1px solid #dbe5f1;
   color: #1d4ed8;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.16s ease;
@@ -2943,21 +2991,22 @@
 
 .templateModalInfoRow {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
 .templateModalHint {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: #8a5b14;
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.22);
   border-radius: 12px;
-  padding: 8px 11px;
-  line-height: 1.5;
+  padding: 7px 10px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .templateModalShortcut {
@@ -2977,9 +3026,9 @@
 .templateModalFooter {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 24px 22px;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 20px 16px;
   border-top: 1px solid #e8edf5;
   background: #ffffff;
   flex-wrap: wrap;
@@ -2987,26 +3036,28 @@
 
 .templateModalFooterNote {
   margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
   color: #64748b;
+  text-align: center;
 }
 
 .templateModalFooterActions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .templateModalSecondaryButton,
 .templateModalPrimaryButton {
   margin: 0;
-  min-height: 42px;
-  padding: 0 16px;
-  border-radius: 12px;
-  font-size: 13px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 11px;
+  font-size: 12px;
   font-weight: 700;
   align-self: auto;
 }
@@ -3922,7 +3973,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   margin-bottom: 0;
 }
 
@@ -4475,8 +4526,56 @@
 }
 
 .agentPanelHeader {
+  position: relative;
   border-bottom: 1px solid var(--app-border);
   background: var(--app-surface);
+}
+
+.agentBackButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  border: 1px solid #d2dbe8;
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.agentBackButton:hover {
+  border-color: #93c5fd;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+}
+
+.agentBackButton:focus-visible {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.agentBackButtonIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 0;
+  background: transparent;
+  color: currentColor;
+  font-size: 11px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .agentPanelHeaderInner {
@@ -4486,11 +4585,21 @@
   justify-content: center;
   gap: 14px;
   width: min(1140px, 100%);
-  padding: 12px 18px 10px;
+  padding: 10px 18px;
   margin: 0 auto;
   box-sizing: border-box;
   text-align: center;
   flex-wrap: wrap;
+}
+
+.agentPanelBackSlot {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .agentPanelIdentity {
@@ -5686,6 +5795,20 @@
     flex-direction: column;
     gap: 10px;
     padding: 12px 12px 10px;
+    text-align: center;
+  }
+
+  .agentPanelBackSlot {
+    position: static;
+    transform: none;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .agentBackButton {
+    min-height: 30px;
+    padding: 6px 10px;
+    font-size: 12px;
   }
 
   .configLayout {
@@ -5845,6 +5968,11 @@
   .followupRowAside {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .templateRowActions {
+    justify-content: space-between;
+    width: 100%;
   }
 
   .templatesPrimaryAction {

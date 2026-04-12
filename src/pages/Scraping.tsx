@@ -1,5 +1,6 @@
 import {
   FunctionComponent,
+  PointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -170,8 +171,29 @@ const Scraping: FunctionComponent = () => {
   const [leadsExpanded, setLeadsExpanded] = useState(false);
   const [isScrapingConfirmationOpen, setIsScrapingConfirmationOpen] =
     useState(false);
+  const selectedRunBackdropPointerDownRef = useRef(false);
   const progressIntervalRef = useRef<number>();
   const finishTimeoutRef = useRef<number>();
+  const handleSelectedRunBackdropPointerDown = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    selectedRunBackdropPointerDownRef.current =
+      event.target === event.currentTarget;
+  };
+  const handleSelectedRunBackdropPointerUp = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    const shouldClose =
+      selectedRunBackdropPointerDownRef.current &&
+      event.target === event.currentTarget;
+    selectedRunBackdropPointerDownRef.current = false;
+    if (shouldClose) {
+      setSelectedRun(null);
+    }
+  };
+  const resetSelectedRunBackdropPointer = () => {
+    selectedRunBackdropPointerDownRef.current = false;
+  };
 
   const hasPendingRun = runs.some((run) => run.status === "pending");
   const isRunning = hasPendingRun || isOptimisticPending;
@@ -793,7 +815,13 @@ const Scraping: FunctionComponent = () => {
           </div>
         </section>
         {selectedRun && (
-          <div className={styles.modalOverlay} onClick={() => setSelectedRun(null)}>
+          <div
+            className={styles.modalOverlay}
+            onPointerDown={handleSelectedRunBackdropPointerDown}
+            onPointerUp={handleSelectedRunBackdropPointerUp}
+            onPointerCancel={resetSelectedRunBackdropPointer}
+            onPointerLeave={resetSelectedRunBackdropPointer}
+          >
             <div
               className={styles.modalContent}
               onClick={(event) => event.stopPropagation()}

@@ -8,7 +8,7 @@ import React, {
   ChangeEvent,
   DragEvent,
 } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { AppLayout } from "../layouts";
 import Header from "../components/Header";
@@ -560,6 +560,7 @@ const getAgentTabId = (agent: AgentInfo) =>
   agent.display_id ?? agent.agent_id ?? agent.id;
 
 const AgentAi: FunctionComponent = () => {
+  const navigate = useNavigate();
   const location = useLocation();
   const navigationState = location.state as AgentAiConfigurationState | undefined;
   const { displayedAgents, refreshDisplayedAgents } = useAgents();
@@ -576,6 +577,10 @@ const AgentAi: FunctionComponent = () => {
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(
     initialSelectedAgentId
   );
+
+  const handleBackToAgentHome = useCallback(() => {
+    navigate("/app/agentai", { state: { tabs } });
+  }, [navigate, tabs]);
 
   const selectedAgent = useMemo(() => {
     if (selectedAgentId) {
@@ -761,7 +766,9 @@ const AgentAi: FunctionComponent = () => {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateBody, setNewTemplateBody] = useState("");
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const templateBodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const templateBackdropPointerDownRef = useRef(false);
 
   useEffect(() => {
     if (activeTab !== "avance") {
@@ -2107,6 +2114,36 @@ const AgentAi: FunctionComponent = () => {
       .update({ status: "cancelled" })
       .eq("id", followupId);
     fetchFollowups();
+  };
+  const canDeleteTemplate = (status: string) =>
+    status === "approved" || status === "pending";
+  const handleDeleteTemplate = async (template: WaTemplate) => {
+    if (!canDeleteTemplate(template.status) || deletingTemplateId) {
+      return;
+    }
+    const shouldDelete = window.confirm(
+      `Supprimer le template "${template.name}" ?`,
+    );
+    if (!shouldDelete) {
+      return;
+    }
+    setDeletingTemplateId(template.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setDeletingTemplateId(null);
+      return;
+    }
+    const { error } = await supabase
+      .from("whatsapp_templates")
+      .delete()
+      .eq("id", template.id)
+      .eq("user_id", user.id);
+    setDeletingTemplateId(null);
+    if (error) {
+      console.error("Erreur suppression template", error);
+      return;
+    }
+    setWaTemplates((prev) => prev.filter((item) => item.id !== template.id));
   };
 
   const insertVariable = (variable: string) => {
@@ -3522,6 +3559,26 @@ const AgentAi: FunctionComponent = () => {
     </div>
   );
 
+  const handleTemplateBackdropPointerDown = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    templateBackdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleTemplateBackdropPointerUp = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    const shouldClose =
+      templateBackdropPointerDownRef.current &&
+      event.target === event.currentTarget;
+    templateBackdropPointerDownRef.current = false;
+    if (shouldClose) {
+      setIsTemplateModalOpen(false);
+    }
+  };
+  const resetTemplateBackdropPointer = () => {
+    templateBackdropPointerDownRef.current = false;
+  };
+
   return (
     <AppLayout>
       <div className={styles.rightcomponent}>
@@ -3530,6 +3587,18 @@ const AgentAi: FunctionComponent = () => {
           <div className={styles.configLayout}>
             <div className={styles.agentPanelHeader}>
               <div className={styles.agentPanelHeaderInner}>
+                <div className={styles.agentPanelBackSlot}>
+                  <button
+                    type="button"
+                    className={styles.agentBackButton}
+                    onClick={handleBackToAgentHome}
+                  >
+                    <span className={styles.agentBackButtonIcon} aria-hidden="true">
+                      {"<"}
+                    </span>
+                    Retour a l'accueil des assistants IA
+                  </button>
+                </div>
                 <div className={styles.agentPanelIdentity}>
                   {isRenamingAgent ? (
                     <>
@@ -3597,6 +3666,7 @@ const AgentAi: FunctionComponent = () => {
                   <SwitchAnimated
                     checked={displayedHeaderSwitchChecked}
                     onChange={handleHeaderSwitchChange}
+                    label="Activation de l'agent"
                     showLabel={false}
                     disabled={isHeaderSwitchDisabled}
                     className={styles.agentActivationSwitch}
@@ -3696,6 +3766,9 @@ const AgentAi: FunctionComponent = () => {
                 <div className={styles.configTabPanel}>
                   <div className={styles.connexionSections}>
                     <div className={styles.connexionSection}>
+                      <p className={styles.calendlyDashboardHint}>
+                        Les calls bookes apparaissent dans le dashboard quand Calendly est connecte.
+                      </p>
                       <h4>Connecté ({countConnectedConnector})</h4>
                       <div className={styles.connexionSectionCards}>
                         {connectorConnected.map((connector) =>
@@ -3958,6 +4031,7 @@ const AgentAi: FunctionComponent = () => {
                               <SwitchAnimated
                                 checked={voiceAutoEnabled}
                                 onChange={(val) => setVoiceAutoEnabled(val)}
+                                label="Envoi automatique"
                                 showLabel={false}
                               />
                             </div>
@@ -4017,6 +4091,7 @@ const AgentAi: FunctionComponent = () => {
                             <SwitchAnimated
                               checked={commReplyEnabled}
                               onChange={setCommReplyEnabled}
+                              label="Répondre aux commentaires"
                               showLabel={false}
                             />
                           </div>
@@ -4066,6 +4141,7 @@ const AgentAi: FunctionComponent = () => {
                             <SwitchAnimated
                               checked={commDmEnabled}
                               onChange={setCommDmEnabled}
+                              label="Envoyer un DM après commentaire"
                               showLabel={false}
                             />
                           </div>
@@ -4348,13 +4424,25 @@ const AgentAi: FunctionComponent = () => {
                                 <p className={styles.templateRowName}>{tpl.name}</p>
                                 <p className={styles.templateRowPreview}>{tpl.body.slice(0, 80)}{tpl.body.length > 80 ? "…" : ""}</p>
                               </div>
-                              <span className={`${styles.templateStatusBadge} ${
-                                tpl.status === "approved" ? styles.templateStatusApproved
-                                : tpl.status === "rejected" ? styles.templateStatusRejected
-                                : styles.templateStatusPending
-                              }`}>
-                                {tpl.status === "approved" ? "Approuvé" : tpl.status === "rejected" ? "Rejeté" : "En validation"}
-                              </span>
+                              <div className={styles.templateRowActions}>
+                                <span className={`${styles.templateStatusBadge} ${
+                                  tpl.status === "approved" ? styles.templateStatusApproved
+                                  : tpl.status === "rejected" ? styles.templateStatusRejected
+                                  : styles.templateStatusPending
+                                }`}>
+                                  {tpl.status === "approved" ? "Approuvé" : tpl.status === "rejected" ? "Rejeté" : "En validation"}
+                                </span>
+                                {canDeleteTemplate(tpl.status) && (
+                                  <button
+                                    type="button"
+                                    className={styles.templateDeleteButton}
+                                    onClick={() => { void handleDeleteTemplate(tpl); }}
+                                    disabled={deletingTemplateId === tpl.id}
+                                  >
+                                    {deletingTemplateId === tpl.id ? "Suppression..." : "Supprimer"}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -4476,7 +4564,10 @@ const AgentAi: FunctionComponent = () => {
         {isTemplateModalOpen && (
           <div
             className={styles.templateModalBackdrop}
-            onClick={() => setIsTemplateModalOpen(false)}
+            onPointerDown={handleTemplateBackdropPointerDown}
+            onPointerUp={handleTemplateBackdropPointerUp}
+            onPointerCancel={resetTemplateBackdropPointer}
+            onPointerLeave={resetTemplateBackdropPointer}
           >
             <div
               className={styles.templateModal}
@@ -4580,9 +4671,6 @@ const AgentAi: FunctionComponent = () => {
                       Ce template sera soumis à validation Meta avant
                       utilisation.
                     </p>
-                    <span className={styles.templateModalShortcut}>
-                      Ctrl + Entrée pour enregistrer
-                    </span>
                   </div>
                 </div>
               </div>

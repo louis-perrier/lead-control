@@ -1,4 +1,4 @@
-import { FunctionComponent } from "react";
+import { FunctionComponent, PointerEvent, useRef } from "react";
 import { createPortal } from "react-dom";
 import styles from "./ConfirmationDialog.module.css";
 import Button from "./Button";
@@ -22,6 +22,8 @@ const ConfirmationDialog: FunctionComponent<ConfirmationDialogProps> = ({
   confirmLabel = "Continuer",
   cancelLabel = "Annuler",
 }) => {
+  const backdropPointerDownRef = useRef(false);
+
   if (!open) {
     return null;
   }
@@ -30,9 +32,31 @@ const ConfirmationDialog: FunctionComponent<ConfirmationDialogProps> = ({
     return null;
   }
 
+  const handleBackdropPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    backdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleBackdropPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const shouldClose =
+      backdropPointerDownRef.current && event.target === event.currentTarget;
+    backdropPointerDownRef.current = false;
+    if (shouldClose) {
+      onClose();
+    }
+  };
+  const resetBackdropPointer = () => {
+    backdropPointerDownRef.current = false;
+  };
+
   return (
     createPortal(
-      <div className={styles.backdrop} role="presentation" onClick={onClose}>
+      <div
+        className={styles.backdrop}
+        role="presentation"
+        onPointerDown={handleBackdropPointerDown}
+        onPointerUp={handleBackdropPointerUp}
+        onPointerCancel={resetBackdropPointer}
+        onPointerLeave={resetBackdropPointer}
+      >
         <div
           className={styles.dialog}
           onClick={(event) => event.stopPropagation()}

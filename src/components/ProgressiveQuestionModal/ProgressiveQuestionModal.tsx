@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import styles from "./ProgressiveQuestionModal.module.css";
 import Button from "../Button";
@@ -39,6 +39,7 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
   if (!open) return null;
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const backdropPointerDownRef = useRef(false);
 
   // Empêcher le scroll du body quand le modal est ouvert
   useEffect(() => {
@@ -89,8 +90,33 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
     onFieldTouch(questions[index].key);
   };
 
+  const handleBackdropPointerDown = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    backdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleBackdropPointerUp = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    const shouldClose =
+      backdropPointerDownRef.current && event.target === event.currentTarget;
+    backdropPointerDownRef.current = false;
+    if (shouldClose) {
+      onClose();
+    }
+  };
+  const resetBackdropPointer = () => {
+    backdropPointerDownRef.current = false;
+  };
+
   return createPortal(
-    <div className={styles.overlay} onClick={onClose}>
+    <div
+      className={styles.overlay}
+      onPointerDown={handleBackdropPointerDown}
+      onPointerUp={handleBackdropPointerUp}
+      onPointerCancel={resetBackdropPointer}
+      onPointerLeave={resetBackdropPointer}
+    >
       <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
         <header className={styles.header}>
           <div className={styles.headerContent}>

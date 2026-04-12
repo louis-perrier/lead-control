@@ -6,6 +6,7 @@
   useState,
   DragEvent,
   KeyboardEvent,
+  PointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -298,10 +299,30 @@ const AddManualModal: FunctionComponent<{
   });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const manualBackdropPointerDownRef = useRef(false);
 
   const set = (field: keyof ManualForm) => (
     val: string | string[]
   ) => setForm((prev) => ({ ...prev, [field]: val }));
+  const handleManualBackdropPointerDown = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    manualBackdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleManualBackdropPointerUp = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    const shouldClose =
+      manualBackdropPointerDownRef.current &&
+      event.target === event.currentTarget;
+    manualBackdropPointerDownRef.current = false;
+    if (shouldClose) {
+      onClose();
+    }
+  };
+  const resetManualBackdropPointer = () => {
+    manualBackdropPointerDownRef.current = false;
+  };
 
   const handleSubmit = async () => {
     if (!form.full_name.trim()) {
@@ -344,7 +365,13 @@ const AddManualModal: FunctionComponent<{
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className={styles.backdrop} onClick={onClose}>
+    <div
+      className={styles.backdrop}
+      onPointerDown={handleManualBackdropPointerDown}
+      onPointerUp={handleManualBackdropPointerUp}
+      onPointerCancel={resetManualBackdropPointer}
+      onPointerLeave={resetManualBackdropPointer}
+    >
       <div className={`${styles.modal} ${styles.manualModal}`} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <div className={styles.manualModalTitleBlock}>
@@ -460,6 +487,26 @@ const CsvImportModal: FunctionComponent<{
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvBackdropPointerDownRef = useRef(false);
+  const handleCsvBackdropPointerDown = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    csvBackdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleCsvBackdropPointerUp = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    const shouldClose =
+      csvBackdropPointerDownRef.current &&
+      event.target === event.currentTarget;
+    csvBackdropPointerDownRef.current = false;
+    if (shouldClose) {
+      onClose();
+    }
+  };
+  const resetCsvBackdropPointer = () => {
+    csvBackdropPointerDownRef.current = false;
+  };
 
   const handleFile = (file: File) => {
     if (!file.name.endsWith(".csv")) {
@@ -599,7 +646,13 @@ const CsvImportModal: FunctionComponent<{
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className={styles.backdrop} onClick={onClose}>
+    <div
+      className={styles.backdrop}
+      onPointerDown={handleCsvBackdropPointerDown}
+      onPointerUp={handleCsvBackdropPointerUp}
+      onPointerCancel={resetCsvBackdropPointer}
+      onPointerLeave={resetCsvBackdropPointer}
+    >
         <div
           className={`${styles.modal} ${styles.csvModal}`}
           onClick={(e) => e.stopPropagation()}
@@ -762,6 +815,26 @@ const ContactDrawer: FunctionComponent<{
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const drawerBackdropPointerDownRef = useRef(false);
+  const handleDrawerBackdropPointerDown = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    drawerBackdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleDrawerBackdropPointerUp = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    const shouldClose =
+      drawerBackdropPointerDownRef.current &&
+      event.target === event.currentTarget;
+    drawerBackdropPointerDownRef.current = false;
+    if (shouldClose) {
+      onClose();
+    }
+  };
+  const resetDrawerBackdropPointer = () => {
+    drawerBackdropPointerDownRef.current = false;
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -792,7 +865,13 @@ const ContactDrawer: FunctionComponent<{
 
   return createPortal(
     <>
-      <div className={styles.drawerBackdrop} onClick={onClose} />
+      <div
+        className={styles.drawerBackdrop}
+        onPointerDown={handleDrawerBackdropPointerDown}
+        onPointerUp={handleDrawerBackdropPointerUp}
+        onPointerCancel={resetDrawerBackdropPointer}
+        onPointerLeave={resetDrawerBackdropPointer}
+      />
       <aside className={styles.drawer}>
         <div className={styles.drawerHeader}>
           <h2 className={styles.drawerTitle}>

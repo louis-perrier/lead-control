@@ -1,5 +1,6 @@
 ﻿import {
   FunctionComponent,
+  PointerEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -933,6 +934,27 @@ const ImageMessageBubble: FunctionComponent<{
 }> = ({ messageId, mediaPath, isMine }) => {
   const { data: signedUrl, isLoading, isError } = useSignedImageUrl(mediaPath, messageId, true);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const lightboxBackdropPointerDownRef = useRef(false);
+  const handleLightboxBackdropPointerDown = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    lightboxBackdropPointerDownRef.current =
+      event.target === event.currentTarget;
+  };
+  const handleLightboxBackdropPointerUp = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    const shouldClose =
+      lightboxBackdropPointerDownRef.current &&
+      event.target === event.currentTarget;
+    lightboxBackdropPointerDownRef.current = false;
+    if (shouldClose) {
+      setLightboxOpen(false);
+    }
+  };
+  const resetLightboxBackdropPointer = () => {
+    lightboxBackdropPointerDownRef.current = false;
+  };
 
   return (
     <div style={{ display: "flex", justifyContent: isMine ? "flex-end" : "flex-start", marginBottom: 4 }}>
@@ -973,7 +995,10 @@ const ImageMessageBubble: FunctionComponent<{
           />
           {lightboxOpen && (
             <div
-              onClick={() => setLightboxOpen(false)}
+              onPointerDown={handleLightboxBackdropPointerDown}
+              onPointerUp={handleLightboxBackdropPointerUp}
+              onPointerCancel={resetLightboxBackdropPointer}
+              onPointerLeave={resetLightboxBackdropPointer}
               style={{
                 position: "fixed",
                 inset: 0,
@@ -1106,6 +1131,30 @@ const Conversations: FunctionComponent = () => {
   const [voiceModalError, setVoiceModalError] = useState<string | null>(null);
   const voiceModalAudioRef = useRef<HTMLAudioElement | null>(null);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const detailsOverlayBackdropPointerDownRef = useRef(false);
+  const contactDrawerBackdropPointerDownRef = useRef(false);
+  const errorDetailBackdropPointerDownRef = useRef(false);
+  const voiceModalBackdropPointerDownRef = useRef(false);
+  const closingModalBackdropPointerDownRef = useRef(false);
+  const followupModalBackdropPointerDownRef = useRef(false);
+
+  const setBackdropPointerDownState = (
+    ref: { current: boolean },
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    ref.current = event.target === event.currentTarget;
+  };
+  const shouldCloseBackdropOnPointerUp = (
+    ref: { current: boolean },
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    const shouldClose = ref.current && event.target === event.currentTarget;
+    ref.current = false;
+    return shouldClose;
+  };
+  const resetBackdropPointerState = (ref: { current: boolean }) => {
+    ref.current = false;
+  };
 
 
   // ── Hooks
@@ -1502,6 +1551,10 @@ const Conversations: FunctionComponent = () => {
     setVoiceModalHasVoice(hasVoice);
     setVoiceModalOpen(true);
   }, [activeConversation, isAllMode, lazyMessages]);
+  const closeVoiceModal = useCallback(() => {
+    setVoiceModalOpen(false);
+    voiceModalAudioRef.current?.pause();
+  }, []);
 
   const handleVoicePreview = useCallback(async () => {
     if (!voiceModalText.trim() || !activeConversation) return;
@@ -1553,13 +1606,13 @@ const Conversations: FunctionComponent = () => {
         setVoiceModalSending(false);
         return;
       }
-      setVoiceModalOpen(false);
+      closeVoiceModal();
       setVoiceModalText("");
     } catch {
       setVoiceModalError("Erreur réseau lors de l'envoi.");
     }
     setVoiceModalSending(false);
-  }, [activeConversation, voiceModalText]);
+  }, [activeConversation, closeVoiceModal, voiceModalText]);
 
   const isWindowExpired = useMemo(() => {
     if (!activeConversation) return false;
@@ -2304,7 +2357,32 @@ const Conversations: FunctionComponent = () => {
                       <div
                         className={styles.detailsOverlayBackdrop}
                         role="presentation"
-                        onClick={closeDetailsOverlay}
+                        onPointerDown={(event) =>
+                          setBackdropPointerDownState(
+                            detailsOverlayBackdropPointerDownRef,
+                            event,
+                          )
+                        }
+                        onPointerUp={(event) => {
+                          if (
+                            shouldCloseBackdropOnPointerUp(
+                              detailsOverlayBackdropPointerDownRef,
+                              event,
+                            )
+                          ) {
+                            closeDetailsOverlay();
+                          }
+                        }}
+                        onPointerCancel={() =>
+                          resetBackdropPointerState(
+                            detailsOverlayBackdropPointerDownRef,
+                          )
+                        }
+                        onPointerLeave={() =>
+                          resetBackdropPointerState(
+                            detailsOverlayBackdropPointerDownRef,
+                          )
+                        }
                       >
                         <div
                           className={styles.detailsOverlay}
@@ -2354,7 +2432,32 @@ const Conversations: FunctionComponent = () => {
                       <>
                         <div
                           className={styles.contactDrawerBackdrop}
-                          onClick={closeContactDrawer}
+                          onPointerDown={(event) =>
+                            setBackdropPointerDownState(
+                              contactDrawerBackdropPointerDownRef,
+                              event,
+                            )
+                          }
+                          onPointerUp={(event) => {
+                            if (
+                              shouldCloseBackdropOnPointerUp(
+                                contactDrawerBackdropPointerDownRef,
+                                event,
+                              )
+                            ) {
+                              closeContactDrawer();
+                            }
+                          }}
+                          onPointerCancel={() =>
+                            resetBackdropPointerState(
+                              contactDrawerBackdropPointerDownRef,
+                            )
+                          }
+                          onPointerLeave={() =>
+                            resetBackdropPointerState(
+                              contactDrawerBackdropPointerDownRef,
+                            )
+                          }
                         />
                         <div className={styles.contactDrawer}>
                           <div className={styles.contactDrawerHead}>
@@ -2709,7 +2812,28 @@ const Conversations: FunctionComponent = () => {
             {isErrorDetailOpen && activeConversation?.lastErrorMessage && (
               <div
                 className={styles.errorModalBackdrop}
-                onClick={closeErrorDetail}
+                onPointerDown={(event) =>
+                  setBackdropPointerDownState(
+                    errorDetailBackdropPointerDownRef,
+                    event,
+                  )
+                }
+                onPointerUp={(event) => {
+                  if (
+                    shouldCloseBackdropOnPointerUp(
+                      errorDetailBackdropPointerDownRef,
+                      event,
+                    )
+                  ) {
+                    closeErrorDetail();
+                  }
+                }}
+                onPointerCancel={() =>
+                  resetBackdropPointerState(errorDetailBackdropPointerDownRef)
+                }
+                onPointerLeave={() =>
+                  resetBackdropPointerState(errorDetailBackdropPointerDownRef)
+                }
               >
                 <div
                   className={styles.errorModal}
@@ -2762,7 +2886,25 @@ const Conversations: FunctionComponent = () => {
             zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
             animation: "fadeIn 0.15s ease",
           }}
-          onClick={() => { setVoiceModalOpen(false); voiceModalAudioRef.current?.pause(); }}
+          onPointerDown={(event) =>
+            setBackdropPointerDownState(voiceModalBackdropPointerDownRef, event)
+          }
+          onPointerUp={(event) => {
+            if (
+              shouldCloseBackdropOnPointerUp(
+                voiceModalBackdropPointerDownRef,
+                event,
+              )
+            ) {
+              closeVoiceModal();
+            }
+          }}
+          onPointerCancel={() =>
+            resetBackdropPointerState(voiceModalBackdropPointerDownRef)
+          }
+          onPointerLeave={() =>
+            resetBackdropPointerState(voiceModalBackdropPointerDownRef)
+          }
         >
           <div
             style={{
@@ -2786,7 +2928,7 @@ const Conversations: FunctionComponent = () => {
               <button
                 type="button"
                 style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "var(--app-text-secondary)", lineHeight: 1, padding: "0 2px" }}
-                onClick={() => { setVoiceModalOpen(false); voiceModalAudioRef.current?.pause(); }}
+                onClick={closeVoiceModal}
               >×</button>
             </div>
 
@@ -2866,7 +3008,28 @@ const Conversations: FunctionComponent = () => {
             zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
             animation: "fadeIn 0.15s ease",
           }}
-          onClick={() => setClosingModalOpen(false)}
+          onPointerDown={(event) =>
+            setBackdropPointerDownState(
+              closingModalBackdropPointerDownRef,
+              event,
+            )
+          }
+          onPointerUp={(event) => {
+            if (
+              shouldCloseBackdropOnPointerUp(
+                closingModalBackdropPointerDownRef,
+                event,
+              )
+            ) {
+              setClosingModalOpen(false);
+            }
+          }}
+          onPointerCancel={() =>
+            resetBackdropPointerState(closingModalBackdropPointerDownRef)
+          }
+          onPointerLeave={() =>
+            resetBackdropPointerState(closingModalBackdropPointerDownRef)
+          }
         >
           <div
             style={{
@@ -2985,7 +3148,28 @@ const Conversations: FunctionComponent = () => {
       {isFollowupModalOpen && (
         <div
           className={styles.followupModalBackdrop}
-          onClick={() => setFollowupModalOpen(false)}
+          onPointerDown={(event) =>
+            setBackdropPointerDownState(
+              followupModalBackdropPointerDownRef,
+              event,
+            )
+          }
+          onPointerUp={(event) => {
+            if (
+              shouldCloseBackdropOnPointerUp(
+                followupModalBackdropPointerDownRef,
+                event,
+              )
+            ) {
+              setFollowupModalOpen(false);
+            }
+          }}
+          onPointerCancel={() =>
+            resetBackdropPointerState(followupModalBackdropPointerDownRef)
+          }
+          onPointerLeave={() =>
+            resetBackdropPointerState(followupModalBackdropPointerDownRef)
+          }
         >
           <div
             className={styles.followupModal}

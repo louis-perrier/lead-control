@@ -25,6 +25,41 @@
   color: var(--color-black);
   font-family: var(--Static-Label-Large-Font);
 }
+
+.pageIntro {
+  width: min(1080px, calc(100% - 48px));
+  margin: 18px auto 14px;
+  padding: 18px 22px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 16px;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.98),
+    rgba(248, 251, 255, 0.94)
+  );
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  text-align: center;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: clamp(1.6rem, 2.8vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  color: #0f172a;
+}
+
+.pageSubtitle {
+  margin: 10px auto 0;
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #5b667a;
+}
+
 .tabcomponent {
   align-self: stretch;
   overflow-x: auto;
@@ -121,6 +156,16 @@
   box-sizing: border-box;
 }
 @media screen and (max-width: 975px) {
+  .pageIntro {
+    width: calc(100% - 32px);
+    margin: 14px auto 12px;
+    padding: 14px 16px;
+  }
+
+  .pageTitle {
+    font-size: clamp(1.35rem, 6vw, 1.85rem);
+  }
+
   .tabcomponent {
     margin-top: 14px;
     margin-left: 16px;
@@ -131,6 +176,17 @@
   .rightcomponent {
     height: var(--height-auto);
   }
+
+  .pageIntro {
+    width: calc(100% - 24px);
+    margin: 12px auto 10px;
+    padding: 12px 14px;
+  }
+
+  .pageSubtitle {
+    font-size: 13px;
+  }
+
   .tabcomponent {
     margin-left: 12px;
     margin-right: 12px;

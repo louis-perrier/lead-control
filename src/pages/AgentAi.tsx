@@ -8,7 +8,6 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "../layouts";
 import Header from "../components/Header";
-import TabComponent from "../components/TabComponent";
 import OptionSearch, { AgentFiltersPopover } from "../components/OptionSearch";
 import AgentCards from "../components/AgentCards";
 import styles from "./AgentAi.module.css";
@@ -47,7 +46,6 @@ const AgentAi: FunctionComponent = () => {
   const [openTabs, setOpenTabs] = useState<AgentInfo[]>(
     locationState?.tabs ?? []
   );
-  const [activeTab, setActiveTab] = useState<string>("agents");
   const [oauthMessage, setOauthMessage] = useState<string | null>(null);
   const [oauthMessageType, setOauthMessageType] = useState<'success' | 'error' | null>(null);
 
@@ -263,7 +261,6 @@ const AgentAi: FunctionComponent = () => {
           (tab) => getAgentTabId(tab) === agentTabId
         );
         const nextTabs = alreadyOpen ? prev : [...prev, agent];
-        setActiveTab(agentTabId);
         navigate("/app/agentai/configuration", {
           state: { agent, tabs: nextTabs },
         });
@@ -272,25 +269,6 @@ const AgentAi: FunctionComponent = () => {
     },
     [navigate]
   );
-
-  const closeAgentTab = useCallback(
-    (tabId: string) => {
-      setOpenTabs((prev) =>
-        prev.filter((tab) => getAgentTabId(tab) !== tabId)
-      );
-      setActiveTab("agents");
-      navigate("/app/agentai");
-    },
-    [navigate]
-  );
-
-  const goToAgentsTab = useCallback(() => {
-    setActiveTab("agents");
-    navigate("/app/agentai");
-  }, [navigate]);
-
-  const getTabIconSrc = (isActive: boolean) =>
-    isActive ? "/tabComponentSelect.svg" : "/tabComponentNotSelect.svg";
 
   return (
     <AppLayout>
@@ -314,28 +292,11 @@ const AgentAi: FunctionComponent = () => {
             </button>
           </div>
         )}
-        
-        <div className={styles.tabcomponent}>
-          <TabComponent
-            label="Mes agents"
-            active={activeTab === "agents"}
-            iconSrc={getTabIconSrc(activeTab === "agents")}
-            onClick={goToAgentsTab}
-          />
-          {openTabs.map((agent) => {
-            const tabId = getAgentTabId(agent);
-            return (
-              <TabComponent
-                key={tabId}
-                label={agent.name.toUpperCase()}
-                active={activeTab === tabId}
-                iconSrc={getTabIconSrc(activeTab === tabId)}
-                closable
-                onClick={() => openAgentTab(agent)}
-                onClose={() => closeAgentTab(tabId)}
-              />
-            );
-          })}
+        <div className={styles.pageIntro}>
+          <h1 className={styles.pageTitle}>Studio des assistants IA</h1>
+          <p className={styles.pageSubtitle}>
+            Cree, connecte et pilote tes agents depuis un seul espace.
+          </p>
         </div>
         <div className={styles.optionSearchWrapper}>
           <OptionSearch

@@ -486,6 +486,7 @@ const normalizeChannel = (platform?: string): ChannelOption => {
 
 const mapMessageRecord = (convId: string, message: any): Message => {
   const isAudioMessage = message.message_type === "audio";
+  const normalizedDirection = String(message.direction ?? "").toLowerCase();
   let mediaPath: string | null = null;
   let transcriptStatus: string | undefined = undefined;
   let transcriptContent: string | null = null;
@@ -545,7 +546,10 @@ const mapMessageRecord = (convId: string, message: any): Message => {
   }
   return {
     id: `${convId}-${message.id}`,
-    direction: message.direction === "out" ? "outbound" : "inbound",
+    direction:
+      normalizedDirection === "out" || normalizedDirection === "outbound"
+        ? "outbound"
+        : "inbound",
     text: message.body_text ?? "",
     sentAt: message.sent_at ?? message.created_at ?? new Date().toISOString(),
     attachment,
@@ -609,6 +613,17 @@ const mapConversationRecord = (record: any): Conversation => {
     createdAt: record.created_at ?? new Date().toISOString(),
     agentConfigId: record.agent_config_id ?? undefined,
   };
+};
+
+const conversationHasProspectReply = (conversation: Conversation): boolean => {
+  const hasCustomerInbound = conversation.messages.some(
+    (message) =>
+      message.direction === "inbound" && message.authorType === "customer",
+  );
+  if (conversation.messages.length > 0) {
+    return hasCustomerInbound;
+  }
+  return conversation.inboundCount > 0;
 };
 
 
@@ -813,15 +828,11 @@ const Dashboard: FunctionComponent = () => {
   );
 
   const stats = useMemo(() => {
-    const hasProspectReply = (conversation: Conversation) =>
-      conversation.inboundCount > 0 ||
-      conversation.messages.some((message) => message.direction === "inbound");
-
     if (isAllMode) {
       const active = channelScopedConversations.filter(
         (conv) =>
           conv.status === "Ouvert" &&
-          hasProspectReply(conv) &&
+          conversationHasProspectReply(conv) &&
           isInPeriodWindow(conv.lastAt, periodWindow),
       ).length;
       const responses = channelScopedConversations.reduce(
@@ -874,7 +885,7 @@ const Dashboard: FunctionComponent = () => {
     const activeConversations = channelScopedConversations.filter(
       (conversation) =>
         conversation.status === "Ouvert" &&
-        hasProspectReply(conversation) &&
+        conversationHasProspectReply(conversation) &&
         isInPeriodWindow(conversation.lastAt, periodWindow),
     ).length;
     const averageResponseSeconds =
@@ -956,6 +967,7 @@ const Dashboard: FunctionComponent = () => {
   const topConversations = useMemo(
     () =>
       channelScopedConversations
+        .filter((conversation) => conversationHasProspectReply(conversation))
         .map((conversation) => ({
           conversation,
           periodMessageCount: isAllMode
@@ -1006,7 +1018,7 @@ const Dashboard: FunctionComponent = () => {
   }, [paginatedTopConversations]);
 
   return (
-    <AppLayout>
+    <AppLayout mainClassName={styles.dashboardMainFixed}>
       <div className={styles.claraDashboardArea}>
         <div className={styles.claraDashboard}>
           <div className={styles.claraDashboardContent}>

@@ -1,4 +1,4 @@
-import { FunctionComponent, MouseEvent } from "react";
+import { FunctionComponent, MouseEvent, PointerEvent, useRef } from "react";
 import styles from "./OverlayAddAgent.module.css";
 import { AgentInfo } from "../data/agents";
 
@@ -38,12 +38,28 @@ const Overlay: FunctionComponent<OverlayProps> = ({
   limitReached = false,
   limitMessage,
 }) => {
+  const backdropPointerDownRef = useRef(false);
+
   if (!isOpen || !agent) {
     return null;
   }
 
   const stopPropagation = (event: MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
+  };
+  const handleBackdropPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    backdropPointerDownRef.current = event.target === event.currentTarget;
+  };
+  const handleBackdropPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const shouldClose =
+      backdropPointerDownRef.current && event.target === event.currentTarget;
+    backdropPointerDownRef.current = false;
+    if (shouldClose) {
+      onClose();
+    }
+  };
+  const resetBackdropPointer = () => {
+    backdropPointerDownRef.current = false;
   };
   const isAvailable = availableAgentIds.has(agent.agent_id);
   const canSelect = isAvailable && !limitReached;
@@ -59,7 +75,13 @@ const Overlay: FunctionComponent<OverlayProps> = ({
   const previewOpacity = isBlocked ? 0.78 : 1;
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div
+      className={styles.overlay}
+      onPointerDown={handleBackdropPointerDown}
+      onPointerUp={handleBackdropPointerUp}
+      onPointerCancel={resetBackdropPointer}
+      onPointerLeave={resetBackdropPointer}
+    >
       <div className={styles.overlayContent} onClick={stopPropagation}>
         <h2 className={styles.title}>Sélectionnez un agent</h2>
         <div className={styles.body}>
