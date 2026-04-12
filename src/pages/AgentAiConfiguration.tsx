@@ -3527,20 +3527,6 @@ const AgentAi: FunctionComponent = () => {
       <div className={styles.rightcomponent}>
         <Header minimal showLogo={false} />
         {selectedAgent && (
-          <div className={styles.agentTitleWrapper}>
-            <div className={styles.agentTitleText}>
-              <div className={styles.agentNameBlock}>
-                <h1 className={styles.agentPageTitle}>
-                  Configure ton agent et fais-le briller
-                </h1>
-                <p className={styles.agentPageLead}>
-                  On peaufine le fond, la forme et le bon ton.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-        {selectedAgent && (
           <div className={styles.configLayout}>
             <div className={styles.agentPanelHeader}>
               <div className={styles.agentPanelHeaderInner}>
@@ -3615,18 +3601,6 @@ const AgentAi: FunctionComponent = () => {
                     disabled={isHeaderSwitchDisabled}
                     className={styles.agentActivationSwitch}
                   />
-                  <span
-                    className={[
-                      styles.toggleStateBadge,
-                      displayedHeaderSwitchChecked
-                        ? styles.toggleStateBadgeOn
-                        : styles.toggleStateBadgeOff,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    {displayedHeaderSwitchChecked ? "Activé" : "Désactivé"}
-                  </span>
                 </div>
               </div>
             </div>
@@ -3721,14 +3695,6 @@ const AgentAi: FunctionComponent = () => {
               {activeTab === "canaux" && (
                 <div className={styles.configTabPanel}>
                   <div className={styles.connexionSections}>
-                    <div className={styles.channelInfoNotice}>
-                      <span className={styles.channelInfoBadge}>Calendly</span>
-                      <p className={styles.channelInfoText}>
-                        {isCalendlyConnected
-                          ? "Calendly est connecté. Les appels bookés pourront remonter dans ton dashboard."
-                          : "Pour suivre les appels bookés dans ton dashboard, connecte ton compte Calendly."}
-                      </p>
-                    </div>
                     <div className={styles.connexionSection}>
                       <h4>Connecté ({countConnectedConnector})</h4>
                       <div className={styles.connexionSectionCards}>
@@ -3812,12 +3778,7 @@ const AgentAi: FunctionComponent = () => {
                         <div className={`${styles.formField} ${styles.formFieldFull}`}>
                           <div className={styles.voiceSectionCard}>
                             <div className={styles.voiceLibraryHeader}>
-                              <div className={styles.voiceLibraryTitleBlock}>
-                                <label className={styles.compactLabel}>Bibliothèque de voix</label>
-                                <p className={styles.voiceSectionHint}>
-                                  Prévisualisez plusieurs voix, puis sélectionnez celle qui servira aux messages audio de l&apos;agent.
-                                </p>
-                              </div>
+                              <label className={styles.compactLabel}>Bibliothèque de voix</label>
                               {!voiceListLoading && voiceList.length > 0 && !voiceId && (
                                 <span className={styles.voiceLibraryCount}>{voiceList.length} voix</span>
                               )}
@@ -3885,12 +3846,7 @@ const AgentAi: FunctionComponent = () => {
                         {/* Clone vocal */}
                         <div className={styles.formField}>
                           <div className={`${styles.voiceSectionCard} ${styles.voiceUtilityCard}`}>
-                            <div className={styles.voiceSectionCardHeader}>
-                              <label className={styles.compactLabel}>Cloner ma voix</label>
-                              <p className={styles.voiceSectionHint}>
-                                Importez un fichier propre ou enregistrez un extrait, puis nommez votre clone avant de le générer.
-                              </p>
-                            </div>
+                            <label className={styles.compactLabel}>Cloner ma voix</label>
                             <input
                               ref={cloneFileInputRef}
                               type="file"
@@ -3997,46 +3953,25 @@ const AgentAi: FunctionComponent = () => {
                         {/* Envoi automatique */}
                         <div className={`${styles.formField} ${styles.voiceCompactField}`}>
                           <div className={`${styles.voiceSectionCard} ${styles.voiceUtilityCard} ${styles.voiceAutoCard}`}>
-                            <div className={styles.voiceSectionCardHeader}>
-                              <label className={styles.compactLabel}>Envoi automatique</label>
-                              <p className={styles.voiceSectionHint}>
-                                Définissez quand l&apos;agent doit envoyer un vocal automatiquement dans le parcours de conversation.
-                              </p>
-                            </div>
+                            <label className={styles.compactLabel}>Envoi automatique</label>
                             <div className={styles.voiceAutoRow}>
                               <SwitchAnimated
                                 checked={voiceAutoEnabled}
                                 onChange={(val) => setVoiceAutoEnabled(val)}
                                 showLabel={false}
                               />
-                              <span
-                                className={[
-                                  styles.toggleStateBadge,
-                                  voiceAutoEnabled
-                                    ? styles.toggleStateBadgeOn
-                                    : styles.toggleStateBadgeOff,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ")}
+                            </div>
+                            {voiceAutoEnabled && (
+                              <select
+                                className={styles.voiceTriggerSelect}
+                                value={voiceTrigger}
+                                onChange={(e) => setVoiceTrigger(e.target.value as VoiceTrigger)}
                               >
-                                {voiceAutoEnabled ? "Activé" : "Désactivé"}
-                              </span>
-                            </div>
-                            <div className={styles.voiceAutoSelectSlot}>
-                              {voiceAutoEnabled ? (
-                                <select
-                                  className={styles.voiceTriggerSelect}
-                                  value={voiceTrigger}
-                                  onChange={(e) => setVoiceTrigger(e.target.value as VoiceTrigger)}
-                                >
-                                  <option value="always">À chaque message</option>
-                                  <option value="first_message">Premier message seulement</option>
-                                  <option value="on_link_sent">Après envoi du lien Calendly</option>
-                                </select>
-                              ) : (
-                                <div className={styles.voiceAutoSelectPlaceholder} aria-hidden="true" />
-                              )}
-                            </div>
+                                <option value="always">À chaque message</option>
+                                <option value="first_message">Premier message seulement</option>
+                                <option value="on_link_sent">Après envoi du lien Calendly</option>
+                              </select>
+                            )}
                           </div>
                         </div>
 
@@ -4084,18 +4019,6 @@ const AgentAi: FunctionComponent = () => {
                               onChange={setCommReplyEnabled}
                               showLabel={false}
                             />
-                            <span
-                              className={[
-                                styles.toggleStateBadge,
-                                commReplyEnabled
-                                  ? styles.toggleStateBadgeOn
-                                  : styles.toggleStateBadgeOff,
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                            >
-                              {commReplyEnabled ? "Activé" : "Désactivé"}
-                            </span>
                           </div>
                           {commReplyEnabled && (
                             <>
@@ -4145,18 +4068,6 @@ const AgentAi: FunctionComponent = () => {
                               onChange={setCommDmEnabled}
                               showLabel={false}
                             />
-                            <span
-                              className={[
-                                styles.toggleStateBadge,
-                                commDmEnabled
-                                  ? styles.toggleStateBadgeOn
-                                  : styles.toggleStateBadgeOff,
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                            >
-                              {commDmEnabled ? "Activé" : "Désactivé"}
-                            </span>
                           </div>
                           {commDmEnabled && (
                             <>
@@ -4230,18 +4141,7 @@ const AgentAi: FunctionComponent = () => {
                 <div className={`${styles.configTabPanel} ${styles.advancedTabPanel}`}>
                   <div className={styles.advancedTabLayout}>
                     <section className={styles.advancedSectionCard}>
-                      <div className={styles.advancedSectionHeader}>
-                        <div className={styles.advancedSectionHeading}>
-                          <p className={styles.advancedSectionEyebrow}>Connecteurs</p>
-                          <h4 className={styles.advancedSectionTitle}>Choisissez le canal à configurer</h4>
-                          <p className={styles.advancedSectionLead}>
-                            Retrouvez ici les réglages avancés de chaque connecteur relié à l’agent.
-                          </p>
-                        </div>
-                        <span className={styles.advancedSectionCount}>
-                          {connectedConfigurationCount}/{configurationLogos.length}
-                        </span>
-                      </div>
+                      <label className={styles.compactLabel}>Connecteurs ({connectedConfigurationCount}/{configurationLogos.length})</label>
 
                       <div className={styles.advancedConnectorGrid}>
                         {configurationLogos.map((logo) => {
@@ -4296,22 +4196,6 @@ const AgentAi: FunctionComponent = () => {
                                 <span className={styles.advancedConnectorName}>
                                   {logo.connectors_name}
                                 </span>
-                                <span
-                                  className={[
-                                    styles.advancedConnectorState,
-                                    logo.connected
-                                      ? styles.advancedConnectorStateConnected
-                                      : styles.advancedConnectorStateDisabled,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" ")}
-                                >
-                                  {logo.connected
-                                    ? isActive
-                                      ? "Sélectionné"
-                                      : "Connecté"
-                                    : "Indisponible"}
-                                </span>
                               </div>
                             </button>
                           );
@@ -4320,42 +4204,11 @@ const AgentAi: FunctionComponent = () => {
                     </section>
 
                     <section className={styles.advancedSectionCard}>
-                      <div className={styles.advancedSectionHeader}>
-                        <div className={styles.advancedSectionHeading}>
-                          <p className={styles.advancedSectionEyebrow}>Paramètres</p>
-                          <h4 className={styles.advancedSectionTitle}>
-                            {activeSocialDisplayName
-                              ? `Configuration ${activeSocialDisplayName}`
-                              : "Configuration avancée"}
-                          </h4>
-                          <p className={styles.advancedSectionLead}>
-                            {activeSocialDisplayName
-                              ? "Ajustez les comportements spécifiques à ce canal sans toucher aux autres réglages de l’agent."
-                              : "Sélectionnez un connecteur relié pour afficher ses champs de configuration."}
-                          </p>
-                        </div>
-
-                        <div className={styles.advancedHeaderMeta}>
-                          {activeSocialDisplayName ? (
-                            <span
-                              className={[styles.toggleStateBadge, styles.toggleStateBadgeOn]
-                                .filter(Boolean)
-                                .join(" ")}
-                            >
-                              Connecté
-                            </span>
-                          ) : null}
-                          {selectedConfigItems.length > 0 ? (
-                            <span
-                              className={[styles.toggleStateBadge, styles.toggleStateBadgeOff]
-                                .filter(Boolean)
-                                .join(" ")}
-                            >
-                              {selectedConfigItems.length} champ{selectedConfigItems.length > 1 ? "s" : ""}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
+                      <label className={styles.compactLabel}>
+                        {activeSocialDisplayName
+                          ? `Configuration ${activeSocialDisplayName}`
+                          : "Configuration avancée"}
+                      </label>
 
                       <div className={styles.advancedWorkspaceSurface}>
                         {isConfigLoading ? (

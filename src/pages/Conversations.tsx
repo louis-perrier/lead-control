@@ -104,6 +104,7 @@ const channelFilterIcons: Record<ChannelOption, string> = {
 
 const statusFilterOptions = [
   "all",
+  "unread",
   "hot",
   "scheduled",
   "closed",
@@ -113,6 +114,7 @@ type StatusFilterOption = (typeof statusFilterOptions)[number];
 
 const statusFilterLabels: Record<StatusFilterOption, string> = {
   all: "Tous",
+  unread: "Non lus",
   hot: "Chaud",
   scheduled: "Relance planifi\u00e9e",
   closed: "Cl\u00f4tur\u00e9e",
@@ -729,6 +731,9 @@ const ConversationItem: FunctionComponent<{
 }> = ({ conversation, isActive, onSelect, agentLabel }) => {
   const initials = getAvatarInitials(conversation.contactName);
   const needsAttention = getConversationNeedsAttention(conversation, isActive);
+  const lastMsg = conversation.messages[conversation.messages.length - 1];
+  const isLastOutboundRead =
+    lastMsg?.direction === "outbound" && lastMsg.readByContactAt != null;
 
   return (
     <button
@@ -823,7 +828,9 @@ const ConversationItem: FunctionComponent<{
           )}
         <div className={styles.conversationBottom}>
           <span className={styles.conversationTime}>
-            {formatRelativeTime(conversation.lastAt)}
+            {isLastOutboundRead
+              ? `Vu ${formatRelativeTime(conversation.lastAt)}`
+              : formatRelativeTime(conversation.lastAt)}
           </span>
           {conversation.unreadCount > 0 && (
             <span className={styles.unreadDot} aria-label="Messages non lus" />
@@ -1056,6 +1063,7 @@ const Conversations: FunctionComponent = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null);
+  const userSelectedRef = useRef(false);
   const [composerText, setComposerText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -1075,7 +1083,11 @@ const Conversations: FunctionComponent = () => {
   const [followupDate, setFollowupDate] = useState("");
   const [followupMessage, setFollowupMessage] = useState("");
   const [useSequence, setUseSequence] = useState(false);
+  const [sequenceMessages, setSequenceMessages] = useState<[string, string, string]>(["", "", ""]);
+  const [sequenceTemplateIds, setSequenceTemplateIds] = useState<[string, string, string]>(["", "", ""]);
   const [isScheduling, setIsScheduling] = useState(false);
+  type ExistingFollowup = { id: number; scheduled_at: string; message_body: string | null; template_id: string | null };
+  const [existingFollowups, setExistingFollowups] = useState<ExistingFollowup[]>([]);
 
   // ── Marquer comme clôsée
   const [isClosingModalOpen, setClosingModalOpen] = useState(false);
@@ -1282,6 +1294,7 @@ const Conversations: FunctionComponent = () => {
     () =>
       channelScopedConversations.filter((conv) => {
         if (statusFilter === "all") return true;
+        if (statusFilter === "unread") return conv.unreadCount > 0;
         if (statusFilter === "hot")
           return conv.tags[0]?.toLowerCase() === "hot";
         if (statusFilter === "error") return conv.automationState === "error";
@@ -1341,6 +1354,18 @@ const Conversations: FunctionComponent = () => {
     setFollowupDate("");
     setFollowupMessage("");
     setUseSequence(false);
+    setSequenceMessages(["", "", ""]);
+    setSequenceTemplateIds(["", "", ""]);
+    setExistingFollowups([]);
+    if (activeConversation?.id) {
+      const { data } = await supabase
+        .from("human_followups")
+        .select("id, scheduled_at, message_body, template_id")
+        .eq("conversation_id", Number(activeConversation.id))
+        .eq("status", "pending")
+        .order("scheduled_at", { ascending: true });
+      setExistingFollowups((data ?? []) as ExistingFollowup[]);
+    }
     setFollowupModalOpen(true);
   }, [activeConversation?.channel]);
 
@@ -1365,11 +1390,21 @@ const Conversations: FunctionComponent = () => {
     };
     if (useSequence) {
       const now = Date.now();
-      await supabase.from("human_followups").insert([
-        { ...baseRow, scheduled_at: new Date(now + 1 * 86400000).toISOString() },
-        { ...baseRow, scheduled_at: new Date(now + 3 * 86400000).toISOString() },
-        { ...baseRow, scheduled_at: new Date(now + 7 * 86400000).toISOString() },
-      ]);
+      const offsets = [1, 3, 7];
+      const rows = offsets
+        .map((days, i) => {
+          const msg = isWhatsApp ? null : sequenceMessages[i].trim();
+          const tpl = isWhatsApp ? sequenceTemplateIds[i] : null;
+          if (!msg && !tpl) return null;
+          return {
+            ...baseRow,
+            message_body: msg || null,
+            template_id: tpl || null,
+            scheduled_at: new Date(now + days * 86400000).toISOString(),
+          };
+        })
+        .filter(Boolean);
+      if (rows.length > 0) await supabase.from("human_followups").insert(rows);
     } else {
       await supabase.from("human_followups").insert({
         ...baseRow,
@@ -1380,12 +1415,22 @@ const Conversations: FunctionComponent = () => {
     setFollowupModalOpen(false);
   }, [activeConversation, useSequence, followupDate, followupTemplateId, followupMessage]);
 
-  const isFollowupSubmitDisabled =
-    isScheduling ||
-    (!useSequence && !followupDate) ||
-    (activeConversation?.channel === "WhatsApp"
-      ? !followupTemplateId
-      : !followupMessage.trim());
+  const handleCancelFollowup = useCallback(async (id: number) => {
+    await supabase.from("human_followups").delete().eq("id", id);
+    setExistingFollowups((prev) => prev.filter((f) => f.id !== id));
+  }, []);
+
+  const isFollowupSubmitDisabled = (() => {
+    if (isScheduling) return true;
+    const isWhatsApp = activeConversation?.channel === "WhatsApp";
+    if (useSequence) {
+      return isWhatsApp
+        ? sequenceTemplateIds.every((t) => !t)
+        : sequenceMessages.every((m) => !m.trim());
+    }
+    if (!followupDate) return true;
+    return isWhatsApp ? !followupTemplateId : !followupMessage.trim();
+  })();
 
   // Check if active conversation has a calendly booking
   useEffect(() => {
@@ -1614,6 +1659,7 @@ const Conversations: FunctionComponent = () => {
     const prefill = params.get("prefill");
     if (convId) {
       urlConversationIdRef.current = convId;
+      userSelectedRef.current = true;
       setSelectedConversationId(convId);
     }
     if (prefill) {
@@ -1720,6 +1766,8 @@ const Conversations: FunctionComponent = () => {
 
   const queryClient = useQueryClient();
   useEffect(() => {
+    if (!userSelectedRef.current) return;
+    userSelectedRef.current = false;
     if (!activeConversation || activeConversation.unreadCount === 0 || !selectedConfigId)
       return;
     const convId = Number(activeConversation.id);
@@ -2065,9 +2113,10 @@ const Conversations: FunctionComponent = () => {
                         key={conversation.id}
                         conversation={conversation}
                         isActive={conversation.id === activeConversation?.id}
-                        onSelect={() =>
-                          setSelectedConversationId(conversation.id)
-                        }
+                        onSelect={() => {
+                          userSelectedRef.current = true;
+                          setSelectedConversationId(conversation.id);
+                        }}
                         agentLabel={
                           isAllMode
                             ? agentLabelMap.get(conversation.agentConfigId ?? "")
@@ -2958,73 +3007,133 @@ const Conversations: FunctionComponent = () => {
               </button>
             </div>
 
-            <div className={styles.followupSection}>
-              <p className={styles.followupSectionLabel}>Séquence rapide</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setUseSequence(true);
-                  setFollowupDate("");
-                }}
-                className={`${styles.followupSequenceBtn} ${
-                  useSequence ? styles.followupSequenceBtnActive : ""
-                }`}
-              >
-                J+1 · J+3 · J+7 - créer les 3 relances d'un coup
-              </button>
-            </div>
-
-            <div className={styles.followupDivider}>
-              <div className={styles.followupDividerLine} />
-              <span className={styles.followupDividerText}>ou</span>
-              <div className={styles.followupDividerLine} />
-            </div>
-
-            <div className={styles.followupSection}>
-              <p className={styles.followupSectionLabel}>Date personnalisée</p>
-              <input
-                type="datetime-local"
-                value={followupDate}
-                onChange={(e) => {
-                  setFollowupDate(e.target.value);
-                  setUseSequence(false);
-                }}
-                className={styles.followupInput}
-              />
-            </div>
-
-            {activeConversation?.channel === "WhatsApp" ? (
+            {existingFollowups.length > 0 && (
               <div className={styles.followupSection}>
-                <p className={styles.followupSectionLabel}>Template</p>
-                {followupTemplates.length === 0 ? (
-                  <p className={styles.followupInfo}>
-                    Aucun template approuvé. Créez-en un dans la config agent.
-                  </p>
-                ) : (
-                  <select
-                    value={followupTemplateId}
-                    onChange={(e) => setFollowupTemplateId(e.target.value)}
-                    className={styles.followupSelect}
-                  >
-                    <option value="">Choisir un template</option>
-                    {followupTemplates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <p className={styles.followupSectionLabel}>Déjà planifiées ({existingFollowups.length})</p>
+                <div className={styles.existingFollowupsList}>
+                  {existingFollowups.map((f) => (
+                    <div key={f.id} className={styles.existingFollowupRow}>
+                      <div className={styles.existingFollowupInfo}>
+                        <span className={styles.existingFollowupDate}>
+                          {new Date(f.scheduled_at).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span className={styles.existingFollowupMsg}>
+                          {f.message_body
+                            ? f.message_body.length > 60 ? f.message_body.slice(0, 60) + "…" : f.message_body
+                            : "Template WhatsApp"}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.existingFollowupDelete}
+                        onClick={() => handleCancelFollowup(f.id)}
+                        title="Annuler cette relance"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
+            )}
+
+            <div className={styles.followupSection}>
+              <div className={styles.followupModeToggle}>
+                <button
+                  type="button"
+                  onClick={() => { setUseSequence(false); }}
+                  className={`${styles.followupModeBtn} ${!useSequence ? styles.followupModeBtnActive : ""}`}
+                >
+                  Date unique
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setUseSequence(true); setFollowupDate(""); }}
+                  className={`${styles.followupModeBtn} ${useSequence ? styles.followupModeBtnActive : ""}`}
+                >
+                  Séquence J+1 · J+3 · J+7
+                </button>
+              </div>
+            </div>
+
+            {!useSequence ? (
+              <>
+                <div className={styles.followupSection}>
+                  <p className={styles.followupSectionLabel}>Date</p>
+                  <input
+                    type="datetime-local"
+                    value={followupDate}
+                    onChange={(e) => setFollowupDate(e.target.value)}
+                    className={styles.followupInput}
+                  />
+                </div>
+                {activeConversation?.channel === "WhatsApp" ? (
+                  <div className={styles.followupSection}>
+                    <p className={styles.followupSectionLabel}>Template</p>
+                    {followupTemplates.length === 0 ? (
+                      <p className={styles.followupInfo}>Aucun template approuvé. Créez-en un dans la config agent.</p>
+                    ) : (
+                      <select value={followupTemplateId} onChange={(e) => setFollowupTemplateId(e.target.value)} className={styles.followupSelect}>
+                        <option value="">Choisir un template</option>
+                        {followupTemplates.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                ) : (
+                  <div className={styles.followupSection}>
+                    <p className={styles.followupSectionLabel}>Message</p>
+                    <textarea
+                      value={followupMessage}
+                      onChange={(e) => setFollowupMessage(e.target.value)}
+                      placeholder="Écris le message de relance..."
+                      rows={3}
+                      className={styles.followupTextarea}
+                    />
+                  </div>
+                )}
+              </>
             ) : (
               <div className={styles.followupSection}>
-                <p className={styles.followupSectionLabel}>Message</p>
-                <textarea
-                  value={followupMessage}
-                  onChange={(e) => setFollowupMessage(e.target.value)}
-                  placeholder="Ecris le message de relance..."
-                  rows={3}
-                  className={styles.followupTextarea}
-                />
+                <p className={styles.followupSectionLabel}>Messages par jour</p>
+                {([["J+1", 0], ["J+3", 1], ["J+7", 2]] as [string, number][]).map(([label, i]) => (
+                  <div key={label} className={styles.followupSequenceRow}>
+                    <span className={styles.followupSequenceDay}>{label}</span>
+                    {activeConversation?.channel === "WhatsApp" ? (
+                      followupTemplates.length === 0 ? (
+                        <p className={styles.followupInfo}>Aucun template approuvé.</p>
+                      ) : (
+                        <select
+                          value={sequenceTemplateIds[i]}
+                          onChange={(e) => {
+                            const next = [...sequenceTemplateIds] as [string, string, string];
+                            next[i] = e.target.value;
+                            setSequenceTemplateIds(next);
+                          }}
+                          className={styles.followupSelect}
+                        >
+                          <option value="">Choisir un template</option>
+                          {followupTemplates.map((t) => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      )
+                    ) : (
+                      <textarea
+                        value={sequenceMessages[i]}
+                        onChange={(e) => {
+                          const next = [...sequenceMessages] as [string, string, string];
+                          next[i] = e.target.value;
+                          setSequenceMessages(next);
+                        }}
+                        placeholder={`Message ${label}…`}
+                        rows={2}
+                        className={styles.followupTextarea}
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
@@ -3042,7 +3151,7 @@ const Conversations: FunctionComponent = () => {
                 disabled={isFollowupSubmitDisabled}
                 className={`${styles.followupBtn} ${styles.followupBtnPrimary}`}
               >
-                {isScheduling ? "..." : useSequence ? "Planifier 3 relances" : "Planifier"}
+                {isScheduling ? "..." : useSequence ? "Planifier la séquence" : "Planifier"}
               </button>
             </div>
           </div>
