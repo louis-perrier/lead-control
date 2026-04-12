@@ -446,6 +446,28 @@ type DetailsSnapshot = {
   timeSlots?: SavedTimeSlot[];
 };
 
+type VoiceType = "preset" | "cloned";
+type VoiceTrigger = "always" | "first_message" | "on_link_sent";
+type VoiceSnapshot = {
+  voiceId: string | null;
+  voiceName: string | null;
+  voiceType: VoiceType | null;
+  voiceAutoEnabled: boolean;
+  voiceTrigger: VoiceTrigger;
+};
+
+type CommentsMode = "always" | "keywords" | "never";
+type CommentsSnapshot = {
+  replyEnabled: boolean;
+  replyMode: CommentsMode;
+  replyKeywords: string[];
+  replyTemplate: string;
+  dmEnabled: boolean;
+  dmMode: CommentsMode;
+  dmKeywords: string[];
+  dmFirstMessage: string;
+};
+
 const defaultActiveDays: ActiveDays = {
   mon: true,
   tue: true,
@@ -456,6 +478,17 @@ const defaultActiveDays: ActiveDays = {
   sun: true,
 };
 const defaultTimeRange = { start: "09:00", end: "20:00" };
+const CLONE_AUDIO_EXTENSIONS = [".mp3", ".wav", ".m4a", ".webm"];
+const CLONE_AUDIO_MIME_TYPES = new Set([
+  "audio/mpeg",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/wave",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/aac",
+  "audio/webm",
+]);
 const AGENT_NAME_MAX_LENGTH = 11;
 const PDF_SIZE_LIMIT = 20 * 1024 * 1024;
 const CONTEXT_STORAGE_BUCKET = "agent-context";
@@ -673,34 +706,43 @@ const AgentAi: FunctionComponent = () => {
   const voicePreviewAudioRef = useRef<HTMLAudioElement | null>(null);
   const [voiceId, setVoiceId] = useState<string | null>(null);
   const [voiceName, setVoiceName] = useState<string | null>(null);
-  const [voiceType, setVoiceType] = useState<"preset" | "cloned" | null>(null);
+  const [voiceType, setVoiceType] = useState<VoiceType | null>(null);
   const [voiceAutoEnabled, setVoiceAutoEnabled] = useState(false);
-  const [voiceTrigger, setVoiceTrigger] = useState<"always" | "first_message" | "on_link_sent">("always");
+  const [voiceTrigger, setVoiceTrigger] = useState<VoiceTrigger>("always");
+  const [lastSavedVoice, setLastSavedVoice] = useState<VoiceSnapshot | null>(null);
   // Clone
   const [cloneAudioBlob, setCloneAudioBlob] = useState<Blob | null>(null);
+  const [cloneAudioPreviewUrl, setCloneAudioPreviewUrl] = useState<string | null>(null);
   const [cloneRecording, setCloneRecording] = useState(false);
   const [cloneVoiceName, setCloneVoiceName] = useState("");
   const [isCloning, setIsCloning] = useState(false);
   const [cloneDragOver, setCloneDragOver] = useState(false);
+  const [cloneFeedback, setCloneFeedback] = useState<{
+    tone: "neutral" | "info" | "success" | "error";
+    message: string;
+  } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const cloneChunksRef = useRef<Blob[]>([]);
+  const cloneFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Comments (Automatisations) state
   const [commReplyEnabled, setCommReplyEnabled] = useState(false);
-  const [commReplyMode, setCommReplyMode] = useState<"always" | "keywords" | "never">("always");
+  const [commReplyMode, setCommReplyMode] = useState<CommentsMode>("always");
   const [commReplyKeywords, setCommReplyKeywords] = useState<string[]>([]);
   const [commReplyTemplate, setCommReplyTemplate] = useState("");
   const [commDmEnabled, setCommDmEnabled] = useState(false);
-  const [commDmMode, setCommDmMode] = useState<"always" | "keywords" | "never">("always");
+  const [commDmMode, setCommDmMode] = useState<CommentsMode>("always");
   const [commDmKeywords, setCommDmKeywords] = useState<string[]>([]);
   const [commDmFirstMessage, setCommDmFirstMessage] = useState("");
   const [commSaveStatus, setCommSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastSavedComments, setLastSavedComments] = useState<CommentsSnapshot | null>(null);
 
   // Configuration state
   const [activeSocial, setActiveSocial] = useState<string | null>(null);
   const [configValues, setConfigValues] = useState<ConfigValue[]>([]);
   const [initialConfigValues, setInitialConfigValues] = useState<ConfigValue[]>([]);
   const [isConfigLoading, setIsConfigLoading] = useState(false);
+  const [configSaveStatus, setConfigSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // Templates state
   type WaTemplate = { id: string; name: string; body: string; status: string };
@@ -724,6 +766,7 @@ const AgentAi: FunctionComponent = () => {
   useEffect(() => {
     if (activeTab !== "avance") {
       setActiveSocial(null);
+      setConfigSaveStatus("idle");
     }
   }, [activeTab]);
 
@@ -834,6 +877,65 @@ const AgentAi: FunctionComponent = () => {
     setTimeSlots(buildStateSlots(snapshot.timeSlots));
   }, []);
 
+  const buildVoiceSnapshot = useCallback(
+    (voiceConfig: Record<string, any> | undefined): VoiceSnapshot => ({
+      voiceId: voiceConfig?.elevenlabs_voice_id ?? null,
+      voiceName: voiceConfig?.voice_name ?? null,
+      voiceType: (voiceConfig?.voice_type as VoiceType | null) ?? null,
+      voiceAutoEnabled: voiceConfig?.auto_voice_enabled ?? false,
+      voiceTrigger: (voiceConfig?.auto_voice_trigger as VoiceTrigger) ?? "always",
+    }),
+    []
+  );
+
+  const getCurrentVoiceSnapshot = useCallback(
+    (): VoiceSnapshot => ({
+      voiceId,
+      voiceName: voiceName?.trim() || null,
+      voiceType,
+      voiceAutoEnabled,
+      voiceTrigger,
+    }),
+    [voiceAutoEnabled, voiceId, voiceName, voiceTrigger, voiceType]
+  );
+
+  const buildCommentsSnapshot = useCallback(
+    (commentsConfig: Record<string, any> | undefined): CommentsSnapshot => ({
+      replyEnabled: commentsConfig?.reply_to_comment_enabled ?? false,
+      replyMode: (commentsConfig?.reply_mode as CommentsMode) ?? "always",
+      replyKeywords: commentsConfig?.reply_keywords ?? [],
+      replyTemplate: commentsConfig?.reply_template ?? "",
+      dmEnabled: commentsConfig?.dm_after_comment_enabled ?? false,
+      dmMode: (commentsConfig?.dm_mode as CommentsMode) ?? "always",
+      dmKeywords: commentsConfig?.dm_keywords ?? [],
+      dmFirstMessage: commentsConfig?.dm_first_message ?? "",
+    }),
+    []
+  );
+
+  const getCurrentCommentsSnapshot = useCallback(
+    (): CommentsSnapshot => ({
+      replyEnabled: commReplyEnabled,
+      replyMode: commReplyMode,
+      replyKeywords: commReplyKeywords,
+      replyTemplate: commReplyTemplate,
+      dmEnabled: commDmEnabled,
+      dmMode: commDmMode,
+      dmKeywords: commDmKeywords,
+      dmFirstMessage: commDmFirstMessage,
+    }),
+    [
+      commDmEnabled,
+      commDmFirstMessage,
+      commDmKeywords,
+      commDmMode,
+      commReplyEnabled,
+      commReplyKeywords,
+      commReplyMode,
+      commReplyTemplate,
+    ]
+  );
+
   useEffect(() => {
     if (!selectedAgent) return;
     const savedDetails = (selectedAgent.configs as Record<string, any>)?.Details;
@@ -846,22 +948,48 @@ const AgentAi: FunctionComponent = () => {
     const savedAvgDeal = (selectedAgent.configs as Record<string, any>)?.avg_deal_value;
     setAvgDealValue(savedAvgDeal != null ? String(savedAvgDeal) : "");
     const savedVoice = (selectedAgent.configs as Record<string, any>)?.Voice ?? {};
-    setVoiceId(savedVoice.elevenlabs_voice_id ?? null);
-    setVoiceName(savedVoice.voice_name ?? null);
-    setVoiceType(savedVoice.voice_type ?? null);
-    setVoiceAutoEnabled(savedVoice.auto_voice_enabled ?? false);
-    setVoiceTrigger(savedVoice.auto_voice_trigger ?? "always");
+    const voiceSnapshot = buildVoiceSnapshot(savedVoice);
+    setVoiceId(voiceSnapshot.voiceId);
+    setVoiceName(voiceSnapshot.voiceName);
+    setVoiceType(voiceSnapshot.voiceType);
+    setVoiceAutoEnabled(voiceSnapshot.voiceAutoEnabled);
+    setVoiceTrigger(voiceSnapshot.voiceTrigger);
+    setLastSavedVoice(voiceSnapshot);
+    setCloneAudioBlob(null);
+    setCloneVoiceName("");
+    setCloneDragOver(false);
+    setCloneRecording(false);
+    setCloneFeedback({
+      tone: "neutral",
+      message: "Étape 1: importez ou enregistrez un extrait. Étape 2: écoutez-le. Étape 3: cliquez sur Créer le clone.",
+    });
     const savedComments = (selectedAgent.configs as Record<string, any>)?.Comments ?? {};
-    setCommReplyEnabled(savedComments.reply_to_comment_enabled ?? false);
-    setCommReplyMode(savedComments.reply_mode ?? "always");
-    setCommReplyKeywords(savedComments.reply_keywords ?? []);
-    setCommReplyTemplate(savedComments.reply_template ?? "");
-    setCommDmEnabled(savedComments.dm_after_comment_enabled ?? false);
-    setCommDmMode(savedComments.dm_mode ?? "always");
-    setCommDmKeywords(savedComments.dm_keywords ?? []);
-    setCommDmFirstMessage(savedComments.dm_first_message ?? "");
+    const commentsSnapshot = buildCommentsSnapshot(savedComments);
+    setCommReplyEnabled(commentsSnapshot.replyEnabled);
+    setCommReplyMode(commentsSnapshot.replyMode);
+    setCommReplyKeywords(commentsSnapshot.replyKeywords);
+    setCommReplyTemplate(commentsSnapshot.replyTemplate);
+    setCommDmEnabled(commentsSnapshot.dmEnabled);
+    setCommDmMode(commentsSnapshot.dmMode);
+    setCommDmKeywords(commentsSnapshot.dmKeywords);
+    setCommDmFirstMessage(commentsSnapshot.dmFirstMessage);
+    setLastSavedComments(commentsSnapshot);
     setCommSaveStatus("idle");
-  }, [applySnapshot, buildSnapshotFromDetails, selectedAgent]);
+  }, [applySnapshot, buildCommentsSnapshot, buildSnapshotFromDetails, buildVoiceSnapshot, selectedAgent]);
+
+  useEffect(() => {
+    if (!cloneAudioBlob) {
+      setCloneAudioPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(cloneAudioBlob);
+    setCloneAudioPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [cloneAudioBlob]);
 
   useEffect(() => {
     if (!selectedAgent) {
@@ -1277,6 +1405,19 @@ const AgentAi: FunctionComponent = () => {
     return config as ConfigItem[];
   }, [activeSocial, connectorAvailable]);
 
+  const activeSocialDisplayName = useMemo(() => {
+    if (!activeSocial) return null;
+    const activeLogo = configurationLogos.find(
+      (logo) => logo.connectors_name.toLowerCase() === activeSocial.toLowerCase()
+    );
+    return activeLogo?.connectors_name ?? activeSocial;
+  }, [activeSocial, configurationLogos]);
+
+  const connectedConfigurationCount = useMemo(
+    () => configurationLogos.filter((logo) => logo.connected).length,
+    [configurationLogos]
+  );
+
   const collectRequiredConfigIds = (items: ConfigItem[]) => {
     if (!Array.isArray(items)) {
       console.warn("collectRequiredConfigIds: items is not an array", items);
@@ -1551,7 +1692,18 @@ const AgentAi: FunctionComponent = () => {
   /** Mise à jour locale des valeurs (en réponse au composant DynamicConfig). */
   const handleConfigChange = (values: ConfigValue[]) => {
     setConfigValues(values);
+    setConfigSaveStatus("idle");
   };
+
+  const serializeConfigValues = useCallback(
+    (values: ConfigValue[]) =>
+      JSON.stringify(
+        [...values]
+          .map(({ id, value }) => ({ id, value }))
+          .sort((a, b) => a.id.localeCompare(b.id))
+      ),
+    []
+  );
 
   const getTrimmedCustomToneAnswers = useCallback(() => {
     return CUSTOM_TONE_QUESTIONS.reduce(
@@ -1801,9 +1953,11 @@ const AgentAi: FunctionComponent = () => {
     if (!activeSocial || !selectedAgent) {
       setInitialConfigValues([]);
       setConfigValues([]);
+      setConfigSaveStatus("idle");
       return;
     }
     setIsConfigLoading(true);
+    setConfigSaveStatus("idle");
     try {
       const target =
         connectorConnected.find(
@@ -1812,6 +1966,7 @@ const AgentAi: FunctionComponent = () => {
       if (!target?.id) {
         setInitialConfigValues([]);
         setConfigValues([]);
+        setConfigSaveStatus("idle");
         return;
       }
       const { data, error } = await supabase
@@ -1824,6 +1979,7 @@ const AgentAi: FunctionComponent = () => {
       if (error || !data?.current_config_connexion) {
         setInitialConfigValues([]);
         setConfigValues([]);
+        setConfigSaveStatus("idle");
         return;
       }
       const raw = data.current_config_connexion;
@@ -1835,6 +1991,7 @@ const AgentAi: FunctionComponent = () => {
       console.log(parsed);
       setInitialConfigValues(parsed);
       setConfigValues(parsed);
+      setConfigSaveStatus("idle");
     } finally {
       setIsConfigLoading(false);
     }
@@ -1987,10 +2144,12 @@ const AgentAi: FunctionComponent = () => {
       ) ?? connectorConnected[0];
     if (!target?.id) {
       console.warn("Pas de user_connexion_id pour le connecteur", activeSocial);
+      setConfigSaveStatus("error");
       return;
     }
     const payload = buildPayload();
     if (payload.length === 0) return;
+    setConfigSaveStatus("saving");
     const { error } = await supabase
       .from("connectors_config_agent")
       .update({ current_config_connexion: payload })
@@ -1998,8 +2157,13 @@ const AgentAi: FunctionComponent = () => {
       .eq("user_connexion_id", target.id);
     if (error) {
       console.error("Erreur lors de la sauvegarde", error);
+      setConfigSaveStatus("error");
     } else {
       console.log("Config enregistrée");
+      setInitialConfigValues(payload);
+      setConfigValues(payload);
+      setConfigSaveStatus("saved");
+      setTimeout(() => setConfigSaveStatus("idle"), 2500);
     }
   };
   const getCurrentDetailsSnapshot = useCallback(
@@ -2120,6 +2284,109 @@ const AgentAi: FunctionComponent = () => {
     .filter(Boolean)
     .join(" ");
 
+  const hasUnsavedVoiceChanges = useMemo(() => {
+    if (!lastSavedVoice) return false;
+    const current = getCurrentVoiceSnapshot();
+    return JSON.stringify(current) !== JSON.stringify(lastSavedVoice);
+  }, [getCurrentVoiceSnapshot, lastSavedVoice]);
+
+  const canSaveVoiceSettings = Boolean(selectedAgent) && hasUnsavedVoiceChanges;
+
+  const voiceFooterHintText = !selectedAgent
+    ? "Sélectionnez un agent"
+    : hasUnsavedVoiceChanges
+    ? "Changements non enregistrés"
+    : voiceId
+    ? "Tout est à jour"
+    : "Sélectionnez une voix pour activer les vocaux";
+
+  const voiceFooterHintClassName = [
+    styles.footerHint,
+    !selectedAgent
+      ? styles.footerHintNeutral
+      : hasUnsavedVoiceChanges
+      ? styles.footerHintWarning
+      : voiceId
+      ? styles.footerHintSuccess
+      : styles.footerHintNeutral,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const hasUnsavedCommentsChanges = useMemo(() => {
+    if (!lastSavedComments) return false;
+    const current = getCurrentCommentsSnapshot();
+    return JSON.stringify(current) !== JSON.stringify(lastSavedComments);
+  }, [getCurrentCommentsSnapshot, lastSavedComments]);
+
+  const canSaveComments = Boolean(selectedAgent) && hasUnsavedCommentsChanges && commSaveStatus !== "saving";
+
+  const commentsFooterHintText = !selectedAgent
+    ? "Sélectionnez un agent"
+    : commSaveStatus === "error"
+    ? "Erreur lors de l’enregistrement"
+    : commSaveStatus === "saving"
+    ? "Enregistrement en cours"
+    : hasUnsavedCommentsChanges
+    ? "Changements non enregistrés"
+    : "Tout est à jour";
+
+  const commentsFooterHintClassName = [
+    styles.footerHint,
+    !selectedAgent
+      ? styles.footerHintNeutral
+      : commSaveStatus === "error"
+      ? styles.footerHintError
+      : hasUnsavedCommentsChanges
+      ? styles.footerHintWarning
+      : styles.footerHintSuccess,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const hasUnsavedConfigChanges = useMemo(() => {
+    return serializeConfigValues(configValues) !== serializeConfigValues(initialConfigValues);
+  }, [configValues, initialConfigValues, serializeConfigValues]);
+
+  const canSaveAdvancedConfig =
+    Boolean(selectedAgent) &&
+    Boolean(activeSocial) &&
+    selectedConfigItems.length > 0 &&
+    hasUnsavedConfigChanges &&
+    !hasMissingRequiredConfig &&
+    configSaveStatus !== "saving";
+
+  const advancedFooterHintText = !selectedAgent
+    ? "Sélectionnez un agent"
+    : !activeSocial
+    ? "Choisissez un connecteur à configurer"
+    : configSaveStatus === "error"
+    ? "Erreur lors de l’enregistrement"
+    : configSaveStatus === "saving"
+    ? "Enregistrement en cours"
+    : selectedConfigItems.length === 0
+    ? "Aucune configuration disponible pour ce connecteur"
+    : hasMissingRequiredConfig
+    ? "Complétez les champs requis"
+    : hasUnsavedConfigChanges
+    ? "Changements non enregistrés"
+    : "Tout est à jour";
+
+  const advancedFooterHintClassName = [
+    styles.footerHint,
+    !selectedAgent || !activeSocial || selectedConfigItems.length === 0
+      ? styles.footerHintNeutral
+      : configSaveStatus === "error"
+      ? styles.footerHintError
+      : hasMissingRequiredConfig
+      ? styles.footerHintError
+      : hasUnsavedConfigChanges
+      ? styles.footerHintWarning
+      : styles.footerHintSuccess,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   const toggleGroup = useCallback((id: FieldGroupId) => {
     setOpenGroups(prev => {
       const next = new Set(prev);
@@ -2151,48 +2418,35 @@ const AgentAi: FunctionComponent = () => {
   const handleSaveComments = async () => {
     if (!selectedAgent) return;
     setCommSaveStatus("saving");
+    const snapshot = getCurrentCommentsSnapshot();
     const { error } = await supabase.from("agent_configs").update({
       configs: {
         ...selectedAgent.configs,
         Comments: {
-          reply_to_comment_enabled: commReplyEnabled,
-          reply_mode: commReplyMode,
-          reply_keywords: commReplyKeywords,
-          reply_template: commReplyTemplate,
-          dm_after_comment_enabled: commDmEnabled,
-          dm_mode: commDmMode,
-          dm_keywords: commDmKeywords,
-          dm_first_message: commDmFirstMessage,
+          reply_to_comment_enabled: snapshot.replyEnabled,
+          reply_mode: snapshot.replyMode,
+          reply_keywords: snapshot.replyKeywords,
+          reply_template: snapshot.replyTemplate,
+          dm_after_comment_enabled: snapshot.dmEnabled,
+          dm_mode: snapshot.dmMode,
+          dm_keywords: snapshot.dmKeywords,
+          dm_first_message: snapshot.dmFirstMessage,
         },
       },
     }).eq("configs_id", selectedAgent.display_id);
     if (error) {
       setCommSaveStatus("error");
     } else {
+      setLastSavedComments(snapshot);
       setCommSaveStatus("saved");
       setTimeout(() => setCommSaveStatus("idle"), 2500);
     }
   };
 
-  const handleSaveVoiceSelection = async (voice: VoiceOption) => {
-    if (!selectedAgent) return;
-    const currentVoice = (selectedAgent.configs as Record<string, any>)?.Voice ?? {};
-    const { error } = await supabase.from("agent_configs").update({
-      configs: {
-        ...selectedAgent.configs,
-        Voice: {
-          ...currentVoice,
-          elevenlabs_voice_id: voice.voice_id,
-          voice_name: voice.name,
-          voice_type: "preset",
-        },
-      },
-    }).eq("configs_id", selectedAgent.display_id);
-    if (!error) {
-      setVoiceId(voice.voice_id);
-      setVoiceName(voice.name);
-      setVoiceType("preset");
-    }
+  const handleSaveVoiceSelection = (voice: VoiceOption) => {
+    setVoiceId(voice.voice_id);
+    setVoiceName(voice.name);
+    setVoiceType("preset");
   };
 
   const handlePlayVoicePreview = (previewUrl: string, id: string) => {
@@ -2214,18 +2468,30 @@ const AgentAi: FunctionComponent = () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       cloneChunksRef.current = [];
+      setCloneFeedback({
+        tone: "info",
+        message: "Enregistrement en cours. Cliquez sur Arrêter quand l’extrait vous convient.",
+      });
       const mr = new MediaRecorder(stream);
       mediaRecorderRef.current = mr;
       mr.ondataavailable = (e) => { if (e.data.size > 0) cloneChunksRef.current.push(e.data); };
       mr.onstop = () => {
         const blob = new Blob(cloneChunksRef.current, { type: "audio/webm" });
         setCloneAudioBlob(blob);
+        setCloneFeedback({
+          tone: "info",
+          message: "Extrait prêt. Écoutez-le puis cliquez sur Créer le clone pour lancer le clonage.",
+        });
         stream.getTracks().forEach((t) => t.stop());
       };
       mr.start();
       setCloneRecording(true);
     } catch (err) {
       console.error("Microphone inaccessible", err);
+      setCloneFeedback({
+        tone: "error",
+        message: "Impossible d’accéder au micro pour enregistrer un extrait.",
+      });
     }
   };
 
@@ -2234,21 +2500,105 @@ const AgentAi: FunctionComponent = () => {
     setCloneRecording(false);
   };
 
+  const isAcceptedCloneAudioFile = useCallback((file: File) => {
+    const fileName = file.name.toLowerCase();
+    return (
+      file.type.startsWith("audio/") ||
+      CLONE_AUDIO_MIME_TYPES.has(file.type) ||
+      CLONE_AUDIO_EXTENSIONS.some((extension) => fileName.endsWith(extension))
+    );
+  }, []);
+
+  const handleCloneFileSelection = useCallback((file: File | null) => {
+    if (!file) {
+      return;
+    }
+    if (!isAcceptedCloneAudioFile(file)) {
+      setCloneFeedback({
+        tone: "error",
+        message: "Format non pris en charge. Utilisez un fichier mp3, wav, m4a ou webm.",
+      });
+      return;
+    }
+    setCloneAudioBlob(file);
+    setCloneFeedback({
+      tone: "info",
+      message: "Fichier importé. Écoutez-le puis cliquez sur Créer le clone pour lancer le clonage.",
+    });
+  }, [isAcceptedCloneAudioFile]);
+
+  const handleClearCloneAudio = useCallback(() => {
+    setCloneAudioBlob(null);
+    setCloneFeedback({
+      tone: "neutral",
+      message: "Importez ou enregistrez un extrait pour préparer le clonage.",
+    });
+  }, []);
+
+  const handleCloneInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    handleCloneFileSelection(event.target.files?.[0] ?? null);
+    event.target.value = "";
+  };
+
+  const handleCloneZoneClick = () => {
+    cloneFileInputRef.current?.click();
+  };
+
+  const handleCloneZoneKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      cloneFileInputRef.current?.click();
+    }
+  };
+
+  const handleCloneDragEnter = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setCloneDragOver(true);
+  };
+
+  const handleCloneDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!cloneDragOver) {
+      setCloneDragOver(true);
+    }
+  };
+
+  const handleCloneDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const nextTarget = event.relatedTarget as Node | null;
+    if (nextTarget && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
+    setCloneDragOver(false);
+  };
+
   const handleCloneDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setCloneDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file && ["audio/mpeg", "audio/wav", "audio/mp4", "audio/webm", "audio/x-m4a"].includes(file.type)) {
-      setCloneAudioBlob(file);
-    }
+    handleCloneFileSelection(e.dataTransfer.files[0] ?? null);
   };
 
   const handleCloneVoice = async () => {
     if (!cloneAudioBlob || !cloneVoiceName.trim() || !selectedAgent) return;
     setIsCloning(true);
+    setCloneFeedback({
+      tone: "info",
+      message: "Clonage en cours. Attendez la confirmation avant d’enregistrer l’onglet Voix.",
+    });
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
-    if (!token) { setIsCloning(false); return; }
+    if (!token) {
+      setCloneFeedback({
+        tone: "error",
+        message: "Session invalide. Impossible de lancer le clonage pour le moment.",
+      });
+      setIsCloning(false);
+      return;
+    }
     const reader = new FileReader();
     reader.readAsDataURL(cloneAudioBlob);
     reader.onload = async () => {
@@ -2270,12 +2620,56 @@ const AgentAi: FunctionComponent = () => {
           setVoiceType("cloned");
           setCloneAudioBlob(null);
           setCloneVoiceName("");
+          setCloneFeedback({
+            tone: "success",
+            message: "Clone créé avec succès. Cliquez maintenant sur Enregistrer en bas pour l’appliquer à l’agent.",
+          });
+        } else {
+          setCloneFeedback({
+            tone: "error",
+            message: json.error ?? "Le clonage a échoué. Réessayez avec un autre extrait audio.",
+          });
         }
       } catch (err) {
         console.error("Erreur clone voix", err);
+        setCloneFeedback({
+          tone: "error",
+          message: "Le clonage a échoué. Réessayez avec un autre extrait audio.",
+        });
       }
       setIsCloning(false);
     };
+  };
+
+  const handleSaveVoiceSettings = async () => {
+    if (!selectedAgent) return;
+    const voiceSnapshot = getCurrentVoiceSnapshot();
+    const currentVoice = (selectedAgent.configs as Record<string, any>)?.Voice ?? {};
+    const { error } = await supabase
+      .from("agent_configs")
+      .update({
+        configs: {
+          ...selectedAgent.configs,
+          Voice: {
+            ...currentVoice,
+            elevenlabs_voice_id: voiceSnapshot.voiceId,
+            voice_name: voiceSnapshot.voiceName,
+            voice_type: voiceSnapshot.voiceType,
+            auto_voice_enabled: voiceSnapshot.voiceAutoEnabled,
+            auto_voice_trigger: voiceSnapshot.voiceTrigger,
+            voice_rules: currentVoice.voice_rules ?? [],
+          },
+        },
+      })
+      .eq("configs_id", selectedAgent.display_id);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    await refreshDisplayedAgents();
+    setLastSavedVoice(voiceSnapshot);
   };
 
   const handleSaveDetails = async () => {
@@ -2373,12 +2767,6 @@ const AgentAi: FunctionComponent = () => {
         configs: {
           ...selectedAgent.configs,
           avg_deal_value: avgDealValue !== "" ? parseFloat(avgDealValue) : null,
-          Voice: {
-            ...((selectedAgent.configs as Record<string, any>)?.Voice ?? {}),
-            auto_voice_enabled: voiceAutoEnabled,
-            auto_voice_trigger: voiceTrigger,
-            voice_rules: (selectedAgent.configs as Record<string, any>)?.Voice?.voice_rules ?? [],
-          },
           Details: {
             ...selectedAgent.configs.Details,
             context: contextText,
@@ -3196,10 +3584,10 @@ const AgentAi: FunctionComponent = () => {
                             {isAgentRenaming ? "Enregistrement..." : "Enregistrer"}
                           </button>
                         </div>
+                        <p className={styles.renameErrorText}>
+                          {displayedRenameError || "\u00A0"}
+                        </p>
                       </div>
-                      <p className={styles.renameErrorText}>
-                        {displayedRenameError || "\u00A0"}
-                      </p>
                     </>
                   ) : (
                     <div className={styles.agentNameDisplay}>
@@ -3227,6 +3615,18 @@ const AgentAi: FunctionComponent = () => {
                     disabled={isHeaderSwitchDisabled}
                     className={styles.agentActivationSwitch}
                   />
+                  <span
+                    className={[
+                      styles.toggleStateBadge,
+                      displayedHeaderSwitchChecked
+                        ? styles.toggleStateBadgeOn
+                        : styles.toggleStateBadgeOff,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {displayedHeaderSwitchChecked ? "Activé" : "Désactivé"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -3403,130 +3803,240 @@ const AgentAi: FunctionComponent = () => {
 
               {/* ───────────────── VOIX ───────────────── */}
               {activeTab === "voix" && (
-                <div className={styles.configTabPanel}>
+                <div className={`${styles.configTabPanel} ${styles.voiceTabPanel}`}>
                   <div className={styles.modalContainer}>
                     {selectedAgent && (
                       <div className={styles.agentFormCard}>
 
                         {/* Bibliothèque */}
                         <div className={`${styles.formField} ${styles.formFieldFull}`}>
-                          <label className={styles.compactLabel}>Bibliothèque de voix</label>
-                          {!voiceListLoading && voiceList.length === 0 && !voiceId ? (
-                            <div className={styles.tabEmptyState}>
-                              <span className={styles.tabEmptyStateIcon}>🎙</span>
-                              <p className={styles.tabEmptyStateTitle}>Aucune voix disponible</p>
-                              <p className={styles.tabEmptyStateDesc}>Configurez votre clé API ElevenLabs depuis vos paramètres pour accéder à la bibliothèque de voix.</p>
-                            </div>
-                          ) : voiceId ? (
-                            <div className={styles.voiceActiveCard}>
-                              <div className={styles.voiceActiveInfo}>
-                                <span className={styles.voiceActiveName}>{voiceName}</span>
-                                <span className={styles.voiceActiveType}>
-                                  {voiceType === "cloned" ? "Voix clonée" : "Bibliothèque"}
-                                </span>
+                          <div className={styles.voiceSectionCard}>
+                            <div className={styles.voiceLibraryHeader}>
+                              <div className={styles.voiceLibraryTitleBlock}>
+                                <label className={styles.compactLabel}>Bibliothèque de voix</label>
+                                <p className={styles.voiceSectionHint}>
+                                  Prévisualisez plusieurs voix, puis sélectionnez celle qui servira aux messages audio de l&apos;agent.
+                                </p>
                               </div>
-                              <button
-                                type="button"
-                                className={styles.voiceChangeBtn}
-                                onClick={() => { setVoiceId(null); setVoiceName(null); setVoiceType(null); }}
-                              >
-                                Changer
-                              </button>
+                              {!voiceListLoading && voiceList.length > 0 && !voiceId && (
+                                <span className={styles.voiceLibraryCount}>{voiceList.length} voix</span>
+                              )}
                             </div>
-                          ) : voiceListLoading ? (
-                            <p className={styles.voiceLoadingText}>Chargement des voix…</p>
-                          ) : (
-                            <div className={styles.voiceGrid}>
-                              {voiceList.map((v) => (
-                                <div key={v.voice_id} className={styles.voiceCard}>
-                                  <span className={styles.voiceCardName}>{v.name}</span>
-                                  <div className={styles.voiceCardActions}>
-                                    <button
-                                      type="button"
-                                      className={styles.voicePreviewBtn}
-                                      onClick={() => handlePlayVoicePreview(v.preview_url, v.voice_id)}
-                                    >
-                                      {voicePreviewingId === v.voice_id ? "\u23F9" : "\u25B6"}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className={styles.voiceSelectBtn}
-                                      onClick={() => handleSaveVoiceSelection(v)}
-                                    >
-                                      Sélectionner
-                                    </button>
-                                  </div>
+
+                            {!voiceListLoading && voiceList.length === 0 && !voiceId ? (
+                              <div className={styles.tabEmptyState}>
+                                <span className={styles.tabEmptyStateIcon}>🎙</span>
+                                <p className={styles.tabEmptyStateTitle}>Aucune voix disponible</p>
+                                <p className={styles.tabEmptyStateDesc}>Configurez votre clé API ElevenLabs depuis vos paramètres pour accéder à la bibliothèque de voix.</p>
+                              </div>
+                            ) : voiceId ? (
+                              <div className={styles.voiceActiveCard}>
+                                <div className={styles.voiceActiveInfo}>
+                                  <span className={styles.voiceActiveEyebrow}>Voix active</span>
+                                  <span className={styles.voiceActiveName}>{voiceName}</span>
+                                  <span className={styles.voiceActiveType}>
+                                    {voiceType === "cloned" ? "Voix clonée" : "Bibliothèque"}
+                                  </span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                                <button
+                                  type="button"
+                                  className={styles.voiceChangeBtn}
+                                  onClick={() => { setVoiceId(null); setVoiceName(null); setVoiceType(null); }}
+                                >
+                                  Changer
+                                </button>
+                              </div>
+                            ) : voiceListLoading ? (
+                              <p className={styles.voiceLoadingText}>Chargement des voix…</p>
+                            ) : (
+                              <div className={styles.voiceGrid}>
+                                {voiceList.map((v) => (
+                                  <div key={v.voice_id} className={styles.voiceCard}>
+                                    <div className={styles.voiceCardHeader}>
+                                      <span className={styles.voiceCardName}>{v.name}</span>
+                                      <span className={styles.voiceCardTag}>Aperçu instantané</span>
+                                    </div>
+                                    <div className={styles.voiceCardActions}>
+                                      <button
+                                        type="button"
+                                        className={styles.voicePreviewBtn}
+                                        onClick={() => handlePlayVoicePreview(v.preview_url, v.voice_id)}
+                                      >
+                                        <span className={styles.voicePreviewBtnIcon}>
+                                          {voicePreviewingId === v.voice_id ? "\u23F9" : "\u25B6"}
+                                        </span>
+                                        <span>{voicePreviewingId === v.voice_id ? "Stopper" : "Écouter"}</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={styles.voiceSelectBtn}
+                                        onClick={() => handleSaveVoiceSelection(v)}
+                                      >
+                                        Sélectionner
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Clone vocal */}
                         <div className={styles.formField}>
-                          <label className={styles.compactLabel}>Cloner ma voix</label>
-                          <div
-                            className={`${styles.cloneDropZone} ${cloneDragOver ? styles.cloneDropZoneActive : ""} ${cloneAudioBlob ? styles.cloneDropZoneReady : ""}`}
-                            onDragOver={(e) => { e.preventDefault(); setCloneDragOver(true); }}
-                            onDragLeave={() => setCloneDragOver(false)}
-                            onDrop={handleCloneDrop}
-                          >
-                            {cloneAudioBlob
-                              ? "✓ Fichier audio prêt"
-                              : "Déposez un fichier audio ici (mp3, wav, m4a…)"}
-                          </div>
-                          <div style={{ display: "flex", gap: 8 }}>
-                            {!cloneRecording ? (
-                              <button type="button" className={styles.cloneStartBtn} onClick={handleStartRecording}>
-                                🎙 Enregistrer
-                              </button>
-                            ) : (
-                              <button type="button" className={styles.cloneStopBtn} onClick={handleStopRecording}>
-                                {"\u23F9"} Arrêter
-                              </button>
+                          <div className={`${styles.voiceSectionCard} ${styles.voiceUtilityCard}`}>
+                            <div className={styles.voiceSectionCardHeader}>
+                              <label className={styles.compactLabel}>Cloner ma voix</label>
+                              <p className={styles.voiceSectionHint}>
+                                Importez un fichier propre ou enregistrez un extrait, puis nommez votre clone avant de le générer.
+                              </p>
+                            </div>
+                            <input
+                              ref={cloneFileInputRef}
+                              type="file"
+                              accept=".mp3,.wav,.m4a,.webm,audio/*"
+                              className={styles.voiceFileInput}
+                              onChange={handleCloneInputChange}
+                            />
+                            <div
+                              className={`${styles.cloneDropZone} ${cloneDragOver ? styles.cloneDropZoneActive : ""} ${cloneAudioBlob ? styles.cloneDropZoneReady : ""}`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={handleCloneZoneClick}
+                              onKeyDown={handleCloneZoneKeyDown}
+                              onDragEnter={handleCloneDragEnter}
+                              onDragOver={handleCloneDragOver}
+                              onDragLeave={handleCloneDragLeave}
+                              onDrop={handleCloneDrop}
+                            >
+                              <span className={styles.cloneDropZoneTitle}>
+                                {cloneAudioBlob ? "✓ Fichier audio prêt" : "Importer un fichier audio"}
+                              </span>
+                              <span className={styles.cloneDropZoneHint}>
+                                {cloneAudioBlob
+                                  ? cloneAudioBlob instanceof File
+                                    ? cloneAudioBlob.name
+                                    : "Enregistrement vocal prêt"
+                                  : "Cliquez pour choisir un fichier ou glissez-déposez un extrait (mp3, wav, m4a, webm)."}
+                              </span>
+                              <span className={styles.cloneDropZoneAction}>
+                                {cloneAudioBlob ? "Changer le fichier" : "Choisir un fichier"}
+                              </span>
+                            </div>
+                            {cloneFeedback && (
+                              <p
+                                className={[
+                                  styles.cloneFeedback,
+                                  cloneFeedback.tone === "success"
+                                    ? styles.cloneFeedbackSuccess
+                                    : cloneFeedback.tone === "error"
+                                    ? styles.cloneFeedbackError
+                                    : cloneFeedback.tone === "info"
+                                    ? styles.cloneFeedbackInfo
+                                    : styles.cloneFeedbackNeutral,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                              >
+                                {cloneFeedback.message}
+                              </p>
+                            )}
+                            <div className={styles.cloneActionRow}>
+                              {!cloneRecording ? (
+                                <button type="button" className={styles.cloneStartBtn} onClick={handleStartRecording}>
+                                  🎙 Enregistrer un extrait
+                                </button>
+                              ) : (
+                                <button type="button" className={styles.cloneStopBtn} onClick={handleStopRecording}>
+                                  {"\u23F9"} Arrêter
+                                </button>
+                              )}
+                              {cloneAudioBlob && (
+                                <button
+                                  type="button"
+                                  className={styles.cloneClearBtn}
+                                  onClick={handleClearCloneAudio}
+                                >
+                                  Supprimer l&apos;audio
+                                </button>
+                              )}
+                            </div>
+                            {cloneAudioPreviewUrl && (
+                              <div className={styles.clonePreviewRow}>
+                                <audio
+                                  controls
+                                  className={styles.clonePreviewAudio}
+                                  src={cloneAudioPreviewUrl}
+                                >
+                                  Votre navigateur ne prend pas en charge l&apos;aperçu audio.
+                                </audio>
+                              </div>
+                            )}
+                            {cloneAudioBlob && (
+                              <div className={styles.cloneSubmitRow}>
+                                <input
+                                  type="text"
+                                  className={styles.cloneNameInput}
+                                  placeholder="Nom de la voix (ex: Louis)"
+                                  value={cloneVoiceName}
+                                  onChange={(e) => setCloneVoiceName(e.target.value)}
+                                />
+                                <button
+                                  type="button"
+                                  className={styles.cloneSubmitBtn}
+                                  onClick={handleCloneVoice}
+                                  disabled={isCloning || !cloneVoiceName.trim()}
+                                >
+                                  {isCloning ? "Clonage…" : "Créer le clone"}
+                                </button>
+                              </div>
                             )}
                           </div>
-                          {cloneAudioBlob && (
-                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                              <input
-                                type="text"
-                                className={styles.cloneNameInput}
-                                placeholder="Nom de la voix (ex: Louis)"
-                                value={cloneVoiceName}
-                                onChange={(e) => setCloneVoiceName(e.target.value)}
-                              />
-                              <button
-                                type="button"
-                                className={styles.cloneSubmitBtn}
-                                onClick={handleCloneVoice}
-                                disabled={isCloning || !cloneVoiceName.trim()}
-                              >
-                                {isCloning ? "Clonage…" : "Créer le clone"}
-                              </button>
-                            </div>
-                          )}
                         </div>
 
                         {/* Envoi automatique */}
-                        <div className={styles.formField}>
-                          <label className={styles.compactLabel}>Envoi automatique</label>
-                          <div className={styles.voiceAutoRow}>
-                            <SwitchAnimated
-                              checked={voiceAutoEnabled}
-                              onChange={(val) => setVoiceAutoEnabled(val)}
-                              showLabel
-                            />
-                            {voiceAutoEnabled && (
-                              <select
-                                className={styles.voiceTriggerSelect}
-                                value={voiceTrigger}
-                                onChange={(e) => setVoiceTrigger(e.target.value as "always" | "first_message" | "on_link_sent")}
+                        <div className={`${styles.formField} ${styles.voiceCompactField}`}>
+                          <div className={`${styles.voiceSectionCard} ${styles.voiceUtilityCard} ${styles.voiceAutoCard}`}>
+                            <div className={styles.voiceSectionCardHeader}>
+                              <label className={styles.compactLabel}>Envoi automatique</label>
+                              <p className={styles.voiceSectionHint}>
+                                Définissez quand l&apos;agent doit envoyer un vocal automatiquement dans le parcours de conversation.
+                              </p>
+                            </div>
+                            <div className={styles.voiceAutoRow}>
+                              <SwitchAnimated
+                                checked={voiceAutoEnabled}
+                                onChange={(val) => setVoiceAutoEnabled(val)}
+                                showLabel={false}
+                              />
+                              <span
+                                className={[
+                                  styles.toggleStateBadge,
+                                  voiceAutoEnabled
+                                    ? styles.toggleStateBadgeOn
+                                    : styles.toggleStateBadgeOff,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
                               >
-                                <option value="always">À chaque message</option>
-                                <option value="first_message">Premier message seulement</option>
-                                <option value="on_link_sent">Après envoi du lien Calendly</option>
-                              </select>
-                            )}
+                                {voiceAutoEnabled ? "Activé" : "Désactivé"}
+                              </span>
+                            </div>
+                            <div className={styles.voiceAutoSelectSlot}>
+                              {voiceAutoEnabled ? (
+                                <select
+                                  className={styles.voiceTriggerSelect}
+                                  value={voiceTrigger}
+                                  onChange={(e) => setVoiceTrigger(e.target.value as VoiceTrigger)}
+                                >
+                                  <option value="always">À chaque message</option>
+                                  <option value="first_message">Premier message seulement</option>
+                                  <option value="on_link_sent">Après envoi du lien Calendly</option>
+                                </select>
+                              ) : (
+                                <div className={styles.voiceAutoSelectPlaceholder} aria-hidden="true" />
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -3534,21 +4044,33 @@ const AgentAi: FunctionComponent = () => {
                     )}
                   </div>
 
-                  <div className={styles.modalFooter}>
-                    <button
-                      type="button"
-                      className={styles.saveButton}
-                      onClick={handleSaveDetails}
+                  {selectedAgent ? (
+                    <div
+                      className={[styles.modalFooter, styles.agentTabFooter]
+                        .filter(Boolean)
+                        .join(" ")}
                     >
-                      Enregistrer
-                    </button>
-                  </div>
+                      <p className={voiceFooterHintClassName} aria-live="polite">
+                        {voiceFooterHintText}
+                      </p>
+                      <button
+                        type="button"
+                        className={[styles.saveButton, styles.agentTabSaveButton]
+                          .filter(Boolean)
+                          .join(" ")}
+                        onClick={handleSaveVoiceSettings}
+                        disabled={!canSaveVoiceSettings}
+                      >
+                        Enregistrer
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
 
               {/* ───────────────── AUTOMATISATIONS ───────────────── */}
               {activeTab === "automatisations" && (
-                <div className={styles.configTabPanel}>
+                <div className={`${styles.configTabPanel} ${styles.actionsTabPanel}`}>
                   <div className={styles.modalContainer}>
                     {selectedAgent && (
                       <div className={styles.agentFormCard}>
@@ -3556,13 +4078,24 @@ const AgentAi: FunctionComponent = () => {
                         {/* Répondre aux commentaires */}
                         <div className={styles.formField}>
                           <label className={styles.compactLabel}>Répondre aux commentaires</label>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div className={styles.voiceAutoRow}>
                             <SwitchAnimated
                               checked={commReplyEnabled}
                               onChange={setCommReplyEnabled}
-                              showLabel
+                              showLabel={false}
                             />
-                            {commReplyEnabled ? "Activé" : "Désactivé"}
+                            <span
+                              className={[
+                                styles.toggleStateBadge,
+                                commReplyEnabled
+                                  ? styles.toggleStateBadgeOn
+                                  : styles.toggleStateBadgeOff,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            >
+                              {commReplyEnabled ? "Activé" : "Désactivé"}
+                            </span>
                           </div>
                           {commReplyEnabled && (
                             <>
@@ -3606,13 +4139,24 @@ const AgentAi: FunctionComponent = () => {
                         {/* Envoyer un DM après commentaire */}
                         <div className={styles.formField}>
                           <label className={styles.compactLabel}>Envoyer un DM après commentaire</label>
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div className={styles.voiceAutoRow}>
                             <SwitchAnimated
                               checked={commDmEnabled}
                               onChange={setCommDmEnabled}
-                              showLabel
+                              showLabel={false}
                             />
-                            {commDmEnabled ? "Activé" : "Désactivé"}
+                            <span
+                              className={[
+                                styles.toggleStateBadge,
+                                commDmEnabled
+                                  ? styles.toggleStateBadgeOn
+                                  : styles.toggleStateBadgeOff,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                            >
+                              {commDmEnabled ? "Activé" : "Désactivé"}
+                            </span>
                           </div>
                           {commDmEnabled && (
                             <>
@@ -3657,105 +4201,215 @@ const AgentAi: FunctionComponent = () => {
                     )}
                   </div>
 
-                  <div className={styles.commSaveRow}>
-                    <button
-                      type="button"
-                      className={styles.commSaveBtn}
-                      onClick={handleSaveComments}
-                      disabled={commSaveStatus === "saving"}
+                  {selectedAgent ? (
+                    <div
+                      className={[styles.modalFooter, styles.agentTabFooter]
+                        .filter(Boolean)
+                        .join(" ")}
                     >
-                      {commSaveStatus === "saving" ? "Sauvegarde…" : "Sauvegarder"}
-                    </button>
-                    {commSaveStatus === "saved" && (
-                      <span className={styles.commToastSuccess}>✓ Sauvegardé</span>
-                    )}
-                    {commSaveStatus === "error" && (
-                      <span className={styles.commToastError}>Erreur, réessayez</span>
-                    )}
-                  </div>
+                      <p className={commentsFooterHintClassName} aria-live="polite">
+                        {commentsFooterHintText}
+                      </p>
+                      <button
+                        type="button"
+                        className={[styles.saveButton, styles.agentTabSaveButton]
+                          .filter(Boolean)
+                          .join(" ")}
+                        onClick={handleSaveComments}
+                        disabled={!canSaveComments}
+                      >
+                        {commSaveStatus === "saving" ? "Enregistrement..." : "Enregistrer"}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               )}
 
               {/* ───────────────── AVANCÉ ───────────────── */}
               {activeTab === "avance" && (
-                <div className={styles.configTabPanel}>
-                  <div className={styles.configurationContent}>
-                    <div className={styles.availableLogosWrapper}>
-                      {configurationLogos.map((logo) => (
-                        <button
-                          key={`${logo.connectors_id}-${logo.connected ? "connected" : "available"}`}
-                          type="button"
-                          className={`${styles.availableLogoContainer} ${
-                            logo.connected ? "" : styles.availableLogoButtonDisabled
-                          }`}
-                          disabled={!logo.connected}
-                          onClick={() => {
-                            if (logo.connected) {
-                              setActiveSocial(logo.connectors_name.toLowerCase());
-                            }
-                          }}
-                        >
-                          <div
-                            className={`${styles.availableLogoTrapezoid} ${
-                              logo.connected ? "" : styles.availableLogoDisabled
-                            } ${logo.connectors_special ? styles.availableLogoSpecial : ""}`}
-                          >
-                            <img
-                              src={
-                                ["appel", "instagram"].includes(
-                                  logo.connectors_name.toLowerCase()
-                                )
-                                  ? `/logoConnectors/${logo.connectors_name.toLowerCase()}.svg`
-                                  : `/logoConnectors/${logo.connectors_name.toLowerCase()}.webp`
-                              }
-                              alt={`${logo.connectors_name} logo`}
-                              className={styles.availableLogo}
-                            />
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    <div className={styles.socialComponentPanel}>
-                      <div className={styles.socialComponentHeader}>
-                        <h1>
-                          {activeSocial
-                            ? `${activeSocial.toUpperCase()}`
-                            : "Configuration"}
-                        </h1>
-                      </div>
-                      {isConfigLoading ? (
-                        <div className={styles.socialComponentLoading}>
-                          Chargement des configurations...
+                <div className={`${styles.configTabPanel} ${styles.advancedTabPanel}`}>
+                  <div className={styles.advancedTabLayout}>
+                    <section className={styles.advancedSectionCard}>
+                      <div className={styles.advancedSectionHeader}>
+                        <div className={styles.advancedSectionHeading}>
+                          <p className={styles.advancedSectionEyebrow}>Connecteurs</p>
+                          <h4 className={styles.advancedSectionTitle}>Choisissez le canal à configurer</h4>
+                          <p className={styles.advancedSectionLead}>
+                            Retrouvez ici les réglages avancés de chaque connecteur relié à l’agent.
+                          </p>
                         </div>
-                      ) : selectedConfigItems.length > 0 ? (
-                        <DynamicConfig
-                          items={selectedConfigItems}
-                          initialValues={initialConfigValues}
-                          onChange={handleConfigChange}
-                        />
-                      ) : (
-                        <p className={styles.socialComponentPlaceholder}>
-                          Aucune configuration sélectionnée.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className={styles.configurationFooterWrapper}>
-                    {selectedConfigItems.length > 0 && (
-                      <div className={styles.configurationFooter}>
-                        <Button
-                          className={buttonStyles.save}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleSaveConfig();
-                          }}
-                          disabled={hasMissingRequiredConfig}
-                        >
-                          Enregistrer
-                        </Button>
+                        <span className={styles.advancedSectionCount}>
+                          {connectedConfigurationCount}/{configurationLogos.length}
+                        </span>
                       </div>
-                    )}
+
+                      <div className={styles.advancedConnectorGrid}>
+                        {configurationLogos.map((logo) => {
+                          const logoKey = logo.connectors_name.toLowerCase();
+                          const isActive = activeSocial === logoKey;
+
+                          return (
+                            <button
+                              key={`${logo.connectors_id}-${logo.connected ? "connected" : "available"}`}
+                              type="button"
+                              className={[
+                                styles.availableLogoContainer,
+                                styles.advancedConnectorButton,
+                                logo.connected ? "" : styles.availableLogoButtonDisabled,
+                                isActive ? styles.advancedConnectorButtonActive : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              disabled={!logo.connected}
+                              onClick={() => {
+                                if (logo.connected) {
+                                  setActiveSocial(logoKey);
+                                }
+                              }}
+                            >
+                              <div
+                                className={[
+                                  styles.availableLogoTrapezoid,
+                                  styles.advancedConnectorIconShell,
+                                  logo.connected ? "" : styles.availableLogoDisabled,
+                                  logo.connectors_special ? styles.availableLogoSpecial : "",
+                                  isActive ? styles.advancedConnectorIconShellActive : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                              >
+                                <img
+                                  src={
+                                    connexions[logoKey as keyof typeof connexions]?.imageSrc ??
+                                    (["appel", "instagram"].includes(logoKey)
+                                      ? `/logoConnectors/${logoKey}.svg`
+                                      : `/logoConnectors/${logoKey}.webp`)
+                                  }
+                                  alt={`${logo.connectors_name} logo`}
+                                  className={[styles.availableLogo, styles.advancedConnectorLogo]
+                                    .filter(Boolean)
+                                    .join(" ")}
+                                />
+                              </div>
+
+                              <div className={styles.advancedConnectorText}>
+                                <span className={styles.advancedConnectorName}>
+                                  {logo.connectors_name}
+                                </span>
+                                <span
+                                  className={[
+                                    styles.advancedConnectorState,
+                                    logo.connected
+                                      ? styles.advancedConnectorStateConnected
+                                      : styles.advancedConnectorStateDisabled,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" ")}
+                                >
+                                  {logo.connected
+                                    ? isActive
+                                      ? "Sélectionné"
+                                      : "Connecté"
+                                    : "Indisponible"}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+
+                    <section className={styles.advancedSectionCard}>
+                      <div className={styles.advancedSectionHeader}>
+                        <div className={styles.advancedSectionHeading}>
+                          <p className={styles.advancedSectionEyebrow}>Paramètres</p>
+                          <h4 className={styles.advancedSectionTitle}>
+                            {activeSocialDisplayName
+                              ? `Configuration ${activeSocialDisplayName}`
+                              : "Configuration avancée"}
+                          </h4>
+                          <p className={styles.advancedSectionLead}>
+                            {activeSocialDisplayName
+                              ? "Ajustez les comportements spécifiques à ce canal sans toucher aux autres réglages de l’agent."
+                              : "Sélectionnez un connecteur relié pour afficher ses champs de configuration."}
+                          </p>
+                        </div>
+
+                        <div className={styles.advancedHeaderMeta}>
+                          {activeSocialDisplayName ? (
+                            <span
+                              className={[styles.toggleStateBadge, styles.toggleStateBadgeOn]
+                                .filter(Boolean)
+                                .join(" ")}
+                            >
+                              Connecté
+                            </span>
+                          ) : null}
+                          {selectedConfigItems.length > 0 ? (
+                            <span
+                              className={[styles.toggleStateBadge, styles.toggleStateBadgeOff]
+                                .filter(Boolean)
+                                .join(" ")}
+                            >
+                              {selectedConfigItems.length} champ{selectedConfigItems.length > 1 ? "s" : ""}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className={styles.advancedWorkspaceSurface}>
+                        {isConfigLoading ? (
+                          <div className={styles.advancedLoadingState}>
+                            Chargement des paramètres...
+                          </div>
+                        ) : selectedConfigItems.length > 0 ? (
+                          <DynamicConfig
+                            items={selectedConfigItems}
+                            initialValues={initialConfigValues}
+                            onChange={handleConfigChange}
+                          />
+                        ) : (
+                          <div className={styles.tabEmptyState}>
+                            <div className={styles.tabEmptyStateContent}>
+                              <span className={styles.tabEmptyStateBadge}>Avancé</span>
+                              <p className={styles.tabEmptyStateTitle}>
+                                {activeSocialDisplayName
+                                  ? "Aucun réglage disponible"
+                                  : "Choisissez un connecteur"}
+                              </p>
+                              <p className={styles.tabEmptyStateDesc}>
+                                {activeSocialDisplayName
+                                  ? "Ce connecteur ne propose pas encore de configuration supplémentaire pour cet agent."
+                                  : "Sélectionnez un connecteur connecté dans la liste ci-dessus pour afficher ses paramètres avancés."}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </section>
                   </div>
+
+                  {selectedAgent ? (
+                    <div
+                      className={[styles.modalFooter, styles.agentTabFooter, styles.advancedTabFooter]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <p className={advancedFooterHintClassName} aria-live="polite">
+                        {advancedFooterHintText}
+                      </p>
+                      <button
+                        type="button"
+                        className={[styles.saveButton, styles.agentTabSaveButton]
+                          .filter(Boolean)
+                          .join(" ")}
+                        onClick={handleSaveConfig}
+                        disabled={!canSaveAdvancedConfig}
+                      >
+                        {configSaveStatus === "saving" ? "Enregistrement..." : "Enregistrer"}
+                      </button>
+                    </div>
+                  ) : null}
 
                 </div>
               )}

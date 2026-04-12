@@ -3148,26 +3148,404 @@
 }
 
 /* ── Voice section ─────────────────────────────────────────── */
+.configTabPanel.voiceTabPanel {
+  width: min(1380px, 100%);
+  max-width: 1380px;
+}
+
+.configTabPanel.actionsTabPanel {
+  padding-bottom: 92px;
+}
+
+.actionsTabPanel .modalContainer {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.actionsTabPanel .agentFormCard {
+  align-items: start;
+  width: calc(100% + 32px);
+  margin: 0 -16px;
+  box-sizing: border-box;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+}
+
+.actionsTabPanel .agentFormCard > .formField,
+.actionsTabPanel .agentFormCard > .formFieldFull {
+  width: 100%;
+}
+
+.actionsTabPanel .agentFormCard > .formField > .compactLabel {
+  align-self: center;
+  text-align: center;
+}
+
+.actionsTabPanel .agentFormCard > .formField > .voiceAutoRow {
+  align-self: center;
+  justify-content: center;
+}
+
+.actionsTabPanel .commTextarea {
+  min-height: 92px;
+}
+
+.configTabPanel.advancedTabPanel {
+  width: min(1240px, 100%);
+  max-width: 1240px;
+}
+
+.advancedTabLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.advancedSectionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #dbe5f1;
+  border-radius: 20px;
+  background:
+    radial-gradient(440px 180px at 50% -42%, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0) 72%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.advancedSectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.advancedSectionHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.advancedSectionEyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5b667a;
+}
+
+.advancedSectionTitle {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.advancedSectionLead {
+  margin: 0;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #5b667a;
+}
+
+.advancedSectionCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #dbe5f1;
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.advancedConnectorGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.advancedConnectorButton {
+  width: 100%;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #dbe5f1;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 8px 18px rgba(15, 23, 42, 0.05);
+  text-align: left;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.advancedConnectorButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 12px 22px rgba(37, 99, 235, 0.12);
+}
+
+.advancedConnectorButtonActive {
+  border-color: rgba(37, 99, 235, 0.38);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(255, 255, 255, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.94),
+    0 12px 24px rgba(37, 99, 235, 0.14);
+}
+
+.advancedConnectorIconShell {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+}
+
+.advancedConnectorIconShellActive {
+  border-color: rgba(37, 99, 235, 0.45);
+}
+
+.advancedConnectorLogo {
+  width: 26px;
+  height: 26px;
+}
+
+.advancedConnectorText {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.advancedConnectorName {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #0f172a;
+  text-transform: capitalize;
+}
+
+.advancedConnectorState {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.advancedConnectorStateConnected {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.advancedConnectorStateDisabled {
+  color: #64748b;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.advancedHeaderMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.advancedWorkspaceSurface {
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  padding: 18px;
+  border: 1px solid #e5edf6;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.advancedWorkspaceSurface > * {
+  width: 100%;
+}
+
+.advancedWorkspaceSurface .tabEmptyState {
+  min-height: 244px;
+}
+
+.advancedLoadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 244px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.advancedTabFooter {
+  margin-top: 20px;
+}
+
+@media screen and (max-width: 900px) {
+  .advancedConnectorGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .advancedSectionHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .advancedHeaderMeta {
+    justify-content: flex-start;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .advancedSectionCard {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .advancedSectionTitle {
+    font-size: 19px;
+  }
+
+  .advancedConnectorGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .advancedConnectorButton {
+    padding: 14px;
+  }
+
+  .advancedWorkspaceSurface {
+    padding: 14px;
+  }
+}
+
+.voiceSectionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 20px;
+  border: 1px solid #dbe5f1;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.voiceUtilityCard {
+  justify-content: flex-start;
+}
+
+.voiceCompactField {
+  align-self: start;
+}
+
+.voiceAutoCard {
+  min-height: 184px;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.voiceSectionCardHeader,
+.voiceLibraryTitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.voiceLibraryHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.voiceSectionHint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #5b667a;
+}
+
+.voiceLibraryCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #dbe5f1;
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.voiceSectionCard .tabEmptyState {
+  padding: 40px 24px;
+  border-radius: 16px;
+  border: 1px dashed #dbe5f1;
+  background: rgba(255, 255, 255, 0.72);
+}
+
 .voiceActiveCard {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-radius: 10px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-  margin-bottom: 8px;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid #cfe0ff;
+  background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  margin: 0;
 }
 
 .voiceActiveInfo {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.voiceActiveEyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-primary);
 }
 
 .voiceActiveName {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
   color: var(--app-text-primary);
 }
 
@@ -3177,120 +3555,248 @@
 }
 
 .voiceChangeBtn {
-  padding: 6px 14px;
-  border-radius: 7px;
-  border: 1px solid var(--app-border);
-  background: transparent;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: rgba(255, 255, 255, 0.92);
   color: var(--app-text-primary);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 
 .voiceChangeBtn:hover {
-  background: var(--app-bg);
+  background: #ffffff;
+  border-color: var(--app-primary);
+  transform: translateY(-1px);
 }
 
 .voiceLoadingText {
   font-size: 13px;
   color: var(--app-text-secondary);
-  margin: 8px 0;
+  margin: 0;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.08);
 }
 
 .voiceGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
-  margin-top: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .voiceCard {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 152px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid #dbe5f1;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .voiceCard:hover {
-  border-color: var(--app-primary);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+  border-color: #93c5fd;
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.12);
+  transform: translateY(-2px);
+}
+
+.voiceCardHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .voiceCardName {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
   color: var(--app-text-primary);
+  word-break: break-word;
+}
+
+.voiceCardTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .voiceCardActions {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .voicePreviewBtn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid var(--app-border);
-  background: transparent;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
   color: var(--app-text-primary);
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
   flex-shrink: 0;
 }
 
 .voicePreviewBtn:hover {
-  background: var(--app-bg);
+  background: #f8fafc;
+  border-color: var(--app-primary);
+  transform: translateY(-1px);
+}
+
+.voicePreviewBtnIcon {
+  font-size: 12px;
+  line-height: 1;
 }
 
 .voiceSelectBtn {
-  flex: 1;
-  padding: 5px 10px;
-  border-radius: 7px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
   border: none;
   background: var(--app-primary);
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .voiceSelectBtn:hover {
-  opacity: 0.88;
+  opacity: 0.96;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
 }
 
 /* Clone zone */
 .cloneDropZone {
   border: 2px dashed var(--app-border);
-  border-radius: 10px;
-  padding: 20px;
+  border-radius: 14px;
+  padding: 18px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   text-align: center;
   font-size: 13px;
   color: var(--app-text-secondary);
-  cursor: default;
-  transition: border-color 0.15s ease, background 0.15s ease;
-  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  margin-bottom: 0;
+}
+
+.cloneDropZone:focus-visible {
+  outline: none;
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .cloneDropZoneActive {
   border-color: var(--app-primary);
   background: rgba(37, 99, 235, 0.04);
+  transform: translateY(-1px);
 }
 
 .cloneDropZoneReady {
   border-color: #16a34a;
   background: rgba(22, 163, 74, 0.04);
   color: #16a34a;
+}
+
+.voiceFileInput {
+  display: none;
+}
+
+.cloneDropZoneTitle {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--app-text-primary);
+}
+
+.cloneDropZoneHint {
+  display: block;
+  max-width: 300px;
+  margin: 0 auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5b667a;
+}
+
+.cloneDropZoneReady .cloneDropZoneTitle,
+.cloneDropZoneReady .cloneDropZoneHint {
+  color: #166534;
+}
+
+.cloneDropZoneAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cloneFeedback {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cloneFeedbackNeutral {
+  color: #475569;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.cloneFeedbackInfo {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.cloneFeedbackSuccess {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.cloneFeedbackError {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
 }
 
 .cloneFileReady {
@@ -3328,8 +3834,30 @@
   margin-bottom: 10px;
 }
 
+.cloneActionRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.clonePreviewRow {
+  display: flex;
+  width: 100%;
+}
+
+.clonePreviewAudio {
+  width: 100%;
+}
+
+.cloneSubmitRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .cloneStartBtn,
-.cloneStopBtn {
+.cloneStopBtn,
+.cloneClearBtn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -3357,8 +3885,15 @@
   color: #fff;
 }
 
+.cloneClearBtn {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
 .cloneStartBtn:hover:not(:disabled),
-.cloneStopBtn:hover {
+.cloneStopBtn:hover,
+.cloneClearBtn:hover {
   opacity: 0.88;
 }
 
@@ -3373,7 +3908,7 @@
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
-  margin-bottom: 10px;
+  margin-bottom: 0;
 }
 
 .cloneNameInput:focus {
@@ -3382,8 +3917,8 @@
 }
 
 .cloneSubmitBtn {
-  width: 100%;
-  padding: 10px;
+  width: auto;
+  padding: 10px 16px;
   border-radius: 8px;
   border: none;
   background: var(--app-primary);
@@ -3392,6 +3927,8 @@
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .cloneSubmitBtn:disabled {
@@ -3407,8 +3944,44 @@
 .voiceAutoRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: nowrap;
+  margin-bottom: 0;
+}
+
+.voiceAutoSelectSlot {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+}
+
+.voiceAutoSelectPlaceholder {
+  width: 100%;
+  min-height: 44px;
+}
+
+.toggleStateBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.toggleStateBadgeOn {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.toggleStateBadgeOff {
+  color: #64748b;
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .voiceAutoLabel {
@@ -3419,6 +3992,7 @@
 
 .voiceTriggerSelect {
   width: 100%;
+  min-height: 44px;
   padding: 9px 13px;
   border-radius: 8px;
   border: 1px solid var(--app-border);
@@ -3433,6 +4007,67 @@
 
 .voiceTriggerSelect:focus {
   border-color: var(--app-primary);
+}
+
+@media screen and (max-width: 1320px) {
+  .voiceGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 1120px) {
+  .voiceGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 760px) {
+  .voiceSectionCard {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .voiceLibraryHeader,
+  .voiceActiveCard,
+  .cloneSubmitRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .voiceLibraryCount,
+  .voiceChangeBtn {
+    align-self: flex-start;
+  }
+
+  .voiceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .voiceCardActions {
+    grid-template-columns: 1fr;
+  }
+
+  .cloneSubmitBtn {
+    width: 100%;
+  }
+
+  .cloneDropZoneHint {
+    max-width: none;
+  }
+
+  .voiceAutoRow {
+    flex-wrap: wrap;
+  }
+
+  .voiceAutoCard {
+    min-height: auto;
+  }
+}
+
+@media screen and (max-width: 540px) {
+  .voiceGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Automatisations / Comments ────────────────────────────── */
@@ -3893,8 +4528,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   width: auto;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .configLayout {
