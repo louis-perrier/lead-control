@@ -105,6 +105,13 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
       labelText: "Assistant IA",
       icon: "/agentIaIcon.svg",
     },
+    {
+      key: "conversations",
+      route: "/app/conversations",
+      selected: currentPath === "/app/conversations",
+      labelText: "Conversations",
+      icon: "/conversationIcon.svg",
+    },
     ...(subscriptionState?.planKey === "TESTEUR" ? [{
       key: "contacts",
       route: "/app/contacts",
