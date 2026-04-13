@@ -436,10 +436,15 @@ type RoiKpiCardProps = {
   label: string;
   value: number;
   format: "number" | "currency" | "percent";
-  isGreen?: boolean;
+  highlight?: boolean;
 };
 
-const RoiKpiCard: FunctionComponent<RoiKpiCardProps> = ({ label, value, format, isGreen = false }) => {
+const RoiKpiCard: FunctionComponent<RoiKpiCardProps> = ({
+  label,
+  value,
+  format,
+  highlight = false,
+}) => {
   const animated = useCountUp(value);
   const display =
     format === "currency"
@@ -448,8 +453,12 @@ const RoiKpiCard: FunctionComponent<RoiKpiCardProps> = ({ label, value, format, 
       ? `${animated} %`
       : animated.toLocaleString("fr-FR");
   return (
-    <article className={styles.roiKpiCard}>
-      <div className={`${styles.roiKpiValue} ${isGreen ? styles.roiKpiValueGreen : ""}`}>{display}</div>
+    <article
+      className={`${styles.roiKpiCard} ${
+        highlight ? styles.roiKpiCardRevenue : ""
+      }`.trim()}
+    >
+      <div className={styles.roiKpiValue}>{display}</div>
       <div className={styles.roiKpiLabel}>{label}</div>
     </article>
   );
@@ -487,6 +496,11 @@ const normalizeChannel = (platform?: string): ChannelOption => {
 const mapMessageRecord = (convId: string, message: any): Message => {
   const isAudioMessage = message.message_type === "audio";
   const normalizedDirection = String(message.direction ?? "").toLowerCase();
+  const normalizedAuthorType = String(message.author_type ?? "").toLowerCase();
+  const isOutboundDirection =
+    normalizedDirection === "out" || normalizedDirection === "outbound";
+  const isInboundDirection =
+    normalizedDirection === "in" || normalizedDirection === "inbound";
   let mediaPath: string | null = null;
   let transcriptStatus: string | undefined = undefined;
   let transcriptContent: string | null = null;
@@ -546,10 +560,7 @@ const mapMessageRecord = (convId: string, message: any): Message => {
   }
   return {
     id: `${convId}-${message.id}`,
-    direction:
-      normalizedDirection === "out" || normalizedDirection === "outbound"
-        ? "outbound"
-        : "inbound",
+    direction: isOutboundDirection ? "outbound" : "inbound",
     text: message.body_text ?? "",
     sentAt: message.sent_at ?? message.created_at ?? new Date().toISOString(),
     attachment,
@@ -558,9 +569,13 @@ const mapMessageRecord = (convId: string, message: any): Message => {
     transcript: transcriptContent,
     transcriptError,
     authorType:
-      message.author_type === "human"
+      normalizedAuthorType === "human"
         ? "human"
-        : message.author_type === "customer"
+        : normalizedAuthorType === "customer"
+        ? "customer"
+        : normalizedAuthorType === "agent"
+        ? "agent"
+        : isInboundDirection
         ? "customer"
         : "agent",
     automationStart: message.automation_start ?? null,
@@ -616,15 +631,22 @@ const mapConversationRecord = (record: any): Conversation => {
 };
 
 const conversationHasProspectReply = (conversation: Conversation): boolean => {
-  const hasCustomerInbound = conversation.messages.some(
+  return conversation.messages.some(
     (message) =>
       message.direction === "inbound" && message.authorType === "customer",
   );
-  if (conversation.messages.length > 0) {
-    return hasCustomerInbound;
-  }
-  return conversation.inboundCount > 0;
 };
+
+const conversationHasProspectReplyInWindow = (
+  conversation: Conversation,
+  window: PeriodWindow,
+): boolean =>
+  conversation.messages.some(
+    (message) =>
+      message.direction === "inbound" &&
+      message.authorType === "customer" &&
+      isInPeriodWindow(message.sentAt, window),
+  );
 
 
 const ChannelBadge: FunctionComponent<{
@@ -639,19 +661,195 @@ const ChannelBadge: FunctionComponent<{
 );
 
 
+type DashboardStats = {
+  responses: number;
+  messages: number;
+  active: number;
+  responseTime: number;
+};
+
+const computeDashboardStats = (
+  conversations: Conversation[],
+  window: PeriodWindow,
+): DashboardStats => {
+  let totalResponseMs = 0;
+  let responsePairs = 0;
+  const responses = conversations.reduce((acc, conversation) => {
+    acc += conversation.messages.filter(
+      (message) =>
+        message.authorType === "agent" &&
+        message.direction === "outbound" &&
+        isInPeriodWindow(message.sentAt, window),
+    ).length;
+    for (const message of conversation.messages) {
+      if (
+        message.authorType !== "agent" ||
+        message.direction !== "outbound" ||
+        !isInPeriodWindow(message.sentAt, window) ||
+        !message.automationStart ||
+        !message.automationEnd
+      ) {
+        continue;
+      }
+      const diff =
+        new Date(message.automationEnd).getTime() -
+        new Date(message.automationStart).getTime();
+      if (diff > 0) {
+        totalResponseMs += diff;
+        responsePairs += 1;
+      }
+    }
+    return acc;
+  }, 0);
+
+  const messagesReceived = conversations.reduce(
+    (acc, conversation) =>
+      acc +
+      conversation.messages.filter(
+        (message) =>
+          message.direction === "inbound" &&
+          message.authorType === "customer" &&
+          isInPeriodWindow(message.sentAt, window),
+      ).length,
+    0,
+  );
+
+  const activeConversations = conversations.filter(
+    (conversation) =>
+      conversation.status === "Ouvert" &&
+      conversationHasProspectReplyInWindow(conversation, window),
+  ).length;
+
+  const averageResponseSeconds =
+    responsePairs === 0 ? 0 : Math.round((totalResponseMs / responsePairs) / 1000);
+
+  return {
+    responses,
+    messages: messagesReceived,
+    active: activeConversations,
+    responseTime: averageResponseSeconds,
+  };
+};
+
+const getPreviousPeriodWindow = (
+  period: PeriodOption,
+  currentWindow: PeriodWindow,
+): PeriodWindow => {
+  if (period === "year") {
+    const previousStartDate = new Date(currentWindow.startDate);
+    previousStartDate.setFullYear(previousStartDate.getFullYear() - 1);
+    const previousEndDate = new Date(currentWindow.endMs);
+    previousEndDate.setFullYear(previousEndDate.getFullYear() - 1);
+    return {
+      daySpan: currentWindow.daySpan,
+      startDate: previousStartDate,
+      startMs: previousStartDate.getTime(),
+      endMs: previousEndDate.getTime(),
+    };
+  }
+
+  if (period === "today") {
+    const startMs = currentWindow.startMs - DAY_IN_MS;
+    const endMs = currentWindow.startMs - 1;
+    return {
+      daySpan: 1,
+      startDate: new Date(startMs),
+      startMs,
+      endMs,
+    };
+  }
+
+  const periodShiftMs = currentWindow.daySpan * DAY_IN_MS;
+  const startMs = currentWindow.startMs - periodShiftMs;
+  const endMs = currentWindow.endMs - periodShiftMs;
+  return {
+    daySpan: currentWindow.daySpan,
+    startDate: new Date(startMs),
+    startMs,
+    endMs,
+  };
+};
+
+const calculateDeltaPercent = (current: number, previous: number): number => {
+  if (previous === 0) {
+    return current === 0 ? 0 : 100;
+  }
+  return Math.round(((current - previous) / previous) * 100);
+};
+
+const isNewComparison = (current: number, previous: number): boolean =>
+  previous === 0 && current > 0;
+
 const KpiCard: FunctionComponent<{
   label: string;
   value: string;
-  delta: string;
-  note?: string;
-}> = ({ label, value, delta, note }) => (
-  <article className={styles.claraKpiCard}>
+  currentValue: number;
+  previousValue: number;
+  deltaPercent: number;
+  currentText: string;
+  previousText: string;
+  deltaLabel: string;
+  previousLabel: string;
+  isNew?: boolean;
+  reverseTrend?: boolean;
+}> = ({
+  label,
+  value,
+  currentValue,
+  previousValue,
+  deltaPercent,
+  currentText,
+  previousText,
+  deltaLabel,
+  previousLabel,
+  isNew = false,
+  reverseTrend = false,
+}) => {
+  const isNeutral = deltaPercent === 0;
+  const isPositiveTrend = reverseTrend ? deltaPercent < 0 : deltaPercent > 0;
+  const deltaClass = isNew
+    ? styles.claraKpiDeltaNew
+    : isNeutral
+    ? styles.claraKpiDeltaNeutral
+    : isPositiveTrend
+    ? styles.claraKpiDeltaPositive
+    : styles.claraKpiDeltaNegative;
+  const cardClass = isNeutral
+    ? styles.claraKpiCardNeutral
+    : isPositiveTrend
+    ? styles.claraKpiCardPositive
+    : styles.claraKpiCardNegative;
+  const deltaArrow = isNeutral ? "•" : deltaPercent > 0 ? "↗" : "↘";
+  const deltaSign = deltaPercent > 0 ? "+" : "";
+  const showMultiplier =
+    !isNew && previousValue > 0 && deltaPercent > 300;
+  const multiplierText = showMultiplier
+    ? `x${(currentValue / previousValue).toLocaleString("fr-FR", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })}`
+    : "";
+
+  return (
+  <article className={`${styles.claraKpiCard} ${cardClass}`.trim()}>
     <div className={styles.claraKpiCardValue}>{value}</div>
     <div className={styles.claraKpiCardLabel}>{label}</div>
-    {note && <div className={styles.claraKpiCardNote}>{note}</div>}
-    {false&&<div className={styles.claraKpiCardDelta}>{delta}</div>}
+    <div className={`${styles.claraKpiCardDeltaPill} ${deltaClass}`.trim()}>
+      <span>
+        {isNew
+          ? "Nouveau"
+          : showMultiplier
+          ? multiplierText
+          : `${deltaArrow} ${deltaSign}${deltaPercent}%`}
+      </span>
+      <span>{deltaLabel}</span>
+    </div>
+    <div className={styles.claraKpiCardComparison}>
+      {`Actuel: ${currentText} | ${previousLabel}: ${previousText}`}
+    </div>
   </article>
-);
+  );
+};
 
 
 const ChannelFilterGroup: FunctionComponent<{
@@ -692,10 +890,42 @@ const ChannelFilterGroup: FunctionComponent<{
 
 
 type RoiData = {
-  callsThisMonth: number;
-  revenueThisMonth: number;
+  callsBooked: number;
+  revenueGenerated: number;
   closeRate: number;
-  roiTotal: number;
+  bookedConversations: number;
+};
+
+type RoiBookingConversation = {
+  agent_config_id?: string | null;
+} | null;
+
+type RoiBookingRow = {
+  id: string;
+  created_at: string;
+  conversation_id: number | null;
+  conversations?: RoiBookingConversation | RoiBookingConversation[] | null;
+};
+
+type RoiClosingRow = {
+  amount: number | null;
+  is_closed: boolean | null;
+  closed_at: string | null;
+  agent_config_id: string | null;
+};
+
+const getBookingAgentConfigId = (booking: RoiBookingRow): string | null => {
+  const relation = booking.conversations;
+  if (Array.isArray(relation)) {
+    return relation[0]?.agent_config_id ?? null;
+  }
+  return relation?.agent_config_id ?? null;
+};
+
+const getRoiPeriodLabel = (period: PeriodOption): string => {
+  if (period === "today") return "aujourd'hui";
+  if (period === "year") return "cette annee";
+  return `sur ${period}j`;
 };
 
 const Dashboard: FunctionComponent = () => {
@@ -706,30 +936,49 @@ const Dashboard: FunctionComponent = () => {
   const [isConfigMenuOpen, setConfigMenuOpen] = useState(false);
   const configMenuRef = useRef<HTMLDivElement | null>(null);
   const [topConversationPage, setTopConversationPage] = useState(0);
-  const [roiData, setRoiData] = useState<RoiData>({ callsThisMonth: 0, revenueThisMonth: 0, closeRate: 0, roiTotal: 0 });
+  const [roiBookings, setRoiBookings] = useState<RoiBookingRow[]>([]);
+  const [roiClosings, setRoiClosings] = useState<RoiClosingRow[]>([]);
 
   useEffect(() => {
-    const fetchRoi = async () => {
+    let isCancelled = false;
+
+    const fetchRoiSource = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const [bookingsMonth, bookingsTotal, closingsAll, closingsMonth] = await Promise.all([
-        supabase.from("calendly_bookings").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", monthStart),
-        supabase.from("calendly_bookings").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("deal_closings").select("amount, is_closed").eq("user_id", user.id),
-        supabase.from("deal_closings").select("amount").eq("user_id", user.id).eq("is_closed", true).gte("closed_at", monthStart),
+      if (!user || isCancelled) return;
+
+      const [bookingsRes, closingsRes] = await Promise.all([
+        supabase
+          .from("calendly_bookings")
+          .select(`
+            id,
+            created_at,
+            conversation_id,
+            conversations ( agent_config_id )
+          `)
+          .eq("user_id", user.id),
+        supabase
+          .from("deal_closings")
+          .select("amount, is_closed, closed_at, agent_config_id")
+          .eq("user_id", user.id),
       ]);
-      const callsThisMonth = bookingsMonth.count ?? 0;
-      const totalBookings = bookingsTotal.count ?? 0;
-      const allClosings = closingsAll.data ?? [];
-      const wonCount = allClosings.filter((c) => c.is_closed).length;
-      const roiTotal = allClosings.filter((c) => c.is_closed).reduce((acc, c) => acc + (c.amount ?? 0), 0);
-      const revenueThisMonth = (closingsMonth.data ?? []).reduce((acc, c) => acc + (c.amount ?? 0), 0);
-      const closeRate = totalBookings > 0 ? Math.round((wonCount / totalBookings) * 100) : 0;
-      setRoiData({ callsThisMonth, revenueThisMonth, closeRate, roiTotal });
+
+      if (isCancelled) return;
+
+      if (bookingsRes.error || closingsRes.error) {
+        setRoiBookings([]);
+        setRoiClosings([]);
+        return;
+      }
+
+      setRoiBookings((bookingsRes.data ?? []) as RoiBookingRow[]);
+      setRoiClosings((closingsRes.data ?? []) as RoiClosingRow[]);
     };
-    fetchRoi();
+
+    fetchRoiSource();
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   const { displayedAgents } = useAgents();
@@ -751,6 +1000,76 @@ const Dashboard: FunctionComponent = () => {
     [agentConfigOptions],
   );
   const isAllMode = selectedConfigId === "all";
+  const periodWindow = useMemo(() => getPeriodWindow(period), [period]);
+
+  const roiData = useMemo<RoiData>(() => {
+    const isScopedToSingleConfig =
+      Boolean(selectedConfigId) && selectedConfigId !== "all";
+
+    const scopedBookings = !isScopedToSingleConfig
+      ? roiBookings
+      : roiBookings.filter(
+          (booking) => getBookingAgentConfigId(booking) === selectedConfigId,
+        );
+
+    const scopedClosings = !isScopedToSingleConfig
+      ? roiClosings
+      : roiClosings.filter((closing) => closing.agent_config_id === selectedConfigId);
+
+    const isInCurrentWindow = (iso: string | null | undefined) => {
+      if (!iso) return false;
+      const timeMs = new Date(iso).getTime();
+      return (
+        Number.isFinite(timeMs) &&
+        timeMs >= periodWindow.startMs &&
+        timeMs <= periodWindow.endMs
+      );
+    };
+
+    const bookingsInWindow = scopedBookings.filter((booking) =>
+      isInCurrentWindow(booking.created_at),
+    );
+    const closedDealsInWindow = scopedClosings.filter(
+      (closing) =>
+        (closing.is_closed === true || closing.is_closed === false) &&
+        isInCurrentWindow(closing.closed_at),
+    );
+    const wonClosingsInWindow = closedDealsInWindow.filter(
+      (closing) => closing.is_closed === true,
+    );
+
+    const callsBooked = bookingsInWindow.length;
+    const wonCount = wonClosingsInWindow.length;
+    const closedDealsCount = closedDealsInWindow.length;
+
+    const bookedConversationIds = new Set<number>();
+    bookingsInWindow.forEach((booking) => {
+      if (typeof booking.conversation_id === "number") {
+        bookedConversationIds.add(booking.conversation_id);
+      }
+    });
+    const bookedConversations = bookedConversationIds.size;
+
+    const revenueGenerated = wonClosingsInWindow.reduce(
+      (total, closing) => total + (closing.amount ?? 0),
+      0,
+    );
+
+    const closeRateRaw =
+      closedDealsCount > 0
+        ? Math.round((wonCount / closedDealsCount) * 100)
+        : 0;
+    const closeRate = Math.min(100, Math.max(0, closeRateRaw));
+
+    return {
+      callsBooked,
+      revenueGenerated,
+      closeRate,
+      bookedConversations,
+    };
+  }, [roiBookings, roiClosings, selectedConfigId, periodWindow]);
+
+  const roiPeriodLabel = useMemo(() => getRoiPeriodLabel(period), [period]);
 
   const selectedAgent = useMemo(
     () =>
@@ -777,6 +1096,67 @@ const Dashboard: FunctionComponent = () => {
     () => rawConversations.map(mapConversationRecord),
     [rawConversations],
   );
+
+  const scopedBookingsForView = useMemo(() => {
+    const isScopedToSingleConfig =
+      Boolean(selectedConfigId) && selectedConfigId !== "all";
+    if (!isScopedToSingleConfig) {
+      return roiBookings;
+    }
+    return roiBookings.filter(
+      (booking) => getBookingAgentConfigId(booking) === selectedConfigId,
+    );
+  }, [roiBookings, selectedConfigId]);
+
+  const activeConversationIdsForBookingRate = useMemo(() => {
+    const ids = new Set<number>();
+    conversationData.forEach((conversation) => {
+      if (
+        conversation.status === "Ouvert" &&
+        conversationHasProspectReplyInWindow(conversation, periodWindow)
+      ) {
+        const numericId = Number(conversation.id);
+        if (Number.isFinite(numericId)) {
+          ids.add(numericId);
+        }
+      }
+    });
+    return ids;
+  }, [conversationData, periodWindow]);
+
+  const activeConversationsForBookingRate =
+    activeConversationIdsForBookingRate.size;
+
+  const bookingRate = useMemo(() => {
+    const bookedActiveConversations = new Set<number>();
+    scopedBookingsForView.forEach((booking) => {
+      const bookingTime = new Date(booking.created_at).getTime();
+      const isInWindow =
+        Number.isFinite(bookingTime) &&
+        bookingTime >= periodWindow.startMs &&
+        bookingTime <= periodWindow.endMs;
+      if (!isInWindow || typeof booking.conversation_id !== "number") {
+        return;
+      }
+      if (activeConversationIdsForBookingRate.has(booking.conversation_id)) {
+        bookedActiveConversations.add(booking.conversation_id);
+      }
+    });
+
+    const rawRate =
+      activeConversationsForBookingRate > 0
+        ? Math.round(
+            (bookedActiveConversations.size / activeConversationsForBookingRate) *
+              100,
+          )
+        : 0;
+    return Math.min(100, Math.max(0, rawRate));
+  }, [
+    scopedBookingsForView,
+    activeConversationIdsForBookingRate,
+    activeConversationsForBookingRate,
+    periodWindow,
+  ]);
 
   const handleConfigChange = (value: string) => {
     setSelectedConfigId(value);
@@ -816,7 +1196,10 @@ const Dashboard: FunctionComponent = () => {
     (option) => option.value === selectedConfigId,
   );
 
-  const periodWindow = useMemo(() => getPeriodWindow(period), [period]);
+  const previousPeriodWindow = useMemo(
+    () => getPreviousPeriodWindow(period, periodWindow),
+    [period, periodWindow],
+  );
 
   const channelScopedConversations = useMemo(
     () =>
@@ -827,78 +1210,19 @@ const Dashboard: FunctionComponent = () => {
     [conversationData, channelFilter],
   );
 
-  const stats = useMemo(() => {
-    if (isAllMode) {
-      const active = channelScopedConversations.filter(
-        (conv) =>
-          conv.status === "Ouvert" &&
-          conversationHasProspectReply(conv) &&
-          isInPeriodWindow(conv.lastAt, periodWindow),
-      ).length;
-      const responses = channelScopedConversations.reduce(
-        (acc, conv) => acc + conv.agentSentCount,
-        0,
-      );
-      const messages = channelScopedConversations.reduce(
-        (acc, conv) => acc + conv.inboundCount,
-        0,
-      );
-      return { responses, messages, active, responseTime: 0 };
-    }
-    let totalResponseMs = 0;
-    let responsePairs = 0;
-    const responses = channelScopedConversations.reduce((acc, conversation) => {
-      acc += conversation.messages.filter(
-        (message) =>
-          message.authorType === "agent" &&
-          isInPeriodWindow(message.sentAt, periodWindow),
-      ).length;
-      for (const message of conversation.messages) {
-        if (
-          message.authorType !== "agent" ||
-          !isInPeriodWindow(message.sentAt, periodWindow) ||
-          !message.automationStart ||
-          !message.automationEnd
-        ) {
-          continue;
-        }
-        const diff =
-          new Date(message.automationEnd).getTime() -
-          new Date(message.automationStart).getTime();
-        if (diff > 0) {
-          totalResponseMs += diff;
-          responsePairs += 1;
-        }
-      }
-      return acc;
-    }, 0);
-    const messagesReceived = channelScopedConversations.reduce(
-      (acc, conversation) =>
-        acc +
-        conversation.messages.filter(
-          (message) =>
-            message.direction === "inbound" &&
-            isInPeriodWindow(message.sentAt, periodWindow),
-        ).length,
-      0,
-    );
-    const activeConversations = channelScopedConversations.filter(
-      (conversation) =>
-        conversation.status === "Ouvert" &&
-        conversationHasProspectReply(conversation) &&
-        isInPeriodWindow(conversation.lastAt, periodWindow),
-    ).length;
-    const averageResponseSeconds =
-      responsePairs === 0
-        ? 0
-        : Math.round((totalResponseMs / responsePairs) / 1000);
-    return {
-      responses,
-      messages: messagesReceived,
-      active: activeConversations,
-      responseTime: averageResponseSeconds,
-    };
-  }, [isAllMode, channelScopedConversations, periodWindow]);
+  const stats = useMemo(
+    () => computeDashboardStats(channelScopedConversations, periodWindow),
+    [channelScopedConversations, periodWindow],
+  );
+
+  const previousStats = useMemo(
+    () =>
+      computeDashboardStats(
+        channelScopedConversations,
+        previousPeriodWindow,
+      ),
+    [channelScopedConversations, previousPeriodWindow],
+  );
 
   const evolutionSeries = useMemo(() => {
     if (isAllMode) {
@@ -915,23 +1239,57 @@ const Dashboard: FunctionComponent = () => {
       : buildDailyEvolutionSeries(channelScopedConversations, periodWindow);
   }, [isAllMode, channelScopedConversations, period, periodWindow]);
 
-  const deltas = {
-    responses:
-      period === "today" ? "+4% vs hier" : period === "3" ? "+12% vs precedent" : period === "7" ? "+10% vs precedent" : period === "14" ? "+9% vs precedent" : period === "30" ? "+8% vs precedent" : "+5% vs annee precedente",
-    messages:
-      period === "today" ? "+3% vs hier" : period === "3" ? "+10% vs precedent" : period === "7" ? "+8% vs precedent" : period === "14" ? "+7% vs precedent" : period === "30" ? "+6% vs precedent" : "+4% vs annee precedente",
-    active:
-      period === "today" ? "+1% vs hier" : period === "3" ? "+3% vs precedent" : period === "7" ? "+2% vs precedent" : period === "14" ? "+2% vs precedent" : period === "30" ? "+1% vs precedent" : "+1% vs annee precedente",
-    responseTime:
-      period === "today" ? "-12 s vs hier" : period === "3" ? "-24 s vs precedent" : period === "7" ? "-28 s vs precedent" : period === "14" ? "-32 s vs precedent" : period === "30" ? "-36 s vs precedent" : "-42 s vs annee precedente",
-  };
-
   const kpiCards = [
-    { label: "Messages reçus", value: `${stats.messages.toLocaleString("fr-FR")}`, delta: deltas.messages },
-    { label: "Conversations actives", value: `${stats.active}`, delta: deltas.active },
-    { label: "Réponses envoyées de l'agent", value: `${stats.responses.toLocaleString("fr-FR")}`, delta: deltas.responses, note: "Agent uniquement" },
-    { label: "Temps de réponse moyen", value: `${stats.responseTime.toLocaleString("fr-FR")} s`, delta: deltas.responseTime },
+    {
+      label: "Messages recus",
+      value: `${stats.messages.toLocaleString("fr-FR")}`,
+      currentValue: stats.messages,
+      previousValue: previousStats.messages,
+      currentText: stats.messages.toLocaleString("fr-FR"),
+      previousText: previousStats.messages.toLocaleString("fr-FR"),
+      deltaPercent: calculateDeltaPercent(stats.messages, previousStats.messages),
+      isNew: isNewComparison(stats.messages, previousStats.messages),
+      reverseTrend: false,
+    },
+    {
+      label: "Conversations actives",
+      value: `${stats.active.toLocaleString("fr-FR")}`,
+      currentValue: stats.active,
+      previousValue: previousStats.active,
+      currentText: stats.active.toLocaleString("fr-FR"),
+      previousText: previousStats.active.toLocaleString("fr-FR"),
+      deltaPercent: calculateDeltaPercent(stats.active, previousStats.active),
+      isNew: isNewComparison(stats.active, previousStats.active),
+      reverseTrend: false,
+    },
+    {
+      label: "Reponses envoyees de l'agent",
+      value: `${stats.responses.toLocaleString("fr-FR")}`,
+      currentValue: stats.responses,
+      previousValue: previousStats.responses,
+      currentText: stats.responses.toLocaleString("fr-FR"),
+      previousText: previousStats.responses.toLocaleString("fr-FR"),
+      deltaPercent: calculateDeltaPercent(stats.responses, previousStats.responses),
+      isNew: isNewComparison(stats.responses, previousStats.responses),
+      reverseTrend: false,
+    },
+    {
+      label: "Temps de reponse moyen",
+      value: `${stats.responseTime.toLocaleString("fr-FR")} s`,
+      currentValue: stats.responseTime,
+      previousValue: previousStats.responseTime,
+      currentText: `${stats.responseTime.toLocaleString("fr-FR")} s`,
+      previousText: `${previousStats.responseTime.toLocaleString("fr-FR")} s`,
+      deltaPercent: calculateDeltaPercent(
+        stats.responseTime,
+        previousStats.responseTime,
+      ),
+      isNew: isNewComparison(stats.responseTime, previousStats.responseTime),
+      reverseTrend: true,
+    },
   ];
+  const kpiDeltaLabel = period === "today" ? "vs hier" : "vs periode precedente";
+  const kpiPreviousLabel = period === "today" ? "Hier" : "Precedent";
 
   const channelStats = useMemo(() => {
     const bucket: Record<ChannelOption, number> = { Instagram: 0, WhatsApp: 0, Telegram: 0 };
@@ -1114,12 +1472,29 @@ const Dashboard: FunctionComponent = () => {
               </div>
             </header>
 
-            {/* ROI Section — always visible */}
+            {/* Top business metrics - always visible */}
             <section className={styles.roiSection}>
-              <RoiKpiCard label="Calls bookés ce mois" value={roiData.callsThisMonth} format="number" />
-              <RoiKpiCard label="Revenus générés (mois)" value={roiData.revenueThisMonth} format="currency" isGreen />
-              <RoiKpiCard label="Taux de close" value={roiData.closeRate} format="percent" />
-              <RoiKpiCard label="ROI total" value={roiData.roiTotal} format="currency" isGreen />
+              <RoiKpiCard
+                label={`Calls bookes ${roiPeriodLabel}`}
+                value={roiData.callsBooked}
+                format="number"
+              />
+              <RoiKpiCard
+                label={`Taux de booking ${roiPeriodLabel}`}
+                value={bookingRate}
+                format="percent"
+              />
+              <RoiKpiCard
+                label={`Taux de close ${roiPeriodLabel}`}
+                value={roiData.closeRate}
+                format="percent"
+              />
+              <RoiKpiCard
+                label={`Revenus generes ${roiPeriodLabel}`}
+                value={roiData.revenueGenerated}
+                format="currency"
+                highlight
+              />
             </section>
 
             {!showStats ? (
@@ -1134,8 +1509,15 @@ const Dashboard: FunctionComponent = () => {
                       key={card.label}
                       label={card.label}
                       value={card.value}
-                      delta={card.delta}
-                      note={"note" in card ? card.note : undefined}
+                      currentValue={card.currentValue}
+                      previousValue={card.previousValue}
+                      deltaPercent={card.deltaPercent}
+                      currentText={card.currentText}
+                      previousText={card.previousText}
+                      deltaLabel={kpiDeltaLabel}
+                      previousLabel={kpiPreviousLabel}
+                      isNew={card.isNew}
+                      reverseTrend={card.reverseTrend}
                     />
                   ))}
                 </div>

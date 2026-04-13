@@ -6,7 +6,10 @@ const fetchAllConversations = async (configIds: string[]) => {
   if (configIds.length === 0) return [];
   const { data, error } = await supabase
     .from("conversations")
-    .select("*")
+    .select(`
+      *,
+      conversation_messages (*)
+    `)
     .in("agent_config_id", configIds)
     .order("last_message_at", { ascending: false });
   if (error) throw error;
