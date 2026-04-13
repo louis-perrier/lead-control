@@ -99,11 +99,11 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
       icon: "/dashboardIcon.svg",
     },
     {
-      key: "conversations",
-      route: "/app/conversations",
-      selected: currentPath === "/app/conversations",
-      labelText: "Conversations",
-      icon: "/conversationIcon.svg",
+      key: "agentia",
+      route: "/app/agentai",
+      selected: currentPath === "/app/agentai" || currentPath === "/app/agentai/configuration",
+      labelText: "Assistant IA",
+      icon: "/agentIaIcon.svg",
     },
     ...(subscriptionState?.planKey === "TESTEUR" ? [{
       key: "contacts",
@@ -127,13 +127,6 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
       icon: "/relanceIcon.svg",
       badge: pendingRelancesCount > 0 ? String(pendingRelancesCount) : undefined,
       badgeVariant: "error" as const,
-    },
-    {
-      key: "agentia",
-      route: "/app/agentai",
-      selected: currentPath === "/app/agentai" || currentPath === "/app/agentai/configuration",
-      labelText: "Assistant IA",
-      icon: "/agentIaIcon.svg",
     },
     {
       key: "connexion",
