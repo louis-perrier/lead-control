@@ -3619,9 +3619,9 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 152px;
-  padding: 14px;
+  gap: 10px;
+  min-height: 90px;
+  padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid #dbe5f1;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
@@ -4123,6 +4123,28 @@
 .commTextarea::placeholder {
   color: var(--app-text-secondary);
   opacity: 0.7;
+}
+
+.comingSoonBlock {
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
+.comingSoonBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
 }
 
 .commPreview {
@@ -4633,7 +4655,7 @@
   overflow: visible;
   border: 1px solid #e5ebf3;
   border-radius: 14px;
-  background: #ffffff;
+  background: #f8fafc;
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
   text-align: left;
 }
@@ -4941,7 +4963,7 @@
 
 .agentDetailsSectionIntro {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
 }
 
@@ -5319,6 +5341,18 @@
   font-size: 13px;
   line-height: 1.5;
   color: #64748b;
+}
+
+.customToneInlineNote {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.07);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 500;
 }
 
 .customToneQuestions {
@@ -5988,4 +6022,171 @@
   .followupRowMeta {
     gap: 6px;
   }
+}
+
+/* ─── Auto-Relances Section ─────────────────────────────────────────────────── */
+
+.autoRelancesSection {
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.96));
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 720px;
+  margin: 0 auto 16px;
+  width: 100%;
+}
+
+.autoRelancesSectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e8edf5;
+  flex-wrap: wrap;
+}
+
+.autoRelancesSectionHeading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.autoRelancesTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.autoRelancesTitleRow h4 {
+  margin: 0;
+}
+
+.autoRelancesPlatformBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 5px;
+  border-radius: 20px;
+  background: rgba(225, 48, 108, 0.08);
+  border: 1px solid rgba(225, 48, 108, 0.2);
+  color: #c2185b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.autoRelancesPlatformIcon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.autoRelancesSectionHeading h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.autoRelancesSectionLead {
+  font-size: 13px;
+  color: #5b667a;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.autoRelancesToggleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.autoRelancesToggleLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.autoRelancesBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0 12px;
+  border-bottom: 1px solid #e8edf5;
+}
+
+.autoRelanceSlot {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.autoRelanceSlotLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 7px;
+  padding: 4px 9px;
+  white-space: nowrap;
+  margin-top: 6px;
+  min-width: 36px;
+  text-align: center;
+}
+
+.autoRelanceTextarea {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: #0f172a;
+  background: #ffffff;
+  resize: vertical;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.autoRelanceTextarea:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25);
+}
+
+.autoRelancesConditionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e8edf5;
+}
+
+.autoRelancesFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 14px;
+  flex-wrap: wrap;
+}
+
+.autoRelancesWarning {
+  font-size: 12.5px;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 7px;
+  padding: 6px 10px;
+  margin: 0;
+  flex: 1;
 }

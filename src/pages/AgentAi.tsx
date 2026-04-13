@@ -7,7 +7,6 @@ import {
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "../layouts";
-import Header from "../components/Header";
 import OptionSearch, { AgentFiltersPopover } from "../components/OptionSearch";
 import AgentCards from "../components/AgentCards";
 import styles from "./AgentAi.module.css";
@@ -273,15 +272,13 @@ const AgentAi: FunctionComponent = () => {
   return (
     <AppLayout>
       <div className={styles.rightcomponent}>
-        <Header minimal showLogo={false} />
-        
-        {/* Message OAuth Instagram */}
+        {/* Message OAuth */}
         {oauthMessage && (
           <div className={`${styles.oauthNotification} ${
             oauthMessageType === 'error' ? styles.error : styles.success
           }`}>
             {oauthMessage}
-            <button 
+            <button
               onClick={() => {
                 setOauthMessage(null);
                 setOauthMessageType(null);
@@ -292,12 +289,6 @@ const AgentAi: FunctionComponent = () => {
             </button>
           </div>
         )}
-        <div className={styles.pageIntro}>
-          <h1 className={styles.pageTitle}>Studio des assistants IA</h1>
-          <p className={styles.pageSubtitle}>
-            Cree, connecte et pilote tes agents depuis un seul espace.
-          </p>
-        </div>
         <div className={styles.optionSearchWrapper}>
           <OptionSearch
             wrap={true}

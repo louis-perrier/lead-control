@@ -126,6 +126,23 @@ const Relances: FunctionComponent = () => {
       .length;
   }, [followups]);
 
+  // Conversations where ALL followups are sent or skipped = séquence terminée
+  const completedSequenceConvIds = useMemo(() => {
+    const byConv = new Map<number, Followup[]>();
+    for (const f of followups) {
+      const arr = byConv.get(f.conversationId) ?? [];
+      arr.push(f);
+      byConv.set(f.conversationId, arr);
+    }
+    const ids = new Set<number>();
+    byConv.forEach((convFollowups, convId) => {
+      if (convFollowups.length > 0 && convFollowups.every((f) => f.status === "sent" || f.status === "skipped")) {
+        ids.add(convId);
+      }
+    });
+    return ids;
+  }, [followups]);
+
   const filteredFollowups = useMemo(() => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -301,6 +318,9 @@ const Relances: FunctionComponent = () => {
                         </div>
                         {followup.contactHandle && (
                           <div className={styles.contactHandle}>@{followup.contactHandle}</div>
+                        )}
+                        {completedSequenceConvIds.has(followup.conversationId) && (
+                          <span className={styles.sequenceDoneBadge}>Séquence terminée</span>
                         )}
                       </td>
 

@@ -1,0 +1,464 @@
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--app-bg);
+}
+
+.inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 28px;
+  gap: 20px;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ── Header ── */
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pageTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--app-text-primary);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.pageCount {
+  font-size: 13px;
+  color: var(--app-text-secondary);
+  font-weight: 400;
+}
+
+/* ── Filters ── */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-primary);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.searchInput:focus {
+  border-color: var(--app-primary);
+}
+
+.searchInput::placeholder {
+  color: var(--app-text-secondary);
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.filterBtn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.filterBtn:hover {
+  background: var(--app-bg);
+  color: var(--app-text-primary);
+}
+
+.filterBtnActive {
+  background: var(--app-bg);
+  color: var(--app-text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+/* ── List ── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  gap: 10px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 36px;
+  opacity: 0.4;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow 0.15s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardEmail {
+  font-size: 12.5px;
+  color: var(--app-text-secondary);
+}
+
+.cardBadges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.badgeToday {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.badgeClosed {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.badgeLost {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--app-text-secondary);
+  border: 1px solid var(--app-border);
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.cardMetaDot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--app-text-secondary);
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.cardDatetime {
+  font-weight: 500;
+  color: var(--app-text-primary);
+}
+
+.cardEventType {
+  font-size: 12.5px;
+}
+
+.cardSummary {
+  font-size: 13px;
+  color: var(--app-text-secondary);
+  line-height: 1.5;
+  background: var(--app-bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--app-border);
+}
+
+.cardSummaryLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--app-text-secondary);
+  margin-bottom: 4px;
+}
+
+.cardClosingInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.cardClosingAmount {
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btnClose {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 9px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.08);
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.btnClose:hover {
+  background: rgba(34, 197, 94, 0.14);
+}
+
+.btnConv {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1px solid var(--app-border);
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btnConv:hover {
+  background: var(--app-bg);
+  color: var(--app-text-primary);
+}
+
+/* ── Closing Modal ── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 18, 32, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--app-surface);
+  border-radius: 18px;
+  border: 1px solid var(--app-border);
+  box-shadow: 0 24px 64px rgba(11, 18, 32, 0.18);
+  padding: 28px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--app-text-primary);
+  margin: 0;
+}
+
+.modalSubtitle {
+  font-size: 13px;
+  color: var(--app-text-secondary);
+  margin: -12px 0 0;
+}
+
+.modalField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modalLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modalInput {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--app-border);
+  background: var(--app-bg);
+  color: var(--app-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modalInput:focus {
+  border-color: var(--app-primary);
+}
+
+.modalToggle {
+  display: flex;
+  border-radius: 10px;
+  border: 1px solid var(--app-border);
+  overflow: hidden;
+}
+
+.modalToggleBtn {
+  flex: 1;
+  height: 38px;
+  border: none;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  color: var(--app-text-secondary);
+}
+
+.modalToggleBtnWon {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.modalToggleBtnLost {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--app-text-secondary);
+}
+
+.modalFooter {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modalBtnCancel {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 9px;
+  border: 1px solid var(--app-border);
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.modalBtnConfirm {
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 9px;
+  border: none;
+  background: var(--app-primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+
+.modalBtnConfirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}

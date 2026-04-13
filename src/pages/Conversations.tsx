@@ -1122,6 +1122,12 @@ const Conversations: FunctionComponent = () => {
   const [convHasBooking, setConvHasBooking] = useState(false);
   const [convBookingData, setConvBookingData] = useState<{ id: string; created_at: string } | null>(null);
 
+  // Auto-relances override state
+  const [convAgentAutoRelancesEnabled, setConvAgentAutoRelancesEnabled] = useState(false);
+  const [relancesDisabled, setRelancesDisabled] = useState(false);
+  const [relanceMessageOverride, setRelanceMessageOverride] = useState("");
+  const [relancesOverrideSaving, setRelancesOverrideSaving] = useState(false);
+
   // Voice modal state
   const [isVoiceModalOpen, setVoiceModalOpen] = useState(false);
   const [voiceModalText, setVoiceModalText] = useState("");
@@ -1496,6 +1502,51 @@ const Conversations: FunctionComponent = () => {
         setConvBookingData(data ?? null);
       });
   }, [activeConversation?.id]);
+
+  // Load auto-relances override from conversation metadata + agent config
+  useEffect(() => {
+    if (!activeConversation?.id) {
+      setConvAgentAutoRelancesEnabled(false);
+      setRelancesDisabled(false);
+      setRelanceMessageOverride("");
+      return;
+    }
+    // Load from conversation metadata
+    const meta = (activeConversation.metadata ?? {}) as Record<string, unknown>;
+    setRelancesDisabled(meta.relances_disabled === true);
+    setRelanceMessageOverride(typeof meta.relance_message_override === "string" ? meta.relance_message_override : "");
+    // Load from agent config
+    if (!activeConversation.agentConfigId) { setConvAgentAutoRelancesEnabled(false); return; }
+    supabase
+      .from("agent_configs")
+      .select("configs")
+      .eq("configs_id", activeConversation.agentConfigId)
+      .single()
+      .then(({ data }) => {
+        const rel = ((data?.configs as Record<string, unknown>)?.Relances ?? {}) as Record<string, unknown>;
+        setConvAgentAutoRelancesEnabled(Boolean(rel.auto_enabled));
+      });
+  }, [activeConversation?.id, activeConversation?.agentConfigId, activeConversation?.metadata]);
+
+  const handleSaveRelancesOverride = useCallback(async () => {
+    if (!activeConversation?.id) return;
+    setRelancesOverrideSaving(true);
+    const currentMeta = (activeConversation.metadata ?? {}) as Record<string, unknown>;
+    const nextMeta: Record<string, unknown> = {
+      ...currentMeta,
+      relances_disabled: relancesDisabled,
+    };
+    if (relanceMessageOverride.trim()) {
+      nextMeta.relance_message_override = relanceMessageOverride.trim();
+    } else {
+      delete nextMeta.relance_message_override;
+    }
+    await supabase
+      .from("conversations")
+      .update({ metadata: nextMeta })
+      .eq("id", activeConversation.id);
+    setRelancesOverrideSaving(false);
+  }, [activeConversation?.id, activeConversation?.metadata, relancesDisabled, relanceMessageOverride]);
 
   const openClosingModal = useCallback(async () => {
     setClosingIsWon(true);
@@ -2690,6 +2741,48 @@ const Conversations: FunctionComponent = () => {
                               </div>
                             </div>
                           </div>
+
+                          {/* ── Relances override ── */}
+                          {convAgentAutoRelancesEnabled && (
+                            <div className={styles.contactDrawerSection}>
+                              <span className={styles.contactDrawerSectionTitle}>
+                                Relances auto
+                              </span>
+                              <div className={styles.relancesOverrideToggleRow}>
+                                <span className={styles.relancesOverrideToggleLabel}>
+                                  Désactiver les relances pour ce contact
+                                </span>
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={relancesDisabled}
+                                  className={`${styles.relancesToggleSwitch} ${relancesDisabled ? styles.relancesToggleSwitchOn : ""}`}
+                                  onClick={() => setRelancesDisabled((p) => !p)}
+                                />
+                              </div>
+                              <div className={styles.relancesOverrideMsgField}>
+                                <label className={styles.relancesOverrideMsgLabel}>
+                                  Message personnalisé (optionnel)
+                                </label>
+                                <textarea
+                                  className={styles.relancesOverrideMsgTextarea}
+                                  placeholder="Remplace les messages de la séquence pour ce contact…"
+                                  value={relanceMessageOverride}
+                                  onChange={(e) => setRelanceMessageOverride(e.target.value)}
+                                  rows={3}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                className={styles.relancesOverrideSaveBtn}
+                                onClick={() => void handleSaveRelancesOverride()}
+                                disabled={relancesOverrideSaving}
+                              >
+                                {relancesOverrideSaving ? "Enregistrement…" : "Enregistrer"}
+                              </button>
+                            </div>
+                          )}
+
                         </div>
                       </>
                     )}

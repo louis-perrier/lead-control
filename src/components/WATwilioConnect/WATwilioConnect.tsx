@@ -39,8 +39,6 @@ const WATwilioConnect: React.FC<WATwilioConnectProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(TIMEOUT_MS);
   const [copied, setCopied] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -48,14 +46,11 @@ const WATwilioConnect: React.FC<WATwilioConnectProps> = ({
   const handledRef = useRef(false);
   const backdropPointerDownRef = useRef(false);
 
-  // Recalculate position when opening
   useEffect(() => {
-    if (isOpen && anchorEl) {
-      const rect = anchorEl.getBoundingClientRect();
-      setPos({ top: rect.top, left: rect.left });
+    if (isOpen) {
       setFlowState("selecting");
     }
-  }, [isOpen, anchorEl]);
+  }, [isOpen]);
 
   const clearTimers = () => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -263,82 +258,122 @@ const WATwilioConnect: React.FC<WATwilioConnectProps> = ({
         onPointerCancel={resetBackdropPointer}
         onPointerLeave={resetBackdropPointer}
       />
-      <div
-        className={styles.panel}
-        style={{
-          top: pos.top,
-          left: pos.left,
-          transform: "translateY(-100%) translateY(-8px)",
-        }}
-      >
-        {flowState === "selecting" && (
-          <>
-            <a
-              href={NOTION_GUIDE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.guideBanner}
-              onClick={(e) => e.stopPropagation()}
-            >
-              Pas sûr de quelle option choisir ? Consulte le guide →
-            </a>
-            <div className={styles.optionList}>
-              <button className={styles.optionBtn} onClick={handleSelectOAuth}>
-                <span className={styles.optionLabel}>Mon numéro WhatsApp actuel</span>
-                <span className={styles.optionSub}>Connecter votre propre numéro</span>
-              </button>
-              <button className={styles.optionBtn} onClick={handleSelectOAuth}>
-                <span className={styles.optionLabel}>Un numéro dédié ON/OFF</span>
-                <span className={styles.optionSub}>Numéro WhatsApp préparé pour LeadControl</span>
-              </button>
-              <button className={styles.optionBtn} onClick={handleSelectTwilio}>
-                <span className={styles.optionLabel}>Un numéro fourni par LeadControl</span>
-                <span className={styles.optionSub}>Numéro attribué automatiquement</span>
-              </button>
+      <div className={styles.panel}>
+        <div className={styles.columns}>
+
+          {/* ── Colonne gauche : Connexion Meta API ── */}
+          <div className={styles.column}>
+            <p className={styles.columnTitle}>Connexion Meta API</p>
+            <ul className={styles.featureList}>
+              <li className={styles.featurePro}>Relances & messages automatiques</li>
+              <li className={styles.featurePro}>Outreach & prospection à froid</li>
+              <li className={styles.featureCon}>Pas d'accès aux comptes hors LeadControl</li>
+            </ul>
+
+            {flowState === "selecting" && (
+              <>
+                <a
+                  href={NOTION_GUIDE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.guideNote}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className={styles.guideNoteIcon}>📋</span>
+                  <span className={styles.guideNoteText}>
+                    <strong>Lire le guide de connexion WhatsApp</strong>
+                    <span>On te montre comment connecter ton compte, étape par étape.</span>
+                  </span>
+                  <span className={styles.guideNoteArrow}>→</span>
+                </a>
+                <div className={styles.optionList}>
+                  <button className={styles.optionBtn} onClick={handleSelectOAuth}>
+                    <span className={styles.optionLabel}>Mon propre numéro</span>
+                    <span className={styles.optionSub}>Connectez votre numéro WhatsApp personnel ou professionnel</span>
+                  </button>
+                  <button className={styles.optionBtn} onClick={handleSelectTwilio}>
+                    <span className={styles.optionLabel}>Numéro LeadControl</span>
+                    <span className={styles.optionSub}>Un numéro dédié vous est attribué automatiquement</span>
+                  </button>
+                </div>
+                <a
+                  href={NOTION_GUIDE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.billingNote}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className={styles.billingNoteIcon}>⚠️</span>
+                  <span>
+                    Pensez à ajouter une carte bancaire sur Meta. Vous ne serez pas débité, mais sans ça Meta bloque l'envoi des messages.{" "}
+                    <span className={styles.billingNoteLink}>En savoir plus →</span>
+                  </span>
+                </a>
+              </>
+            )}
+
+            {flowState === "assigning" && (
+              <div className={styles.flowRow}>
+                <p className={styles.flowTitle}>Attribution d'un numéro…</p>
+                <div className={styles.spinner} />
+              </div>
+            )}
+
+            {flowState === "waiting_code" && (
+              <div className={styles.flowRow}>
+                <p className={styles.flowTitle}>Envoyez "START" à ce numéro</p>
+                <div className={styles.phoneRow}>
+                  <span className={styles.phone}>{phone}</span>
+                  <button className={styles.copyBtn} onClick={handleCopy}>
+                    {copied ? "Copié !" : "Copier"}
+                  </button>
+                </div>
+                <p className={styles.waiting}>
+                  En attente du code SMS…{" "}
+                  <span className={styles.countdown}>{formatTime(timeLeft)}</span>
+                </p>
+              </div>
+            )}
+
+            {flowState === "code_received" && (
+              <div className={styles.flowRow}>
+                <p className={styles.flowTitle}>Code reçu</p>
+                <p className={styles.flowSub}>Entrez ce code dans WhatsApp pour finaliser.</p>
+                <div className={styles.code}>{code}</div>
+              </div>
+            )}
+
+            {flowState === "error" && (
+              <div className={styles.flowRow}>
+                <p className={styles.flowTitle}>Erreur</p>
+                <p className={styles.errorMsg}>{errorMessage}</p>
+                <button className={styles.retryBtn} onClick={handleRetry}>
+                  Réessayer
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Séparateur ── */}
+          <div className={styles.divider} />
+
+          {/* ── Colonne droite : WhatsApp Transfer ── */}
+          <div className={`${styles.column} ${styles.columnDisabled}`}>
+            <div className={styles.columnTitleRow}>
+              <p className={styles.columnTitle}>WhatsApp Transfer</p>
+              <span className={styles.comingSoonBadge}>Bientôt disponible</span>
             </div>
-          </>
-        )}
-
-        {flowState === "assigning" && (
-          <div className={styles.flowRow}>
-            <p className={styles.flowTitle}>Attribution d'un numéro…</p>
-            <div className={styles.spinner} />
-          </div>
-        )}
-
-        {flowState === "waiting_code" && (
-          <div className={styles.flowRow}>
-            <p className={styles.flowTitle}>Envoyez "START" à ce numéro</p>
-            <div className={styles.phoneRow}>
-              <span className={styles.phone}>{phone}</span>
-              <button className={styles.copyBtn} onClick={handleCopy}>
-                {copied ? "Copié !" : "Copier"}
-              </button>
-            </div>
-            <p className={styles.waiting}>
-              En attente du code SMS…{" "}
-              <span className={styles.countdown}>{formatTime(timeLeft)}</span>
-            </p>
-          </div>
-        )}
-
-        {flowState === "code_received" && (
-          <div className={styles.flowRow}>
-            <p className={styles.flowTitle}>Code reçu</p>
-            <p className={styles.flowSub}>Entrez ce code dans WhatsApp pour finaliser.</p>
-            <div className={styles.code}>{code}</div>
-          </div>
-        )}
-
-        {flowState === "error" && (
-          <div className={styles.flowRow}>
-            <p className={styles.flowTitle}>Erreur</p>
-            <p className={styles.errorMsg}>{errorMessage}</p>
-            <button className={styles.retryBtn} onClick={handleRetry}>
-              Réessayer
+            <ul className={styles.featureList}>
+              <li className={styles.featurePro}>Accès aux comptes existants</li>
+              <li className={styles.featurePro}>Relances automatiques</li>
+              <li className={styles.featureCon}>Pas d'outreach / prospection à froid</li>
+            </ul>
+            <button className={styles.transferBtn} disabled>
+              Transférer
             </button>
           </div>
-        )}
+
+        </div>
       </div>
     </>,
     document.body

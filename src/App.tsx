@@ -9,7 +9,6 @@ import {
 import AgentAi from "./pages/AgentAi";
 import AgentAiConfiguration from "./pages/AgentAiConfiguration";
 import Connexion from "./pages/Connexion";
-import Contacts from "./pages/Contacts";
 import Conversations from "./pages/Conversations";
 import Relances from "./pages/Relances";
 import Crm from "./pages/Crm";
@@ -27,6 +26,8 @@ import PolicyPrivacy from "./pages/policy/PolicyPrivacy";
 import PolicyTerms from "./pages/policy/PolicyTerms";
 import CrmGuard from "./components/GuardComponent/CrmGuard";
 import ScrapingGuard from "./components/GuardComponent/ScrapingGuard";
+import ContactsGuard from "./components/GuardComponent/ContactsGuard";
+import RendezVous from "./pages/RendezVous";
 import Subscription from "./pages/Subscription";
 import PricingPage from "./pages/PricingPage";
 import useSubscriptionState from "./hooks/useSubscriptionState";
@@ -164,7 +165,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/app/demarer" element={<Demarer />} />
           <Route path="/app" element={<Dashboard />} />
-          <Route path="/app/contacts" element={<Contacts />} />
+          <Route path="/app/contacts" element={<ContactsGuard />} />
           <Route path="/app/conversations" element={<Conversations />} />
           <Route path="/app/relances" element={<Relances />} />
           <Route path="/app/subscription" element={<Subscription />} />
@@ -177,6 +178,7 @@ function App() {
           <Route path="/app/connexion" element={<Connexion />} />
           <Route path="/app/paiement" element={<PricingPage />} />
           <Route path="/app/scraping" element={<ScrapingGuard />} />
+          <Route path="/app/rendez-vous" element={<RendezVous />} />
           <Route path="/app/*" element={<Navigate to="/app" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

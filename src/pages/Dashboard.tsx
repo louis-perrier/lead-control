@@ -1025,7 +1025,7 @@ const Dashboard: FunctionComponent = () => {
             <header className={styles.claraHeader}>
               <div className={styles.claraHeaderTop}>
                 <h1 className={styles.claraHeaderTitle}>
-                  Dashboard — {isAllMode ? "Tous les agents" : (activeConfigOption?.label ?? "Clara")}
+                  Dashboard · {isAllMode ? "Tous les agents" : (activeConfigOption?.label ?? "Clara")}
                 </h1>
               </div>
               <div className={styles.claraHeaderControls}>

@@ -770,6 +770,24 @@ const AgentAi: FunctionComponent = () => {
   const templateBodyRef = useRef<HTMLTextAreaElement | null>(null);
   const templateBackdropPointerDownRef = useRef(false);
 
+  // ── Auto-relances config state ──────────────────────────────────────────────
+  const [autoRelancesEnabled, setAutoRelancesEnabled] = useState(false);
+  const [relanceOnConditionStop, setRelanceOnConditionStop] = useState(false);
+  const [relanceMessages, setRelanceMessages] = useState(["", "", ""]);
+  const [relancesSaveStatus, setRelancesSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  useEffect(() => {
+    const rel = ((selectedAgent?.configs as Record<string, unknown>)?.Relances ?? {}) as Record<string, unknown>;
+    setAutoRelancesEnabled(Boolean(rel.auto_enabled));
+    setRelanceOnConditionStop(Boolean(rel.relance_on_condition_stop));
+    const seq = Array.isArray(rel.sequence) ? rel.sequence as Array<{ day: number; message: string }> : [];
+    setRelanceMessages([
+      seq[0]?.message ?? "",
+      seq[1]?.message ?? "",
+      seq[2]?.message ?? "",
+    ]);
+  }, [selectedAgent]);
+
   useEffect(() => {
     if (activeTab !== "avance") {
       setActiveSocial(null);
@@ -2115,6 +2133,38 @@ const AgentAi: FunctionComponent = () => {
       .eq("id", followupId);
     fetchFollowups();
   };
+
+  const handleSaveRelances = async () => {
+    if (!selectedAgent?.display_id) return;
+    setRelancesSaveStatus("saving");
+    const relancesConfig = {
+      auto_enabled: autoRelancesEnabled,
+      relance_on_condition_stop: relanceOnConditionStop,
+      sequence: [
+        { day: 1, message: relanceMessages[0] },
+        { day: 3, message: relanceMessages[1] },
+        { day: 7, message: relanceMessages[2] },
+      ],
+    };
+    const { error } = await supabase
+      .from("agent_configs")
+      .update({
+        configs: {
+          ...(selectedAgent.configs as Record<string, unknown>),
+          Relances: relancesConfig,
+        },
+      })
+      .eq("configs_id", selectedAgent.display_id);
+    if (!error) {
+      setRelancesSaveStatus("saved");
+      setTimeout(() => setRelancesSaveStatus("idle"), 2000);
+    } else {
+      setRelancesSaveStatus("idle");
+    }
+  };
+
+  const canSaveRelances = !(autoRelancesEnabled && relanceMessages.some((m) => !m.trim()));
+
   const canDeleteTemplate = (status: string) =>
     status === "approved" || status === "pending";
   const handleDeleteTemplate = async (template: WaTemplate) => {
@@ -3065,6 +3115,9 @@ const AgentAi: FunctionComponent = () => {
                       Réponds une situation à la fois pour entraîner Clara sur
                       ton style.
                     </p>
+                    <p className={styles.customToneInlineNote}>
+                      Ces simulations analysent uniquement ta façon de parler pour adapter le style de l'agent. Elles n'ont aucun impact sur la structure de ses réponses.
+                    </p>
                   </div>
                   <div className={styles.customToneQuestions}>
                     {visibleCustomToneQuestions.map((question, index) => {
@@ -3475,7 +3528,6 @@ const AgentAi: FunctionComponent = () => {
                 </span>
                 <div className={styles.sectionHeader}>
                   <h3 className={styles.sectionTitle}>{presentation.title}</h3>
-                  <p className={styles.sectionDescription}>{presentation.description}</p>
                 </div>
               </div>
               <div className={styles.detailsGroupHeaderRight}>
@@ -3596,7 +3648,7 @@ const AgentAi: FunctionComponent = () => {
                     <span className={styles.agentBackButtonIcon} aria-hidden="true">
                       {"<"}
                     </span>
-                    Retour a l'accueil des assistants IA
+                    Retour
                   </button>
                 </div>
                 <div className={styles.agentPanelIdentity}>
@@ -3683,7 +3735,7 @@ const AgentAi: FunctionComponent = () => {
                   canaux: "Canaux",
                   templates: "Relances",
                   voix: "Voix",
-                  automatisations: "Actions",
+                  automatisations: "Automatisations",
                   avance: "Avancé",
                 };
                 const locked = tabLocked[id];
@@ -3888,7 +3940,6 @@ const AgentAi: FunctionComponent = () => {
                                   <div key={v.voice_id} className={styles.voiceCard}>
                                     <div className={styles.voiceCardHeader}>
                                       <span className={styles.voiceCardName}>{v.name}</span>
-                                      <span className={styles.voiceCardTag}>Aperçu instantané</span>
                                     </div>
                                     <div className={styles.voiceCardActions}>
                                       <button
@@ -4085,8 +4136,12 @@ const AgentAi: FunctionComponent = () => {
                       <div className={styles.agentFormCard}>
 
                         {/* Répondre aux commentaires */}
+                        <div className={styles.comingSoonBlock}>
                         <div className={styles.formField}>
-                          <label className={styles.compactLabel}>Répondre aux commentaires</label>
+                          <label className={styles.compactLabel}>
+                            Répondre aux commentaires
+                            <span className={styles.comingSoonBadge}>Bientôt disponible</span>
+                          </label>
                           <div className={styles.voiceAutoRow}>
                             <SwitchAnimated
                               checked={commReplyEnabled}
@@ -4132,6 +4187,7 @@ const AgentAi: FunctionComponent = () => {
                               </div>
                             </>
                           )}
+                        </div>
                         </div>
 
                         {/* Envoyer un DM après commentaire */}
@@ -4346,6 +4402,90 @@ const AgentAi: FunctionComponent = () => {
               {/* ───────────────── TEMPLATES ───────────────── */}
               {activeTab === "templates" && (
                 <div className={styles.configTabPanel}>
+
+                  {/* ── Relances automatiques ── */}
+                  <div className={styles.autoRelancesSection}>
+                    <div className={styles.autoRelancesSectionHeader}>
+                      <div className={styles.autoRelancesSectionHeading}>
+                        <div className={styles.autoRelancesTitleRow}>
+                          <h4>Relances automatiques</h4>
+                          <span className={styles.autoRelancesPlatformBadge}>
+                            <img src="/logoConnectors/instagram.svg" alt="Instagram" className={styles.autoRelancesPlatformIcon} />
+                            Instagram
+                          </span>
+                        </div>
+                        <p className={styles.autoRelancesSectionLead}>
+                          Active une séquence de relances pour les leads qui ne répondent plus.
+                        </p>
+                      </div>
+                      <div className={styles.autoRelancesToggleRow}>
+                        <span className={styles.autoRelancesToggleLabel}>
+                          Activer les relances automatiques
+                        </span>
+                        <SwitchAnimated
+                          checked={autoRelancesEnabled}
+                          onChange={setAutoRelancesEnabled}
+                          showLabel={false}
+                          label="Activer les relances automatiques"
+                        />
+                      </div>
+                    </div>
+                    {autoRelancesEnabled && (
+                      <div className={styles.autoRelancesBody}>
+                        {([1, 3, 7] as const).map((day, i) => (
+                          <div key={day} className={styles.autoRelanceSlot}>
+                            <label className={styles.autoRelanceSlotLabel}>
+                              J+{day}
+                            </label>
+                            <textarea
+                              className={styles.autoRelanceTextarea}
+                              placeholder={`Message envoyé ${day} jour${day > 1 ? "s" : ""} après le dernier message de l'agent…`}
+                              value={relanceMessages[i]}
+                              onChange={(e) => {
+                                const next = [...relanceMessages];
+                                next[i] = e.target.value;
+                                setRelanceMessages(next);
+                              }}
+                              rows={3}
+                            />
+                          </div>
+                        ))}
+                        <div className={styles.autoRelancesConditionRow}>
+                          <span className={styles.autoRelancesToggleLabel}>
+                            Relancer même si le lien Calendly a été envoyé
+                          </span>
+                          <SwitchAnimated
+                            checked={relanceOnConditionStop}
+                            onChange={setRelanceOnConditionStop}
+                            showLabel={false}
+                            label="Relancer si lien Calendly envoyé"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className={styles.autoRelancesFooter}>
+                      {autoRelancesEnabled && relanceMessages.some((m) => !m.trim()) && (
+                        <p className={styles.autoRelancesWarning}>
+                          Tous les messages doivent être renseignés pour enregistrer.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        className={[styles.saveButton, styles.agentTabSaveButton]
+                          .filter(Boolean)
+                          .join(" ")}
+                        onClick={handleSaveRelances}
+                        disabled={!canSaveRelances || relancesSaveStatus === "saving"}
+                      >
+                        {relancesSaveStatus === "saving"
+                          ? "Enregistrement..."
+                          : relancesSaveStatus === "saved"
+                          ? "Enregistré ✓"
+                          : "Enregistrer"}
+                      </button>
+                    </div>
+                  </div>
+
                   <div className={styles.templatesSections}>
                     <div className={styles.templatesSection}>
                       <div className={styles.templatesSectionHeader}>

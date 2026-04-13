@@ -35,19 +35,19 @@ const ProgressiveQuestionModal: React.FC<ProgressiveQuestionModalProps> = ({
   onGenerate,
   isGenerating,
 }) => {
-  // Retour anticipé AVANT tous les hooks pour respecter les Rules of Hooks
-  if (!open) return null;
-
   const [currentIndex, setCurrentIndex] = useState(0);
   const backdropPointerDownRef = useRef(false);
 
   // Empêcher le scroll du body quand le modal est ouvert
   useEffect(() => {
+    if (!open) return;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, []);
+  }, [open]);
+
+  if (!open) return null;
 
   const total = questions.length;
   const currentQuestion = questions[currentIndex];

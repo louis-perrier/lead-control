@@ -421,9 +421,9 @@
   flex-direction: column;
   gap: 12px;
   margin-top: 0;
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
 }
 .claraTabButton {
   background: transparent;
