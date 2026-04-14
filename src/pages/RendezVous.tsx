@@ -16,8 +16,8 @@ import styles from "./RendezVous.module.css";
 
 type DealClosing = {
   id: string;
-  amount: number;
-  is_closed: boolean;
+  amount: number | null;
+  is_closed: boolean | null;
   closed_at: string | null;
   created_at: string;
 };
@@ -126,6 +126,8 @@ const RendezVous: FunctionComponent = () => {
   const [closingBooking, setClosingBooking] = useState<Booking | null>(null);
   const [closingAmount, setClosingAmount] = useState("");
   const [closingIsWon, setClosingIsWon] = useState(true);
+  const [closingRecordId, setClosingRecordId] = useState<string | null>(null);
+  const [canUndoClosing, setCanUndoClosing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const backdropRef = useRef(false);
 
@@ -196,7 +198,7 @@ const RendezVous: FunctionComponent = () => {
         return b.closing?.is_closed === true;
       }
       if (statusFilter === "not_closed") {
-        return !b.closing || b.closing.is_closed === false;
+        return !b.closing || b.closing.is_closed !== true;
       }
 
       return true;
@@ -206,8 +208,26 @@ const RendezVous: FunctionComponent = () => {
   // ── Closing modal ──────────────────────────────────────────────────────────
 
   const openClosingModal = useCallback(async (booking: Booking) => {
-    setClosingIsWon(true);
     setClosingBooking(booking);
+    setClosingRecordId(booking.closing?.id ?? null);
+
+    const hasClosingResult =
+      booking.closing?.is_closed === true || booking.closing?.is_closed === false;
+
+    if (hasClosingResult) {
+      setCanUndoClosing(true);
+      setClosingIsWon(booking.closing?.is_closed === true);
+      setClosingAmount(
+        typeof booking.closing?.amount === "number" && booking.closing.amount > 0
+          ? String(booking.closing.amount)
+          : "",
+      );
+      setClosingOpen(true);
+      return;
+    }
+
+    setCanUndoClosing(false);
+    setClosingIsWon(true);
     setClosingAmount("");
 
     if (booking.agentConfigId) {
@@ -226,23 +246,71 @@ const RendezVous: FunctionComponent = () => {
   const handleConfirmClosing = useCallback(async () => {
     if (!closingBooking?.conversation_id) return;
     setIsSubmitting(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setIsSubmitting(false); return; }
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
-    await supabase.from("deal_closings").insert({
-      conversation_id: closingBooking.conversation_id,
-      user_id: user.id,
-      agent_config_id: closingBooking.agentConfigId ?? null,
-      amount: parseFloat(closingAmount) || 0,
-      is_closed: closingIsWon,
-      closed_at: new Date().toISOString(),
-    });
+      const parsedAmount = Number.parseFloat(closingAmount);
+      const normalizedAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+      const payload = {
+        amount: normalizedAmount,
+        is_closed: closingIsWon,
+        closed_at: new Date().toISOString(),
+      };
 
-    setIsSubmitting(false);
-    setClosingOpen(false);
-    setClosingBooking(null);
-    fetchBookings();
-  }, [closingBooking, closingAmount, closingIsWon, fetchBookings]);
+      if (closingRecordId) {
+        await supabase
+          .from("deal_closings")
+          .update(payload)
+          .eq("id", closingRecordId);
+      } else {
+        await supabase.from("deal_closings").insert({
+          conversation_id: closingBooking.conversation_id,
+          user_id: user.id,
+          agent_config_id: closingBooking.agentConfigId ?? null,
+          ...payload,
+        });
+      }
+
+      setCanUndoClosing(true);
+      setClosingOpen(false);
+      setClosingBooking(null);
+      fetchBookings();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [closingBooking, closingAmount, closingIsWon, closingRecordId, fetchBookings]);
+
+  const handleUndoClosing = useCallback(async () => {
+    if (!closingBooking?.conversation_id) return;
+    setIsSubmitting(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from("deal_closings")
+        .update({
+          amount: 0,
+          is_closed: null,
+          closed_at: null,
+        })
+        .eq("conversation_id", closingBooking.conversation_id)
+        .eq("user_id", user.id);
+
+      setCanUndoClosing(false);
+      setClosingRecordId(null);
+      setClosingOpen(false);
+      setClosingBooking(null);
+      fetchBookings();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [closingBooking, fetchBookings]);
 
   const handleBackdropDown = (e: PointerEvent<HTMLDivElement>) => {
     backdropRef.current = e.target === e.currentTarget;
@@ -332,7 +400,9 @@ const RendezVous: FunctionComponent = () => {
                 const displayName = booking.invitee_name || booking.contactName || "Inconnu";
                 const isToday = isTodayDate(booking.event_start_at);
                 const hasClosed = booking.closing?.is_closed === true;
-                const hasLost = booking.closing && !booking.closing.is_closed;
+                const hasLost = booking.closing?.is_closed === false;
+                const hasClosingResult = hasClosed || hasLost;
+                const closingAmountValue = booking.closing?.amount ?? 0;
 
                 return (
                   <div key={booking.id} className={styles.card}>
@@ -349,7 +419,7 @@ const RendezVous: FunctionComponent = () => {
                         {isToday && <span className={styles.badgeToday}>Aujourd'hui</span>}
                         {hasClosed && (
                           <span className={styles.badgeClosed}>
-                            Gagné · {booking.closing!.amount > 0 ? `${booking.closing!.amount} €` : "Closé"}
+                            Gagné · {closingAmountValue > 0 ? `${closingAmountValue} €` : "Closé"}
                           </span>
                         )}
                         {hasLost && <span className={styles.badgeLost}>Perdu</span>}
@@ -382,7 +452,7 @@ const RendezVous: FunctionComponent = () => {
                         className={styles.btnClose}
                         onClick={() => openClosingModal(booking)}
                       >
-                        {booking.closing ? "Modifier le closing" : "Marquer comme closé"}
+                        {hasClosingResult ? "Modifier le closing" : "Marquer comme closé"}
                       </button>
                       {booking.conversation_id && (
                         <button
@@ -459,12 +529,23 @@ const RendezVous: FunctionComponent = () => {
             )}
 
             <div className={styles.modalFooter}>
+              {canUndoClosing && (
+                <button
+                  type="button"
+                  className={styles.modalBtnCancel}
+                  disabled={isSubmitting}
+                  onClick={handleUndoClosing}
+                >
+                  Annuler le closing
+                </button>
+              )}
               <button
                 type="button"
                 className={styles.modalBtnCancel}
+                disabled={isSubmitting}
                 onClick={() => setClosingOpen(false)}
               >
-                Annuler
+                Fermer
               </button>
               <button
                 type="button"

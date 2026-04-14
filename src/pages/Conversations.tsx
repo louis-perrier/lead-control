@@ -1118,6 +1118,8 @@ const Conversations: FunctionComponent = () => {
   const [isClosingModalOpen, setClosingModalOpen] = useState(false);
   const [closingAmount, setClosingAmount] = useState<string>("");
   const [closingIsWon, setClosingIsWon] = useState(true);
+  const [closingRecordId, setClosingRecordId] = useState<string | null>(null);
+  const [canUndoClosing, setCanUndoClosing] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [convHasBooking, setConvHasBooking] = useState(false);
   const [convBookingData, setConvBookingData] = useState<{ id: string; created_at: string } | null>(null);
@@ -1550,6 +1552,39 @@ const Conversations: FunctionComponent = () => {
 
   const openClosingModal = useCallback(async () => {
     setClosingIsWon(true);
+    setClosingAmount("");
+    setClosingRecordId(null);
+    setCanUndoClosing(false);
+
+    if (activeConversation?.id) {
+      const { data: existingClosings } = await supabase
+        .from("deal_closings")
+        .select("id, amount, is_closed")
+        .eq("conversation_id", Number(activeConversation.id))
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const latestClosing = existingClosings?.[0];
+      const hasClosingResult =
+        latestClosing?.is_closed === true || latestClosing?.is_closed === false;
+
+      if (latestClosing?.id) {
+        setClosingRecordId(latestClosing.id);
+      }
+
+      if (hasClosingResult) {
+        setCanUndoClosing(true);
+        setClosingIsWon(latestClosing.is_closed === true);
+        setClosingAmount(
+          typeof latestClosing.amount === "number" && latestClosing.amount > 0
+            ? String(latestClosing.amount)
+            : "",
+        );
+        setClosingModalOpen(true);
+        return;
+      }
+    }
+
     if (!activeConversation?.agentConfigId) {
       setClosingAmount("");
       setClosingModalOpen(true);
@@ -1563,24 +1598,74 @@ const Conversations: FunctionComponent = () => {
     const avg = (data?.configs as Record<string, any>)?.avg_deal_value;
     setClosingAmount(avg != null ? String(avg) : "");
     setClosingModalOpen(true);
-  }, [activeConversation?.agentConfigId]);
+  }, [activeConversation?.id, activeConversation?.agentConfigId]);
 
   const handleConfirmClosing = useCallback(async () => {
     if (!activeConversation) return;
     setIsClosing(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setIsClosing(false); return; }
-    await supabase.from("deal_closings").insert({
-      conversation_id: Number(activeConversation.id),
-      user_id: user.id,
-      agent_config_id: activeConversation.agentConfigId ?? null,
-      amount: parseFloat(closingAmount) || 0,
-      is_closed: closingIsWon,
-      closed_at: new Date().toISOString(),
-    });
-    setIsClosing(false);
-    setClosingModalOpen(false);
-  }, [activeConversation, closingAmount, closingIsWon]);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const parsedAmount = Number.parseFloat(closingAmount);
+      const normalizedAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+      const payload = {
+        amount: normalizedAmount,
+        is_closed: closingIsWon,
+        closed_at: new Date().toISOString(),
+      };
+
+      if (closingRecordId) {
+        await supabase
+          .from("deal_closings")
+          .update(payload)
+          .eq("id", closingRecordId);
+      } else {
+        await supabase.from("deal_closings").insert({
+          conversation_id: Number(activeConversation.id),
+          user_id: user.id,
+          agent_config_id: activeConversation.agentConfigId ?? null,
+          ...payload,
+        });
+      }
+
+      setCanUndoClosing(true);
+      setClosingModalOpen(false);
+    } finally {
+      setIsClosing(false);
+    }
+  }, [activeConversation, closingAmount, closingIsWon, closingRecordId]);
+
+  const handleUndoClosing = useCallback(async () => {
+    if (!activeConversation) return;
+    setIsClosing(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from("deal_closings")
+        .update({
+          amount: 0,
+          is_closed: null,
+          closed_at: null,
+        })
+        .eq("conversation_id", Number(activeConversation.id))
+        .eq("user_id", user.id);
+
+      setCanUndoClosing(false);
+      setClosingRecordId(null);
+      setClosingAmount("");
+      setClosingIsWon(true);
+      setClosingModalOpen(false);
+    } finally {
+      setIsClosing(false);
+    }
+  }, [activeConversation]);
 
   const openVoiceModal = useCallback(async () => {
     if (!activeConversation) return;
@@ -3207,16 +3292,34 @@ const Conversations: FunctionComponent = () => {
 
             {/* Actions */}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+              {canUndoClosing && (
+                <button
+                  type="button"
+                  onClick={handleUndoClosing}
+                  disabled={isClosing}
+                  style={{
+                    padding: "10px 20px", borderRadius: 10, border: "1px solid rgba(185, 28, 28, 0.35)",
+                    background: "rgba(185, 28, 28, 0.08)", color: "#b91c1c",
+                    fontSize: "var(--fs-13)", fontWeight: 600, cursor: isClosing ? "not-allowed" : "pointer",
+                    opacity: isClosing ? 0.6 : 1,
+                  }}
+                >
+                  Annuler le closing
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setClosingModalOpen(false)}
+                disabled={isClosing}
                 style={{
                   padding: "10px 20px", borderRadius: 10, border: "1px solid var(--app-border)",
                   background: "var(--app-surface)", color: "var(--app-text)",
-                  fontSize: "var(--fs-13)", fontWeight: 600, cursor: "pointer",
+                  fontSize: "var(--fs-13)", fontWeight: 600,
+                  cursor: isClosing ? "not-allowed" : "pointer",
+                  opacity: isClosing ? 0.6 : 1,
                 }}
               >
-                Annuler
+                Fermer
               </button>
               <button
                 type="button"

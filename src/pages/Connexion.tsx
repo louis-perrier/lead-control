@@ -510,7 +510,7 @@ const handleCancelDisconnect = () => {
                     <span className={styles.providerLogoShell}>
                       <img
                         src={
-                          ["appel", "instagram"].includes(connection.provider.toLowerCase())
+                          ["appel", "instagram", "calendly"].includes(connection.provider.toLowerCase())
                             ? `/logoConnectors/${connection.provider.toLowerCase()}.svg`
                             : `/logoConnectors/${connection.provider.toLowerCase()}.webp`
                         }

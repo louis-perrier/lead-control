@@ -4113,7 +4113,7 @@ const AgentAi: FunctionComponent = () => {
                                 <img
                                   src={
                                     connexions[logoKey as keyof typeof connexions]?.imageSrc ??
-                                    (["appel", "instagram"].includes(logoKey)
+                                    (["appel", "instagram", "calendly"].includes(logoKey)
                                       ? `/logoConnectors/${logoKey}.svg`
                                       : `/logoConnectors/${logoKey}.webp`)
                                   }
