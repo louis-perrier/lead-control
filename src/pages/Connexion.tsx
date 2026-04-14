@@ -356,6 +356,16 @@ const connectorActions = useMemo(() => {
     setActivePopup,
   });
 }, [connections, connectorUserId, setActivePopup]);
+
+const buildRefreshConnect = useCallback((connection: Connection) => {
+  const configsId = connection.configurations.find((c) => c.configId)?.configId ?? null;
+  const connectorConnected = connections.map((c) => ({
+    connectors_name: (c.provider ?? "").toLowerCase(),
+    id: c.connector_user_id,
+  }));
+  const providerKey = (connection.provider ?? "").toLowerCase();
+  return buildConnectorActions({ connectorConnected, configsId, setActivePopup })[providerKey]?.onConnect ?? handleRefresh;
+}, [connections, setActivePopup, handleRefresh]);
 const [confirmationOpen, setConfirmationOpen] = useState(false);
 const [pendingDisconnect, setPendingDisconnect] = useState<{
   action: () => Promise<void> | void;
@@ -549,8 +559,7 @@ const handleCancelDisconnect = () => {
                     const disconnectAction =
                       actions?.onDisconnect ??
                       (() => handleDisconnectClick(connection.connector_user_id));
-                    const handleConnect =
-                      actions?.onConnect ?? (() => handleRefresh());
+                    const handleConnect = buildRefreshConnect(connection);
                     const providerLabel =
                       connection.connectors_label ??
                       connection.provider ??
