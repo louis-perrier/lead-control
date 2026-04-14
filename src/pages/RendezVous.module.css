@@ -319,6 +319,29 @@
   color: var(--app-text-primary);
 }
 
+.btnDelete {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 9px;
+  border: 1px solid rgba(239, 68, 68, 0.34);
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.btnDelete:hover {
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.btnDelete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── Closing Modal ── */
 .modalBackdrop {
   position: fixed;

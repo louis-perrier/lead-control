@@ -411,24 +411,26 @@ const channelCycle: ChannelOption[] = ["Instagram", "WhatsApp", "Telegram"];
 const TOP_CONVERSATIONS_PAGE_SIZE = 3;
 
 // ── Count-up animation hook
-const useCountUp = (target: number, duration = 1100) => {
+const useCountUp = (target: number, duration = 1100, decimals = 0) => {
   const [current, setCurrent] = useState(0);
   const startRef = useRef<number | null>(null);
   useEffect(() => {
     if (target === 0) { setCurrent(0); return; }
     startRef.current = null;
     let rafId: number;
+    const precision = Math.max(0, Math.floor(decimals));
+    const factor = Math.pow(10, precision);
     const tick = (now: number) => {
       if (startRef.current === null) startRef.current = now;
       const elapsed = now - startRef.current;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setCurrent(Math.round(eased * target));
+      setCurrent(Math.round(eased * target * factor) / factor);
       if (progress < 1) rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafId);
-  }, [target, duration]);
+  }, [target, duration, decimals]);
   return current;
 };
 
@@ -437,6 +439,7 @@ type RoiKpiCardProps = {
   value: number;
   format: "number" | "currency" | "percent";
   highlight?: boolean;
+  percentDecimals?: number;
 };
 
 const RoiKpiCard: FunctionComponent<RoiKpiCardProps> = ({
@@ -444,13 +447,17 @@ const RoiKpiCard: FunctionComponent<RoiKpiCardProps> = ({
   value,
   format,
   highlight = false,
+  percentDecimals = 0,
 }) => {
-  const animated = useCountUp(value);
+  const animated = useCountUp(value, 1100, format === "percent" ? percentDecimals : 0);
   const display =
     format === "currency"
       ? `${animated.toLocaleString("fr-FR")} €`
       : format === "percent"
-      ? `${animated} %`
+      ? `${animated.toLocaleString("fr-FR", {
+          minimumFractionDigits: percentDecimals,
+          maximumFractionDigits: percentDecimals,
+        })} %`
       : animated.toLocaleString("fr-FR");
   return (
     <article
@@ -647,6 +654,19 @@ const conversationHasProspectReplyInWindow = (
       message.authorType === "customer" &&
       isInPeriodWindow(message.sentAt, window),
   );
+
+const toNumericConversationId = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
 
 
 const ChannelBadge: FunctionComponent<{
@@ -903,7 +923,7 @@ type RoiBookingConversation = {
 type RoiBookingRow = {
   id: string;
   created_at: string;
-  conversation_id: number | null;
+  conversation_id: number | string | null;
   conversations?: RoiBookingConversation | RoiBookingConversation[] | null;
 };
 
@@ -920,6 +940,14 @@ const getBookingAgentConfigId = (booking: RoiBookingRow): string | null => {
     return relation[0]?.agent_config_id ?? null;
   }
   return relation?.agent_config_id ?? null;
+};
+
+const getUniqueBookedCallKey = (booking: RoiBookingRow): string => {
+  const conversationId = toNumericConversationId(booking.conversation_id);
+  if (conversationId !== null) {
+    return `conversation:${conversationId}`;
+  }
+  return `booking:${booking.id}`;
 };
 
 const getRoiPeriodLabel = (period: PeriodOption): string => {
@@ -941,43 +969,82 @@ const Dashboard: FunctionComponent = () => {
 
   useEffect(() => {
     let isCancelled = false;
+    let roiChannel: ReturnType<typeof supabase.channel> | null = null;
 
-    const fetchRoiSource = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+    const setupRoiSync = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user || isCancelled) return;
 
-      const [bookingsRes, closingsRes] = await Promise.all([
-        supabase
-          .from("calendly_bookings")
-          .select(`
-            id,
-            created_at,
-            conversation_id,
-            conversations ( agent_config_id )
-          `)
-          .eq("user_id", user.id),
-        supabase
-          .from("deal_closings")
-          .select("amount, is_closed, closed_at, agent_config_id")
-          .eq("user_id", user.id),
-      ]);
+      const fetchRoiSource = async () => {
+        const [bookingsRes, closingsRes] = await Promise.all([
+          supabase
+            .from("calendly_bookings")
+            .select(`
+              id,
+              created_at,
+              conversation_id,
+              conversations ( agent_config_id )
+            `)
+            .eq("user_id", user.id),
+          supabase
+            .from("deal_closings")
+            .select("amount, is_closed, closed_at, agent_config_id")
+            .eq("user_id", user.id),
+        ]);
 
+        if (isCancelled) return;
+
+        if (bookingsRes.error || closingsRes.error) {
+          setRoiBookings([]);
+          setRoiClosings([]);
+          return;
+        }
+
+        setRoiBookings((bookingsRes.data ?? []) as RoiBookingRow[]);
+        setRoiClosings((closingsRes.data ?? []) as RoiClosingRow[]);
+      };
+
+      await fetchRoiSource();
       if (isCancelled) return;
 
-      if (bookingsRes.error || closingsRes.error) {
-        setRoiBookings([]);
-        setRoiClosings([]);
-        return;
-      }
-
-      setRoiBookings((bookingsRes.data ?? []) as RoiBookingRow[]);
-      setRoiClosings((closingsRes.data ?? []) as RoiClosingRow[]);
+      roiChannel = supabase
+        .channel(`realtime:dashboard-roi:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "calendly_bookings",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            fetchRoiSource();
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "deal_closings",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            fetchRoiSource();
+          },
+        )
+        .subscribe();
     };
 
-    fetchRoiSource();
+    setupRoiSync();
 
     return () => {
       isCancelled = true;
+      if (roiChannel) {
+        supabase.removeChannel(roiChannel);
+      }
     };
   }, []);
 
@@ -1038,14 +1105,19 @@ const Dashboard: FunctionComponent = () => {
       (closing) => closing.is_closed === true,
     );
 
-    const callsBooked = bookingsInWindow.length;
+    const uniqueBookedCallKeys = new Set<string>();
+    bookingsInWindow.forEach((booking) => {
+      uniqueBookedCallKeys.add(getUniqueBookedCallKey(booking));
+    });
+    const callsBooked = uniqueBookedCallKeys.size;
     const wonCount = wonClosingsInWindow.length;
     const closedDealsCount = closedDealsInWindow.length;
 
     const bookedConversationIds = new Set<number>();
     bookingsInWindow.forEach((booking) => {
-      if (typeof booking.conversation_id === "number") {
-        bookedConversationIds.add(booking.conversation_id);
+      const bookingConversationId = toNumericConversationId(booking.conversation_id);
+      if (bookingConversationId !== null) {
+        bookedConversationIds.add(bookingConversationId);
       }
     });
     const bookedConversations = bookedConversationIds.size;
@@ -1057,7 +1129,7 @@ const Dashboard: FunctionComponent = () => {
 
     const closeRateRaw =
       closedDealsCount > 0
-        ? Math.round((wonCount / closedDealsCount) * 100)
+        ? Math.round((wonCount / closedDealsCount) * 1000) / 10
         : 0;
     const closeRate = Math.min(100, Math.max(0, closeRateRaw));
 
@@ -1111,21 +1183,24 @@ const Dashboard: FunctionComponent = () => {
   const activeConversationIdsForBookingRate = useMemo(() => {
     const ids = new Set<number>();
     conversationData.forEach((conversation) => {
+      const matchesChannel =
+        channelFilter === "All" || conversation.channel === channelFilter;
       if (
-        conversation.status === "Ouvert" &&
-        conversationHasProspectReplyInWindow(conversation, periodWindow)
+        !matchesChannel ||
+        conversation.status !== "Ouvert" ||
+        !conversationHasProspectReplyInWindow(conversation, periodWindow)
       ) {
-        const numericId = Number(conversation.id);
-        if (Number.isFinite(numericId)) {
-          ids.add(numericId);
-        }
+        return;
+      }
+      const numericId = toNumericConversationId(conversation.id);
+      if (numericId !== null) {
+        ids.add(numericId);
       }
     });
     return ids;
-  }, [conversationData, periodWindow]);
+  }, [conversationData, channelFilter, periodWindow]);
 
-  const activeConversationsForBookingRate =
-    activeConversationIdsForBookingRate.size;
+  const activeConversationsForBookingRate = activeConversationIdsForBookingRate.size;
 
   const bookingRate = useMemo(() => {
     const bookedActiveConversations = new Set<number>();
@@ -1135,11 +1210,15 @@ const Dashboard: FunctionComponent = () => {
         Number.isFinite(bookingTime) &&
         bookingTime >= periodWindow.startMs &&
         bookingTime <= periodWindow.endMs;
-      if (!isInWindow || typeof booking.conversation_id !== "number") {
+      if (!isInWindow) {
         return;
       }
-      if (activeConversationIdsForBookingRate.has(booking.conversation_id)) {
-        bookedActiveConversations.add(booking.conversation_id);
+      const bookingConversationId = toNumericConversationId(booking.conversation_id);
+      if (
+        bookingConversationId !== null &&
+        activeConversationIdsForBookingRate.has(bookingConversationId)
+      ) {
+        bookedActiveConversations.add(bookingConversationId);
       }
     });
 
@@ -1147,8 +1226,8 @@ const Dashboard: FunctionComponent = () => {
       activeConversationsForBookingRate > 0
         ? Math.round(
             (bookedActiveConversations.size / activeConversationsForBookingRate) *
-              100,
-          )
+              1000,
+          ) / 10
         : 0;
     return Math.min(100, Math.max(0, rawRate));
   }, [
@@ -1483,11 +1562,13 @@ const Dashboard: FunctionComponent = () => {
                 label={`Taux de booking ${roiPeriodLabel}`}
                 value={bookingRate}
                 format="percent"
+                percentDecimals={1}
               />
               <RoiKpiCard
                 label={`Taux de close ${roiPeriodLabel}`}
                 value={roiData.closeRate}
                 format="percent"
+                percentDecimals={1}
               />
               <RoiKpiCard
                 label={`Revenus generes ${roiPeriodLabel}`}

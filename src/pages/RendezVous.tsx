@@ -129,6 +129,7 @@ const RendezVous: FunctionComponent = () => {
   const [closingRecordId, setClosingRecordId] = useState<string | null>(null);
   const [canUndoClosing, setCanUndoClosing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
   const backdropRef = useRef(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -312,6 +313,38 @@ const RendezVous: FunctionComponent = () => {
     }
   }, [closingBooking, fetchBookings]);
 
+  const handleDeleteBooking = useCallback(async (booking: Booking) => {
+    const displayName = booking.invitee_name || booking.contactName || "ce rendez-vous";
+    const shouldDelete = window.confirm(
+      `Supprimer ${displayName} ? Cette action est definitive.`,
+    );
+    if (!shouldDelete) return;
+
+    setDeletingBookingId(booking.id);
+    try {
+      const { error } = await supabase
+        .from("calendly_bookings")
+        .delete()
+        .eq("id", booking.id);
+
+      if (error) {
+        window.alert("Impossible de supprimer ce rendez-vous.");
+        return;
+      }
+
+      setBookings((prev) => prev.filter((item) => item.id !== booking.id));
+
+      if (closingBooking?.id === booking.id) {
+        setClosingOpen(false);
+        setClosingBooking(null);
+        setClosingRecordId(null);
+        setCanUndoClosing(false);
+      }
+    } finally {
+      setDeletingBookingId(null);
+    }
+  }, [closingBooking?.id]);
+
   const handleBackdropDown = (e: PointerEvent<HTMLDivElement>) => {
     backdropRef.current = e.target === e.currentTarget;
   };
@@ -469,6 +502,14 @@ const RendezVous: FunctionComponent = () => {
                           Voir la conversation →
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className={styles.btnDelete}
+                        disabled={deletingBookingId === booking.id}
+                        onClick={() => void handleDeleteBooking(booking)}
+                      >
+                        {deletingBookingId === booking.id ? "Suppression..." : "Supprimer"}
+                      </button>
                     </div>
 
                   </div>
