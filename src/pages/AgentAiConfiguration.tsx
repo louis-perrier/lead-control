@@ -107,6 +107,225 @@ const ConnexionCard: FunctionComponent<ConnexionCardProps> = ({
   );
 };
 
+type CalendlyEventType = {
+  uri: string;
+  name: string;
+  schedulingUrl: string;
+};
+
+type CalendlyMetadataEventType = {
+  uri: string;
+  name: string;
+  slug: string;
+  scheduling_url: string;
+  active: boolean;
+};
+
+const toCalendlyEventType = (
+  raw: CalendlyMetadataEventType
+): CalendlyEventType => ({
+  uri: raw.uri,
+  name: raw.name,
+  schedulingUrl: raw.scheduling_url,
+});
+
+const buildCalendlyPreviewUrl = (schedulingUrl: string) => {
+  const separator = schedulingUrl.includes("?") ? "&" : "?";
+  return `${schedulingUrl}${separator}utm_source=leadcontrol&utm_content={conversation_id}`;
+};
+
+const CalendlyConnexionCard: FunctionComponent<{
+  configsId: string;
+  connectorLabel: string;
+  metadata?: Record<string, unknown> | null;
+  currentEventTypeUri?: string;
+  onDisconnect: () => void;
+  onSaveEventType: (uri: string) => Promise<void>;
+}> = ({
+  configsId,
+  connectorLabel,
+  metadata,
+  currentEventTypeUri,
+  onDisconnect,
+  onSaveEventType,
+}) => {
+  const metadataEventTypes = useMemo(
+    () =>
+      ((metadata?.event_types ?? []) as CalendlyMetadataEventType[]).map(
+        toCalendlyEventType
+      ),
+    [metadata?.event_types]
+  );
+  const [eventTypes, setEventTypes] = useState<CalendlyEventType[]>(
+    metadataEventTypes
+  );
+  const [selectedUri, setSelectedUri] = useState(currentEventTypeUri ?? "");
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (metadataEventTypes.length > 0) {
+      setEventTypes(metadataEventTypes);
+    }
+  }, [metadataEventTypes]);
+
+  useEffect(() => {
+    setSelectedUri(currentEventTypeUri ?? "");
+  }, [currentEventTypeUri]);
+
+  const handleRefreshEventTypes = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch(
+        `https://wxatvxfirhahjalneorq.supabase.co/functions/v1/calendly-oauth/event-types?configs_id=${configsId}`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const refreshed = (data.event_types ?? []) as CalendlyMetadataEventType[];
+      setEventTypes(refreshed.map(toCalendlyEventType));
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
+  useEffect(() => {
+    if (metadataEventTypes.length === 0) {
+      void handleRefreshEventTypes();
+    }
+  }, [metadataEventTypes.length]);
+
+  const accountEmail = metadata?.email as string | undefined;
+  const selectedType = eventTypes.find((eventType) => eventType.uri === selectedUri);
+  const previewUrl = selectedType
+    ? buildCalendlyPreviewUrl(selectedType.schedulingUrl)
+    : null;
+  const isDirty = Boolean(selectedUri) && selectedUri !== currentEventTypeUri;
+  const hasEventTypes = eventTypes.length > 0;
+
+  return (
+    <div
+      className={styles.connexionCard}
+      style={{
+        alignItems: "flex-start",
+        minWidth: 360,
+        maxWidth: 420,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flex: 1 }}>
+        <img
+          src="/logoConnectors/calendly.svg"
+          alt="Calendly"
+          className={styles.connexionCardImage}
+          style={{ marginTop: 4 }}
+        />
+        <div className={styles.connexionCardBody} style={{ gap: 8 }}>
+          <div className={styles.connexionCardTitleRow}>
+            <h5>Calendly</h5>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "#22c55e",
+                flexShrink: 0,
+                display: "inline-block",
+              }}
+            />
+          </div>
+          <p
+            style={{
+              marginBottom: 2,
+              fontSize: "var(--fs-13)",
+              color: "var(--app-text-secondary)",
+              whiteSpace: "normal",
+              overflow: "visible",
+              textOverflow: "clip",
+              wordBreak: "break-word",
+              lineHeight: 1.35,
+            }}
+          >
+            {accountEmail ?? connectorLabel}
+          </p>
+          {isLoadingEvents || hasEventTypes ? (
+            <select
+              value={selectedUri}
+              onChange={(event) => setSelectedUri(event.target.value)}
+              disabled={isLoadingEvents}
+              style={{
+                width: "100%",
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid var(--app-border)",
+                background: "var(--app-bg)",
+                color: "var(--app-text)",
+                fontSize: "var(--fs-13)",
+                cursor: isLoadingEvents ? "wait" : "pointer",
+                outline: "none",
+              }}
+            >
+              <option value="">
+                {isLoadingEvents ? "Chargement..." : "Choisir un event type"}
+              </option>
+              {eventTypes.map((eventType) => (
+                <option key={eventType.uri} value={eventType.uri}>
+                  {eventType.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {previewUrl ? (
+            <p
+              style={{
+                fontSize: "var(--fs-11)",
+                color: "var(--app-text-secondary)",
+                wordBreak: "break-all",
+                marginTop: 2,
+                lineHeight: 1.4,
+              }}
+            >
+              {previewUrl}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          flexShrink: 0,
+          marginTop: 4,
+        }}
+      >
+        {isDirty ? (
+          <Button
+            className={buttonStyles.save}
+            onClick={async () => {
+              setIsSaving(true);
+              await onSaveEventType(selectedUri);
+              setIsSaving(false);
+            }}
+            disabled={isSaving}
+          >
+            {isSaving ? "..." : "Enregistrer"}
+          </Button>
+        ) : null}
+        <Button
+          className={styles.connexionButton}
+          onClick={onDisconnect}
+        >
+          Deconnecter
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 
 
 type TimeSlot = {
@@ -1878,6 +2097,29 @@ const AgentAi: FunctionComponent = () => {
 
   const buildPayload = () => configValues.map(({ id, value }) => ({ id, value }));
 
+  const handleSaveCalendlyEventType = async (uri: string) => {
+    if (!selectedAgent?.display_id) return;
+    const currentConfigs = (selectedAgent.configs as Record<string, unknown>) ?? {};
+    const currentConnections =
+      (currentConfigs.Connexions as Record<string, unknown> | undefined) ?? {};
+    const { error } = await supabase
+      .from("agent_configs")
+      .update({
+        configs: {
+          ...currentConfigs,
+          Connexions: {
+            ...currentConnections,
+            calendly_event_type_uri: uri,
+          },
+        },
+      })
+      .eq("configs_id", selectedAgent.display_id);
+    if (error) {
+      console.error("Erreur sauvegarde Calendly event type", error);
+      return;
+    }
+    await refreshDisplayedAgents();
+  };
 
   // ─── Templates & Followups ──────────────────────────────────────────────────
 
@@ -3630,11 +3872,46 @@ const AgentAi: FunctionComponent = () => {
                   <div className={styles.connexionSections}>
                     <div className={styles.connexionSection}>
                       <p className={styles.calendlyDashboardHint}>
-                        Les calls bookes apparaissent dans le dashboard quand Calendly est connecte.
+                        Les calls bookes apparaissent dans le dashboard quand
+                        Calendly est connecte.
+                        <br />
+                        Les reservations Calendly fonctionnent en plan gratuit,
+                        mais le suivi des calls dans le dashboard necessite un
+                        plan Calendly payant ou une periode d’essai active.
+                        <br />
+                        Apres passage en payant, pensez a reconnecter ou
+                        rafraichir la connexion.
                       </p>
                       <h4>Connecté ({countConnectedConnector})</h4>
                       <div className={styles.connexionSectionCards}>
-                        {connectorConnected.map((connector) => (
+                        {connectorConnected
+                          .filter(
+                            (connector) => connector.connectors_name === "calendly"
+                          )
+                          .map((connector) => (
+                            <CalendlyConnexionCard
+                              key={connector.connectors_id}
+                              configsId={selectedAgent?.display_id ?? ""}
+                              connectorLabel={connector.connector_label ?? ""}
+                              metadata={connector.metadata}
+                              currentEventTypeUri={
+                                (
+                                  (selectedAgent?.configs as
+                                    | Record<string, unknown>
+                                    | undefined)?.Connexions as
+                                    | Record<string, string | undefined>
+                                    | undefined
+                                )?.calendly_event_type_uri
+                              }
+                              onDisconnect={connexions.calendly.onDisconnect}
+                              onSaveEventType={handleSaveCalendlyEventType}
+                            />
+                          ))}
+                        {connectorConnected
+                          .filter(
+                            (connector) => connector.connectors_name !== "calendly"
+                          )
+                          .map((connector) => (
                           <ConnexionCard
                             key={connector.connectors_id}
                             title={connector.connectors_name.charAt(0).toUpperCase() + connector.connectors_name.slice(1)}
