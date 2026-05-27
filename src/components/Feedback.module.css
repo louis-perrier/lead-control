@@ -16,10 +16,11 @@
   bottom: 112px;
 }
 
+/* ── Trigger button ── */
 .button {
   position: relative;
   background: linear-gradient(145deg, #ffffff, #f4f8ff);
-  border: 1px solid rgba(37, 99, 235, 0.32);
+  border: 1px solid rgba(37, 99, 235, 0.28);
   padding: 0 16px 0 12px;
   margin: 0;
   min-width: 132px;
@@ -31,7 +32,7 @@
   gap: 10px;
   border-radius: 999px;
   box-shadow:
-    0 12px 26px rgba(15, 23, 42, 0.2),
+    0 12px 26px rgba(15, 23, 42, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
   transition: transform 0.24s ease, box-shadow 0.24s ease, filter 0.24s ease;
 }
@@ -39,7 +40,7 @@
 .button:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 16px 30px rgba(15, 23, 42, 0.26),
+    0 16px 30px rgba(15, 23, 42, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 1);
   filter: saturate(1.03);
 }
@@ -69,8 +70,8 @@
   position: absolute;
   inset: -8px;
   border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
-  border: 1px solid rgba(37, 99, 235, 0.16);
+  background: rgba(37, 99, 235, 0.07);
+  border: 1px solid rgba(37, 99, 235, 0.14);
   transition: transform 0.22s ease, opacity 0.22s ease;
   transform: scale(0.98);
   opacity: 0.55;
@@ -83,48 +84,40 @@
   opacity: 0.9;
 }
 
+/* ── Overlay card ── */
 .overlay {
   position: absolute;
   bottom: calc(100% + 16px);
   right: 0;
   width: min(360px, 85vw);
-  min-height: 270px;
-  padding: 14px;
-  border-radius: 18px;
-  background: linear-gradient(
-    160deg,
-    rgba(255, 255, 255, 0.95),
-    rgba(242, 247, 255, 0.92)
-  );
-  border: 1px solid rgba(59, 130, 246, 0.22);
+  padding: 0;
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.97), rgba(244, 248, 255, 0.94));
+  border: 1px solid rgba(59, 130, 246, 0.18);
   box-shadow:
-    0 28px 64px rgba(15, 23, 42, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
+    0 32px 72px rgba(15, 23, 42, 0.26),
+    0 8px 24px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(10px) scale(0.97);
+  transform: translateY(12px) scale(0.97);
   transform-origin: bottom right;
   transition: opacity 0.28s ease, transform 0.28s ease;
 }
 
+/* Tri-color accent line at top */
 .overlay::before {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.8),
-    rgba(59, 130, 246, 0.35)
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2dd4bf 0%, #3b82f6 50%, #818cf8 100%);
   pointer-events: none;
+  z-index: 1;
 }
 
 .overlay.visible {
@@ -133,33 +126,121 @@
   pointer-events: auto;
 }
 
+/* ── Form ── */
 .form {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
+  padding: 16px 16px 14px;
+  padding-top: 18px;
 }
 
 .overlayHeader {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 2px 2px 4px;
+  gap: 3px;
+  padding: 2px 2px 12px;
 }
 
 .overlayTitle {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #0f172a;
+  letter-spacing: -0.01em;
 }
 
 .overlayHint {
   margin: 0;
   font-size: 12px;
-  color: rgba(15, 23, 42, 0.65);
+  color: rgba(15, 23, 42, 0.56);
+  line-height: 1.45;
 }
 
+/* ── Stars ── */
+.starsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  margin: 0 -16px;
+  background: rgba(248, 250, 255, 0.8);
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.starsHeading {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.52);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.starsRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.starBtn {
+  background: none;
+  border: none;
+  padding: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: transform 0.14s ease;
+  line-height: 0;
+}
+
+.starBtn:hover {
+  transform: scale(1.16);
+}
+
+.starBtn:active {
+  transform: scale(0.9);
+}
+
+.starBtn svg {
+  width: 26px;
+  height: 26px;
+  transition: filter 0.15s ease;
+}
+
+.starActive svg {
+  filter: drop-shadow(0 1px 5px rgba(245, 158, 11, 0.42));
+}
+
+.starsLabel {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.5);
+  letter-spacing: 0.01em;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease;
+}
+
+.starsLabelVisible {
+  opacity: 1;
+  transform: translateX(0);
+  color: #b45309;
+}
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background: rgba(148, 163, 184, 0.16);
+  margin: 14px -16px 12px;
+}
+
+/* ── Textarea ── */
 .textareaWrapper {
   position: relative;
   width: 100%;
@@ -167,41 +248,43 @@
 
 .textarea {
   width: 100%;
-  min-height: 190px;
-  max-height: 300px;
-  border: 1px solid rgba(148, 163, 184, 0.58);
+  min-height: 130px;
+  max-height: 280px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
   border-radius: 14px;
   padding: 12px 14px;
-  padding-bottom: 56px;
+  padding-bottom: 54px;
   font-size: 14px;
   resize: none;
   font-family: inherit;
-  line-height: 1.5;
+  line-height: 1.55;
   color: #0f172a;
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
 }
 
 .textarea::placeholder {
-  color: rgba(15, 23, 42, 0.44);
+  color: rgba(15, 23, 42, 0.38);
 }
 
 .textarea:focus-visible {
   outline: none;
-  border-color: rgba(37, 99, 235, 0.72);
+  border-color: rgba(37, 99, 235, 0.65);
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.98);
+    0 0 0 3px rgba(37, 99, 235, 0.14),
+    inset 0 1px 3px rgba(15, 23, 42, 0.04);
+  background: rgba(255, 255, 255, 0.99);
 }
 
+/* ── Send button ── */
 .sendButton {
   position: absolute;
   right: 10px;
   bottom: 10px;
   background: linear-gradient(145deg, #2563eb, #1d4ed8);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   padding: 4px;
   cursor: pointer;
   width: 38px;
@@ -210,14 +293,14 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.38);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.36);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .sendButton:hover {
-  transform: translateY(-1px) scale(1.04);
-  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.44);
-  filter: saturate(1.06);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.44);
+  filter: saturate(1.08);
 }
 
 .sendButton:active {
@@ -230,58 +313,49 @@
   object-fit: contain;
 }
 
+/* ── Toast message ── */
 .message {
   position: absolute;
   bottom: calc(100% + 14px);
   right: 0;
-  background: rgba(15, 23, 42, 0.92);
+  background: rgba(15, 23, 42, 0.9);
   color: white;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 999px;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.32);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.28);
   animation: fadeMessage 5s ease forwards;
   opacity: 0;
 }
 
+/* ── Error ── */
 .error {
   position: absolute;
-  top: -34px;
+  top: -36px;
   right: 0;
   color: #b91c1c;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  padding: 5px 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 5px 12px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.16);
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.14);
 }
 
 @keyframes fadeMessage {
-  0% {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  10% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  85% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
+  0% { opacity: 0; transform: translateY(5px); }
+  10% { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
 }
 
+/* ── Mobile ── */
 @media screen and (max-width: 640px) {
   .bubble {
     right: 16px;
@@ -307,11 +381,10 @@
   }
 
   .overlay {
-    width: min(330px, calc(100vw - 32px));
-    min-height: 240px;
+    width: min(340px, calc(100vw - 32px));
   }
 
   .textarea {
-    min-height: 165px;
+    min-height: 110px;
   }
 }
