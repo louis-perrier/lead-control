@@ -7,6 +7,7 @@ import HowItWorksSection from "../components/landing/Sections/HowItWorksSection"
 import CapabilitiesSection from "../components/landing/Sections/CapabilitiesSection";
 import ProofSection from "../components/landing/Sections/ProofSection";
 import TestimonialsSection from "../components/landing/Sections/TestimonialsSection";
+import VideoTestimonialsSection from "../components/landing/Sections/VideoTestimonialsSection";
 import RoiSection from "../components/landing/Sections/RoiSection";
 import PricingSection from "../components/landing/Sections/PricingSection";
 import GuaranteeSection from "../components/landing/Sections/GuaranteeSection";
@@ -50,6 +51,7 @@ const Landing = () => {
         <HowItWorksSection />
         <CapabilitiesSection />
         <TestimonialsSection />
+        <VideoTestimonialsSection />
         <RoiSection />
         <PricingSection primaryCtaLabel={primaryCtaLabel} />
         <GuaranteeSection />

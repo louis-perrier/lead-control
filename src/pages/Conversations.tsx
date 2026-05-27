@@ -7,6 +7,7 @@
   useRef,
   useState,
 } from "react";
+import { useLocation } from "react-router-dom";
 import { AppLayout } from "../layouts";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import {
@@ -1074,6 +1075,7 @@ const ConversationMessageItem: FunctionComponent<{
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const Conversations: FunctionComponent = () => {
+  const location = useLocation();
   // ── Config selector state
   const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
   const [isConfigMenuOpen, setConfigMenuOpen] = useState(false);
@@ -1841,15 +1843,19 @@ const Conversations: FunctionComponent = () => {
 
   // ── Effects
 
-  // Read URL params on mount (?conversation_id, ?prefill from Relances page)
+  // Read URL params (?conversation_id, ?prefill from Relances page)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const convId = params.get("conversation_id");
     const prefill = params.get("prefill");
     if (convId) {
       urlConversationIdRef.current = convId;
       userSelectedRef.current = true;
       setSelectedConversationId(convId);
+      setSelectedConfigId("all");
+      setChannelFilter("All");
+      setStatusFilter("all");
+      setSearchQuery("");
     }
     if (prefill) {
       setComposerText(prefill);
@@ -1857,7 +1863,7 @@ const Conversations: FunctionComponent = () => {
     if (convId || prefill) {
       window.history.replaceState(null, "", window.location.pathname);
     }
-  }, []);
+  }, [location.search]);
 
   useEffect(() => {
     if (agentConfigOptions.length === 0) {
@@ -1894,9 +1900,13 @@ const Conversations: FunctionComponent = () => {
       setSelectedConversationId(null);
       return;
     }
-    // If an ID came from URL params and exists in the loaded data, keep it
-    if (urlConversationIdRef.current && conversationData.some((conv) => conv.id === urlConversationIdRef.current)) {
-      urlConversationIdRef.current = null;
+    // If an ID came from URL params, actively restore the selection once data is loaded
+    if (urlConversationIdRef.current) {
+      if (conversationData.some((conv) => conv.id === urlConversationIdRef.current)) {
+        const targetId = urlConversationIdRef.current;
+        urlConversationIdRef.current = null;
+        setSelectedConversationId(targetId);
+      }
       return;
     }
     urlConversationIdRef.current = null;
@@ -1909,13 +1919,14 @@ const Conversations: FunctionComponent = () => {
   }, [conversationData, conversationsLoading, selectedConversationId]);
 
   useEffect(() => {
+    if (conversationsLoading) return;
     if (
       selectedConversationId &&
       !sortedConversations.some((conv) => conv.id === selectedConversationId)
     ) {
       setSelectedConversationId(sortedConversations[0]?.id ?? null);
     }
-  }, [sortedConversations, selectedConversationId]);
+  }, [sortedConversations, selectedConversationId, conversationsLoading]);
 
   useEffect(() => {
     if (!activeConversation) return;

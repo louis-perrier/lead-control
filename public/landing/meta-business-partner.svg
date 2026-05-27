@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 190" fill="none">
+  <!-- Meta ∞ infinity symbol — right loop (drawn first, sits behind at crossing) -->
+  <path
+    d="M150 78 C162 44, 222 28, 252 56 C282 84, 270 130, 242 140 C214 150, 164 130, 150 78"
+    fill="none" stroke="#0082FB" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"
+  />
+  <!-- Left loop (drawn second, sits in front at crossing) -->
+  <path
+    d="M150 78 C138 44, 78 28, 48 56 C18 84, 30 130, 58 140 C86 150, 136 130, 150 78"
+    fill="none" stroke="#0082FB" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"
+  />
+  <!-- "Meta" wordmark -->
+  <text
+    x="150" y="166"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="36" font-weight="700" fill="#1c2b33"
+    text-anchor="middle" letter-spacing="0.5"
+  >Meta</text>
+  <!-- "Business Partner" subtitle -->
+  <text
+    x="150" y="188"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="22" font-weight="400" fill="#1c2b33"
+    text-anchor="middle" letter-spacing="0.2"
+  >Business Partner</text>
+</svg>

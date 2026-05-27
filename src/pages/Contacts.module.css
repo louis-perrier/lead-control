@@ -39,6 +39,117 @@
   color: var(--app-text-secondary);
 }
 
+/* ─── Header actions ─────────────────────────────────────────────────────── */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.exportButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--br-10);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  background: rgba(37, 99, 235, 0.07);
+  color: var(--app-primary);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.exportButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.exportButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.exportButtonWrapper {
+  position: relative;
+}
+
+.exportButtonChevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
+}
+
+.exportButtonChevron.open {
+  transform: rotate(180deg);
+}
+
+.exportMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 210px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--br-10);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  z-index: 200;
+  overflow: hidden;
+  animation: menuFadeIn 0.12s ease;
+}
+
+.exportMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.exportMenuItem:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.exportMenuItemIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.exportMenuItem > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.exportMenuItemLabel {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+
+.exportMenuItemSub {
+  font-size: 11px;
+  color: var(--app-text-secondary);
+}
+
+.exportMenuItem:hover .exportMenuItemLabel {
+  color: var(--app-primary);
+}
+
+.exportMenuDivider {
+  height: 1px;
+  background: var(--app-border);
+  margin: 2px 0;
+}
+
 /* ─── Add button + dropdown ───────────────────────────────────────────────── */
 .addButtonWrapper {
   position: relative;
@@ -282,6 +393,12 @@
   white-space: nowrap;
 }
 
+.contactCountMeta {
+  font-size: 11px;
+  color: #64748b;
+  text-align: right;
+}
+
 @media (max-width: 1180px) {
   .toolbar {
     grid-template-columns: 1fr 1fr;
@@ -456,8 +573,8 @@
   white-space: nowrap;
 }
 
-/* ─── Status badges ───────────────────────────────────────────────────────── */
-.statusBadge {
+/* ─── Qualification badges ────────────────────────────────────────────────── */
+.qualificationBadge {
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
@@ -467,29 +584,30 @@
   white-space: nowrap;
 }
 
-.statusNew {
+.qualificationPending {
   background: rgba(100, 116, 139, 0.12);
   color: #64748b;
 }
 
-.statusContacted {
-  background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+.qualificationHot {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
 }
 
-.statusReplied {
-  background: rgba(124, 58, 237, 0.12);
-  color: #7c3aed;
+.qualificationWarm {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
 }
 
-.statusBooked {
+.qualificationCold {
   background: rgba(5, 150, 105, 0.12);
-  color: #059669;
+  color: #047857;
 }
 
-.statusClosed {
-  background: rgba(15, 118, 110, 0.12);
-  color: #0f766e;
+.qualificationStopped {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+  text-decoration: line-through;
 }
 
 /* ─── Action buttons ──────────────────────────────────────────────────────── */
@@ -1153,6 +1271,59 @@
   letter-spacing: 0.08em;
   color: #64748b;
   margin: 0 0 10px;
+}
+
+/* ─── Import warning box ─────────────────────────────────────────────────── */
+.importWarningBox {
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  background: rgba(254, 252, 232, 0.7);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.importWarningHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-14);
+  font-weight: 700;
+  color: #92400e;
+}
+
+.importWarningHeader svg {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.importWarningList {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.importWarningList li {
+  font-size: var(--fs-12);
+  color: #78350f;
+  line-height: 1.4;
+}
+
+.importWarningMore {
+  font-style: italic;
+  color: #92400e !important;
+}
+
+.importWarningConfirm {
+  margin: 0;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: #047857;
+  border-top: 1px solid rgba(245, 158, 11, 0.22);
+  padding-top: 8px;
 }
 
 /* ─── Buttons ─────────────────────────────────────────────────────────────── */

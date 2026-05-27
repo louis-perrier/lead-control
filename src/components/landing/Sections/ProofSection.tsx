@@ -7,12 +7,26 @@ const ProofSection = () => {
   return (
     <section className={styles.section} data-reveal>
       <div className={styles.sectionHeader}>
-        <p className={styles.sectionKicker}>Preuve rapide</p>
+        <p className={styles.sectionKicker}>Intégrations et preuves</p>
         <h2>Compatible avec vos canaux prioritaires, pensé pour convertir vite.</h2>
         <p>
           Une mise en place simple, une exécution continue et une vision claire des conversations
           qui avancent vers un rendez-vous.
         </p>
+      </div>
+
+      <div className={styles.metaFeaturedRow}>
+        <img
+          src="/landing/meta-business-partner.svg"
+          alt="Meta Business Partner"
+          className={styles.metaFeaturedLogo}
+        />
+        <div className={styles.metaFeaturedContent}>
+          <span className={styles.metaFeaturedTag}>Partenaire certifié</span>
+          <p className={styles.metaFeaturedNote}>
+            Accès direct à l'API officielle WhatsApp Business et Instagram Messaging — garanti par Meta.
+          </p>
+        </div>
       </div>
 
       <div className={styles.proofStrip}>

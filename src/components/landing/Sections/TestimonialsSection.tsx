@@ -2,7 +2,8 @@ import { reassurancePoints, testimonials } from "../../../config/landing";
 import styles from "../../../styles/landing/Sections.module.css";
 
 const TestimonialsSection = () => {
-  const featured = testimonials.slice(0, 4);
+  const [hero, ...rest] = testimonials.slice(0, 4);
+  const supporting = rest.slice(0, 3);
 
   return (
     <section className={styles.section} data-reveal>
@@ -15,8 +16,17 @@ const TestimonialsSection = () => {
         </p>
       </div>
 
-      <div className={styles.testimonialGrid}>
-        {featured.map((item) => (
+      <div className={styles.testimonialPullquote}>
+        <p className={styles.testimonialPullquoteText}>{hero.quote}</p>
+        <p className={styles.testimonialPullquoteMeta}>
+          <span className={styles.testimonialPullquoteAuthor}>{hero.name}</span>
+          {" — "}
+          <span>{hero.role}, {hero.activity}</span>
+        </p>
+      </div>
+
+      <div className={styles.testimonialSupportGrid}>
+        {supporting.map((item) => (
           <article key={item.name} className={`${styles.testimonialCard} ${styles.testimonialCardStatic}`}>
             <div className={styles.testimonialHead}>
               <div className={styles.testimonialAvatar} aria-hidden="true">

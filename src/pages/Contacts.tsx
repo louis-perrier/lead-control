@@ -2,15 +2,25 @@
   FunctionComponent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   DragEvent,
   KeyboardEvent,
   PointerEvent,
 } from "react";
+import * as XLSX from "xlsx";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "../layouts";
+import useAgents from "../hooks/useAgents";
+import useAllConversations from "../hooks/useAllConversations";
+import useAutoSyncProspectContacts from "../hooks/useAutoSyncProspectContacts";
+import {
+  ProspectConversation,
+  mapConversationRecordToProspect,
+  shouldIncludeConversationInContacts,
+} from "../lib/prospects";
 import supabase from "../lib/supabase";
 import styles from "./Contacts.module.css";
 
@@ -23,6 +33,7 @@ type ContactSource =
   | "scraping"
   | "instagram_likes"
   | "conversation";
+type QualificationKey = "hot" | "warm" | "cold" | "pending" | "stopped";
 
 type Contact = {
   id: string;
@@ -41,9 +52,28 @@ type Contact = {
   updated_at: string;
 };
 
+type ContactWithContext = Contact & {
+  linkedConversation: ProspectConversation | null;
+  qualificationKey: QualificationKey;
+  qualificationLabel: string;
+  qualificationClassName: string;
+  lastActivityAt: string | null;
+};
+
 type CsvParsed = {
   headers: string[];
   rows: string[][];
+};
+
+type ImportRecord = {
+  full_name: string | null;
+  instagram_handle: string | null;
+  phone_e164: string | null;
+  email: string | null;
+  tags: string[];
+  notes: null;
+  source: "csv_import";
+  status: "new";
 };
 
 type ColumnMapping = {
@@ -64,6 +94,17 @@ const STATUS_CONFIG: Record<
   replied: { label: "A répondu", className: styles.statusReplied },
   booked: { label: "Réservé", className: styles.statusBooked },
   closed: { label: "Clos", className: styles.statusClosed },
+};
+
+const QUALIFICATION_CONFIG: Record<
+  QualificationKey,
+  { label: string; className: string }
+> = {
+  hot: { label: "Chaud", className: styles.qualificationHot },
+  warm: { label: "Tiède", className: styles.qualificationWarm },
+  cold: { label: "Froid", className: styles.qualificationCold },
+  pending: { label: "À qualifier", className: styles.qualificationPending },
+  stopped: { label: "Arrêtée", className: styles.qualificationStopped },
 };
 
 const SOURCE_LABELS: Record<ContactSource, string> = {
@@ -127,6 +168,76 @@ function formatDate(iso: string): string {
   });
 }
 
+function normalizeTextValue(value?: string | null): string {
+  return value?.trim() ?? "";
+}
+
+function normalizeHandleValue(value?: string | null): string {
+  return normalizeTextValue(value).replace(/^@+/, "").toLowerCase();
+}
+
+function normalizePhoneValue(value?: string | null): string {
+  return normalizeTextValue(value).replace(/\s+/g, "");
+}
+
+function getQualificationKeyFromConversation(
+  conversation?: ProspectConversation | null,
+): QualificationKey {
+  if (conversation?.automationState === "stopped") return "stopped";
+  const heatTag = normalizeTextValue(conversation?.heatTag).toLowerCase();
+  if (heatTag === "hot") return "hot";
+  if (heatTag === "warm") return "warm";
+  if (heatTag === "cold") return "cold";
+  return "pending";
+}
+
+function getLastActivityAt(conversation?: ProspectConversation | null): string | null {
+  if (!conversation) return null;
+  const latestInbound = [...conversation.messages]
+    .reverse()
+    .find((message) => message.direction === "inbound");
+
+  return latestInbound?.sentAt ?? conversation.lastAt ?? null;
+}
+
+function findMatchingConversationForContact(
+  contact: Contact,
+  conversations: ProspectConversation[],
+): ProspectConversation | null {
+  if (contact.conversation_id) {
+    const byConversationId = conversations.find(
+      (conversation) => conversation.id === String(contact.conversation_id),
+    );
+    if (byConversationId) return byConversationId;
+  }
+
+  const handle = normalizeHandleValue(contact.instagram_handle);
+  if (handle) {
+    const byHandle = conversations.find(
+      (conversation) => normalizeHandleValue(conversation.contactHandle) === handle,
+    );
+    if (byHandle) return byHandle;
+  }
+
+  const phone = normalizePhoneValue(contact.phone_e164);
+  if (phone) {
+    const byPhone = conversations.find(
+      (conversation) => normalizePhoneValue(conversation.phone) === phone,
+    );
+    if (byPhone) return byPhone;
+  }
+
+  const email = normalizeTextValue(contact.email).toLowerCase();
+  if (email) {
+    const byEmail = conversations.find(
+      (conversation) => normalizeTextValue(conversation.email).toLowerCase() === email,
+    );
+    if (byEmail) return byEmail;
+  }
+
+  return null;
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 function validatePhone(phone: string): string | null {
@@ -178,14 +289,14 @@ function getPlatform(contact: Contact): "instagram" | "whatsapp" | "none" {
   return "none";
 }
 
-// ─── StatusBadge ─────────────────────────────────────────────────────────────
+// ─── QualificationBadge ──────────────────────────────────────────────────────
 
-const StatusBadge: FunctionComponent<{ status: ContactStatus }> = ({
-  status,
-}) => {
-  const cfg = STATUS_CONFIG[status];
+const QualificationBadge: FunctionComponent<{
+  qualification: QualificationKey;
+}> = ({ qualification }) => {
+  const cfg = QUALIFICATION_CONFIG[qualification];
   return (
-    <span className={`${styles.statusBadge} ${cfg.className}`}>
+    <span className={`${styles.qualificationBadge} ${cfg.className}`}>
       {cfg.label}
     </span>
   );
@@ -281,7 +392,6 @@ type ManualForm = {
   instagram_handle: string;
   phone_e164: string;
   email: string;
-  tags: string[];
   notes: string;
 };
 
@@ -294,7 +404,6 @@ const AddManualModal: FunctionComponent<{
     instagram_handle: "",
     phone_e164: "",
     email: "",
-    tags: [],
     notes: "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -348,7 +457,7 @@ const AddManualModal: FunctionComponent<{
         : null,
       phone_e164: form.phone_e164 || null,
       email: form.email || null,
-      tags: form.tags,
+      tags: [],
       notes: form.notes || null,
       source: "manual",
       status: "new",
@@ -429,14 +538,6 @@ const AddManualModal: FunctionComponent<{
           </div>
 
           <div className={`${styles.fieldGroup} ${styles.manualFieldSpanFull}`}>
-            <label className={styles.fieldLabel}>Tags</label>
-            <TagsInput
-              tags={form.tags}
-              onChange={(tags) => setForm((p) => ({ ...p, tags }))}
-            />
-          </div>
-
-          <div className={`${styles.fieldGroup} ${styles.manualFieldSpanFull}`}>
             <label className={styles.fieldLabel}>Notes</label>
             <textarea
               className={styles.fieldTextarea}
@@ -486,6 +587,10 @@ const CsvImportModal: FunctionComponent<{
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<{
+    records: ImportRecord[];
+    skipped: { line: number; reason: string }[];
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvBackdropPointerDownRef = useRef(false);
   const handleCsvBackdropPointerDown = (
@@ -508,35 +613,57 @@ const CsvImportModal: FunctionComponent<{
     csvBackdropPointerDownRef.current = false;
   };
 
+  const applyAutoMapping = (headers: string[]) => {
+    const autoMap: Partial<ColumnMapping> = {};
+    headers.forEach((h) => {
+      const lower = h.toLowerCase();
+      if (lower.includes("nom") || lower.includes("name") || lower.includes("full") || lower.includes("prenom") || lower.includes("prénom")) {
+        autoMap.full_name = h;
+      } else if (lower.includes("phone") || lower.includes("tel") || lower.includes("mobile") || lower.includes("portable")) {
+        autoMap.phone_e164 = h;
+      } else if (lower.includes("instagram") || lower.includes("handle") || lower.includes("ig")) {
+        autoMap.instagram_handle = h;
+      } else if (lower.includes("email") || lower.includes("mail")) {
+        autoMap.email = h;
+      }
+    });
+    setMapping((prev) => ({ ...prev, ...autoMap }));
+  };
+
   const handleFile = (file: File) => {
-    if (!file.name.endsWith(".csv")) {
-      setError("Seuls les fichiers .csv sont acceptés.");
+    const isXlsx = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+    const isCsv = file.name.endsWith(".csv");
+    if (!isCsv && !isXlsx) {
+      setError("Format non supporté. Utilise un fichier CSV ou Excel (.xlsx).");
       return;
     }
     setError(null);
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const parsed = parseCsv(text);
-      setCsv(parsed);
-      // Auto-detect mapping by header name
-      const autoMap: Partial<ColumnMapping> = {};
-      parsed.headers.forEach((h) => {
-        const lower = h.toLowerCase();
-        if (lower.includes("nom") || lower.includes("name") || lower.includes("full")) {
-          autoMap.full_name = h;
-        } else if (lower.includes("phone") || lower.includes("tel") || lower.includes("mobile")) {
-          autoMap.phone_e164 = h;
-        } else if (lower.includes("instagram") || lower.includes("handle") || lower.includes("ig")) {
-          autoMap.instagram_handle = h;
-        } else if (lower.includes("email") || lower.includes("mail")) {
-          autoMap.email = h;
-        }
-      });
-      setMapping((prev) => ({ ...prev, ...autoMap }));
-    };
-    reader.readAsText(file, "utf-8");
+    setPendingImport(null);
+
+    if (isXlsx) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+        const parsed = parseCsv(csvContent);
+        setCsv(parsed);
+        applyAutoMapping(parsed.headers);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const parsed = parseCsv(text);
+        setCsv(parsed);
+        applyAutoMapping(parsed.headers);
+      };
+      reader.readAsText(file, "utf-8");
+    }
   };
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -546,11 +673,44 @@ const CsvImportModal: FunctionComponent<{
     if (file) handleFile(file);
   };
 
+  const executeImport = async (records: ImportRecord[]) => {
+    setError(null);
+    setSubmitting(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError("Session expirée, reconnecte-toi.");
+      setSubmitting(false);
+      return;
+    }
+    const recordsWithUser = records.map((r) => ({ ...r, user_id: user.id }));
+    const { error: dbError } = await supabase
+      .from("contacts")
+      .insert(recordsWithUser);
+    setSubmitting(false);
+    if (dbError) {
+      if (dbError.message.includes("duplicate") || dbError.message.includes("unique")) {
+        setError(
+          "Certains contacts existent déjà. Supprime les doublons dans ton fichier et réessaie."
+        );
+      } else {
+        setError(dbError.message);
+      }
+      return;
+    }
+    onSuccess();
+    onClose();
+  };
+
   const handleImport = async () => {
+    if (pendingImport) {
+      await executeImport(pendingImport.records);
+      return;
+    }
+
     if (!csv) return;
     const rows = csv.rows;
     if (rows.length === 0) {
-      setError("Le fichier CSV est vide.");
+      setError("Le fichier est vide.");
       return;
     }
 
@@ -560,26 +720,16 @@ const CsvImportModal: FunctionComponent<{
       return idx >= 0 ? (row[idx] ?? "").trim() : "";
     };
 
-    type SkippedRow = { line: number; reason: string };
-    const records: {
-      full_name: string | null;
-      instagram_handle: string | null;
-      phone_e164: string | null;
-      email: string | null;
-      tags: string[];
-      notes: null;
-      source: "csv_import";
-      status: "new";
-    }[] = [];
-    const skipped: SkippedRow[] = [];
+    const records: ImportRecord[] = [];
+    const skipped: { line: number; reason: string }[] = [];
 
     rows.forEach((row, i) => {
-      const line = i + 2; // +2 : ligne 1 = headers
+      const line = i + 2;
       const instagram = get(row, mapping.instagram_handle);
       const phone = get(row, mapping.phone_e164);
       const email = get(row, mapping.email);
-
       const full_name = get(row, mapping.full_name);
+
       if (!full_name) {
         skipped.push({ line, reason: "nom complet manquant" });
         return;
@@ -612,33 +762,18 @@ const CsvImportModal: FunctionComponent<{
 
     if (records.length === 0) {
       setError(
-        `Aucune ligne valide. ${skipped.length} ligne(s) ignorée(s) : ${skipped.map((s) => `ligne ${s.line} (${s.reason})`).join(", ")}.`
+        `Aucune ligne valide — ${skipped.length} ignorée(s). Vérifie la correspondance des colonnes.`
       );
       return;
     }
 
     if (skipped.length > 0) {
-      const ok = window.confirm(
-        `${records.length} contact(s) valide(s).\n${skipped.length} ligne(s) ignorée(s) :\n` +
-          skipped.map((s) => `• Ligne ${s.line} : ${s.reason}`).join("\n") +
-          "\n\nContinuer l'import ?"
-      );
-      if (!ok) return;
-    }
-
-    setError(null);
-    setSubmitting(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setError("Session expirée, reconnecte-toi."); setSubmitting(false); return; }
-    const recordsWithUser = records.map((r) => ({ ...r, user_id: user.id }));
-    const { error: dbError } = await supabase.from("contacts").insert(recordsWithUser);
-    setSubmitting(false);
-    if (dbError) {
-      setError(dbError.message);
+      setError(null);
+      setPendingImport({ records, skipped });
       return;
     }
-    onSuccess();
-    onClose();
+
+    await executeImport(records);
   };
 
   const previewRows = csv?.rows.slice(0, 3) ?? [];
@@ -659,9 +794,9 @@ const CsvImportModal: FunctionComponent<{
         >
           <div className={styles.modalHeader}>
             <div className={styles.csvModalTitleBlock}>
-              <h2 className={styles.modalTitle}>Import CSV</h2>
+              <h2 className={styles.modalTitle}>Importer des contacts</h2>
               <p className={styles.csvModalLead}>
-                Charge un fichier propre, mappe les colonnes et valide l’import des prospects.
+                Compatible Excel (.xlsx) et CSV (Google Sheets). Mappe les colonnes puis confirme.
               </p>
             </div>
             <button className={styles.modalClose} onClick={onClose} type="button">
@@ -680,12 +815,15 @@ const CsvImportModal: FunctionComponent<{
                 onClick={() => fileInputRef.current?.click()}
               >
                 <div className={styles.dropzoneIcon}>📂</div>
-                <div>Glisse ton fichier CSV ici ou clique pour le sélectionner</div>
+                <div>Glisse ton fichier Excel ou CSV ici, ou clique pour sélectionner</div>
+                <div style={{ fontSize: "var(--fs-12)", color: "var(--app-text-secondary)", marginTop: 2 }}>
+                  Compatible Excel (.xlsx) et Google Sheets (Fichier {">"} Télécharger {">"} CSV)
+                </div>
                 {fileName && <div className={styles.dropzoneName}>📄 {fileName}</div>}
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   style={{ display: "none" }}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -766,16 +904,39 @@ const CsvImportModal: FunctionComponent<{
               </div>
             )}
 
+          {pendingImport && (
+            <div className={styles.importWarningBox}>
+              <div className={styles.importWarningHeader}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span>{pendingImport.skipped.length} ligne{pendingImport.skipped.length > 1 ? "s" : ""} ignorée{pendingImport.skipped.length > 1 ? "s" : ""} sur {(pendingImport.records.length + pendingImport.skipped.length)}</span>
+              </div>
+              <ul className={styles.importWarningList}>
+                {pendingImport.skipped.slice(0, 6).map((s) => (
+                  <li key={s.line}>Ligne {s.line} — {s.reason}</li>
+                ))}
+                {pendingImport.skipped.length > 6 && (
+                  <li className={styles.importWarningMore}>et {pendingImport.skipped.length - 6} autre{pendingImport.skipped.length - 6 > 1 ? "s" : ""}…</li>
+                )}
+              </ul>
+              <p className={styles.importWarningConfirm}>
+                {pendingImport.records.length} contact{pendingImport.records.length > 1 ? "s" : ""} valide{pendingImport.records.length > 1 ? "s" : ""} seront importés.
+              </p>
+            </div>
+          )}
+
           {error && <p className={styles.fieldError}>{error}</p>}
         </div>
 
         <div className={styles.modalFooter}>
           <button
             className={`${styles.btn} ${styles.btnSecondary}`}
-            onClick={onClose}
+            onClick={pendingImport ? () => setPendingImport(null) : onClose}
             type="button"
           >
-            Annuler
+            {pendingImport ? "Revoir" : "Annuler"}
           </button>
           <button
             className={`${styles.btn} ${styles.btnPrimary}`}
@@ -785,6 +946,8 @@ const CsvImportModal: FunctionComponent<{
           >
             {submitting
               ? "Import en cours…"
+              : pendingImport
+              ? `Confirmer l'import (${pendingImport.records.length})`
               : csv
               ? `Importer ${csv.rows.length} ligne${csv.rows.length > 1 ? "s" : ""}`
               : "Importer"}
@@ -800,17 +963,19 @@ const CsvImportModal: FunctionComponent<{
 
 const ContactDrawer: FunctionComponent<{
   contact: Contact;
+  linkedConversation: ProspectConversation | null;
   onClose: () => void;
   onUpdated: () => void;
-}> = ({ contact, onClose, onUpdated }) => {
+}> = ({ contact, linkedConversation, onClose, onUpdated }) => {
   const navigate = useNavigate();
+  const targetConversationId =
+    linkedConversation?.id ?? contact.conversation_id ?? null;
   const [form, setForm] = useState({
     full_name: contact.full_name ?? "",
     instagram_handle: contact.instagram_handle ?? "",
     phone_e164: contact.phone_e164 ?? "",
     email: contact.email ?? "",
-    status: contact.status,
-    tags: contact.tags ?? [],
+    qualification: getQualificationKeyFromConversation(linkedConversation),
     notes: contact.notes ?? "",
   });
   const [saving, setSaving] = useState(false);
@@ -847,14 +1012,25 @@ const ContactDrawer: FunctionComponent<{
           : null,
         phone_e164: form.phone_e164 || null,
         email: form.email || null,
-        status: form.status,
-        tags: form.tags,
         notes: form.notes || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", contact.id);
+
+    let conversationError = null;
+    if (!error && linkedConversation) {
+      const { error: heatUpdateError } = await supabase
+        .from("conversations")
+        .update({
+          heat_tag:
+            form.qualification === "pending" ? null : form.qualification,
+        })
+        .eq("id", linkedConversation.id);
+      conversationError = heatUpdateError;
+    }
+
     setSaving(false);
-    if (!error) {
+    if (!error && !conversationError) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       onUpdated();
@@ -929,35 +1105,36 @@ const ContactDrawer: FunctionComponent<{
             </div>
           </div>
 
-          {/* Statut */}
+          {/* Qualification */}
           <div className={styles.drawerSection}>
-            <p className={styles.drawerSectionTitle}>Statut & Tags</p>
+            <p className={styles.drawerSectionTitle}>Qualification</p>
 
             <div className={styles.drawerField}>
-              <label className={styles.drawerFieldLabel}>Statut</label>
-              <select
-                className={styles.drawerSelect}
-                value={form.status}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, status: e.target.value as ContactStatus }))
-                }
-              >
-                {(Object.entries(STATUS_CONFIG) as [ContactStatus, { label: string }][]).map(
-                  ([key, cfg]) => (
+              <label className={styles.drawerFieldLabel}>Niveau du lead</label>
+              {linkedConversation ? (
+                <select
+                  className={styles.drawerSelect}
+                  value={form.qualification}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      qualification: e.target.value as QualificationKey,
+                    }))
+                  }
+                >
+                  {(Object.entries(QUALIFICATION_CONFIG) as Array<
+                    [QualificationKey, { label: string }]
+                  >).map(([key, cfg]) => (
                     <option key={key} value={key}>
                       {cfg.label}
                     </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            <div className={styles.drawerField}>
-              <label className={styles.drawerFieldLabel}>Tags</label>
-              <TagsInput
-                tags={form.tags}
-                onChange={(tags) => setForm((p) => ({ ...p, tags }))}
-              />
+                  ))}
+                </select>
+              ) : (
+                <span className={styles.drawerFieldValue}>
+                  Aucune conversation liée pour qualifier ce contact.
+                </span>
+              )}
             </div>
           </div>
 
@@ -990,13 +1167,17 @@ const ContactDrawer: FunctionComponent<{
               </span>
             </div>
 
-            {contact.conversation_id && (
+            {targetConversationId && (
               <div className={styles.drawerField}>
                 <span className={styles.drawerFieldLabel}>Conversation liée</span>
                 <button
                   type="button"
                   className={styles.conversationLink}
-                  onClick={() => navigate("/app/conversations")}
+                  onClick={() =>
+                    navigate(
+                      `/app/conversations?conversation_id=${targetConversationId}`,
+                    )
+                  }
                 >
                   Voir la conversation →
                 </button>
@@ -1032,6 +1213,7 @@ const ContactDrawer: FunctionComponent<{
 
 const Contacts: FunctionComponent = () => {
   const navigate = useNavigate();
+  const { displayedAgents } = useAgents();
 
   // ── Data
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -1039,17 +1221,38 @@ const Contacts: FunctionComponent = () => {
 
   // ── Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ContactStatus | "all">("all");
-  const [sourceFilter, setSourceFilter] = useState<ContactSource | "all">("all");
+  const [qualificationFilter, setQualificationFilter] = useState<
+    QualificationKey | "all"
+  >("all");
+  const [sourceFilter, setSourceFilter] = useState<ContactSource | "all">(
+    "conversation"
+  );
   const [platformFilter, setPlatformFilter] = useState<"all" | "instagram" | "whatsapp">("all");
 
   // ── UI state
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const agentConfigIds = useMemo(
+    () =>
+      displayedAgents
+        .map((agent) => agent.display_id ?? agent.agent_id)
+        .filter(Boolean),
+    [displayedAgents],
+  );
+  const { data: rawConversations = [] } = useAllConversations(agentConfigIds);
+  const prospectConversations = useMemo(
+    () =>
+      (rawConversations as Record<string, unknown>[])
+        .map(mapConversationRecordToProspect)
+        .filter(shouldIncludeConversationInContacts),
+    [rawConversations]
+  );
 
   // ── Fetch
   const fetchContacts = useCallback(async () => {
@@ -1068,6 +1271,36 @@ const Contacts: FunctionComponent = () => {
     fetchContacts();
   }, [fetchContacts]);
 
+  const { isSyncing: isSyncingProspects } = useAutoSyncProspectContacts(
+    rawConversations as Record<string, unknown>[],
+    () => {
+      void fetchContacts();
+    },
+  );
+
+  const contactsWithContext = useMemo<ContactWithContext[]>(
+    () =>
+      contacts.map((contact) => {
+        const linkedConversation = findMatchingConversationForContact(
+          contact,
+          prospectConversations
+        );
+        const qualificationKey =
+          getQualificationKeyFromConversation(linkedConversation);
+        const qualificationMeta = QUALIFICATION_CONFIG[qualificationKey];
+
+        return {
+          ...contact,
+          linkedConversation,
+          qualificationKey,
+          qualificationLabel: qualificationMeta.label,
+          qualificationClassName: qualificationMeta.className,
+          lastActivityAt: getLastActivityAt(linkedConversation),
+        };
+      }),
+    [contacts, prospectConversations]
+  );
+
   // Close add menu on outside click
   useEffect(() => {
     if (!addMenuOpen) return;
@@ -1080,9 +1313,27 @@ const Contacts: FunctionComponent = () => {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [addMenuOpen]);
 
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [exportMenuOpen]);
+
   // ── Filtered contacts
-  const filtered = contacts.filter((c) => {
-    if (statusFilter !== "all" && c.status !== statusFilter) return false;
+  const filtered = contactsWithContext.filter((c) => {
+    if (c.source === "conversation" && !c.linkedConversation) return false;
+    if (
+      qualificationFilter !== "all" &&
+      c.qualificationKey !== qualificationFilter
+    ) {
+      return false;
+    }
     if (sourceFilter !== "all" && c.source !== sourceFilter) return false;
     if (platformFilter !== "all") {
       const p = getPlatform(c);
@@ -1093,7 +1344,10 @@ const Contacts: FunctionComponent = () => {
       const match =
         c.full_name?.toLowerCase().includes(q) ||
         c.instagram_handle?.toLowerCase().includes(q) ||
-        c.phone_e164?.includes(q);
+        c.phone_e164?.includes(q) ||
+        c.email?.toLowerCase().includes(q) ||
+        c.notes?.toLowerCase().includes(q) ||
+        c.linkedConversation?.lastMessage.toLowerCase().includes(q);
       if (!match) return false;
     }
     return true;
@@ -1106,6 +1360,57 @@ const Contacts: FunctionComponent = () => {
       if (updated) setSelectedContact(updated);
     }
   }, [contacts]);
+
+  const exportHeaders = [
+    "Nom",
+    "Handle Instagram",
+    "Téléphone",
+    "Email",
+    "Qualification",
+    "Source",
+    "Dernière activité",
+  ];
+  const exportRows = filtered.map((c) => [
+    c.full_name ?? "",
+    c.instagram_handle ? `@${c.instagram_handle}` : "",
+    c.phone_e164 ?? "",
+    c.email ?? "",
+    c.qualificationLabel,
+    SOURCE_LABELS[c.source],
+    formatDate(c.lastActivityAt ?? c.created_at),
+  ]);
+
+  const handleExportCsv = () => {
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const csv =
+      "﻿" +
+      [exportHeaders, ...exportRows]
+        .map((row) => row.map(escape).join(";"))
+        .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportXlsx = () => {
+    const ws = XLSX.utils.aoa_to_sheet([exportHeaders, ...exportRows]);
+    ws["!cols"] = [
+      { wch: 30 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 28 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 16 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contacts");
+    XLSX.writeFile(wb, `contacts-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
 
   const handleDeleteContact = async (contact: Contact) => {
     if (deletingContactId) return;
@@ -1153,10 +1458,64 @@ const Contacts: FunctionComponent = () => {
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <h1 className={styles.title}>Contacts</h1>
-            <p className={styles.subtitle}>Gérez votre base de contacts</p>
+            <p className={styles.subtitle}>
+              Les prospects qui ont répondu remontent automatiquement ici avec
+              leur qualification et leur conversation liée.
+            </p>
           </div>
 
-          <div className={styles.addButtonWrapper} ref={addMenuRef}>
+          <div className={styles.headerActions}>
+            <div className={styles.exportButtonWrapper} ref={exportMenuRef}>
+              <button
+                type="button"
+                className={styles.exportButton}
+                disabled={filtered.length === 0}
+                onClick={() => setExportMenuOpen((prev) => !prev)}
+              >
+                Exporter ({filtered.length})
+                <svg
+                  className={`${styles.exportButtonChevron} ${exportMenuOpen ? styles.open : ""}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {exportMenuOpen && (
+                <div className={styles.exportMenu}>
+                  <button
+                    type="button"
+                    className={styles.exportMenuItem}
+                    onClick={() => { setExportMenuOpen(false); handleExportCsv(); }}
+                  >
+                    <span className={styles.exportMenuItemIcon}>📄</span>
+                    <span>
+                      <span className={styles.exportMenuItemLabel}>CSV</span>
+                      <span className={styles.exportMenuItemSub}>Excel, Google Sheets</span>
+                    </span>
+                  </button>
+                  <div className={styles.exportMenuDivider} />
+                  <button
+                    type="button"
+                    className={styles.exportMenuItem}
+                    onClick={() => { setExportMenuOpen(false); handleExportXlsx(); }}
+                  >
+                    <span className={styles.exportMenuItemIcon}>📊</span>
+                    <span>
+                      <span className={styles.exportMenuItemLabel}>Excel</span>
+                      <span className={styles.exportMenuItemSub}>.xlsx natif</span>
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.addButtonWrapper} ref={addMenuRef}>
             <button
               type="button"
               className={styles.addButton}
@@ -1197,11 +1556,12 @@ const Contacts: FunctionComponent = () => {
                     setShowCsvModal(true);
                   }}
                 >
-                  <span className={styles.addMenuItemIcon}>📤</span>
-                  Import CSV
+                  <span className={styles.addMenuItemIcon}>📥</span>
+                  Importer (Excel / CSV)
                 </button>
               </div>
             )}
+            </div>
           </div>
         </div>
 
@@ -1224,7 +1584,7 @@ const Contacts: FunctionComponent = () => {
               </svg>
               <input
                 className={styles.searchInput}
-                placeholder="Rechercher un contact..."
+                placeholder="Rechercher un contact, une note ou un message..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -1233,15 +1593,20 @@ const Contacts: FunctionComponent = () => {
 
           <div className={styles.toolbarFilterGrid}>
             <label className={styles.filterField}>
-              <span className={styles.filterLabel}>Statut</span>
+              <span className={styles.filterLabel}>Qualification</span>
               <select
                 className={styles.filterSelect}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as ContactStatus | "all")}
+                value={qualificationFilter}
+                onChange={(e) =>
+                  setQualificationFilter(
+                    e.target.value as QualificationKey | "all"
+                  )
+                }
               >
-                <option value="all">Tous les statuts</option>
-                {(Object.entries(STATUS_CONFIG) as [ContactStatus, { label: string }][]).map(
-                  ([key, cfg]) => (
+                <option value="all">Toutes les qualifications</option>
+                {(Object.entries(QUALIFICATION_CONFIG) as Array<
+                  [QualificationKey, { label: string }]
+                >).map(([key, cfg]) => (
                     <option key={key} value={key}>
                       {cfg.label}
                     </option>
@@ -1285,7 +1650,9 @@ const Contacts: FunctionComponent = () => {
           </div>
 
           <div className={styles.contactCount}>
-            <span className={styles.contactCountLabel}>Résultats</span>
+            <span className={styles.contactCountLabel}>
+              {isSyncingProspects ? "Résultats · sync auto" : "Résultats"}
+            </span>
             <span className={styles.contactCountValue}>
               {filtered.length} contact{filtered.length !== 1 ? "s" : ""}
             </span>
@@ -1353,8 +1720,8 @@ const Contacts: FunctionComponent = () => {
                   className={`${styles.btn} ${styles.btnSecondary}`}
                   onClick={() => {
                     setSearchQuery("");
-                    setStatusFilter("all");
-                    setSourceFilter("all");
+                    setQualificationFilter("all");
+                    setSourceFilter("conversation");
                     setPlatformFilter("all");
                   }}
                 >
@@ -1368,9 +1735,9 @@ const Contacts: FunctionComponent = () => {
                 <tr>
                   <th className={styles.th}>Nom</th>
                   <th className={styles.th}>Plateforme</th>
-                  <th className={styles.th}>Statut</th>
-                  <th className={styles.th}>Ajouté le</th>
-                  <th className={styles.th}>Tags</th>
+                  <th className={styles.th}>Qualification</th>
+                  <th className={styles.th}>Source</th>
+                  <th className={styles.th}>Dernière activité</th>
                   <th className={styles.th}>Actions</th>
                 </tr>
               </thead>
@@ -1389,25 +1756,17 @@ const Contacts: FunctionComponent = () => {
                       <PlatformCell contact={contact} />
                     </td>
                     <td className={styles.td}>
-                      <StatusBadge status={contact.status} />
+                      <QualificationBadge qualification={contact.qualificationKey} />
                     </td>
                     <td className={styles.td}>
-                      <span className={styles.dateText}>
-                        {formatDate(contact.created_at)}
+                      <span className={styles.sourceBadge}>
+                        {SOURCE_LABELS[contact.source]}
                       </span>
                     </td>
                     <td className={styles.td}>
-                      {contact.tags && contact.tags.length > 0 ? (
-                        <div className={styles.tagList}>
-                          {contact.tags.map((tag) => (
-                            <span key={tag} className={styles.tagPill}>
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className={styles.dateText}>—</span>
-                      )}
+                      <span className={styles.dateText}>
+                        {formatDate(contact.lastActivityAt ?? contact.created_at)}
+                      </span>
                     </td>
                     <td className={styles.tdActions}>
                       <button
@@ -1415,15 +1774,27 @@ const Contacts: FunctionComponent = () => {
                         className={styles.actionBtn}
                         onClick={() => setSelectedContact(contact)}
                       >
-                        Voir
+                        Voir la fiche
                       </button>
                       <button
                         type="button"
                         className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
                         style={{ marginLeft: 8 }}
-                        onClick={() => navigate("/app/conversations")}
+                        disabled={
+                          !contact.linkedConversation && !contact.conversation_id
+                        }
+                        onClick={() =>
+                          navigate(
+                            contact.linkedConversation?.id || contact.conversation_id
+                              ? `/app/conversations?conversation_id=${
+                                  contact.linkedConversation?.id ??
+                                  contact.conversation_id
+                                }`
+                              : "/app/conversations"
+                          )
+                        }
                       >
-                        Démarrer →
+                        Voir la conversation
                       </button>
                       <button
                         type="button"
@@ -1460,7 +1831,12 @@ const Contacts: FunctionComponent = () => {
       {/* Drawer */}
       {selectedContact && (
         <ContactDrawer
+          key={selectedContact.id}
           contact={selectedContact}
+          linkedConversation={
+            contactsWithContext.find((contact) => contact.id === selectedContact.id)
+              ?.linkedConversation ?? null
+          }
           onClose={() => setSelectedContact(null)}
           onUpdated={fetchContacts}
         />

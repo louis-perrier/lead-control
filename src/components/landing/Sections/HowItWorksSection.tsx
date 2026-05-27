@@ -12,12 +12,12 @@ const HowItWorksSection = () => {
           vous pilotez les décisions importantes.
         </p>
       </div>
-      <div className={styles.cardGrid}>
+      <div className={styles.stepsGrid}>
         {steps.map((step, index) => (
-          <article key={step.title} className={styles.card}>
-            <p className={styles.cardNumber}>{`0${index + 1}`}</p>
-            <h3>{step.title}</h3>
-            <p>{step.description}</p>
+          <article key={step.title} className={styles.stepCard}>
+            <p className={styles.stepNum}>{`0${index + 1}`}</p>
+            <h3 className={styles.stepHead}>{step.title}</h3>
+            <p className={styles.stepBody}>{step.description}</p>
           </article>
         ))}
       </div>
