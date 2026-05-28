@@ -112,13 +112,13 @@ const ModernSidebar: FunctionComponent<ModernSidebarProps> = ({
       labelText: "Conversations",
       icon: "/conversationIcon.svg",
     },
-    ...(subscriptionState?.planKey === "TESTEUR" ? [{
+    {
       key: "contacts",
       route: "/app/contacts",
       selected: currentPath === "/app/contacts",
       labelText: "Contacts",
       icon: "/contactsIcon.svg",
-    }] : []),
+    },
     {
       key: "rendez-vous",
       route: "/app/rendez-vous",
