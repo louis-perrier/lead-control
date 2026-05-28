@@ -1,0 +1,254 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(248, 250, 255, 0.96), rgba(248, 250, 255, 0.8));
+  border-bottom: 1px solid var(--app-border-soft, rgba(148, 163, 184, 0.18));
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Score badge ────────────────────────────────────────────────────────── */
+.scoreBadge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 4px 10px 4px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  border: 1px solid transparent;
+  letter-spacing: -0.01em;
+  cursor: help;
+}
+
+.scoreNumber {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.scoreMax {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.72;
+}
+
+.scoreLevel {
+  margin-left: 6px;
+  padding-left: 8px;
+  border-left: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.78;
+}
+
+.scoreHot {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.32);
+}
+
+.scoreWarm {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.scoreCold {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.26);
+}
+
+/* ── Stage chip ─────────────────────────────────────────────────────────── */
+.stageChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(148, 163, 184, 0.16);
+  color: #334155;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.stageAmount {
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.stageNouveau {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.26);
+}
+
+.stageEngage {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.stageQualifie {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.stageRdv {
+  background: rgba(139, 92, 246, 0.14);
+  color: #6d28d9;
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.stageDeal {
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.3);
+}
+
+/* ── Cap chip ───────────────────────────────────────────────────────────── */
+.capChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  font-size: 11.5px;
+  font-weight: 600;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capIcon {
+  font-size: 13px;
+}
+
+/* ── File button (Voir la fiche) ────────────────────────────────────────── */
+.fileBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  background: rgba(37, 99, 235, 0.06);
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.fileBtn:hover,
+.fileBtn:focus-visible {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.45);
+  outline: none;
+}
+
+.fileBtnArrow {
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* ── Bottom row (summary + signals) ─────────────────────────────────────── */
+.bottomRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.summary {
+  flex: 1 1 auto;
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.summaryLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.summaryText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signalsRow {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.signalPositive,
+.signalNegative,
+.signalSoft {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.signalPositive {
+  background: rgba(22, 163, 74, 0.1);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.28);
+}
+
+.signalNegative {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.28);
+}
+
+.signalSoft {
+  background: rgba(245, 158, 11, 0.1);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+@media (max-width: 720px) {
+  .scoreLevel {
+    display: none;
+  }
+  .fileBtn span {
+    display: none;
+  }
+  .fileBtn::after {
+    content: "→";
+    font-size: 14px;
+  }
+}

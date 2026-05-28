@@ -11,7 +11,7 @@
 } from "react";
 import * as XLSX from "xlsx";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "../layouts";
 import useAgents from "../hooks/useAgents";
 import useAllConversations from "../hooks/useAllConversations";
@@ -21,6 +21,15 @@ import {
   mapConversationRecordToProspect,
   shouldIncludeConversationInContacts,
 } from "../lib/prospects";
+import {
+  computeLeadScore,
+  getPipelineStage,
+  PIPELINE_STAGE_LABELS,
+  PIPELINE_STAGE_ORDER,
+  type LeadScore,
+  type PipelineStage,
+} from "../lib/leadScoring";
+import PipelineView, { type PipelineCard } from "../components/contacts/PipelineView";
 import supabase from "../lib/supabase";
 import styles from "./Contacts.module.css";
 
@@ -58,7 +67,36 @@ type ContactWithContext = Contact & {
   qualificationLabel: string;
   qualificationClassName: string;
   lastActivityAt: string | null;
+  score: LeadScore;
+  pipelineStage: PipelineStage;
+  hasBooking: boolean;
+  hasClosedDeal: boolean;
+  dealAmount: number | null;
+  estimatedValue: number;
 };
+
+type BookingRow = {
+  conversation_id: number | string | null;
+};
+
+type ClosingRow = {
+  conversation_id: number | string | null;
+  amount: number | null;
+  is_closed: boolean | null;
+};
+
+type ContactsTab = "liste" | "pipeline";
+
+type SortKey = "score" | "stage" | "activity";
+type SortDir = "asc" | "desc";
+
+const STAGE_RANK: Record<PipelineStage, number> = PIPELINE_STAGE_ORDER.reduce(
+  (acc, stage, i) => {
+    acc[stage] = i;
+    return acc;
+  },
+  {} as Record<PipelineStage, number>,
+);
 
 type CsvParsed = {
   headers: string[];
@@ -294,6 +332,9 @@ function getPlatform(contact: Contact): "instagram" | "whatsapp" | "none" {
 const QualificationBadge: FunctionComponent<{
   qualification: QualificationKey;
 }> = ({ qualification }) => {
+  if (qualification === "pending") {
+    return <span className={styles.dateText}>—</span>;
+  }
   const cfg = QUALIFICATION_CONFIG[qualification];
   return (
     <span className={`${styles.qualificationBadge} ${cfg.className}`}>
@@ -964,9 +1005,10 @@ const CsvImportModal: FunctionComponent<{
 const ContactDrawer: FunctionComponent<{
   contact: Contact;
   linkedConversation: ProspectConversation | null;
+  score: LeadScore;
   onClose: () => void;
   onUpdated: () => void;
-}> = ({ contact, linkedConversation, onClose, onUpdated }) => {
+}> = ({ contact, linkedConversation, score, onClose, onUpdated }) => {
   const navigate = useNavigate();
   const targetConversationId =
     linkedConversation?.id ?? contact.conversation_id ?? null;
@@ -1138,6 +1180,88 @@ const ContactDrawer: FunctionComponent<{
             </div>
           </div>
 
+          {/* Pourquoi ce score */}
+          <div className={styles.drawerSection}>
+            <p className={styles.drawerSectionTitle}>Pourquoi ce score</p>
+
+            {!linkedConversation ? (
+              <p className={styles.drawerFieldValue}>
+                Pas encore de conversation liée pour évaluer ce contact.
+              </p>
+            ) : (
+            <>
+            <div className={styles.scoreHeadline}>
+              <span
+                className={`${styles.scoreHeadlineBadge} ${
+                  score.level === "hot"
+                    ? styles.scoreBadgeHot
+                    : score.level === "warm"
+                    ? styles.scoreBadgeWarm
+                    : styles.scoreBadgeCold
+                }`}
+              >
+                {score.total}
+                <span className={styles.scoreBadgeMax}>/100</span>
+              </span>
+              <div className={styles.scoreHeadlineMeta}>
+                <span className={styles.scoreHeadlineLevel}>
+                  {score.level === "hot" ? "Chaud" : score.level === "warm" ? "Tiède" : "Froid"}
+                </span>
+                {score.capReason && (
+                  <span className={styles.scoreHeadlineCap}>{score.capReason}</span>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.scoreBars}>
+              {[
+                { label: "Intention d'achat", value: score.breakdown.buyIntent, max: 40, accent: "var(--app-primary, #2563eb)" },
+                { label: "Engagement", value: score.breakdown.engagement, max: 20, accent: "#0ea5e9" },
+                { label: "Réactivité", value: score.breakdown.reactivity, max: 15, accent: "#f59e0b" },
+                { label: "Pipeline", value: score.breakdown.pipeline, max: 25, accent: "#16a34a" },
+              ].map((row) => (
+                <div key={row.label} className={styles.scoreBarRow}>
+                  <span className={styles.scoreBarLabel}>{row.label}</span>
+                  <div className={styles.scoreBarTrack}>
+                    <div
+                      className={styles.scoreBarFill}
+                      style={{
+                        width: `${row.max > 0 ? (row.value / row.max) * 100 : 0}%`,
+                        background: row.accent,
+                      }}
+                    />
+                  </div>
+                  <span className={styles.scoreBarValue}>
+                    {row.value}
+                    <span className={styles.scoreBarMax}>/{row.max}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {(score.signals.buyKeywords.length > 0 || score.signals.hardNegative.length > 0 || score.signals.softNegative.length > 0) && (
+              <div className={styles.scoreSignals}>
+                {score.signals.buyKeywords.map((kw) => (
+                  <span key={`pos-${kw}`} className={styles.scoreChipPositive}>
+                    ✓ {kw}
+                  </span>
+                ))}
+                {score.signals.hardNegative.slice(0, 3).map((kw) => (
+                  <span key={`neg-${kw}`} className={styles.scoreChipNegative}>
+                    ✕ « {kw} »
+                  </span>
+                ))}
+                {score.signals.softNegative.slice(0, 3).map((kw) => (
+                  <span key={`soft-${kw}`} className={styles.scoreChipSoft}>
+                    ⏳ « {kw} »
+                  </span>
+                ))}
+              </div>
+            )}
+            </>
+            )}
+          </div>
+
           {/* Notes */}
           <div className={styles.drawerSection}>
             <p className={styles.drawerSectionTitle}>Notes</p>
@@ -1213,11 +1337,17 @@ const ContactDrawer: FunctionComponent<{
 
 const Contacts: FunctionComponent = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { displayedAgents } = useAgents();
 
   // ── Data
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [closings, setClosings] = useState<ClosingRow[]>([]);
+
+  // ── Tab
+  const [activeTab, setActiveTab] = useState<ContactsTab>("liste");
 
   // ── Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -1228,6 +1358,20 @@ const Contacts: FunctionComponent = () => {
     "conversation"
   );
   const [platformFilter, setPlatformFilter] = useState<"all" | "instagram" | "whatsapp">("all");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSortClick = useCallback(
+    (key: SortKey) => {
+      if (sortKey === key) {
+        setSortDir((prev) => (prev === "desc" ? "asc" : "desc"));
+      } else {
+        setSortKey(key);
+        setSortDir("desc");
+      }
+    },
+    [sortKey],
+  );
 
   // ── UI state
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -1271,6 +1415,143 @@ const Contacts: FunctionComponent = () => {
     fetchContacts();
   }, [fetchContacts]);
 
+  // Fetch + realtime sync of bookings and closings for pipeline + scoring
+  useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setup = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      const fetchAll = async () => {
+        const [bookingsRes, closingsRes] = await Promise.all([
+          supabase
+            .from("calendly_bookings")
+            .select("conversation_id")
+            .eq("user_id", user.id),
+          supabase
+            .from("deal_closings")
+            .select("conversation_id, amount, is_closed")
+            .eq("user_id", user.id),
+        ]);
+        if (cancelled) return;
+        if (!bookingsRes.error) setBookings((bookingsRes.data ?? []) as BookingRow[]);
+        if (!closingsRes.error) setClosings((closingsRes.data ?? []) as ClosingRow[]);
+      };
+
+      await fetchAll();
+
+      channel = supabase
+        .channel(`realtime:contacts-pipeline:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "calendly_bookings",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            void fetchAll();
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "deal_closings",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            void fetchAll();
+          },
+        )
+        .subscribe();
+    };
+
+    setup();
+
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Map conversation_id -> { hasBooking, dealAmount, hasClosedDeal }
+  const conversationContextMap = useMemo(() => {
+    const map = new Map<
+      string,
+      { hasBooking: boolean; hasClosedDeal: boolean; dealAmount: number | null }
+    >();
+
+    bookings.forEach((b) => {
+      if (b.conversation_id == null) return;
+      const id = String(b.conversation_id);
+      const existing = map.get(id) ?? {
+        hasBooking: false,
+        hasClosedDeal: false,
+        dealAmount: null,
+      };
+      existing.hasBooking = true;
+      map.set(id, existing);
+    });
+
+    closings.forEach((c) => {
+      if (c.conversation_id == null) return;
+      const id = String(c.conversation_id);
+      const existing = map.get(id) ?? {
+        hasBooking: false,
+        hasClosedDeal: false,
+        dealAmount: null,
+      };
+      if (c.is_closed) {
+        existing.hasClosedDeal = true;
+        if (typeof c.amount === "number") {
+          existing.dealAmount = (existing.dealAmount ?? 0) + c.amount;
+        }
+      }
+      map.set(id, existing);
+    });
+
+    return map;
+  }, [bookings, closings]);
+
+  // Map conversation_id -> agent_config_id (for avg_deal_value lookup)
+  const conversationAgentMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (rawConversations as Record<string, unknown>[]).forEach((conv) => {
+      const id = String((conv as { id?: unknown }).id ?? "");
+      const agentConfigId = String((conv as { agent_config_id?: unknown }).agent_config_id ?? "");
+      if (id && agentConfigId) map.set(id, agentConfigId);
+    });
+    return map;
+  }, [rawConversations]);
+
+  // Map agent_config_id -> avg_deal_value
+  const avgDealValueByAgent = useMemo(() => {
+    const map = new Map<string, number>();
+    displayedAgents.forEach((agent) => {
+      const value = (agent.configs as Record<string, unknown>)?.avg_deal_value;
+      const numericValue = typeof value === "number" ? value : Number(value);
+      if (Number.isFinite(numericValue) && numericValue > 0) {
+        const key = agent.display_id ?? agent.agent_id;
+        if (key) map.set(key, numericValue);
+      }
+    });
+    return map;
+  }, [displayedAgents]);
+
+  // Average avg_deal_value across known agents — fallback when no agent link
+  const fallbackAvgDealValue = useMemo(() => {
+    const values = Array.from(avgDealValueByAgent.values());
+    if (values.length === 0) return 0;
+    return values.reduce((acc, v) => acc + v, 0) / values.length;
+  }, [avgDealValueByAgent]);
+
   const { isSyncing: isSyncingProspects } = useAutoSyncProspectContacts(
     rawConversations as Record<string, unknown>[],
     () => {
@@ -1289,6 +1570,30 @@ const Contacts: FunctionComponent = () => {
           getQualificationKeyFromConversation(linkedConversation);
         const qualificationMeta = QUALIFICATION_CONFIG[qualificationKey];
 
+        const convId = linkedConversation?.id ?? null;
+        const convCtx = convId ? conversationContextMap.get(convId) : undefined;
+        const hasBooking = convCtx?.hasBooking ?? false;
+        const hasClosedDeal = convCtx?.hasClosedDeal ?? false;
+        const dealAmount = convCtx?.dealAmount ?? null;
+
+        const score = computeLeadScore(linkedConversation, {
+          hasBooking,
+          hasClosedDeal,
+        });
+
+        const pipelineStage = getPipelineStage({
+          conversation: linkedConversation,
+          hasBooking,
+          hasClosedDeal,
+          score: score.total,
+        });
+
+        const agentConfigId = convId ? conversationAgentMap.get(convId) : undefined;
+        const agentAvgDeal = agentConfigId
+          ? avgDealValueByAgent.get(agentConfigId)
+          : undefined;
+        const estimatedValue = agentAvgDeal ?? fallbackAvgDealValue;
+
         return {
           ...contact,
           linkedConversation,
@@ -1296,9 +1601,56 @@ const Contacts: FunctionComponent = () => {
           qualificationLabel: qualificationMeta.label,
           qualificationClassName: qualificationMeta.className,
           lastActivityAt: getLastActivityAt(linkedConversation),
+          score,
+          pipelineStage,
+          hasBooking,
+          hasClosedDeal,
+          dealAmount,
+          estimatedValue,
         };
       }),
-    [contacts, prospectConversations]
+    [
+      contacts,
+      prospectConversations,
+      conversationContextMap,
+      conversationAgentMap,
+      avgDealValueByAgent,
+      fallbackAvgDealValue,
+    ]
+  );
+
+  // Pipeline cards (all contacts with a linked conversation)
+  const pipelineCards = useMemo<PipelineCard[]>(() => {
+    return contactsWithContext
+      .filter((c) => Boolean(c.linkedConversation))
+      .map((c) => ({
+        contactId: c.id,
+        contactName:
+          c.full_name ??
+          c.linkedConversation?.contactName ??
+          (c.instagram_handle ? `@${c.instagram_handle}` : null) ??
+          c.phone_e164 ??
+          c.email ??
+          "Contact",
+        subtitle: c.instagram_handle
+          ? `@${c.instagram_handle}`
+          : c.phone_e164 ?? c.email ?? "",
+        channel: c.linkedConversation?.channel ?? null,
+        score: c.score.total,
+        scoreLevel: c.score.level,
+        lastActivityAt: c.lastActivityAt,
+        stage: c.pipelineStage,
+        estimatedValue: c.estimatedValue,
+        actualValue: c.dealAmount,
+      }));
+  }, [contactsWithContext]);
+
+  const handleOpenContactFromPipeline = useCallback(
+    (contactId: string) => {
+      const contact = contacts.find((c) => c.id === contactId);
+      if (contact) setSelectedContact(contact);
+    },
+    [contacts],
   );
 
   // Close add menu on outside click
@@ -1353,6 +1705,22 @@ const Contacts: FunctionComponent = () => {
     return true;
   });
 
+  const sortedFiltered = useMemo(() => {
+    if (!sortKey) return filtered;
+    const dirFactor = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      if (sortKey === "score") {
+        return (a.score.total - b.score.total) * dirFactor;
+      }
+      if (sortKey === "stage") {
+        return (STAGE_RANK[a.pipelineStage] - STAGE_RANK[b.pipelineStage]) * dirFactor;
+      }
+      const aTime = new Date(a.lastActivityAt ?? a.created_at).getTime();
+      const bTime = new Date(b.lastActivityAt ?? b.created_at).getTime();
+      return (aTime - bTime) * dirFactor;
+    });
+  }, [filtered, sortKey, sortDir]);
+
   // Update selected contact when list refreshes
   useEffect(() => {
     if (selectedContact) {
@@ -1361,21 +1729,49 @@ const Contacts: FunctionComponent = () => {
     }
   }, [contacts]);
 
+  // Auto-open drawer when arriving from Conversations via ?contact_for_conversation=<id>
+  const handledConvIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isLoading) return;
+    const params = new URLSearchParams(location.search);
+    const targetConvId = params.get("contact_for_conversation");
+    if (!targetConvId) return;
+    if (handledConvIdRef.current === targetConvId) return;
+
+    const match = contactsWithContext.find(
+      (c) => c.linkedConversation?.id === targetConvId,
+    );
+    if (match) {
+      setSelectedContact(match);
+      handledConvIdRef.current = targetConvId;
+      params.delete("contact_for_conversation");
+      const cleaned = params.toString();
+      navigate(
+        { pathname: location.pathname, search: cleaned ? `?${cleaned}` : "" },
+        { replace: true },
+      );
+    }
+  }, [isLoading, contactsWithContext, location.search, location.pathname, navigate]);
+
   const exportHeaders = [
     "Nom",
     "Handle Instagram",
     "Téléphone",
     "Email",
     "Qualification",
+    "Score",
+    "Étape",
     "Source",
     "Dernière activité",
   ];
-  const exportRows = filtered.map((c) => [
+  const exportRows = sortedFiltered.map((c) => [
     c.full_name ?? "",
     c.instagram_handle ? `@${c.instagram_handle}` : "",
     c.phone_e164 ?? "",
     c.email ?? "",
     c.qualificationLabel,
+    String(c.score.total),
+    PIPELINE_STAGE_LABELS[c.pipelineStage],
     SOURCE_LABELS[c.source],
     formatDate(c.lastActivityAt ?? c.created_at),
   ]);
@@ -1464,6 +1860,7 @@ const Contacts: FunctionComponent = () => {
             </p>
           </div>
 
+          {activeTab === "liste" && (
           <div className={styles.headerActions}>
             <div className={styles.exportButtonWrapper} ref={exportMenuRef}>
               <button
@@ -1563,7 +1960,91 @@ const Contacts: FunctionComponent = () => {
             )}
             </div>
           </div>
+          )}
         </div>
+
+        {/* Tab switcher */}
+        <div className={styles.tabBar} role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "liste"}
+            className={`${styles.tabBtn} ${activeTab === "liste" ? styles.tabBtnActive : ""}`}
+            onClick={() => setActiveTab("liste")}
+          >
+            Liste
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "pipeline"}
+            className={`${styles.tabBtn} ${activeTab === "pipeline" ? styles.tabBtnActive : ""}`}
+            onClick={() => setActiveTab("pipeline")}
+          >
+            Pipeline
+            <span className={styles.tabBadge}>{pipelineCards.length}</span>
+          </button>
+        </div>
+
+        {activeTab === "pipeline" ? (
+          <div className={styles.pipelineSection}>
+            {avgDealValueByAgent.size === 0 && (
+              <button
+                type="button"
+                className={styles.valueHintBanner}
+                onClick={() => navigate("/app/agentai")}
+              >
+                <span className={styles.valueHintIcon} aria-hidden="true">💡</span>
+                <div className={styles.valueHintContent}>
+                  <p className={styles.valueHintTitle}>
+                    Le pipeline est prêt à être chiffré
+                  </p>
+                  <p className={styles.valueHintText}>
+                    Définis la <strong>valeur moyenne du deal</strong> dans la configuration de
+                    ton agent IA pour voir l'argent en jeu à chaque étape.
+                  </p>
+                </div>
+                <span className={styles.valueHintCta} aria-hidden="true">
+                  Configurer →
+                </span>
+              </button>
+            )}
+            {pipelineCards.length === 0 ? (
+              <div className={styles.emptyState}>
+                <div className={styles.emptyStateVisual}>
+                  <svg
+                    className={styles.emptyStateGlyph}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="4" width="4" height="16" rx="1" />
+                    <rect x="10" y="8" width="4" height="12" rx="1" />
+                    <rect x="17" y="12" width="4" height="8" rx="1" />
+                  </svg>
+                </div>
+                <p className={styles.emptyStateText}>
+                  {isLoading ? "Chargement…" : "Aucun contact à afficher dans le pipeline pour l'instant"}
+                </p>
+                {!isLoading && (
+                  <p className={styles.emptyStateSub}>
+                    Les prospects apparaissent ici dès qu'ils ont une conversation liée avec un de tes agents.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <PipelineView
+                cards={pipelineCards}
+                onCardClick={handleOpenContactFromPipeline}
+              />
+            )}
+          </div>
+        ) : (
+          <>
 
         {/* Toolbar */}
         <div className={styles.toolbar}>
@@ -1736,13 +2217,48 @@ const Contacts: FunctionComponent = () => {
                   <th className={styles.th}>Nom</th>
                   <th className={styles.th}>Plateforme</th>
                   <th className={styles.th}>Qualification</th>
+                  <th className={styles.th}>
+                    <button
+                      type="button"
+                      className={`${styles.thSortBtn} ${sortKey === "score" ? styles.thSortBtnActive : ""}`}
+                      onClick={() => handleSortClick("score")}
+                    >
+                      Score
+                      <span className={styles.thSortIcon} aria-hidden="true">
+                        {sortKey === "score" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                      </span>
+                    </button>
+                  </th>
+                  <th className={styles.th}>
+                    <button
+                      type="button"
+                      className={`${styles.thSortBtn} ${sortKey === "stage" ? styles.thSortBtnActive : ""}`}
+                      onClick={() => handleSortClick("stage")}
+                    >
+                      Étape
+                      <span className={styles.thSortIcon} aria-hidden="true">
+                        {sortKey === "stage" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                      </span>
+                    </button>
+                  </th>
                   <th className={styles.th}>Source</th>
-                  <th className={styles.th}>Dernière activité</th>
+                  <th className={styles.th}>
+                    <button
+                      type="button"
+                      className={`${styles.thSortBtn} ${sortKey === "activity" ? styles.thSortBtnActive : ""}`}
+                      onClick={() => handleSortClick("activity")}
+                    >
+                      Dernière activité
+                      <span className={styles.thSortIcon} aria-hidden="true">
+                        {sortKey === "activity" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                      </span>
+                    </button>
+                  </th>
                   <th className={styles.th}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((contact) => (
+                {sortedFiltered.map((contact) => (
                   <tr key={contact.id} className={styles.tr}>
                     <td className={styles.td}>
                       <div className={styles.contactName}>
@@ -1757,6 +2273,40 @@ const Contacts: FunctionComponent = () => {
                     </td>
                     <td className={styles.td}>
                       <QualificationBadge qualification={contact.qualificationKey} />
+                    </td>
+                    <td className={styles.td}>
+                      {contact.linkedConversation ? (
+                        <span
+                          className={`${styles.scoreBadge} ${
+                            contact.score.level === "hot"
+                              ? styles.scoreBadgeHot
+                              : contact.score.level === "warm"
+                              ? styles.scoreBadgeWarm
+                              : styles.scoreBadgeCold
+                          }`}
+                          title={`Intention d'achat ${contact.score.breakdown.buyIntent}/40 · Engagement ${contact.score.breakdown.engagement}/20 · Réactivité ${contact.score.breakdown.reactivity}/15 · Pipeline ${contact.score.breakdown.pipeline}/25${
+                            contact.score.capReason
+                              ? `\n\n⚠ ${contact.score.capReason} (pénalité -${contact.score.breakdown.negativePenalty})`
+                              : ""
+                          }`}
+                        >
+                          {contact.score.total}
+                          <span className={styles.scoreBadgeMax}>/100</span>
+                        </span>
+                      ) : (
+                        <span className={styles.dateText} title="Pas encore de conversation pour évaluer">
+                          —
+                        </span>
+                      )}
+                    </td>
+                    <td className={styles.td}>
+                      {contact.linkedConversation ? (
+                        <span className={styles.stageChip}>
+                          {PIPELINE_STAGE_LABELS[contact.pipelineStage]}
+                        </span>
+                      ) : (
+                        <span className={styles.dateText}>—</span>
+                      )}
                     </td>
                     <td className={styles.td}>
                       <span className={styles.sourceBadge}>
@@ -1812,6 +2362,8 @@ const Contacts: FunctionComponent = () => {
             </table>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* Modals */}
@@ -1829,18 +2381,27 @@ const Contacts: FunctionComponent = () => {
       )}
 
       {/* Drawer */}
-      {selectedContact && (
-        <ContactDrawer
-          key={selectedContact.id}
-          contact={selectedContact}
-          linkedConversation={
-            contactsWithContext.find((contact) => contact.id === selectedContact.id)
-              ?.linkedConversation ?? null
-          }
-          onClose={() => setSelectedContact(null)}
-          onUpdated={fetchContacts}
-        />
-      )}
+      {selectedContact && (() => {
+        const ctx = contactsWithContext.find((contact) => contact.id === selectedContact.id);
+        const fallbackScore: LeadScore = {
+          total: 0,
+          rawTotal: 0,
+          level: "cold",
+          breakdown: { buyIntent: 0, engagement: 0, reactivity: 0, pipeline: 0, negativePenalty: 0 },
+          signals: { hardNegative: [], softNegative: [], buyKeywords: [], isStopped: false },
+          capReason: null,
+        };
+        return (
+          <ContactDrawer
+            key={selectedContact.id}
+            contact={selectedContact}
+            linkedConversation={ctx?.linkedConversation ?? null}
+            score={ctx?.score ?? fallbackScore}
+            onClose={() => setSelectedContact(null)}
+            onUpdated={fetchContacts}
+          />
+        );
+      })()}
     </AppLayout>
   );
 };

@@ -7,9 +7,10 @@
   useRef,
   useState,
 } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AppLayout } from "../layouts";
 import ConfirmationDialog from "../components/ConfirmationDialog";
+import ConversationContextPanel from "../components/conversations/ConversationContextPanel";
 import {
   IconConversationPlay,
   IconConversationStop,
@@ -1076,6 +1077,7 @@ const ConversationMessageItem: FunctionComponent<{
 
 const Conversations: FunctionComponent = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   // ── Config selector state
   const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
   const [isConfigMenuOpen, setConfigMenuOpen] = useState(false);
@@ -1125,6 +1127,8 @@ const Conversations: FunctionComponent = () => {
   const [isClosing, setIsClosing] = useState(false);
   const [convHasBooking, setConvHasBooking] = useState(false);
   const [convBookingData, setConvBookingData] = useState<{ id: string; created_at: string } | null>(null);
+  const [convHasClosedDeal, setConvHasClosedDeal] = useState(false);
+  const [convClosedAmount, setConvClosedAmount] = useState<number | null>(null);
 
   // Auto-relances override state
   const [convAgentAutoRelancesEnabled, setConvAgentAutoRelancesEnabled] = useState(false);
@@ -1504,6 +1508,31 @@ const Conversations: FunctionComponent = () => {
       .then(({ data }) => {
         setConvHasBooking(!!data);
         setConvBookingData(data ?? null);
+      });
+  }, [activeConversation?.id]);
+
+  // Check if active conversation has a closed deal (for scoring panel)
+  useEffect(() => {
+    if (!activeConversation?.id) {
+      setConvHasClosedDeal(false);
+      setConvClosedAmount(null);
+      return;
+    }
+    supabase
+      .from("deal_closings")
+      .select("amount, is_closed")
+      .eq("conversation_id", Number(activeConversation.id))
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        const row = data?.[0];
+        if (row && row.is_closed === true) {
+          setConvHasClosedDeal(true);
+          setConvClosedAmount(typeof row.amount === "number" ? row.amount : null);
+        } else {
+          setConvHasClosedDeal(false);
+          setConvClosedAmount(null);
+        }
       });
   }, [activeConversation?.id]);
 
@@ -2499,6 +2528,20 @@ const Conversations: FunctionComponent = () => {
                         </div>
                       </div>
                     </div>
+
+                    <ConversationContextPanel
+                      conversation={activeConversation}
+                      hasBooking={convHasBooking}
+                      hasClosedDeal={convHasClosedDeal}
+                      dealAmount={convClosedAmount}
+                      onOpenContact={() =>
+                        navigate(
+                          `/app/contacts?contact_for_conversation=${encodeURIComponent(
+                            String(activeConversation.id),
+                          )}`,
+                        )
+                      }
+                    />
 
                     {isDetailsOverlayOpen && (
                       <div

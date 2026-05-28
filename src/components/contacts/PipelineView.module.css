@@ -1,0 +1,408 @@
+.pipelineWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 0;
+}
+
+/* ── Header (totals + funnel strip) ───────────────────────────────────────── */
+.pipelineHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--app-border-soft, rgba(148, 163, 184, 0.2));
+  background: var(--app-bg-elevated, #fff);
+}
+
+.totalsRow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.totalChunk {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.totalDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--app-border-soft, rgba(148, 163, 184, 0.22));
+}
+
+.totalLabel {
+  font-size: var(--fs-11, 11px);
+  color: var(--app-text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.totalValue {
+  font-size: var(--fs-20, 20px);
+  font-weight: 800;
+  color: var(--app-text-primary, #0f172a);
+  letter-spacing: -0.01em;
+}
+
+.totalValueClosed {
+  color: #15803d;
+}
+
+/* Funnel strip — replaces the old bottom funnel chart */
+.funnelStrip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border-soft, rgba(148, 163, 184, 0.18));
+}
+
+.funnelSegment {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 14px;
+}
+
+.funnelSegmentTop {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.funnelSegmentLabel {
+  font-size: var(--fs-11, 11px);
+  font-weight: 700;
+  color: var(--app-text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.funnelSegmentValue {
+  font-size: var(--fs-14, 14px);
+  font-weight: 800;
+  color: var(--app-text-primary, #0f172a);
+  letter-spacing: -0.01em;
+}
+
+.funnelSegmentTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--app-bg-subtle, #f1f5f9);
+  overflow: hidden;
+}
+
+.funnelSegmentFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--stage-accent, #64748b);
+  transition: width 0.32s ease;
+  min-width: 2px;
+}
+
+.funnelSegmentArrow {
+  position: absolute;
+  top: 8px;
+  right: -2px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--app-text-tertiary, #94a3b8);
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* ── Kanban ────────────────────────────────────────────────────────────────── */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(200px, 1fr));
+  gap: 12px;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid var(--app-border-soft, rgba(148, 163, 184, 0.2));
+  background: var(--app-bg-subtle, #f8fafc);
+  min-height: 320px;
+  max-height: 70vh;
+  overflow: hidden;
+}
+
+/* ── Stage accents ────────────────────────────────────────────────────────── */
+.stageNouveau {
+  --stage-accent: #64748b;
+  --stage-accent-soft: rgba(100, 116, 139, 0.12);
+}
+
+.stageEngage {
+  --stage-accent: #3b82f6;
+  --stage-accent-soft: rgba(59, 130, 246, 0.12);
+}
+
+.stageQualifie {
+  --stage-accent: #f59e0b;
+  --stage-accent-soft: rgba(245, 158, 11, 0.14);
+}
+
+.stageRdv {
+  --stage-accent: #8b5cf6;
+  --stage-accent-soft: rgba(139, 92, 246, 0.14);
+}
+
+.stageDeal {
+  --stage-accent: #16a34a;
+  --stage-accent-soft: rgba(22, 163, 74, 0.14);
+}
+
+/* ── Column header ────────────────────────────────────────────────────────── */
+.columnHeader {
+  padding: 12px 12px 10px;
+  background: var(--stage-accent-soft, transparent);
+  border-bottom: 1px solid var(--app-border-soft, rgba(148, 163, 184, 0.18));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.columnHeader::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--stage-accent, #64748b);
+}
+
+.columnTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.columnTitle {
+  margin: 0;
+  font-size: var(--fs-14, 14px);
+  font-weight: 700;
+  color: var(--app-text-primary, #0f172a);
+}
+
+.columnCount {
+  font-size: var(--fs-12, 12px);
+  font-weight: 700;
+  color: var(--stage-accent, #64748b);
+  background: var(--app-bg-elevated, #fff);
+  border: 1px solid var(--stage-accent, #64748b);
+  border-radius: 999px;
+  min-width: 24px;
+  padding: 2px 8px;
+  text-align: center;
+}
+
+.columnValueRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.columnValueLabel {
+  font-size: var(--fs-11, 11px);
+  color: var(--app-text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.columnValue {
+  font-size: var(--fs-14, 14px);
+  font-weight: 700;
+  color: var(--app-text-primary, #0f172a);
+}
+
+/* ── Column body ──────────────────────────────────────────────────────────── */
+.columnBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.emptyColumn {
+  text-align: center;
+  font-size: var(--fs-12, 12px);
+  color: var(--app-text-tertiary, #94a3b8);
+  padding: 18px 6px;
+  font-style: italic;
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────────── */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--app-border-soft, rgba(148, 163, 184, 0.2));
+  background: var(--app-bg-elevated, #fff);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  font: inherit;
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: var(--stage-accent, #64748b);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  outline: none;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardIdentity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cardChannelIcon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.cardName {
+  font-size: var(--fs-13, 13px);
+  font-weight: 600;
+  color: var(--app-text-primary, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardScore {
+  font-size: var(--fs-11, 11px);
+  font-weight: 800;
+  padding: 3px 7px;
+  border-radius: 999px;
+  min-width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.scoreHot {
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.32);
+}
+
+.scoreWarm {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.32);
+}
+
+.scoreCold {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, 0.28);
+}
+
+.cardSubtitle {
+  font-size: var(--fs-11, 11px);
+  color: var(--app-text-secondary, #64748b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--app-border-soft, rgba(148, 163, 184, 0.22));
+}
+
+.cardDate {
+  font-size: var(--fs-11, 11px);
+  color: var(--app-text-tertiary, #94a3b8);
+}
+
+.cardValue {
+  font-size: var(--fs-11, 11px);
+  font-weight: 700;
+  color: var(--app-text-primary, #0f172a);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 1280px) {
+  .kanban {
+    grid-template-columns: repeat(5, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .kanban {
+    grid-template-columns: repeat(5, 220px);
+  }
+
+  .funnelStrip {
+    grid-template-columns: repeat(5, minmax(110px, 1fr));
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .pipelineHeader {
+    padding: 12px;
+  }
+
+  .totalsRow {
+    gap: 14px;
+  }
+
+  .totalValue {
+    font-size: var(--fs-18, 18px);
+  }
+
+  .funnelStrip {
+    grid-template-columns: repeat(5, 130px);
+  }
+
+  .funnelSegmentArrow {
+    display: none;
+  }
+}

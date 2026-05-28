@@ -1508,3 +1508,376 @@
   font-size: 12px;
   font-weight: 500;
 }
+
+/* ── Tab switcher (Liste / Pipeline) ───────────────────────────────────────── */
+.tabBar {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 14px;
+  border-radius: 12px;
+  background: var(--app-bg-subtle, #f1f5f9);
+  border: 1px solid var(--app-border-soft, rgba(148, 163, 184, 0.18));
+  width: fit-content;
+}
+
+.tabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: var(--fs-13, 13px);
+  font-weight: 600;
+  color: var(--app-text-secondary, #64748b);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tabBtn:hover {
+  color: var(--app-text-primary, #0f172a);
+}
+
+.tabBtnActive {
+  background: var(--app-bg-elevated, #fff);
+  color: var(--app-text-primary, #0f172a);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.tabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.tabBtnActive .tabBadge {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+}
+
+.pipelineSection {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* ── Score badge in table ───────────────────────────────────────────────── */
+.scoreBadge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 3px 9px;
+  border-radius: var(--br-100);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+  cursor: help;
+}
+
+.scoreBadgeMax {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.72;
+  margin-left: 1px;
+}
+
+.scoreBadgeHot {
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.32);
+}
+
+.scoreBadgeWarm {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.scoreBadgeCold {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.26);
+}
+
+/* ── Sortable table header ─────────────────────────────────────────────── */
+.thSortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid transparent;
+  padding: 4px 10px 4px 8px;
+  margin: -4px -4px -4px -8px;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  font-weight: inherit;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.thSortBtn:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--app-primary, #2563eb);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.thSortBtn:focus-visible {
+  outline: none;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: var(--app-primary, #2563eb);
+}
+
+.thSortIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--app-text-secondary, #64748b);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.thSortBtn:hover .thSortIcon {
+  background: rgba(37, 99, 235, 0.18);
+  color: var(--app-primary, #2563eb);
+}
+
+.thSortBtnActive {
+  color: var(--app-primary, #2563eb);
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.24);
+}
+
+.thSortBtnActive .thSortIcon {
+  background: var(--app-primary, #2563eb);
+  color: #fff;
+}
+
+/* ── Stage chip in table ───────────────────────────────────────────────── */
+.stageChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--br-100);
+  background: rgba(59, 130, 246, 0.1);
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── avg_deal_value hint banner (Pipeline tab) ─────────────────────────── */
+.valueHintBanner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 16px;
+  margin: 0 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  background: rgba(245, 158, 11, 0.08);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.valueHintBanner:hover,
+.valueHintBanner:focus-visible {
+  background: rgba(245, 158, 11, 0.13);
+  border-color: rgba(245, 158, 11, 0.55);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.15);
+  outline: none;
+}
+
+.valueHintBanner:active {
+  transform: translateY(1px);
+}
+
+.valueHintIcon {
+  font-size: 22px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.valueHintContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.valueHintTitle {
+  margin: 0 0 2px;
+  font-size: var(--fs-13, 13px);
+  font-weight: 700;
+  color: #92400e;
+}
+
+.valueHintText {
+  margin: 0;
+  font-size: var(--fs-12, 12px);
+  line-height: 1.5;
+  color: #78350f;
+}
+
+.valueHintCta {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #b45309;
+  color: #fff;
+  font-size: var(--fs-12, 12px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: background 0.18s ease;
+}
+
+.valueHintBanner:hover .valueHintCta,
+.valueHintBanner:focus-visible .valueHintCta {
+  background: #92400e;
+}
+
+/* ── Score breakdown in drawer ─────────────────────────────────────────── */
+.scoreHeadline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.scoreHeadlineBadge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 6px 14px;
+  border-radius: var(--br-100);
+  font-size: 20px;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.scoreHeadlineMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.scoreHeadlineLevel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--app-text-primary);
+}
+
+.scoreHeadlineCap {
+  font-size: 12px;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 6px;
+  padding: 2px 8px;
+  width: fit-content;
+}
+
+.scoreBars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.scoreBarRow {
+  display: grid;
+  grid-template-columns: 130px 1fr 56px;
+  align-items: center;
+  gap: 10px;
+}
+
+.scoreBarLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
+
+.scoreBarTrack {
+  height: 8px;
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.scoreBarFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.32s ease;
+  min-width: 2px;
+}
+
+.scoreBarValue {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--app-text-primary);
+  text-align: right;
+}
+
+.scoreBarMax {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+  margin-left: 1px;
+}
+
+.scoreSignals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.28);
+}
+
+.scoreChipPositive,
+.scoreChipNegative,
+.scoreChipSoft {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--br-100);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.scoreChipPositive {
+  background: rgba(22, 163, 74, 0.1);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.28);
+}
+
+.scoreChipNegative {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.28);
+}
+
+.scoreChipSoft {
+  background: rgba(245, 158, 11, 0.1);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.28);
+}

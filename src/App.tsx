@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import {
   Navigate,
   Route,
@@ -6,31 +6,32 @@ import {
   useLocation,
   useNavigationType,
 } from "react-router-dom";
-import AgentAi from "./pages/AgentAi";
-import AgentAiConfiguration from "./pages/AgentAiConfiguration";
-import Connexion from "./pages/Connexion";
-import Conversations from "./pages/Conversations";
-import Relances from "./pages/Relances";
-import Crm from "./pages/Crm";
-import Demarer from "./pages/Demarer";
-import Dashboard from "./pages/Dashboard";
 import Feedback from "./components/Feedback";
-import Landing from "./pages/Landing";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PageLoadingFallback from "./components/PageLoadingFallback";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import PolicyDataDeletion from "./pages/policy/PolicyDataDeletion";
-import PolicyPrivacy from "./pages/policy/PolicyPrivacy";
-import PolicyTerms from "./pages/policy/PolicyTerms";
-import CrmGuard from "./components/GuardComponent/CrmGuard";
-import ScrapingGuard from "./components/GuardComponent/ScrapingGuard";
-import ContactsGuard from "./components/GuardComponent/ContactsGuard";
-import RendezVous from "./pages/RendezVous";
-import Subscription from "./pages/Subscription";
-import PricingPage from "./pages/PricingPage";
 import useSubscriptionState from "./hooks/useSubscriptionState";
+
+const Landing = lazy(() => import("./pages/Landing"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Conversations = lazy(() => import("./pages/Conversations"));
+const AgentAi = lazy(() => import("./pages/AgentAi"));
+const AgentAiConfiguration = lazy(() => import("./pages/AgentAiConfiguration"));
+const Connexion = lazy(() => import("./pages/Connexion"));
+const Relances = lazy(() => import("./pages/Relances"));
+const Demarer = lazy(() => import("./pages/Demarer"));
+const RendezVous = lazy(() => import("./pages/RendezVous"));
+const Subscription = lazy(() => import("./pages/Subscription"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const PolicyDataDeletion = lazy(() => import("./pages/policy/PolicyDataDeletion"));
+const PolicyPrivacy = lazy(() => import("./pages/policy/PolicyPrivacy"));
+const PolicyTerms = lazy(() => import("./pages/policy/PolicyTerms"));
+const ContactsGuard = lazy(() => import("./components/GuardComponent/ContactsGuard"));
+const ScrapingGuard = lazy(() => import("./components/GuardComponent/ScrapingGuard"));
+const CrmGuard = lazy(() => import("./components/GuardComponent/CrmGuard"));
 
 function App() {
   const action = useNavigationType();
@@ -153,6 +154,7 @@ function App() {
 
   return (
     <>
+      <Suspense fallback={<PageLoadingFallback />}>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -183,6 +185,7 @@ function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       {showFeedback && <Feedback placement={feedbackPlacement ?? "default"} />}
     </>
   );
