@@ -64,7 +64,16 @@ const ConversationContextPanel: FunctionComponent<Props> = ({
 
   const summary = (conversation.summary ?? "").trim();
   const hasNegativeSignal =
-    score.signals.hardNegative.length > 0 || score.signals.softNegative.length > 0;
+    score.signals.hardNegative.length > 0 ||
+    score.signals.softNegative.length > 0 ||
+    score.signals.freeSeeker.length > 0 ||
+    score.signals.nonDecisionMaker.length > 0 ||
+    score.signals.wrongTarget.length > 0 ||
+    score.signals.supporter.length > 0;
+  const hasPositiveSignal =
+    score.signals.buyKeywords.length > 0 ||
+    score.signals.qualificationSignals.length > 0 ||
+    score.signals.trumpSignals.length > 0;
   const dealValueFormatted =
     hasClosedDeal && typeof dealAmount === "number" && dealAmount > 0
       ? new Intl.NumberFormat("fr-FR", {
@@ -85,7 +94,9 @@ const ConversationContextPanel: FunctionComponent<Props> = ({
               ? styles.scoreWarm
               : styles.scoreCold
           }`}
-          title={`Intention d'achat ${score.breakdown.buyIntent}/40 · Engagement ${score.breakdown.engagement}/20 · Réactivité ${score.breakdown.reactivity}/15 · Pipeline ${score.breakdown.pipeline}/25`}
+          title={`Intention d'achat ${score.breakdown.buyIntent}/35 · Qualification ${score.breakdown.qualification}/30 · Engagement ${score.breakdown.engagement}/15 · Réactivité ${score.breakdown.reactivity}/10 · Pipeline ${score.breakdown.pipeline}/10${
+            score.trumpReason ? `\n\n✓ ${score.trumpReason}` : ""
+          }`}
         >
           <span className={styles.scoreNumber}>{score.total}</span>
           <span className={styles.scoreMax}>/100</span>
@@ -118,7 +129,7 @@ const ConversationContextPanel: FunctionComponent<Props> = ({
         </button>
       </div>
 
-      {(summary || score.signals.buyKeywords.length > 0 || hasNegativeSignal) && (
+      {(summary || hasPositiveSignal || hasNegativeSignal) && (
         <div className={styles.bottomRow}>
           {summary && (
             <p className={styles.summary} title={summary}>
@@ -127,11 +138,25 @@ const ConversationContextPanel: FunctionComponent<Props> = ({
             </p>
           )}
 
-          {(score.signals.buyKeywords.length > 0 || hasNegativeSignal) && (
+          {(hasPositiveSignal || hasNegativeSignal) && (
             <div className={styles.signalsRow}>
-              {score.signals.buyKeywords.slice(0, 4).map((kw) => (
+              {score.signals.trumpSignals.slice(0, 2).map((kw) => (
+                <span
+                  key={`trump-${kw}`}
+                  className={styles.signalPositive}
+                  title="Signal d'achat fort"
+                >
+                  ★ « {kw} »
+                </span>
+              ))}
+              {score.signals.buyKeywords.slice(0, 3).map((kw) => (
                 <span key={`pos-${kw}`} className={styles.signalPositive}>
                   ✓ {kw}
+                </span>
+              ))}
+              {score.signals.qualificationSignals.slice(0, 3).map((kw) => (
+                <span key={`qual-${kw}`} className={styles.signalQualif}>
+                  ✦ {kw}
                 </span>
               ))}
               {score.signals.hardNegative.slice(0, 2).map((kw) => (
@@ -139,9 +164,37 @@ const ConversationContextPanel: FunctionComponent<Props> = ({
                   ✕ « {kw} »
                 </span>
               ))}
+              {score.signals.wrongTarget.slice(0, 1).map((kw) => (
+                <span key={`wt-${kw}`} className={styles.signalNegative}>
+                  ⊘ « {kw} »
+                </span>
+              ))}
+              {score.signals.freeSeeker.slice(0, 1).map((kw) => (
+                <span key={`free-${kw}`} className={styles.signalNegative}>
+                  € « {kw} »
+                </span>
+              ))}
+              {score.signals.nonDecisionMaker.slice(0, 1).map((kw) => (
+                <span key={`ndm-${kw}`} className={styles.signalSoft}>
+                  👥 « {kw} »
+                </span>
+              ))}
               {score.signals.softNegative.slice(0, 2).map((kw) => (
                 <span key={`soft-${kw}`} className={styles.signalSoft}>
                   ⏳ « {kw} »
+                </span>
+              ))}
+              {score.signals.supporter.slice(0, 2).map((kw) => (
+                <span
+                  key={`sup-${kw}`}
+                  className={styles.signalSoft}
+                  title={
+                    score.signals.isSupporterMode
+                      ? "Conversation amicale détectée (sympathisant)"
+                      : "Signal de soutien"
+                  }
+                >
+                  🫶 « {kw} »
                 </span>
               ))}
             </div>

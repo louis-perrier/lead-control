@@ -1215,10 +1215,11 @@ const ContactDrawer: FunctionComponent<{
 
             <div className={styles.scoreBars}>
               {[
-                { label: "Intention d'achat", value: score.breakdown.buyIntent, max: 40, accent: "var(--app-primary, #2563eb)" },
-                { label: "Engagement", value: score.breakdown.engagement, max: 20, accent: "#0ea5e9" },
-                { label: "Réactivité", value: score.breakdown.reactivity, max: 15, accent: "#f59e0b" },
-                { label: "Pipeline", value: score.breakdown.pipeline, max: 25, accent: "#16a34a" },
+                { label: "Intention d'achat", value: score.breakdown.buyIntent, max: 35, accent: "var(--app-primary, #2563eb)" },
+                { label: "Qualification", value: score.breakdown.qualification, max: 30, accent: "#8b5cf6" },
+                { label: "Engagement", value: score.breakdown.engagement, max: 15, accent: "#0ea5e9" },
+                { label: "Réactivité", value: score.breakdown.reactivity, max: 10, accent: "#f59e0b" },
+                { label: "Pipeline", value: score.breakdown.pipeline, max: 10, accent: "#16a34a" },
               ].map((row) => (
                 <div key={row.label} className={styles.scoreBarRow}>
                   <span className={styles.scoreBarLabel}>{row.label}</span>
@@ -1237,13 +1238,61 @@ const ContactDrawer: FunctionComponent<{
                   </span>
                 </div>
               ))}
+
+              {score.breakdown.trumpBonus > 0 && (
+                <div className={`${styles.scoreBarRow} ${styles.scoreBarRowBonus}`}>
+                  <span className={styles.scoreBarLabel}>
+                    + Bonus signal d'achat
+                  </span>
+                  <span className={styles.scoreBarHint}>{score.trumpReason}</span>
+                  <span className={`${styles.scoreBarValue} ${styles.scoreBarValueBonus}`}>
+                    +{score.breakdown.trumpBonus}
+                  </span>
+                </div>
+              )}
+
+              {score.breakdown.negativePenalty > 0 && (
+                <div className={`${styles.scoreBarRow} ${styles.scoreBarRowPenalty}`}>
+                  <span className={styles.scoreBarLabel}>− Pénalité signal négatif</span>
+                  <span className={styles.scoreBarHint}>{score.capReason}</span>
+                  <span className={`${styles.scoreBarValue} ${styles.scoreBarValuePenalty}`}>
+                    −{score.breakdown.negativePenalty}
+                  </span>
+                </div>
+              )}
+
+              <div className={`${styles.scoreBarRow} ${styles.scoreBarRowTotal}`}>
+                <span className={styles.scoreBarLabel}>Score final</span>
+                <span className={styles.scoreBarTotalValue}>
+                  {score.total}
+                  <span className={styles.scoreBarMax}>/100</span>
+                </span>
+              </div>
             </div>
 
-            {(score.signals.buyKeywords.length > 0 || score.signals.hardNegative.length > 0 || score.signals.softNegative.length > 0) && (
+            {(score.signals.buyKeywords.length > 0 ||
+              score.signals.qualificationSignals.length > 0 ||
+              score.signals.trumpSignals.length > 0 ||
+              score.signals.hardNegative.length > 0 ||
+              score.signals.softNegative.length > 0 ||
+              score.signals.freeSeeker.length > 0 ||
+              score.signals.nonDecisionMaker.length > 0 ||
+              score.signals.wrongTarget.length > 0 ||
+              score.signals.supporter.length > 0) && (
               <div className={styles.scoreSignals}>
+                {score.signals.trumpSignals.slice(0, 3).map((kw) => (
+                  <span key={`trump-${kw}`} className={styles.scoreChipPositive} title="Signal d'achat fort">
+                    ★ « {kw} »
+                  </span>
+                ))}
                 {score.signals.buyKeywords.map((kw) => (
                   <span key={`pos-${kw}`} className={styles.scoreChipPositive}>
                     ✓ {kw}
+                  </span>
+                ))}
+                {score.signals.qualificationSignals.map((kw) => (
+                  <span key={`qual-${kw}`} className={styles.scoreChipQualif}>
+                    ✦ {kw}
                   </span>
                 ))}
                 {score.signals.hardNegative.slice(0, 3).map((kw) => (
@@ -1251,9 +1300,29 @@ const ContactDrawer: FunctionComponent<{
                     ✕ « {kw} »
                   </span>
                 ))}
+                {score.signals.wrongTarget.slice(0, 2).map((kw) => (
+                  <span key={`wt-${kw}`} className={styles.scoreChipNegative}>
+                    ⊘ « {kw} »
+                  </span>
+                ))}
+                {score.signals.freeSeeker.slice(0, 2).map((kw) => (
+                  <span key={`free-${kw}`} className={styles.scoreChipNegative}>
+                    € « {kw} »
+                  </span>
+                ))}
+                {score.signals.nonDecisionMaker.slice(0, 2).map((kw) => (
+                  <span key={`ndm-${kw}`} className={styles.scoreChipSoft}>
+                    👥 « {kw} »
+                  </span>
+                ))}
                 {score.signals.softNegative.slice(0, 3).map((kw) => (
                   <span key={`soft-${kw}`} className={styles.scoreChipSoft}>
                     ⏳ « {kw} »
+                  </span>
+                ))}
+                {score.signals.supporter.slice(0, 3).map((kw) => (
+                  <span key={`sup-${kw}`} className={styles.scoreChipSoft} title={score.signals.isSupporterMode ? "Conversation amicale détectée (sympathisant)" : "Signal de soutien"}>
+                    🫶 « {kw} »
                   </span>
                 ))}
               </div>
@@ -2284,7 +2353,11 @@ const Contacts: FunctionComponent = () => {
                               ? styles.scoreBadgeWarm
                               : styles.scoreBadgeCold
                           }`}
-                          title={`Intention d'achat ${contact.score.breakdown.buyIntent}/40 · Engagement ${contact.score.breakdown.engagement}/20 · Réactivité ${contact.score.breakdown.reactivity}/15 · Pipeline ${contact.score.breakdown.pipeline}/25${
+                          title={`Intention d'achat ${contact.score.breakdown.buyIntent}/35 · Qualification ${contact.score.breakdown.qualification}/30 · Engagement ${contact.score.breakdown.engagement}/15 · Réactivité ${contact.score.breakdown.reactivity}/10 · Pipeline ${contact.score.breakdown.pipeline}/10${
+                            contact.score.trumpReason
+                              ? `\n\n✓ ${contact.score.trumpReason}`
+                              : ""
+                          }${
                             contact.score.capReason
                               ? `\n\n⚠ ${contact.score.capReason} (pénalité -${contact.score.breakdown.negativePenalty})`
                               : ""
@@ -2387,9 +2460,31 @@ const Contacts: FunctionComponent = () => {
           total: 0,
           rawTotal: 0,
           level: "cold",
-          breakdown: { buyIntent: 0, engagement: 0, reactivity: 0, pipeline: 0, negativePenalty: 0 },
-          signals: { hardNegative: [], softNegative: [], buyKeywords: [], isStopped: false },
+          breakdown: {
+            buyIntent: 0,
+            qualification: 0,
+            engagement: 0,
+            reactivity: 0,
+            pipeline: 0,
+            trumpBonus: 0,
+            negativePenalty: 0,
+          },
+          signals: {
+            buyKeywords: [],
+            qualificationSignals: [],
+            trumpSignals: [],
+            hardNegative: [],
+            softNegative: [],
+            freeSeeker: [],
+            nonDecisionMaker: [],
+            wrongTarget: [],
+            supporter: [],
+            isTireKicker: false,
+            isSupporterMode: false,
+            isStopped: false,
+          },
           capReason: null,
+          trumpReason: null,
         };
         return (
           <ContactDrawer
