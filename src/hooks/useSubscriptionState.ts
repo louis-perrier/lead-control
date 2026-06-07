@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import supabase from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 import type { BillingInfo, BillingPlanKey } from "../types/billing";
 
 type PlanKey = BillingPlanKey;
@@ -25,12 +25,12 @@ const DEFAULT_CAPABILITIES: Capabilities = {
 };
 
 const useSubscriptionState = () => {
+  const { session } = useAuth();
   return useQuery<SubscriptionState>({
     queryKey: ["subscription", "state"],
     queryFn: async () => {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !sessionData.session) {
+      const accessToken = session?.access_token;
+      if (!accessToken) {
         throw new Error("Utilisateur non connecté");
       }
 
@@ -40,7 +40,7 @@ const useSubscriptionState = () => {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${sessionData.session.access_token}`,
+            "Authorization": `Bearer ${accessToken}`,
           },
         }
       );
@@ -61,6 +61,7 @@ const useSubscriptionState = () => {
         capabilities: rawData.capabilities ?? DEFAULT_CAPABILITIES,
       };
     },
+    enabled: Boolean(session?.access_token),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
   });

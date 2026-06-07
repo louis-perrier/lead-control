@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import supabase from "../lib/supabase";
 
@@ -17,6 +17,7 @@ type Credentials = {
 
 type AuthContextValue = {
   user: User | null;
+  session: Session | null;
   loading: boolean;
   signIn: (credentials: Credentials) => Promise<void>;
   signOut: () => Promise<void>;
@@ -30,6 +31,7 @@ type AuthProviderProps = {
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
 
@@ -42,6 +44,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           data: { session },
         } = await supabase.auth.getSession();
         if (mounted) {
+          setSession(session ?? null);
           setUser(session?.user ?? null);
         }
       } finally {
@@ -60,6 +63,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const newUser = session?.user ?? null;
         const userChanged = user?.id !== newUser?.id;
         
+        setSession(session ?? null);
         setUser(newUser);
         
         // Invalider le cache lors des changements d'utilisateur critiques
@@ -79,7 +83,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [queryClient, user?.id]);
+  }, [queryClient]);
 
   const signIn = async ({ email, password }: Credentials) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -104,8 +108,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const value = useMemo(
-    () => ({ user, loading, signIn, signOut }),
-    [user, loading],
+    () => ({ user, session, loading, signIn, signOut }),
+    [user, session, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

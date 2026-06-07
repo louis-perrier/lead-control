@@ -26,6 +26,7 @@ import supabase from "../lib/supabase";
 import useAgents from "../hooks/useAgents";
 import { useConnectors } from "../hooks/useConnexion";
 import { buildConnectorActions } from "../connectors/actions";
+import { useAuth } from "../context/AuthContext";
 import ToneSelector, {
   ToneOption,
   ToneOptionConfig,
@@ -614,6 +615,7 @@ const AgentAi: FunctionComponent = () => {
   const location = useLocation();
   const navigationState = location.state as AgentAiConfigurationState | undefined;
   const { displayedAgents, refreshDisplayedAgents } = useAgents();
+  const { session } = useAuth();
 
   const initialTabs =
     navigationState?.tabs ??
@@ -1432,8 +1434,8 @@ const AgentAi: FunctionComponent = () => {
         configsId: selectedAgent?.display_id ?? null,
         connectorConnected,
         setActivePopup,
-      }),
-    [selectedAgent?.display_id, connectorConnected, setActivePopup]
+      }, session?.access_token ?? ""),
+    [selectedAgent?.display_id, connectorConnected, setActivePopup, session?.access_token]
   );
 
   // ------------------------------CONFIGURATIONS---------------------------------

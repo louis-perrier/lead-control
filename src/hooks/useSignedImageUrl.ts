@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import supabase from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 
 const useSignedImageUrl = (mediaPath?: string, messageId?: string, enabled: boolean = false) => {
+  const { session } = useAuth();
   return useQuery({
     queryKey: ["signed-image-url", messageId],
     queryFn: async () => {
@@ -15,8 +16,8 @@ const useSignedImageUrl = (mediaPath?: string, messageId?: string, enabled: bool
       }
 
       // Récupérer le token de session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData?.session?.access_token) {
+      const accessToken = session?.access_token;
+      if (!accessToken) {
         throw new Error("Session invalide");
       }
 
@@ -29,7 +30,7 @@ const useSignedImageUrl = (mediaPath?: string, messageId?: string, enabled: bool
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${sessionData.session.access_token}`,
+            "Authorization": `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -57,7 +58,7 @@ const useSignedImageUrl = (mediaPath?: string, messageId?: string, enabled: bool
 
       return data.signedUrl;
     },
-    enabled: enabled && Boolean(mediaPath && messageId),
+    enabled: enabled && Boolean(mediaPath && messageId) && Boolean(session?.access_token),
     staleTime: 5 * 60 * 1000, // Cache 5 minutes
     retry: 2,
   });

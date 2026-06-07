@@ -1,5 +1,3 @@
-import supabase from "../lib/supabase";
-
 type ConnectorConnectedRef = {
   connectors_name: string;
   id?: string;
@@ -36,12 +34,12 @@ const normalizeContext = (
 });
 
 const createConnectCalendly = (
-  context: Required<ConnectorActionsContext>
+  context: Required<ConnectorActionsContext>,
+  accessToken: string
 ) => async () => {
   if (!context.configsId) return;
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
+    if (!accessToken) throw new Error("Not logged in");
     const return_to = `https://leadcontrol.fr/app/agentai/configuration?configs_id=${context.configsId}`;
     const res = await fetch(
       "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/calendly-oauth/start",
@@ -50,7 +48,7 @@ const createConnectCalendly = (
         headers: {
           "content-type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          authorization: `Bearer ${session.access_token}`,
+          authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           return_to,
@@ -66,11 +64,11 @@ const createConnectCalendly = (
 };
 
 const createDisconnectCalendly = (
-  context: Required<ConnectorActionsContext>
+  context: Required<ConnectorActionsContext>,
+  accessToken: string
 ) => async () => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
+    if (!accessToken) throw new Error("Not logged in");
     const connectorId = context.connectorConnected.find(
       (item) => item.connectors_name.toLowerCase() === "calendly"
     )?.id;
@@ -81,7 +79,7 @@ const createDisconnectCalendly = (
         headers: {
           "content-type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          authorization: `Bearer ${session.access_token}`,
+          authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ connector_id: connectorId }),
       }
@@ -94,12 +92,12 @@ const createDisconnectCalendly = (
 };
 
 const createConnectInstagram = (
-  context: Required<ConnectorActionsContext>
+  context: Required<ConnectorActionsContext>,
+  accessToken: string
 ) => async () => {
   if (!context.configsId) return;
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
+    if (!accessToken) throw new Error("Not logged in");
     const res = await fetch(
       "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/smooth-worker/start",
       {
@@ -107,7 +105,7 @@ const createConnectInstagram = (
         headers: {
           "content-type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          authorization: `Bearer ${session.access_token}`,
+          authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           return_to: window.location.href,
@@ -125,11 +123,11 @@ const createConnectInstagram = (
 };
 
 const createDisconnectInstagram = (
-  context: Required<ConnectorActionsContext>
+  context: Required<ConnectorActionsContext>,
+  accessToken: string
 ) => async () => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
+    if (!accessToken) throw new Error("Not logged in");
     const connectorId = context.connectorConnected.find(
       (item) => item.connectors_name.toLowerCase() === "instagram"
     )?.id;
@@ -140,7 +138,7 @@ const createDisconnectInstagram = (
         headers: {
           "content-type": "application/json",
           apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          authorization: `Bearer ${session.access_token}`,
+          authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ connector_id: connectorId }),
       }
@@ -153,7 +151,8 @@ const createDisconnectInstagram = (
 };
 
 export const buildConnectorActions = (
-  context: ConnectorActionsContext = DEFAULT_CONTEXT
+  context: ConnectorActionsContext = DEFAULT_CONTEXT,
+  accessToken: string = ""
 ): Record<string, ConnectorAction> => {
   const ctx = normalizeContext(context);
   return {
@@ -166,20 +165,20 @@ export const buildConnectorActions = (
     calendly: {
       imageSrc: "/logoConnectors/calendly.svg",
       color: "#006BFF",
-      onConnect: createConnectCalendly(ctx),
-      onDisconnect: createDisconnectCalendly(ctx),
+      onConnect: createConnectCalendly(ctx, accessToken),
+      onDisconnect: createDisconnectCalendly(ctx, accessToken),
     },
     instagram: {
       imageSrc: "/logoConnectors/instagram.svg",
       color: "",
-      onConnect: createConnectInstagram(ctx),
-      onDisconnect: createDisconnectInstagram(ctx),
+      onConnect: createConnectInstagram(ctx, accessToken),
+      onDisconnect: createDisconnectInstagram(ctx, accessToken),
     },
     whatsapp: {
       imageSrc: "/logoConnectors/whatsapp.webp",
       color: "",
-      onConnect: createConnectWhatsApp(ctx),
-      onDisconnect: createDisconnectWhatsApp(ctx),
+      onConnect: createConnectWhatsApp(ctx, accessToken),
+      onDisconnect: createDisconnectWhatsApp(ctx, accessToken),
     },
     gmail: {
       imageSrc: "/logoConnectors/gmail.webp",
@@ -221,15 +220,15 @@ export const buildConnectorActions = (
 };
 
 const createConnectWhatsApp = (
-  context: Required<ConnectorActionsContext>
+  context: Required<ConnectorActionsContext>,
+  accessToken: string
 ) => async () => {
   if (!context.configsId) {
     console.error("❌ No configsId provided");
     return;
   }
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
+    if (!accessToken) throw new Error("Not logged in");
 
     const res = await fetch(
       "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/wa-oauth/start",
@@ -237,7 +236,7 @@ const createConnectWhatsApp = (
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+          "Authorization": `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           return_to: `https://leadcontrol.fr${window.location.pathname}`,
@@ -270,11 +269,11 @@ const createConnectWhatsApp = (
 };
 
 const createDisconnectWhatsApp = (
-  context: Required<ConnectorActionsContext>
+  context: Required<ConnectorActionsContext>,
+  accessToken: string
 ) => async () => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
+    if (!accessToken) throw new Error("Not logged in");
     
     const connectorId = context.connectorConnected.find(
       (item) => item.connectors_name.toLowerCase() === "whatsapp"
@@ -286,7 +285,7 @@ const createDisconnectWhatsApp = (
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+          "Authorization": `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ connector_id: connectorId }),
       }

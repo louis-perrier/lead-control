@@ -14,6 +14,7 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import useSubscriptionState from "./hooks/useSubscriptionState";
+import { useAuth } from "./context/AuthContext";
 
 const Landing = lazy(() => import("./pages/Landing"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -32,6 +33,22 @@ const PolicyTerms = lazy(() => import("./pages/policy/PolicyTerms"));
 const ContactsGuard = lazy(() => import("./components/GuardComponent/ContactsGuard"));
 const ScrapingGuard = lazy(() => import("./components/GuardComponent/ScrapingGuard"));
 const CrmGuard = lazy(() => import("./components/GuardComponent/CrmGuard"));
+
+function FeedbackGate({ pathname }: { pathname: string }) {
+  const { data: subscriptionState } = useSubscriptionState();
+  const feedbackPlacement =
+    pathname === "/app/contacts" ||
+    pathname === "/app/relances" ||
+    pathname === "/app/agentai" ||
+    pathname === "/app/connexion" ||
+    pathname === "/app/crm"
+      ? ("default" as const)
+      : null;
+  if (feedbackPlacement === null || subscriptionState?.planKey === "none") {
+    return null;
+  }
+  return <Feedback placement={feedbackPlacement} />;
+}
 
 function App() {
   const action = useNavigationType();
@@ -134,23 +151,7 @@ function App() {
     }
   }, [pathname]);
 
-  const { data: subscriptionState } = useSubscriptionState();
-
-  const feedbackPlacement = (() => {
-    if (
-      pathname === "/app/contacts" ||
-      pathname === "/app/relances" ||
-      pathname === "/app/agentai" ||
-      pathname === "/app/connexion" ||
-      pathname === "/app/crm"
-    ) {
-      return "default" as const;
-    }
-    return null;
-  })();
-
-  const showFeedback =
-    feedbackPlacement !== null && subscriptionState?.planKey !== "none";
+  const { loading: authLoading } = useAuth();
 
   return (
     <>
@@ -186,7 +187,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Suspense>
-      {showFeedback && <Feedback placement={feedbackPlacement ?? "default"} />}
+      {!authLoading && <FeedbackGate pathname={pathname} />}
     </>
   );
 }

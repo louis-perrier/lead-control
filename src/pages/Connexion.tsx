@@ -15,6 +15,7 @@ import optionSearchStyles from "../components/OptionSearch.module.css";
 import styles from "./Connexion.module.css";
 import supabase from "../lib/supabase";
 import { buildConnectorActions } from "../connectors/actions";
+import { useAuth } from "../context/AuthContext";
 import ConfirmationDialog from "../components/ConfirmationDialog";
 import Button from "../components/Button";
 
@@ -57,6 +58,7 @@ const formatDate = (value?: string) => {
 
 const Connexion: FunctionComponent = () => {
   const location = useLocation();
+  const { session } = useAuth();
 
   const [connections, setConnections] = useState<Connection[]>([]);
   const [activeConfigs, setActiveConfigs] = useState<ConfigurationDetail[] | null>(
@@ -354,8 +356,8 @@ const connectorActions = useMemo(() => {
     connectorConnected,
     configsId,
     setActivePopup,
-  });
-}, [connections, connectorUserId, setActivePopup]);
+  }, session?.access_token ?? "");
+}, [connections, connectorUserId, setActivePopup, session?.access_token]);
 
 const buildRefreshConnect = useCallback((connection: Connection) => {
   const configsId = connection.configurations.find((c) => c.configId)?.configId ?? null;
@@ -364,8 +366,8 @@ const buildRefreshConnect = useCallback((connection: Connection) => {
     id: c.connector_user_id,
   }));
   const providerKey = (connection.provider ?? "").toLowerCase();
-  return buildConnectorActions({ connectorConnected, configsId, setActivePopup })[providerKey]?.onConnect ?? handleRefresh;
-}, [connections, setActivePopup, handleRefresh]);
+  return buildConnectorActions({ connectorConnected, configsId, setActivePopup }, session?.access_token ?? "")[providerKey]?.onConnect ?? handleRefresh;
+}, [connections, setActivePopup, handleRefresh, session?.access_token]);
 const [confirmationOpen, setConfirmationOpen] = useState(false);
 const [pendingDisconnect, setPendingDisconnect] = useState<{
   action: () => Promise<void> | void;
