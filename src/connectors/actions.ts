@@ -72,6 +72,7 @@ const createDisconnectCalendly = (
     const connectorId = context.connectorConnected.find(
       (item) => item.connectors_name.toLowerCase() === "calendly"
     )?.id;
+    if (!connectorId) throw new Error("Connecteur Calendly introuvable (connector_id manquant)");
     const res = await fetch(
       "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/dynamic-responder/start",
       {
@@ -85,9 +86,10 @@ const createDisconnectCalendly = (
       }
     );
     const data = await res.text();
-    if (data !== "OK") throw new Error("Failed to disconnect Calendly connector");
+    if (data !== "OK") throw new Error(`Echec de la déconnexion Calendly (HTTP ${res.status}, réponse: ${data})`);
   } catch (error) {
     console.error(error);
+    alert(`Erreur déconnexion Calendly: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
@@ -131,6 +133,7 @@ const createDisconnectInstagram = (
     const connectorId = context.connectorConnected.find(
       (item) => item.connectors_name.toLowerCase() === "instagram"
     )?.id;
+    if (!connectorId) throw new Error("Connecteur Instagram introuvable (connector_id manquant)");
     const res = await fetch(
       "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/dynamic-responder/start",
       {
@@ -144,9 +147,10 @@ const createDisconnectInstagram = (
       }
     );
     const data = await res.text();
-    if (data !== "OK") throw new Error("Failed to disconnect connector");
+    if (data !== "OK") throw new Error(`Echec de la déconnexion Instagram (HTTP ${res.status}, réponse: ${data})`);
   } catch (error) {
     console.error(error);
+    alert(`Erreur déconnexion Instagram: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
 
@@ -278,6 +282,7 @@ const createDisconnectWhatsApp = (
     const connectorId = context.connectorConnected.find(
       (item) => item.connectors_name.toLowerCase() === "whatsapp"
     )?.id;
+    if (!connectorId) throw new Error("Connecteur WhatsApp introuvable (connector_id manquant)");
     
     const res = await fetch(
       "https://wxatvxfirhahjalneorq.supabase.co/functions/v1/dynamic-responder/start",
@@ -292,8 +297,9 @@ const createDisconnectWhatsApp = (
     );
     
     const data = await res.text();
-    if (data !== "OK") throw new Error("Failed to disconnect WhatsApp connector");
+    if (data !== "OK") throw new Error(`Echec de la déconnexion WhatsApp (HTTP ${res.status}, réponse: ${data})`);
   } catch (error) {
     console.error("WhatsApp disconnection error:", error);
+    alert(`Erreur déconnexion WhatsApp: ${error instanceof Error ? error.message : String(error)}`);
   }
 };
