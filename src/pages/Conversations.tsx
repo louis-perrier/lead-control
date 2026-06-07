@@ -1504,7 +1504,7 @@ const Conversations: FunctionComponent = () => {
       .eq("conversation_id", Number(activeConversation.id))
       .order("created_at", { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         setConvHasBooking(!!data);
         setConvBookingData(data ?? null);
