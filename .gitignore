@@ -173,3 +173,7 @@ contexte.md
 
 /supabase/
 
+
+# Archives, jamais versionnees
+*.zip
+*.ZIP
