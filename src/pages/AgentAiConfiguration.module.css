@@ -2261,7 +2261,7 @@
   color: var(--app-text-secondary);
 }
 
-/* ─── Details refonte UX ─── */
+/* Details refonte UX */
 
 .detailsHeaderBar {
   display: flex;
@@ -2503,7 +2503,7 @@
   border-color: transparent;
 }
 
-/* ─── Templates Section ─────────────────────────────────────────────────────── */
+/* Templates Section */
 
 .templatesSections {
   display: grid;
@@ -3093,7 +3093,7 @@
   box-shadow: none;
 }
 
-/* ─── Followup / Relances ───────────────────────────────────────────────────── */
+/* Followup / Relances */
 
 .followupRow {
   display: flex;
@@ -3197,7 +3197,7 @@
   border-color: rgba(239, 68, 68, 0.4);
 }
 
-/* ── Voice section ─────────────────────────────────────────── */
+/* Voice section */
 .configTabPanel.voiceTabPanel {
   width: min(1380px, 100%);
   max-width: 1380px;
@@ -4098,7 +4098,7 @@
   }
 }
 
-/* ── Automatisations / Comments ────────────────────────────── */
+/* Automatisations / Comments */
 .commTextarea {
   width: 100%;
   padding: 10px 14px;
@@ -4213,9 +4213,9 @@
   color: #dc2626;
 }
 
-/* ===============================================
+/*
    CONFIG TABS
-   =============================================== */
+    */
 
 .configLayout {
   display: flex;
@@ -4226,7 +4226,7 @@
   overflow: hidden;
 }
 
-/* ── Tab nav bar ── */
+/* Tab nav bar */
 .configTabNav {
   display: flex;
   align-items: stretch;
@@ -4308,7 +4308,7 @@
   flex-shrink: 0;
 }
 
-/* ── Tab content ── */
+/* Tab content */
 .configTabContent {
   flex: 1;
   min-height: 0;
@@ -4333,7 +4333,7 @@
   gap: 0;
 }
 
-/* ── ✓ check badge on tabs ── */
+/* ✓ check badge on tabs */
 .configTabCheck {
   display: inline-flex;
   align-items: center;
@@ -4349,7 +4349,7 @@
   flex-shrink: 0;
 }
 
-/* ── Empty state (Voix, Automatisations, Templates) ── */
+/* Empty state (Voix, Automatisations, Templates) */
 .tabEmptyState {
   display: flex;
   flex-direction: column;
@@ -4428,7 +4428,7 @@
   margin: 0;
 }
 
-/* ─── Agent form — layout grille 2 colonnes ─────────────────────────────────── */
+/* Agent form — layout grille 2 colonnes */
 
 .agentFormCard {
   background: #FFFFFF;
@@ -6024,7 +6024,7 @@
   }
 }
 
-/* ─── Auto-Relances Section ─────────────────────────────────────────────────── */
+/* Auto-Relances Section */
 
 .autoRelancesSection {
   border-radius: 18px;

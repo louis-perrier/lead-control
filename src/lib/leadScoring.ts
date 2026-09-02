@@ -1,8 +1,8 @@
 import type { ProspectConversation } from "./prospects";
 
-/* ────────────────────────────────────────────────────────────────────────────
+/*
  * Types
- * ──────────────────────────────────────────────────────────────────────────── */
+  */
 
 export type ScoreBreakdown = {
   buyIntent: number;
@@ -60,9 +60,9 @@ export const PIPELINE_STAGE_LABELS: Record<PipelineStage, string> = {
   deal_ferme: "Deal fermé",
 };
 
-/* ────────────────────────────────────────────────────────────────────────────
+/*
  * Text normalization
- * ──────────────────────────────────────────────────────────────────────────── */
+  */
 
 const stripDiacritics = (value: string): string =>
   value.normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -90,9 +90,9 @@ const findKeywordsHit = (text: string, keywords: string[]): string[] => {
   return hits;
 };
 
-/* ────────────────────────────────────────────────────────────────────────────
+/*
  * Keyword dictionaries (use spaces in place of apostrophes for consistency)
- * ──────────────────────────────────────────────────────────────────────────── */
+  */
 
 type KeywordCategory = {
   name: string;
@@ -100,7 +100,7 @@ type KeywordCategory = {
   keywords: string[];
 };
 
-// ── BUY INTENT (max 35) ────────────────────────────────────────────────────
+// BUY INTENT (max 35)
 const BUY_INTENT_CATEGORIES: KeywordCategory[] = [
   {
     name: "Engagement d achat",
@@ -222,7 +222,7 @@ const BUY_INTENT_CATEGORIES: KeywordCategory[] = [
   },
 ];
 
-// ── QUALIFICATION & SÉRIEUX (max 30) ───────────────────────────────────────
+// QUALIFICATION & SÉRIEUX (max 30)
 const QUALIFICATION_CATEGORIES: KeywordCategory[] = [
   {
     name: "Douleur partagée",
@@ -366,7 +366,7 @@ const QUALIFICATION_CATEGORIES: KeywordCategory[] = [
   },
 ];
 
-// ── TRUMP SIGNALS (guarantee a minimum score) ─────────────────────────────
+// TRUMP SIGNALS (guarantee a minimum score)
 const TRUMP_PAYMENT_LINK_KEYWORDS = [
   "envoie le lien",
   "envoie moi le lien",
@@ -395,7 +395,7 @@ const TRUMP_COMMIT_KEYWORDS = [
   "je m engage",
 ];
 
-// ── HARD KILL (cap = 15) ───────────────────────────────────────────────────
+// HARD KILL (cap = 15)
 const HARD_KILL_KEYWORDS = [
   "pas interesse",
   "pas interessee",
@@ -430,7 +430,7 @@ const HARD_KILL_KEYWORDS = [
   "supprimez moi",
 ];
 
-// ── FREE SEEKER (cap = 30) ─────────────────────────────────────────────────
+// FREE SEEKER (cap = 30)
 const FREE_SEEKER_KEYWORDS = [
   "tu peux pas me filer",
   "tu peux me filer gratuit",
@@ -452,7 +452,7 @@ const FREE_SEEKER_KEYWORDS = [
   "version gratuite",
 ];
 
-// ── SOFT KILL (cap = 45) ───────────────────────────────────────────────────
+// SOFT KILL (cap = 45)
 const SOFT_KILL_KEYWORDS = [
   "plus tard",
   "pas maintenant",
@@ -478,7 +478,7 @@ const SOFT_KILL_KEYWORDS = [
   "on verra",
 ];
 
-// ── NON DECISION MAKER (cap = 50) ──────────────────────────────────────────
+// NON DECISION MAKER (cap = 50)
 const NON_DECISION_MAKER_KEYWORDS = [
   "je dois en parler a",
   "j en parle a",
@@ -497,10 +497,8 @@ const NON_DECISION_MAKER_KEYWORDS = [
   "je vais lui demander",
 ];
 
-// ── SUPPORTER / FRIEND (cap = 40 when isolated) ────────────────────────────
-// Conversation amicale : encouragements, admiration, fan-mode, sans aucune
-// intention commerciale réelle. Le cap ne s'applique que si AUCUN signal
-// commercial concret n'accompagne le soutien.
+// Supporter : encouragements et admiration sans intention commerciale. Le cap ne
+// s'applique que si aucun signal commercial concret n'accompagne le soutien.
 const SUPPORTER_KEYWORDS = [
   "trop bien",
   "trop cool",
@@ -548,7 +546,7 @@ const SUPPORTER_KEYWORDS = [
   "ouf ce que tu fais",
 ];
 
-// ── WRONG TARGET (cap = 10) ────────────────────────────────────────────────
+// WRONG TARGET (cap = 10)
 // Someone trying to SELL to us (B2B prospecting, agencies pitching, etc.)
 const WRONG_TARGET_KEYWORDS = [
   "je peux t aider a vendre",
@@ -570,9 +568,9 @@ const WRONG_TARGET_KEYWORDS = [
   "voici mon portfolio",
 ];
 
-/* ────────────────────────────────────────────────────────────────────────────
+/*
  * Per-factor computations
- * ──────────────────────────────────────────────────────────────────────────── */
+  */
 
 const BUY_INTENT_MAX = 35;
 const QUALIFICATION_MAX = 30;
@@ -688,9 +686,9 @@ const computePipeline = (params: {
   return 0;
 };
 
-/* ────────────────────────────────────────────────────────────────────────────
+/*
  * Main scoring entrypoint
- * ──────────────────────────────────────────────────────────────────────────── */
+  */
 
 const emptyScore = (): LeadScore => ({
   total: 0,
@@ -734,7 +732,7 @@ export const computeLeadScore = (
   );
   const customerText = normalizeText(customerMessages.map((m) => m.text ?? "").join(" "));
 
-  // ── Base factors ────────────────────────────────────────────────────────
+  // Base factors
   const buyResult = computeFromCategories(customerText, BUY_INTENT_CATEGORIES, BUY_INTENT_MAX);
   const qualifResult = computeFromCategories(
     customerText,
@@ -750,7 +748,7 @@ export const computeLeadScore = (
     buyResult.points + qualifResult.points + engagement + reactivity + pipeline;
   const baseScore = Math.max(0, Math.min(100, baseSum));
 
-  // ── Trump signals (guarantee a minimum score) ───────────────────────────
+  // Trump signals (guarantee a minimum score)
   const paymentLinkHits = findKeywordsHit(customerText, TRUMP_PAYMENT_LINK_KEYWORDS);
   const commitHits = findKeywordsHit(customerText, TRUMP_COMMIT_KEYWORDS);
   const supporterHits = findKeywordsHit(customerText, SUPPORTER_KEYWORDS);
@@ -771,10 +769,8 @@ export const computeLeadScore = (
 
   const hasSupporterPraise = supporterHits.length >= 1;
 
-  // Commit trump fires only when commitment is corroborated by a STRONG
-  // commercial signal — OR a weak signal IF no supporter praise dilutes it.
-  // This protects against the "araboux_enzo case" : "trop bien je suis preneur"
-  // is no longer auto-promoted to 70 just because "combien" or "appel" appears.
+  // Le commit ne déclenche le trump que corroboré par un signal commercial fort,
+  // ou faible si aucun éloge ne le dilue. Sinon « je suis preneur » monterait à 70.
   const commitTrumpAllowed =
     hasStrongCommercialSignal ||
     (hasWeakCommercialSignal && !hasSupporterPraise);
@@ -799,7 +795,7 @@ export const computeLeadScore = (
     if (!trumpReason) trumpReason = "Rendez-vous pris (Calendly)";
   }
 
-  // ── Negative signal detection ───────────────────────────────────────────
+  // Negative signal detection
   const hardHits = findKeywordsHit(customerText, HARD_KILL_KEYWORDS);
   const softHits = findKeywordsHit(customerText, SOFT_KILL_KEYWORDS);
   const freeSeekerHits = findKeywordsHit(customerText, FREE_SEEKER_KEYWORDS);
@@ -810,17 +806,15 @@ export const computeLeadScore = (
   const isTireKicker =
     customerMessages.length >= 10 && buyResult.points <= 8 && !context.hasBooking;
 
-  // Supporter / friend pattern: praise/encouragement is present but NO STRONG
-  // commercial signal exists (no payment question, no link, no booking).
-  // Weak commercial signals (price, démarrage) don't disqualify the supporter
-  // cap because they're easy to trigger by accident in casual chat.
+  // Éloges présents mais aucun signal commercial fort. Les signaux faibles (prix,
+  // démarrage) ne lèvent pas le cap : trop faciles à déclencher en bavardage.
   const isSupporterMode =
     hasSupporterPraise &&
     !hasStrongCommercialSignal &&
     qualifResult.points <= 8 &&
     !context.hasClosedDeal;
 
-  // ── Caps (most restrictive wins; deal closed overrides everything) ──────
+  // Caps (most restrictive wins; deal closed overrides everything)
   let cap = 100;
   let capReason: string | null = null;
   const setCap = (value: number, reason: string) => {
@@ -851,7 +845,7 @@ export const computeLeadScore = (
     capReason = null;
   }
 
-  // ── Final score: max(base, trumpFloor) then capped ──────────────────────
+  // Final score: max(base, trumpFloor) then capped
   const preCap = Math.max(baseScore, trumpFloor);
   const totalUncapped = Math.min(100, preCap);
   const total = context.hasClosedDeal
@@ -898,9 +892,9 @@ export const computeLeadScore = (
   };
 };
 
-/* ────────────────────────────────────────────────────────────────────────────
+/*
  * Pipeline stage derivation
- * ──────────────────────────────────────────────────────────────────────────── */
+  */
 
 export const getPipelineStage = (params: {
   conversation: ProspectConversation | null;

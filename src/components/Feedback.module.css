@@ -16,7 +16,7 @@
   bottom: 112px;
 }
 
-/* ── Trigger button ── */
+/* Trigger button */
 .button {
   position: relative;
   background: linear-gradient(145deg, #ffffff, #f4f8ff);
@@ -84,7 +84,7 @@
   opacity: 0.9;
 }
 
-/* ── Overlay card ── */
+/* Overlay card */
 .overlay {
   position: absolute;
   bottom: calc(100% + 16px);
@@ -126,7 +126,7 @@
   pointer-events: auto;
 }
 
-/* ── Form ── */
+/* Form */
 .form {
   position: relative;
   display: flex;
@@ -158,7 +158,7 @@
   line-height: 1.45;
 }
 
-/* ── Stars ── */
+/* Stars */
 .starsSection {
   display: flex;
   flex-direction: column;
@@ -233,14 +233,14 @@
   color: #b45309;
 }
 
-/* ── Divider ── */
+/* Divider */
 .divider {
   height: 1px;
   background: rgba(148, 163, 184, 0.16);
   margin: 14px -16px 12px;
 }
 
-/* ── Textarea ── */
+/* Textarea */
 .textareaWrapper {
   position: relative;
   width: 100%;
@@ -278,7 +278,7 @@
   background: rgba(255, 255, 255, 0.99);
 }
 
-/* ── Send button ── */
+/* Send button */
 .sendButton {
   position: absolute;
   right: 10px;
@@ -313,7 +313,7 @@
   object-fit: contain;
 }
 
-/* ── Toast message ── */
+/* Toast message */
 .message {
   position: absolute;
   bottom: calc(100% + 14px);
@@ -332,7 +332,7 @@
   opacity: 0;
 }
 
-/* ── Error ── */
+/* Error */
 .error {
   position: absolute;
   top: -36px;
@@ -355,7 +355,7 @@
   100% { opacity: 0; transform: translateY(-4px); }
 }
 
-/* ── Mobile ── */
+/* Mobile */
 @media screen and (max-width: 640px) {
   .bubble {
     right: 16px;

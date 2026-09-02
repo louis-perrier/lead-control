@@ -822,7 +822,7 @@ const AgentAi: FunctionComponent = () => {
   const templateBodyRef = useRef<HTMLTextAreaElement | null>(null);
   const templateBackdropPointerDownRef = useRef(false);
 
-  // ── Auto-relances config state ──────────────────────────────────────────────
+  // Auto-relances config state
   const [autoRelancesEnabled, setAutoRelancesEnabled] = useState(false);
   const [relanceOnConditionStop, setRelanceOnConditionStop] = useState(false);
   const [relanceMessages, setRelanceMessages] = useState(["", "", ""]);
@@ -1392,7 +1392,7 @@ const AgentAi: FunctionComponent = () => {
     setIsLastCustomToneQuestionValidated(true);
   }, [customToneAnswers, handleQuestionTouch]);
 
-  // ------------------------------CONNEXIONS---------------------------------
+  // CONNEXIONS
   const [activePopup, setActivePopup] = useState<Window | null>(null);
   const {
     connectorAvailable,
@@ -1438,11 +1438,8 @@ const AgentAi: FunctionComponent = () => {
     [selectedAgent?.display_id, connectorConnected, setActivePopup, session?.access_token]
   );
 
-  // ------------------------------CONFIGURATIONS---------------------------------
-  /**
-   * Les logos affichés dans la zone "Configurations" sont triés pour prioriser
-   * les connecteurs déjà reliés, les spéciales puis le reste disponible.
-   */
+  // CONFIGURATIONS
+  // Logos triés : connecteurs déjà reliés, puis spéciales, puis le reste.
   const configurationLogos = useMemo<ConfigurationLogo[]>(() => {
 
     const availableLogos = availableShow
@@ -1519,10 +1516,7 @@ const AgentAi: FunctionComponent = () => {
     return ids;
   };
 
-  /**
-   * Liste à plat des identifiants marqués "required" (y compris les champs imbriqués)
-   * afin de pouvoir valider l'état "Configurations".
-   */
+  // Identifiants « required » à plat, champs imbriqués compris.
   const requiredConfigIds = useMemo(() => {
     return collectRequiredConfigIds(selectedConfigItems);
   }, [selectedConfigItems]);
@@ -1597,10 +1591,7 @@ const AgentAi: FunctionComponent = () => {
     });
   }, [requiredConfigIds, configValues]);
 
-  /**
-   * Indique si la section "Details" est complète et si une connexion est active,
-   * afin d’alimenter les statuts des coins.
-   */
+  // Section Details complète et connexion active : alimente les statuts des coins.
   const areDetailsFilled = useMemo(() => {
     return contextText.trim().length > 0 || contextPdf !== null;
   }, [contextText, contextPdf]);
@@ -2022,10 +2013,7 @@ const AgentAi: FunctionComponent = () => {
     visibleCustomToneQuestions,
   ]);
 
-  /**
-   * Récupère les valeurs sauvegardées dans Supabase pour pré-remplir la section
-   * lorsque l’utilisateur ouvre Configurations.
-   */
+  // Pré-remplit la section à l'ouverture depuis les valeurs Supabase.
   const fetchSavedConfig = useCallback(async () => {
     if (!activeSocial || !selectedAgent) {
       setInitialConfigValues([]);
@@ -2123,7 +2111,7 @@ const AgentAi: FunctionComponent = () => {
     await refreshDisplayedAgents();
   };
 
-  // ─── Templates & Followups ──────────────────────────────────────────────────
+  // Templates & Followups
 
   const fetchTemplates = useCallback(async () => {
     const { data } = await supabase
@@ -2344,7 +2332,7 @@ const AgentAi: FunctionComponent = () => {
     [customToneValidationErrors]
   );
 
-  // ------------------------------DETAILS GROUP UI---------------------------------
+  // DETAILS GROUP UI
   const detailsComponents = selectedAgent?.details_component ?? [];
 
   const activeGroups = useMemo(() =>
@@ -2553,10 +2541,7 @@ const AgentAi: FunctionComponent = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [errors]);
 
-  // ------------------------------PROMPT---------------------------------
-  /**
-   * Sauvegarde les champs "Details" (prompt + contexte) dans Supabase.
-   */
+  // Sauvegarde prompt et contexte dans Supabase.
   const handleSaveComments = async () => {
     if (!selectedAgent) return;
     setCommSaveStatus("saving");

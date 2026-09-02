@@ -1,4 +1,4 @@
-/* ── Backdrop ────────────────────────────────────────────────── */
+/* Backdrop */
 .backdrop {
   position: fixed;
   inset: 0;
@@ -7,7 +7,7 @@
   backdrop-filter: blur(2px);
 }
 
-/* ── Modal centrée ───────────────────────────────────────────── */
+/* Modal centrée */
 .panel {
   position: fixed;
   z-index: 1000;
@@ -25,7 +25,7 @@
   border: 1px solid var(--app-border);
 }
 
-/* ── Colonnes ────────────────────────────────────────────────── */
+/* Colonnes */
 .columns {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -141,7 +141,7 @@
   cursor: not-allowed;
 }
 
-/* ── Guide note ──────────────────────────────────────────────── */
+/* Guide note */
 .guideNote {
   display: flex;
   align-items: flex-start;
@@ -192,7 +192,7 @@
   margin-top: 2px;
 }
 
-/* ── Option list ─────────────────────────────────────────────── */
+/* Option list */
 .optionList {
   display: flex;
   flex-direction: column;
@@ -232,7 +232,7 @@
   line-height: 1.4;
 }
 
-/* ── Billing note ────────────────────────────────────────────── */
+/* Billing note */
 .billingNote {
   display: flex;
   align-items: flex-start;
@@ -265,7 +265,7 @@
   text-underline-offset: 2px;
 }
 
-/* ── Flow states ─────────────────────────────────────────────── */
+/* Flow states */
 .flowRow {
   display: flex;
   flex-direction: column;
@@ -285,7 +285,7 @@
   color: var(--app-text-secondary);
 }
 
-/* ── Spinner ─────────────────────────────────────────────────── */
+/* Spinner */
 .spinner {
   width: 18px;
   height: 18px;
@@ -299,7 +299,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── Waiting state ───────────────────────────────────────────── */
+/* Waiting state */
 .phoneRow {
   display: flex;
   align-items: center;
@@ -340,7 +340,7 @@
   color: var(--app-primary);
 }
 
-/* ── Code received ───────────────────────────────────────────── */
+/* Code received */
 .code {
   font-size: 22px;
   font-weight: 700;
@@ -348,7 +348,7 @@
   color: var(--app-text);
 }
 
-/* ── Error ───────────────────────────────────────────────────── */
+/* Error */
 .errorMsg {
   margin: 0;
   font-size: var(--fs-12);

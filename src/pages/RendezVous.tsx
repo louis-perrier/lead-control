@@ -12,7 +12,7 @@ import { AppLayout } from "../layouts";
 import supabase from "../lib/supabase";
 import styles from "./RendezVous.module.css";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Types
 
 type DealClosing = {
   id: string;
@@ -42,7 +42,7 @@ type Booking = {
 type StatusFilter = "all" | "upcoming" | "closed" | "not_closed";
 type PeriodFilter = "today" | "week" | "month" | "all";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 const isTodayDate = (iso: string) => {
   const d = new Date(iso);
@@ -78,7 +78,7 @@ const formatDateTime = (iso: string) => {
   return `${day.charAt(0).toUpperCase() + day.slice(1)} à ${time}`;
 };
 
-// ─── Mapper ───────────────────────────────────────────────────────────────────
+// Mapper
 
 const mapBooking = (raw: any): Booking => {
   const conv = raw.conversations ?? null;
@@ -109,7 +109,7 @@ const mapBooking = (raw: any): Booking => {
   };
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// Component
 
 const RendezVous: FunctionComponent = () => {
   const navigate = useNavigate();
@@ -132,7 +132,7 @@ const RendezVous: FunctionComponent = () => {
   const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
   const backdropRef = useRef(false);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
+  // Fetch
 
   const fetchBookings = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -172,7 +172,7 @@ const RendezVous: FunctionComponent = () => {
     fetchBookings();
   }, [fetchBookings]);
 
-  // ── Filters ────────────────────────────────────────────────────────────────
+  // Filters
 
   const filtered = useMemo(() => {
     const now = Date.now();
@@ -206,7 +206,7 @@ const RendezVous: FunctionComponent = () => {
     });
   }, [bookings, search, statusFilter, periodFilter]);
 
-  // ── Closing modal ──────────────────────────────────────────────────────────
+  // Closing modal
 
   const openClosingModal = useCallback(async (booking: Booking) => {
     setClosingBooking(booking);
@@ -353,7 +353,7 @@ const RendezVous: FunctionComponent = () => {
     backdropRef.current = false;
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Render
 
   const statusOptions: { value: StatusFilter; label: string }[] = [
     { value: "all", label: "Tous" },

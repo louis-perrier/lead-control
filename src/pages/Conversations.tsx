@@ -27,7 +27,7 @@ import AudioMessageBubble, {
 } from "../components/AudioMessageBubble";
 import useSignedImageUrl from "../hooks/useSignedImageUrl";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Types
 
 type ChannelOption = "Instagram" | "WhatsApp" | "Telegram";
 type ChannelFilterOption = ChannelOption | "All";
@@ -90,7 +90,7 @@ type Conversation = {
   agentConfigId?: string;
 };
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// Constants
 
 const channelFilterOptions: ChannelFilterOption[] = [
   "All",
@@ -124,7 +124,7 @@ const statusFilterLabels: Record<StatusFilterOption, string> = {
   error: "Erreur",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 const formatRelativeTime = (iso: string) => {
   const now = Date.now();
@@ -641,7 +641,7 @@ const formatNextReply = (iso?: string | null) => {
   };
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// Sub-components
 
 const getConversationNeedsAttention = (
   conversation: Conversation,
@@ -1073,7 +1073,7 @@ const ConversationMessageItem: FunctionComponent<{
   );
 };
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// Main component
 
 const Conversations: FunctionComponent = () => {
   const location = useLocation();

@@ -14,7 +14,7 @@
   gap: 8px;
 }
 
-/* ── Score badge ────────────────────────────────────────────────────────── */
+/* Score badge */
 .scoreBadge {
   display: inline-flex;
   align-items: baseline;
@@ -67,7 +67,7 @@
   border-color: rgba(100, 116, 139, 0.26);
 }
 
-/* ── Stage chip ─────────────────────────────────────────────────────────── */
+/* Stage chip */
 .stageChip {
   display: inline-flex;
   align-items: center;
@@ -116,7 +116,7 @@
   border-color: rgba(22, 163, 74, 0.3);
 }
 
-/* ── Cap chip ───────────────────────────────────────────────────────────── */
+/* Cap chip */
 .capChip {
   display: inline-flex;
   align-items: center;
@@ -138,7 +138,7 @@
   font-size: 13px;
 }
 
-/* ── File button (Voir la fiche) ────────────────────────────────────────── */
+/* File button (Voir la fiche) */
 .fileBtn {
   margin-left: auto;
   display: inline-flex;
@@ -167,7 +167,7 @@
   line-height: 1;
 }
 
-/* ── Bottom row (summary + signals) ─────────────────────────────────────── */
+/* Bottom row (summary + signals) */
 .bottomRow {
   display: flex;
   align-items: center;

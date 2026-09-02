@@ -31,7 +31,7 @@ export type AgentInfo = {
   release_date?: string | null;
 };
 
-// --------------Agents Référence---------------------------------
+// Agents Référence
 export const defaultAgents: Record<string, AgentInfo> = { 
   greg: {
     id: "greg",
@@ -83,7 +83,7 @@ export const defaultAgents: Record<string, AgentInfo> = {
   }
 };
 
-// --------------Agent Defaults Supa---------------------------------
+// Agent Defaults Supa
 const buildAgent = (agent: {
   id: string;
   name_default: string;

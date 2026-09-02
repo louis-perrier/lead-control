@@ -3284,7 +3284,7 @@ a.chatContactHandle:hover {
   }
 }
 
-/* ─── Relances override (contact drawer) ─────────────────────────────────────── */
+/* Relances override (contact drawer) */
 
 .relancesOverrideToggleRow {
   display: flex;

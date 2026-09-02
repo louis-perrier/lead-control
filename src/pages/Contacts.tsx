@@ -33,7 +33,7 @@ import PipelineView, { type PipelineCard } from "../components/contacts/Pipeline
 import supabase from "../lib/supabase";
 import styles from "./Contacts.module.css";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Types
 
 type ContactStatus = "new" | "contacted" | "replied" | "booked" | "closed";
 type ContactSource =
@@ -121,7 +121,7 @@ type ColumnMapping = {
   email: string;
 };
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// Constants
 
 const STATUS_CONFIG: Record<
   ContactStatus,
@@ -160,7 +160,7 @@ const MAPPED_FIELDS = [
   { key: "email", label: "Email" },
 ] as const;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 function parseCsv(text: string): CsvParsed {
   const lines = text.trim().split(/\r?\n/);
@@ -276,7 +276,7 @@ function findMatchingConversationForContact(
   return null;
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
+// Validation
 
 function validatePhone(phone: string): string | null {
   if (!phone) return null;
@@ -327,7 +327,7 @@ function getPlatform(contact: Contact): "instagram" | "whatsapp" | "none" {
   return "none";
 }
 
-// ─── QualificationBadge ──────────────────────────────────────────────────────
+// QualificationBadge
 
 const QualificationBadge: FunctionComponent<{
   qualification: QualificationKey;
@@ -343,7 +343,7 @@ const QualificationBadge: FunctionComponent<{
   );
 };
 
-// ─── PlatformCell ─────────────────────────────────────────────────────────────
+// PlatformCell
 
 const PlatformCell: FunctionComponent<{ contact: Contact }> = ({ contact }) => {
   const platform = getPlatform(contact);
@@ -374,7 +374,7 @@ const PlatformCell: FunctionComponent<{ contact: Contact }> = ({ contact }) => {
   return <span className={styles.dateText}>—</span>;
 };
 
-// ─── TagsInput ────────────────────────────────────────────────────────────────
+// TagsInput
 
 const TagsInput: FunctionComponent<{
   tags: string[];
@@ -426,7 +426,7 @@ const TagsInput: FunctionComponent<{
   );
 };
 
-// ─── AddManualModal ───────────────────────────────────────────────────────────
+// AddManualModal
 
 type ManualForm = {
   full_name: string;
@@ -611,7 +611,7 @@ const AddManualModal: FunctionComponent<{
   );
 };
 
-// ─── CsvImportModal ───────────────────────────────────────────────────────────
+// CsvImportModal
 
 const CsvImportModal: FunctionComponent<{
   onClose: () => void;
@@ -1000,7 +1000,7 @@ const CsvImportModal: FunctionComponent<{
   );
 };
 
-// ─── ContactDrawer ────────────────────────────────────────────────────────────
+// ContactDrawer
 
 const ContactDrawer: FunctionComponent<{
   contact: Contact;
@@ -1402,7 +1402,7 @@ const ContactDrawer: FunctionComponent<{
   );
 };
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// Main component
 
 const Contacts: FunctionComponent = () => {
   const navigate = useNavigate();

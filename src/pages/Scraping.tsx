@@ -905,37 +905,3 @@ const Scraping: FunctionComponent = () => {
 
 export default Scraping;
 
-/*
-Recommandation tables Supabase :
-
-1) public.scrape_runs
-   - id uuid pk
-   - user_id uuid (owner)
-   - created_at timestamptz
-   - status text ('pending','completed','failed')
-   - mode text ('user','filter')
-   - platform text ('instagram','tiktok')
-   - config jsonb (username + options + filters)
-   - scraped_count int
-
-2) public.scrape_leads
-   - id uuid pk
-   - platform text
-   - platform_user_id text (user_id externe) UNIQUE avec platform
-   - username text
-   - profile_url text
-   - followers int
-   - is_private bool
-   - is_verified bool
-   - first_seen_at timestamptz
-   - last_seen_at timestamptz
-
-3) public.scrape_run_leads
-   - id uuid pk
-   - run_id uuid fk scrape_runs
-   - lead_id uuid fk scrape_leads
-   - fetched_at timestamptz
-   - already_seen bool
-   - unique(run_id, lead_id)
-
-*/

@@ -117,7 +117,7 @@ const PLATFORM_META: Record<
   },
 };
 
-// ─── CSV helpers ──────────────────────────────────────────────────────────────
+// CSV helpers
 
 type CsvParsed = { headers: string[]; rows: string[][] };
 type CrmColumnMapping = {
@@ -166,7 +166,7 @@ function escapeCsvCell(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
-// ─── CrmImportModal ───────────────────────────────────────────────────────────
+// CrmImportModal
 
 const CrmImportModal: FunctionComponent<{
   onClose: () => void;
@@ -467,7 +467,6 @@ const CrmImportModal: FunctionComponent<{
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 const normalizeText = (value?: string | null): string => value?.trim() ?? "";
 
