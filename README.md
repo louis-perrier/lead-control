@@ -4,10 +4,6 @@ Multi-agent cockpit for inbound leads. Configure AI agents, follow their convers
 
 Live: **https://leadcontrol.fr**
 
-<!-- Remettre cette ligne une fois docs/preview.png produit :
-![Lead Control dashboard](docs/preview.png)
--->
-
 ## What it does
 
 **Agent workspace.** Every agent gets its own dashboard: KPI grid per channel, conversation board sorted by activity, message thread with attachments and pending states, and a composer that posts through a Supabase Edge Function relay.
