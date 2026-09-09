@@ -171,9 +171,15 @@ dist/
 .vite/
 contexte.md
 
-/supabase/
+
 
 
 # Archives, jamais versionnees
 *.zip
+*.ZIP
+
+.mcp.json
+.dev.vars
+.open-next/
+.wrangler/
 *.ZIP
