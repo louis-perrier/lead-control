@@ -5,7 +5,8 @@ import { useMemo, useRef, useState } from 'react'
 import { Download, MessageCircle, Plus, Upload } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import { useInvalidate } from '@/lib/queries'
+import { useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
+import { hasFeature } from '@/lib/features'
 import type { Contact } from '@/lib/types'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -52,6 +53,10 @@ function parseCsv(text: string) {
 export default function ContactsPage() {
   const toast = useToast()
   const invalidate = useInvalidate()
+  const { data: profile } = useProfile()
+  const { data: flags } = useFlags()
+  const { data: overrides } = useMyOverrides()
+  const canImportExport = hasFeature('contacts_import', flags, profile, overrides)
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -158,14 +163,18 @@ export default function ContactsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-            <Upload size={15} />
-            Importer CSV
-          </Button>
-          <Button variant="secondary" size="sm" onClick={exportCsv} disabled={!contacts?.length}>
-            <Download size={15} />
-            Exporter
-          </Button>
+          {canImportExport ? (
+            <>
+              <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+                <Upload size={15} />
+                Importer CSV
+              </Button>
+              <Button variant="secondary" size="sm" onClick={exportCsv} disabled={!contacts?.length}>
+                <Download size={15} />
+                Exporter
+              </Button>
+            </>
+          ) : null}
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus size={15} />
             Ajouter

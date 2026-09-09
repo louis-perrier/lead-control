@@ -67,6 +67,22 @@ export function useChannelAccounts() {
   })
 }
 
+export function useMyOverrides() {
+  return useQuery({
+    queryKey: ['my-overrides'],
+    queryFn: async (): Promise<{ key: string; enabled: boolean }[]> => {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return []
+      const { data } = await supabase.from('user_feature_overrides').select('key, enabled').eq('user_id', user.id)
+      return (data ?? []) as { key: string; enabled: boolean }[]
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
 export function useInvalidate() {
   const queryClient = useQueryClient()
   return (...keys: string[]) => {
