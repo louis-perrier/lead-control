@@ -94,6 +94,15 @@ export type ConversationMessage = {
   sent_at: string
 }
 
+export type ContextDocument = {
+  id: number
+  title: string
+  status: 'processing' | 'ready' | 'error'
+  char_count: number | null
+  error_message: string | null
+  created_at: string
+}
+
 export type Contact = {
   id: string
   full_name: string | null

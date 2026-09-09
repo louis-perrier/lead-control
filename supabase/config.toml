@@ -407,3 +407,7 @@ verify_jwt = true
 verify_jwt = true
 [functions.ai-key]
 verify_jwt = true
+[functions.context-documents]
+verify_jwt = true
+[functions.generate-custom-tone]
+verify_jwt = true

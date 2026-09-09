@@ -1,12 +1,17 @@
 import Anthropic from 'npm:@anthropic-ai/sdk'
 import { admin } from './core.ts'
 
-export const AI_MODEL_REPLY = 'claude-opus-5'
-export const AI_MODEL_SUMMARY = 'claude-opus-5'
+// La V1 (n8n) tournait sur Claude Sonnet pour les réponses : on reste sur la
+// même gamme de modèle pour conserver le coût par message qui a servi à fixer
+// les tarifs de l'offre, plutôt que de basculer sur Opus (5x plus cher).
+export const AI_MODEL_REPLY = 'claude-sonnet-5'
+export const AI_MODEL_SUMMARY = 'claude-haiku-4-5-20251001'
 
-// $ par million de tokens, pour l'estimation de coût affichée dans l'admin.
+// $ par million de tokens, estimation affichée dans l'admin, à ajuster si le
+// tarif Anthropic change.
 const PRICING: Record<string, { input: number; output: number }> = {
-  'claude-opus-5': { input: 5, output: 25 },
+  'claude-sonnet-5': { input: 3, output: 15 },
+  'claude-haiku-4-5-20251001': { input: 0.8, output: 4 },
 }
 
 export type ResolvedKey = { key: string; source: 'platform' | 'byok' }
