@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+/* Palette LeadControl reprise de la V1 : fond neutre, surface claire,
+   bleu d'action dominant, cyan en accent rare. */
+@theme {
+  --color-bg: #f6f8fc;
+  --color-surface: #ffffff;
+  --color-border: #e6ebf2;
+  --color-ink: #0b1220;
+  --color-muted: #5b667a;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-accent: #22d3ee;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-chip: #eef2ff;
+  --color-chip-ink: #3730a3;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-soft: 0 1px 2px rgb(11 18 32 / 0.05), 0 4px 16px rgb(11 18 32 / 0.06);
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-in {
+  animation: fade-in-up 160ms ease-out;
+}

@@ -1,0 +1,51 @@
+.page {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  overflow-x: visible;
+  width: min(1160px, 100%);
+  margin: 0 auto;
+  padding: calc(3.95rem + var(--banner-h)) 1.15rem 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.page::before {
+  content: "";
+  position: absolute;
+  inset: calc(5.6rem + var(--banner-h)) 0 auto;
+  height: 520px;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.28) 0%, rgba(45, 212, 191, 0.14) 45%, transparent 80%);
+  filter: blur(56px);
+  pointer-events: none;
+}
+
+/* Bottom atmospheric glow for lower sections */
+.page::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 400px;
+  z-index: -1;
+  background: linear-gradient(0deg, rgba(45, 212, 191, 0.12) 0%, rgba(139, 92, 246, 0.08) 40%, transparent 80%);
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding-top: calc(3.75rem + var(--banner-h));
+    padding-inline: 1rem;
+  }
+
+  .page::before {
+    inset: calc(4.5rem + var(--banner-h)) 0 auto;
+    height: 360px;
+  }
+
+  .page::after {
+    height: 280px;
+  }
+}
