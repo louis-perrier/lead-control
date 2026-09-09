@@ -11,8 +11,19 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState, Skeleton } from '@/components/ui/misc'
+import { Input, Label } from '@/components/ui/input'
 import { useToast } from '@/components/ui/toast'
-import { formatRelative } from '@/lib/utils'
+import { cn, formatRelative } from '@/lib/utils'
+
+function formatCents(euros: number) {
+  return euros.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 })
+}
+
+const MESSAGE_COST_PERIODS = [
+  { days: 7, label: '7 jours' },
+  { days: 30, label: '30 jours' },
+  { days: 90, label: '90 jours' },
+] as const
 
 type UsageRow = {
   id: number
@@ -31,6 +42,151 @@ const CHANNEL_STATUS: Record<ChannelAccount['status'], { label: string; tone: 's
   expired: { label: 'Expiré', tone: 'warning' },
   error: { label: 'En erreur', tone: 'danger' },
   disconnected: { label: 'Déconnecté', tone: 'muted' },
+}
+
+function MessageCostCard({ userId, assistants, editable }: { userId: string; assistants: Assistant[]; editable: boolean }) {
+  const toast = useToast()
+  const invalidate = useInvalidate()
+  const [days, setDays] = useState<7 | 30 | 90>(30)
+  const [priceDraft, setPriceDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const priceQuery = useQuery({
+    queryKey: ['platform-setting', 'cost_per_message_cents'],
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('platform_settings')
+        .select('value')
+        .eq('key', 'cost_per_message_cents')
+        .maybeSingle()
+      return data?.value ?? null
+    },
+  })
+
+  const savedPrice = priceQuery.data != null ? Number(priceQuery.data) : null
+  const priceCents = priceDraft !== '' ? Number(priceDraft) : savedPrice ?? 0
+
+  const messagesQuery = useQuery({
+    queryKey: ['admin-user-messages', userId, days],
+    queryFn: async () => {
+      const supabase = createClient()
+      const since = new Date(Date.now() - days * 86400000).toISOString()
+      const { data } = await supabase
+        .from('conversation_messages')
+        .select('id, conversations!inner(assistant_id, user_id)')
+        .eq('author_type', 'agent')
+        .gte('sent_at', since)
+        .eq('conversations.user_id', userId)
+      const counts = new Map<string, number>()
+      for (const row of (data ?? []) as { conversations: { assistant_id: string | null } | { assistant_id: string | null }[] | null }[]) {
+        const rel = row.conversations
+        const assistantId = Array.isArray(rel) ? rel[0]?.assistant_id : rel?.assistant_id
+        if (!assistantId) continue
+        counts.set(assistantId, (counts.get(assistantId) ?? 0) + 1)
+      }
+      return counts
+    },
+  })
+
+  async function savePrice() {
+    const value = Number(priceDraft)
+    if (!Number.isFinite(value) || value < 0) return
+    setSaving(true)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('platform_settings')
+      .upsert({ key: 'cost_per_message_cents', value: String(value), updated_at: new Date().toISOString() })
+    setSaving(false)
+    if (error) {
+      toast('Impossible d’enregistrer ce prix.', 'error')
+      return
+    }
+    toast('Prix par message enregistré.')
+    setPriceDraft('')
+    invalidate('platform-setting')
+  }
+
+  const counts = messagesQuery.data
+  const total = counts ? [...counts.values()].reduce((a, b) => a + b, 0) : 0
+  const estimatedEuros = (total * priceCents) / 100
+
+  return (
+    <Card>
+      <CardHeader
+        title="Coût par volume de messages"
+        description="Nombre de réponses envoyées par l'assistant sur la période, avec un prix par message que vous fixez vous-même."
+      />
+      <CardBody className="space-y-4">
+        <div className="flex gap-1.5">
+          {MESSAGE_COST_PERIODS.map((p) => (
+            <button
+              key={p.days}
+              type="button"
+              onClick={() => setDays(p.days)}
+              className={cn(
+                'rounded-full px-3 py-1.5 text-xs font-medium',
+                days === p.days ? 'bg-primary text-white' : 'bg-surface text-muted border border-border hover:text-ink',
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {messagesQuery.isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : total === 0 ? (
+          <EmptyState title="Aucune réponse envoyée sur cette période" />
+        ) : (
+          <div className="divide-y divide-border/60 rounded-[10px] border border-border">
+            {assistants
+              .filter((a) => counts?.has(a.id))
+              .map((a) => (
+                <div key={a.id} className="flex items-center justify-between px-4 py-2 text-sm">
+                  <span>{a.name}</span>
+                  <span className="tabular-nums text-muted">{counts?.get(a.id) ?? 0}</span>
+                </div>
+              ))}
+            <div className="flex items-center justify-between px-4 py-2 text-sm font-semibold">
+              <span>Total</span>
+              <span className="tabular-nums">{total}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-end gap-2" title={editable ? undefined : 'Réservé aux admins'}>
+          <div>
+            <Label htmlFor="costPerMessage">Prix par message (centimes)</Label>
+            <Input
+              id="costPerMessage"
+              type="number"
+              step="0.1"
+              min="0"
+              value={priceDraft !== '' ? priceDraft : savedPrice != null ? String(savedPrice) : ''}
+              onChange={(e) => setPriceDraft(e.target.value)}
+              placeholder="3"
+              disabled={!editable}
+              className="w-28"
+            />
+          </div>
+          <Button size="sm" variant="secondary" onClick={savePrice} disabled={!editable || saving || priceDraft === ''}>
+            {saving ? 'Enregistrement…' : 'Enregistrer ce prix'}
+          </Button>
+        </div>
+
+        <div>
+          <p className="text-sm">
+            Coût estimé sur {days} jours : {total} × {priceCents.toLocaleString('fr-FR')}¢ ={' '}
+            <span className="font-semibold">{formatCents(estimatedEuros)}</span>
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            Estimation manuelle, à ne pas confondre avec le coût réel ci-dessus basé sur les tokens consommés.
+          </p>
+        </div>
+      </CardBody>
+    </Card>
+  )
 }
 
 export default function AdminUserDetailPage() {
@@ -297,6 +453,8 @@ export default function AdminUserDetailPage() {
           </div>
         )}
       </Card>
+
+      <MessageCostCard userId={userId} assistants={data.assistants} editable={editable} />
     </div>
   )
 }

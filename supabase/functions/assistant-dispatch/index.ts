@@ -5,10 +5,14 @@ import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
 import { getChannelToken, markSeen, sendInstagramText } from '../_shared/instagram.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
+import { resolveTone } from './types.ts'
 import type { AgentDecision, WindowMessage } from './types.ts'
 
-const MIN_WINDOW = 7
-const MAX_WINDOW = 12
+// La mémoire n8n d'origine gardait 100 messages par conversation : on aligne
+// la fenêtre pour obtenir le même niveau de contexte.
+const MIN_WINDOW = 20
+const MAX_WINDOW = 100
+const MAX_CONTEXT_DOCS_CHARS = 6000
 
 type DueConversation = {
   id: number
@@ -103,22 +107,24 @@ function parseDecision(text: string): AgentDecision {
     return {
       reply_text: typeof parsed.reply_text === 'string' ? parsed.reply_text : null,
       should_response: parsed.should_response !== false,
-      stop_condition_reached: parsed.stop_condition_reached === true,
-      notify_human: parsed.notify_human === true,
-      heat: ['hot', 'warm', 'cold', 'unknown'].includes(parsed.heat) ? parsed.heat : 'unknown',
+      stop_successful: parsed.stop_successful === true,
+      should_notify_human: parsed.should_notify_human === true,
+      heat_tag: ['hot', 'warm', 'cold', 'unknown'].includes(parsed.heat_tag) ? parsed.heat_tag : 'unknown',
       heat_reason: typeof parsed.heat_reason === 'string' ? parsed.heat_reason : '',
-      summary_update: typeof parsed.summary_update === 'string' ? parsed.summary_update : null,
+      summary: typeof parsed.summary === 'string' ? parsed.summary : null,
+      reason: typeof parsed.reason === 'string' ? parsed.reason : null,
     }
   } catch {
     // Sortie non JSON : on la traite comme la réponse elle-même.
     return {
       reply_text: cleaned || null,
       should_response: Boolean(cleaned),
-      stop_condition_reached: false,
-      notify_human: false,
-      heat: 'unknown',
+      stop_successful: false,
+      should_notify_human: false,
+      heat_tag: 'unknown',
       heat_reason: '',
-      summary_update: null,
+      summary: null,
+      reason: null,
     }
   }
 }
@@ -241,6 +247,26 @@ async function handleConversation(due: DueConversation) {
   }
 
   const settings = (assistant.settings ?? {}) as Record<string, any>
+
+  let context = settings.context ?? ''
+  const { data: docs } = await admin
+    .from('context_documents')
+    .select('title, extracted_text')
+    .eq('user_id', due.user_id)
+    .eq('status', 'ready')
+    .order('created_at', { ascending: true })
+  if (docs && docs.length > 0) {
+    let remaining = MAX_CONTEXT_DOCS_CHARS
+    const parts: string[] = []
+    for (const d of docs) {
+      if (remaining <= 0) break
+      const text = (d.extracted_text ?? '').slice(0, remaining)
+      if (text) parts.push(`### ${d.title}\n${text}`)
+      remaining -= text.length
+    }
+    if (parts.length > 0) context = `${context}\n\n${parts.join('\n\n')}`.trim()
+  }
+
   let summary = conv.summary ?? ''
   if (!summary && messages.length > 5) {
     try {
@@ -261,11 +287,11 @@ async function handleConversation(due: DueConversation) {
   const system = buildSystemPrompt({
     conversationId: convId,
     productName: settings.product?.name ?? '',
-    context: settings.context ?? '',
+    context,
     qualification: settings.qualification ?? '',
     stopText: settings.stop_condition?.text ?? '',
     stopLink: settings.stop_condition?.link ?? '',
-    customTone: assistant.custom_tone,
+    tone: resolveTone(settings.tone?.preset, assistant.custom_tone),
     summary,
   })
   const transcriptLines = messages.map((m) => {
@@ -304,7 +330,7 @@ async function handleConversation(due: DueConversation) {
 
   await markSeen(token, igUserId, conv.contact_external_id)
 
-  if (decision.notify_human) {
+  if (decision.should_notify_human) {
     await releaseLock(convId, {
       automation_state: 'error',
       automation_reason: 'notify_human',
@@ -314,10 +340,10 @@ async function handleConversation(due: DueConversation) {
       pending_since: null,
       pending_inbound_count: 0,
       last_error_code: 'notify_human',
-      last_error_message: 'L’assistant demande une intervention humaine sur cette conversation.',
-      heat_tag: decision.heat,
+      last_error_message: decision.reason || 'L’assistant demande une intervention humaine sur cette conversation.',
+      heat_tag: decision.heat_tag,
       heat_reason: decision.heat_reason || null,
-      summary: decision.summary_update ?? summary ?? null,
+      summary: decision.summary ?? summary ?? null,
     })
     return
   }
@@ -387,8 +413,8 @@ async function handleConversation(due: DueConversation) {
   await admin
     .from('conversations')
     .update({
-      automation_state: decision.stop_condition_reached ? 'condition_stop' : 'idle',
-      automation_reason: decision.stop_condition_reached ? 'stop_successful' : sentCount > 0 ? 'replied' : 'no_reply_needed',
+      automation_state: decision.stop_successful ? 'condition_stop' : 'idle',
+      automation_reason: decision.stop_successful ? 'stop_successful' : sentCount > 0 ? 'replied' : 'no_reply_needed',
       next_reply_at: null,
       debounce_until: null,
       pending_cursor_at: null,
@@ -400,9 +426,9 @@ async function handleConversation(due: DueConversation) {
       last_message_at: sentCount > 0 ? now : undefined,
       last_message_preview: sentCount > 0 ? blocks[blocks.length - 1].slice(0, 140) : undefined,
       agent_sent_count: undefined,
-      heat_tag: decision.heat,
+      heat_tag: decision.heat_tag,
       heat_reason: decision.heat_reason || null,
-      summary: decision.summary_update ?? (summary || null),
+      summary: decision.summary ?? (summary || null),
       last_error_code: null,
       last_error_message: null,
       metadata: meta,

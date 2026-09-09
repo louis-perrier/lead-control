@@ -5,18 +5,19 @@ export type AssistantContext = {
   qualification: string
   stopText: string
   stopLink: string
-  customTone: string | null
+  tone: string
   summary: string
 }
 
 export type AgentDecision = {
   reply_text: string | null
   should_response: boolean
-  stop_condition_reached: boolean
-  notify_human: boolean
-  heat: 'hot' | 'warm' | 'cold' | 'unknown'
+  stop_successful: boolean
+  should_notify_human: boolean
+  heat_tag: 'hot' | 'warm' | 'cold' | 'unknown'
   heat_reason: string
-  summary_update: string | null
+  summary: string | null
+  reason: string | null
 }
 
 export type WindowMessage = {
@@ -29,4 +30,17 @@ export type WindowMessage = {
   transcript_error: string | null
   sent_at: string
   id: number
+}
+
+const TONE_PRESETS: Record<string, string> = {
+  amical: 'Sois chaleureux, naturel et bienveillant.',
+  pro: 'Sois professionnel, concis et structuré.',
+  fun: 'Sois décontracté, utilise l’humour avec légèreté.',
+  normal:
+    '- **Registre** : chaleureux, humain, direct. Tu parles comme quelqu’un qui comprend vraiment la situation de l’autre.',
+}
+
+export function resolveTone(preset: string | undefined, customTone: string | null | undefined) {
+  if (preset === 'custom' && customTone?.trim()) return customTone.trim()
+  return TONE_PRESETS[preset ?? 'normal'] ?? TONE_PRESETS.normal
 }
