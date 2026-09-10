@@ -293,13 +293,15 @@ async function webhook(req: Request) {
     return new Response(`invalid signature: ${String(e).slice(0, 100)}`, { status: 400 })
   }
 
-  const dedupe = await admin
+  // L'événement n'est marqué traité qu'après succès : si le traitement échoue,
+  // Stripe réessaiera et retrouvera un événement encore absent de cette table
+  // plutôt que de le voir déjà enregistré et de l'ignorer à tort.
+  const { data: already } = await admin
     .from('paiement_stripe_webhook_events')
-    .insert({ event_id: event.id, event_type: event.type })
-  if (dedupe.error) {
-    if (dedupe.error.code === '23505') return json(req, { received: true })
-    throw dedupe.error
-  }
+    .select('event_id')
+    .eq('event_id', event.id)
+    .maybeSingle()
+  if (already) return json(req, { received: true })
 
   try {
     switch (event.type) {
@@ -368,6 +370,7 @@ async function webhook(req: Request) {
     await logEvent('error', 'billing', `webhook ${event.type} en échec: ${String(e).slice(0, 300)}`)
     return json(req, { error: 'handler_failed' }, 500)
   }
+  await admin.from('paiement_stripe_webhook_events').insert({ event_id: event.id, event_type: event.type })
   return json(req, { received: true })
 }
 
