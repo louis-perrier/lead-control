@@ -18,7 +18,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
 import { useInvalidate } from '@/lib/queries'
-import type { Conversation, ConversationMessage } from '@/lib/types'
+import type { Booking, Conversation, ConversationMessage } from '@/lib/types'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -217,7 +217,25 @@ function CloseDialog({
   )
 }
 
+function useBooking(conversationId: number) {
+  return useQuery({
+    queryKey: ['booking', conversationId],
+    queryFn: async (): Promise<Booking | null> => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('bookings')
+        .select('id, conversation_id, event_type_name, invitee_email, invitee_name, event_start_at, event_end_at, status')
+        .eq('conversation_id', conversationId)
+        .order('event_start_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      return data as Booking | null
+    },
+  })
+}
+
 function ContactPanel({ conversation, onClose }: { conversation: Conversation; onClose?: () => void }) {
+  const { data: booking } = useBooking(conversation.id)
   return (
     <div className="flex h-full flex-col overflow-y-auto">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -249,6 +267,21 @@ function ContactPanel({ conversation, onClose }: { conversation: Conversation; o
               {conversation.heat_tag === 'hot' ? 'Chaud' : conversation.heat_tag === 'warm' ? 'Tiède' : 'Froid'}
             </Badge>
             {conversation.heat_reason ? <p className="mt-1 text-muted">{conversation.heat_reason}</p> : null}
+          </div>
+        ) : null}
+        {booking ? (
+          <div>
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">Rendez-vous</p>
+            <div className="flex items-center gap-2">
+              <span>{booking.event_type_name ?? 'Rendez-vous Calendly'}</span>
+              <Badge tone={booking.status === 'active' ? 'success' : 'muted'}>
+                {booking.status === 'active' ? 'Confirmé' : 'Annulé'}
+              </Badge>
+            </div>
+            {booking.event_start_at ? (
+              <p className="mt-1 text-muted">{formatDateTime(booking.event_start_at)}</p>
+            ) : null}
+            {conversation.outcome === 'won' ? <p className="mt-1 text-success">Conversation clôturée gagnée</p> : null}
           </div>
         ) : null}
         <div>
