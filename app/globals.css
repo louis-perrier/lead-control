@@ -42,3 +42,13 @@ body {
 .animate-in {
   animation: fade-in-up 160ms ease-out;
 }
+
+/* Listes défilables horizontalement (filtres, onglets) : la barre native est
+   large et sombre sur certains systèmes, on la masque sans retirer le scroll. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

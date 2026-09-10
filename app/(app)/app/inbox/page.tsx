@@ -130,7 +130,7 @@ function InboxContent() {
               className="h-9 pl-9"
             />
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pb-0.5">
             {FILTERS.map((f) => (
               <button
                 key={f.key}
