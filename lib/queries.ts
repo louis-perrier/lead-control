@@ -48,7 +48,7 @@ export function useRealProfile() {
   const { data: authId } = useAuthUserId()
   return useQuery({
     queryKey: ['profile-real', authId],
-    enabled: authId !== null,
+    enabled: Boolean(authId),
     queryFn: async (): Promise<Profile | null> => {
       const supabase = createClient()
       const { data } = await supabase.from('profiles').select('*').eq('user_id', authId!).single()
