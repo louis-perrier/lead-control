@@ -59,6 +59,7 @@ export type Assistant = {
   paused_reason: string | null
   settings: AssistantSettings
   custom_tone: string | null
+  custom_tone_questions: { id: string; question: string }[]
 }
 
 export type Conversation = {

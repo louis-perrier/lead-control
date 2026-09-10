@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { Instagram, RefreshCw } from 'lucide-react'
+import { Instagram, Plus, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
 import {
@@ -483,6 +483,8 @@ const TONE_QUESTIONS: { key: string; question: string }[] = [
   { key: 'q6', question: 'Ok, ça me parle, comment je fais pour rejoindre ?' },
 ]
 
+const MAX_CUSTOM_TONE_QUESTIONS = 6
+
 function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCustom: boolean }) {
   const { save } = useSaveSettings(assistant)
   const toast = useToast()
@@ -490,10 +492,38 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
   const [preset, setPreset] = useState(assistant.settings.tone?.preset ?? 'normal')
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [generating, setGenerating] = useState(false)
+  const [customQuestions, setCustomQuestions] = useState(assistant.custom_tone_questions)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
   function choosePreset(value: string) {
     setPreset(value)
     if (value !== 'custom') save({ tone: { preset: value } })
+  }
+
+  function addCustomQuestion() {
+    if (customQuestions.length >= MAX_CUSTOM_TONE_QUESTIONS) return
+    setCustomQuestions((qs) => [...qs, { id: crypto.randomUUID(), question: '' }])
+  }
+
+  function editCustomQuestion(id: string, question: string) {
+    setCustomQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, question } : q)))
+  }
+
+  async function persistCustomQuestions(next: typeof customQuestions) {
+    setCustomQuestions(next)
+    await save({}, { custom_tone_questions: next })
+  }
+
+  async function confirmRemoveCustomQuestion() {
+    if (!deleteTarget) return
+    const id = deleteTarget
+    setDeleteTarget(null)
+    await persistCustomQuestions(customQuestions.filter((q) => q.id !== id))
+    setAnswers((a) => {
+      const next = { ...a }
+      delete next[id]
+      return next
+    })
   }
 
   async function generate() {
@@ -506,7 +536,7 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
     } catch (e) {
       const message = e instanceof Error ? e.message : ''
       if (message === 'invalid_answers') {
-        toast('Complétez les 6 réponses, avec au moins 200 caractères chacune.', 'error')
+        toast('Complétez toutes les réponses, avec au moins 200 caractères chacune.', 'error')
       } else if (message === 'no_api_key') {
         toast('Aucune clé API configurée : rendez-vous dans Réglages.', 'error')
       } else {
@@ -517,8 +547,11 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
   }
 
   const MIN_ANSWER_LENGTH = 200
-  const incompleteCount = TONE_QUESTIONS.filter((q) => (answers[q.key] ?? '').trim().length < MIN_ANSWER_LENGTH).length
-  const answersReady = incompleteCount === 0
+  const incompleteFixed = TONE_QUESTIONS.filter((q) => (answers[q.key] ?? '').trim().length < MIN_ANSWER_LENGTH).length
+  const incompleteCustom = customQuestions.filter((q) => (answers[q.id] ?? '').trim().length < MIN_ANSWER_LENGTH).length
+  const emptyCustomTitles = customQuestions.some((q) => q.question.trim().length === 0)
+  const incompleteCount = incompleteFixed + incompleteCustom
+  const answersReady = incompleteCount === 0 && !emptyCustomTitles
   const options = allowCustom ? [...TONE_PRESETS, { value: 'custom', label: 'Personnalisé' } as const] : TONE_PRESETS
 
   return (
@@ -564,15 +597,63 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
                 </div>
               )
             })}
+            {customQuestions.map((q) => {
+              const length = (answers[q.id] ?? '').trim().length
+              const ok = length >= MIN_ANSWER_LENGTH
+              return (
+                <div key={q.id} className="space-y-1.5 rounded-[10px] border border-border p-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={q.question}
+                      placeholder="Votre question"
+                      onChange={(e) => editCustomQuestion(q.id, e.target.value)}
+                      onBlur={() => persistCustomQuestions(customQuestions)}
+                      className="flex-1"
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(q.id)}>
+                      Supprimer
+                    </Button>
+                  </div>
+                  <Textarea
+                    rows={3}
+                    value={answers[q.id] ?? ''}
+                    onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                  />
+                  <FieldHint className={ok ? 'text-success' : undefined}>
+                    {length}/{MIN_ANSWER_LENGTH} caractères
+                  </FieldHint>
+                </div>
+              )
+            })}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={addCustomQuestion}
+              disabled={customQuestions.length >= MAX_CUSTOM_TONE_QUESTIONS}
+            >
+              <Plus size={14} className="mr-1" />
+              {customQuestions.length >= MAX_CUSTOM_TONE_QUESTIONS ? 'Maximum atteint' : 'Ajouter une question'}
+            </Button>
             {assistant.custom_tone ? (
               <p className="text-xs text-muted">Un ton personnalisé est déjà actif. Répondez à nouveau pour le régénérer.</p>
             ) : null}
           </div>
         ) : null}
       </CardBody>
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmRemoveCustomQuestion}
+        title="Supprimer cette question"
+        message="Elle ne sera plus utilisée pour générer votre ton personnalisé."
+        confirmLabel="Supprimer"
+        danger
+      />
       {preset === 'custom' && allowCustom ? (
         <div className="flex items-center justify-end gap-3 border-t border-border px-5 py-3.5">
-          {!answersReady ? (
+          {emptyCustomTitles ? (
+            <p className="text-xs text-muted">Donnez un intitulé à chaque question ajoutée.</p>
+          ) : incompleteCount > 0 ? (
             <p className="text-xs text-muted">
               Encore {incompleteCount} réponse{incompleteCount > 1 ? 's' : ''} à compléter (200 caractères minimum).
             </p>
