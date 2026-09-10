@@ -5,7 +5,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Download, MessageCircle, Plus, Upload } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import { useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
+import { useEffectiveUserId, useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import type { Contact } from '@/lib/types'
 import { Card } from '@/components/ui/card'
@@ -57,6 +57,7 @@ export default function ContactsPage() {
   const { data: flags } = useFlags()
   const { data: overrides } = useMyOverrides()
   const canImportExport = hasFeature('contacts_import', flags, profile, overrides)
+  const effectiveUserId = useEffectiveUserId()
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -64,12 +65,14 @@ export default function ContactsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: contacts, isLoading } = useQuery({
-    queryKey: ['contacts'],
+    queryKey: ['contacts', effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<Contact[]> => {
       const supabase = createClient()
       const { data } = await supabase
         .from('contacts')
         .select('*')
+        .eq('user_id', effectiveUserId!)
         .order('last_interaction_at', { ascending: false, nullsFirst: false })
         .limit(500)
       return (data ?? []) as Contact[]

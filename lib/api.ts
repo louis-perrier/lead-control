@@ -1,9 +1,15 @@
 import { createClient } from '@/lib/supabase/client'
+import { isViewAsReadOnly } from '@/lib/view-as/state'
+
+const VIEW_AS_ALLOWED_PATHS = ['media-signed-url', 'context-documents/quota', 'billing/info']
 
 export async function callFunction<T>(
   path: string,
   init: { method?: 'GET' | 'POST' | 'DELETE'; body?: unknown } = {},
 ): Promise<T> {
+  if (isViewAsReadOnly() && !VIEW_AS_ALLOWED_PATHS.includes(path)) {
+    throw new Error('view_as_readonly')
+  }
   const supabase = createClient()
   const {
     data: { session },

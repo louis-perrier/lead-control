@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useProfile } from '@/lib/queries'
+import { useRealProfile } from '@/lib/queries'
 import { isStaff } from '@/lib/features'
 import { EmptyState, Skeleton } from '@/components/ui/misc'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 const TABS = [
   { href: '/app/admin', label: "Vue d'ensemble", exact: true },
   { href: '/app/admin/users', label: 'Clients' },
+  { href: '/app/admin/analytics', label: 'Analyse' },
   { href: '/app/admin/flags', label: 'Modules' },
   { href: '/app/admin/health', label: 'Santé' },
   { href: '/app/admin/team', label: 'Équipe' },
@@ -18,7 +19,7 @@ const TABS = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { data: profile, isLoading } = useProfile()
+  const { data: profile, isLoading } = useRealProfile()
 
   if (isLoading) {
     return (
