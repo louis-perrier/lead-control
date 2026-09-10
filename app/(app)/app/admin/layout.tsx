@@ -49,7 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-xl font-semibold">Administration</h1>
-      <nav className="mt-4 flex gap-1 overflow-x-auto border-b border-border pb-px">
+      <nav className="scrollbar-hide mt-4 flex gap-1 overflow-x-auto border-b border-border pb-px">
         {TABS.map((tab) => {
           const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href)
           return (
