@@ -295,7 +295,7 @@ async function handleConversation(due: DueConversation) {
     summary,
   })
   const transcriptLines = messages.map((m) => {
-    const who = m.author_type === 'customer' ? 'PROSPECT' : m.author_type === 'human' ? 'COACH' : 'TOI'
+    const who = m.author_type === 'customer' ? 'PROSPECT' : m.author_type === 'human' ? 'OPÉRATEUR' : 'TOI'
     return `${who} : ${renderMessage(m)}`
   })
   const prompt = `Conversation (du plus ancien au plus récent) :\n${transcriptLines.join('\n')}\n\nRéponds au dernier message du prospect en respectant le format de sortie JSON.`
