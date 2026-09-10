@@ -81,6 +81,105 @@ function ProfileCard() {
   )
 }
 
+const COMPANY_SIZES: { value: string; label: string }[] = [
+  { value: '1', label: 'Solo' },
+  { value: '2-10', label: '2 à 10' },
+  { value: '11-50', label: '11 à 50' },
+  { value: '51-200', label: '51 à 200' },
+  { value: '200+', label: '200 et plus' },
+]
+
+function AboutCard() {
+  const { data: profile } = useProfile()
+  const invalidate = useInvalidate()
+  const toast = useToast()
+  const [city, setCity] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [companySize, setCompanySize] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (profile) {
+      setCity(profile.city ?? '')
+      setCompanyName(profile.company_name ?? '')
+      setCompanySize(profile.company_size ?? null)
+    }
+  }, [profile])
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    if (!profile) return
+    setSaving(true)
+    const { error } = await createClient()
+      .from('profiles')
+      .update({
+        city: city.trim() || null,
+        company_name: companyName.trim() || null,
+        company_size: companySize,
+      })
+      .eq('user_id', profile.user_id)
+    setSaving(false)
+    if (error) {
+      toast('Impossible d’enregistrer ces informations.', 'error')
+      return
+    }
+    toast('Informations enregistrées.')
+    invalidate('profile')
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Quelques détails sur vous"
+        description="Facultatif : ça nous aide à mieux vous accompagner, rien n'est obligatoire."
+      />
+      <form onSubmit={save}>
+        <CardBody className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="city">Ville</Label>
+              <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Paris" />
+            </div>
+            <div>
+              <Label htmlFor="companyName">Entreprise</Label>
+              <Input
+                id="companyName"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="Nom de votre entreprise"
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Taille de l'entreprise</Label>
+            <div className="flex flex-wrap gap-2">
+              {COMPANY_SIZES.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setCompanySize(companySize === s.value ? null : s.value)}
+                  className={
+                    companySize === s.value
+                      ? 'rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white'
+                      : 'rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted'
+                  }
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardBody>
+        <div className="flex justify-end border-t border-border px-5 py-3.5">
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
 function PasswordCard() {
   const toast = useToast()
   const [password, setPassword] = useState('')
@@ -306,6 +405,7 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-muted">Votre compte et vos préférences.</p>
       </div>
       <ProfileCard />
+      <AboutCard />
       <PasswordCard />
       <ByokCard />
       <DangerCard />
