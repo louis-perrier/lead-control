@@ -98,12 +98,48 @@ function renderMessage(m: WindowMessage) {
   return m.body_text?.trim() ?? ''
 }
 
+// Le modèle est instruit de séparer les bulles par une ligne vide à l'intérieur
+// de reply_text : s'il retranscrit ce saut de ligne tel quel au lieu de l'échapper
+// en \n, le JSON devient invalide. On répare en échappant les caractères de
+// contrôle bruts, mais seulement à l'intérieur des chaînes, pas entre les jetons.
+function sanitizeJsonControlChars(raw: string) {
+  let result = ''
+  let inString = false
+  let escaped = false
+  for (const ch of raw) {
+    if (inString) {
+      if (escaped) {
+        result += ch
+        escaped = false
+      } else if (ch === '\\') {
+        result += ch
+        escaped = true
+      } else if (ch === '"') {
+        result += ch
+        inString = false
+      } else if (ch === '\n') {
+        result += '\\n'
+      } else if (ch === '\r') {
+        result += '\\r'
+      } else if (ch === '\t') {
+        result += '\\t'
+      } else {
+        result += ch
+      }
+    } else {
+      if (ch === '"') inString = true
+      result += ch
+    }
+  }
+  return result
+}
+
 function parseDecision(text: string): AgentDecision {
   const cleaned = text.replace(/^```(?:json)?/m, '').replace(/```\s*$/m, '').trim()
   try {
     const start = cleaned.indexOf('{')
     const end = cleaned.lastIndexOf('}')
-    const parsed = JSON.parse(cleaned.slice(start, end + 1))
+    const parsed = JSON.parse(sanitizeJsonControlChars(cleaned.slice(start, end + 1)))
     return {
       reply_text: typeof parsed.reply_text === 'string' ? parsed.reply_text : null,
       should_response: parsed.should_response !== false,
@@ -115,16 +151,34 @@ function parseDecision(text: string): AgentDecision {
       reason: typeof parsed.reason === 'string' ? parsed.reason : null,
     }
   } catch {
-    // Sortie non JSON : on la traite comme la réponse elle-même.
+    // JSON toujours invalide malgré la réparation : on tente d'extraire au moins
+    // reply_text au lasso plutôt que d'abandonner.
+    const match = cleaned.match(/"reply_text"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+    if (match) {
+      const extracted = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+      return {
+        reply_text: extracted || null,
+        should_response: Boolean(extracted),
+        stop_successful: false,
+        should_notify_human: false,
+        heat_tag: 'unknown',
+        heat_reason: '',
+        summary: null,
+        reason: null,
+      }
+    }
+    // Si la sortie ressemble à du JSON cassé, ne jamais l'envoyer telle quelle
+    // au prospect : on escalade plutôt que de traiter ça comme la réponse elle-même.
+    const looksLikeJson = /^\s*\{/.test(cleaned)
     return {
-      reply_text: cleaned || null,
-      should_response: Boolean(cleaned),
+      reply_text: looksLikeJson ? null : cleaned || null,
+      should_response: !looksLikeJson && Boolean(cleaned),
       stop_successful: false,
-      should_notify_human: false,
+      should_notify_human: looksLikeJson,
       heat_tag: 'unknown',
       heat_reason: '',
       summary: null,
-      reason: null,
+      reason: looksLikeJson ? 'Réponse du modèle illisible (JSON invalide) : vérifiez le dernier message.' : null,
     }
   }
 }
