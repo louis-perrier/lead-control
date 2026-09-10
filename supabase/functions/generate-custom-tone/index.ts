@@ -87,12 +87,13 @@ Deno.serve(async (req) => {
   const resolved = await resolveApiKey(user.id, profile?.plan_override ?? null)
   if (!resolved) return json(req, { error: 'no_api_key' }, 409)
 
-  const answered = Object.entries(QUESTIONS).filter(([key]) => (answers[key] ?? '').trim().length > 0)
-  if (answered.length < 3) {
-    return json(req, { error: 'not_enough_answers' }, 400)
+  const MIN_ANSWER_LENGTH = 200
+  const incomplete = Object.keys(QUESTIONS).filter((key) => (answers[key] ?? '').trim().length < MIN_ANSWER_LENGTH)
+  if (incomplete.length > 0) {
+    return json(req, { error: 'invalid_answers', incomplete }, 400)
   }
 
-  const transcript = answered
+  const transcript = Object.entries(QUESTIONS)
     .map(([key, question]) => `Question : "${question}"\nRéponse du coach : ${answers[key].trim()}`)
     .join('\n\n')
 
