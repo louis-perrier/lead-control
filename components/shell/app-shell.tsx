@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  BarChart3,
   Bot,
   CreditCard,
   Home,
@@ -16,19 +15,19 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useBilling, useProfile } from '@/lib/queries'
+import { useBilling, useProfile, useRealProfile } from '@/lib/queries'
 import { isStaff } from '@/lib/features'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { ViewAsBanner } from '@/components/view-as/banner'
 
 const NAV = [
   { href: '/app', label: 'Accueil', icon: Home, exact: true },
   { href: '/app/inbox', label: 'Boîte de réception', icon: Inbox },
   { href: '/app/contacts', label: 'Contacts', icon: Users },
-  { href: '/app/stats', label: 'Statistiques', icon: BarChart3 },
   { href: '/app/assistant', label: 'Assistant', icon: Bot },
   { href: '/app/settings', label: 'Réglages', icon: Settings },
 ]
@@ -103,10 +102,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { data: profile } = useProfile()
+  const { data: realProfile } = useRealProfile()
   const { data: billing } = useBilling()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
 
-  const staff = isStaff(profile)
+  const staff = isStaff(realProfile)
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href)
 
@@ -194,10 +194,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 pb-16 md:ml-60 md:pb-0">{children}</main>
+      <main className="min-w-0 flex-1 pb-16 md:ml-60 md:pb-0">
+        <ViewAsBanner />
+        {children}
+      </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface md:hidden">
-        {NAV.slice(0, 5).map(({ href, label, icon: Icon, exact }) => (
+        {NAV.slice(0, 4).map(({ href, label, icon: Icon, exact }) => (
           <Link
             key={href}
             href={href}

@@ -3,18 +3,55 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
+import { useViewAsTargetId } from '@/lib/view-as/state'
 import type { Assistant, BillingInfo, ChannelAccount, FeatureFlag, Profile } from '@/lib/types'
 
-export function useProfile() {
+function useAuthUserId() {
   return useQuery({
-    queryKey: ['profile'],
-    queryFn: async (): Promise<Profile | null> => {
+    queryKey: ['auth-user-id'],
+    queryFn: async (): Promise<string | null> => {
       const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return null
-      const { data } = await supabase.from('profiles').select('*').eq('user_id', user.id).single()
+      return user?.id ?? null
+    },
+    staleTime: Infinity,
+  })
+}
+
+// Utilisateur réellement connecté OU utilisateur "vu comme" par un admin.
+// À utiliser pour tout ce qui doit refléter ce que verrait ce compte : profil,
+// assistants, canaux, drapeaux personnalisés, données de stats/inbox/contacts.
+export function useEffectiveUserId() {
+  const viewAsId = useViewAsTargetId()
+  const { data: authId } = useAuthUserId()
+  return viewAsId ?? authId ?? null
+}
+
+export function useProfile() {
+  const effectiveUserId = useEffectiveUserId()
+  return useQuery({
+    queryKey: ['profile', effectiveUserId],
+    enabled: effectiveUserId !== null,
+    queryFn: async (): Promise<Profile | null> => {
+      const supabase = createClient()
+      const { data } = await supabase.from('profiles').select('*').eq('user_id', effectiveUserId!).single()
+      return data as Profile
+    },
+  })
+}
+
+// Profil réel de la personne connectée, jamais celui d'un compte "vu comme".
+// Réservé aux décisions d'accès admin (lien Admin, garde de /app/admin).
+export function useRealProfile() {
+  const { data: authId } = useAuthUserId()
+  return useQuery({
+    queryKey: ['profile-real', authId],
+    enabled: authId !== null,
+    queryFn: async (): Promise<Profile | null> => {
+      const supabase = createClient()
+      const { data } = await supabase.from('profiles').select('*').eq('user_id', authId!).single()
       return data as Profile
     },
   })
@@ -42,24 +79,33 @@ export function useBilling() {
 }
 
 export function useAssistants() {
+  const effectiveUserId = useEffectiveUserId()
   return useQuery({
-    queryKey: ['assistants'],
+    queryKey: ['assistants', effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<Assistant[]> => {
       const supabase = createClient()
-      const { data } = await supabase.from('assistants').select('*').order('created_at')
+      const { data } = await supabase
+        .from('assistants')
+        .select('*')
+        .eq('user_id', effectiveUserId!)
+        .order('created_at')
       return (data ?? []) as Assistant[]
     },
   })
 }
 
 export function useChannelAccounts() {
+  const effectiveUserId = useEffectiveUserId()
   return useQuery({
-    queryKey: ['channel-accounts'],
+    queryKey: ['channel-accounts', effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<ChannelAccount[]> => {
       const supabase = createClient()
       const { data } = await supabase
         .from('channel_accounts')
         .select('*')
+        .eq('user_id', effectiveUserId!)
         .neq('status', 'disconnected')
         .order('connected_at', { ascending: false })
       return (data ?? []) as ChannelAccount[]
@@ -68,15 +114,16 @@ export function useChannelAccounts() {
 }
 
 export function useMyOverrides() {
+  const effectiveUserId = useEffectiveUserId()
   return useQuery({
-    queryKey: ['my-overrides'],
+    queryKey: ['my-overrides', effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<{ key: string; enabled: boolean }[]> => {
       const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return []
-      const { data } = await supabase.from('user_feature_overrides').select('key, enabled').eq('user_id', user.id)
+      const { data } = await supabase
+        .from('user_feature_overrides')
+        .select('key, enabled')
+        .eq('user_id', effectiveUserId!)
       return (data ?? []) as { key: string; enabled: boolean }[]
     },
     staleTime: 5 * 60_000,

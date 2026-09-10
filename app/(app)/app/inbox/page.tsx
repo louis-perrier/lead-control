@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Inbox as InboxIcon, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useInvalidate, useProfile } from '@/lib/queries'
+import { useEffectiveUserId, useInvalidate, useProfile } from '@/lib/queries'
 import type { Conversation } from '@/lib/types'
 import { cn, formatRelative } from '@/lib/utils'
 import { Avatar, EmptyState, Skeleton } from '@/components/ui/misc'
@@ -42,13 +42,16 @@ function matchesFilter(conv: Conversation, filter: FilterKey) {
 }
 
 function useConversations() {
+  const effectiveUserId = useEffectiveUserId()
   return useQuery({
-    queryKey: ['conversations'],
+    queryKey: ['conversations', effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<Conversation[]> => {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
+        .eq('user_id', effectiveUserId!)
         .order('last_message_at', { ascending: false, nullsFirst: false })
         .limit(200)
       if (error) throw error
