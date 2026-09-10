@@ -457,9 +457,9 @@ async function callOpenAIStructured<T>(
   return { data, usage: payload.usage ?? {} }
 }
 
-function buildGuideInput(answers: Record<string, string>) {
-  const sections = Object.entries(QUESTIONS)
-    .map(([key, question], i) => `## Q${i + 1}\nQuestion : "${question}"\nRéponse : ${answers[key].trim()}`)
+function buildGuideInput(answers: Record<string, string>, questions: { key: string; question: string }[]) {
+  const sections = questions
+    .map(({ key, question }, i) => `## Q${i + 1}\nQuestion : "${question}"\nRéponse : ${answers[key].trim()}`)
     .join('\n\n')
   return `# Socle de ton existant\n${DEFAULT_TONE}\n\n# Réponses utilisateur à analyser\n\n${sections}\n\n# Consigne d'analyse\nAnalyse uniquement la texture de formulation.\nCherche des marqueurs stables de voix.\nIgnore les fautes, les maladresses rédactionnelles et le contenu métier.\nPriorise les régularités transversales observées sur l'ensemble des réponses plutôt que les observations propres à chaque cas.\nDistingue :\n- les marqueurs injectables de formulation,\n- les éléments contextuels non injectables,\n- ce qui doit rester hérité du ton par défaut.\nSi certaines réponses sont trop courtes, vides ou peu exploitables, baisse ton niveau de confiance.\nN'utilise le ton par défaut comme base principale que si le signal utilisateur est insuffisant.`
 }
@@ -568,7 +568,7 @@ Deno.serve(async (req) => {
 
   const { data: assistant } = await admin
     .from('assistants')
-    .select('id, user_id')
+    .select('id, user_id, custom_tone_questions')
     .eq('id', assistantId)
     .maybeSingle()
   if (!assistant || assistant.user_id !== user.id) return json(req, { error: 'not_found' }, 404)
@@ -578,7 +578,19 @@ Deno.serve(async (req) => {
   if (!resolved) return json(req, { error: 'no_api_key' }, 409)
   if (!OPENAI_API_KEY) return json(req, { error: 'openai_key_missing' }, 409)
 
-  const incomplete = Object.keys(QUESTIONS).filter((key) => (answers[key] ?? '').trim().length < MIN_ANSWER_LENGTH)
+  // Plafonnée à 6 côté serveur même si l'interface l'empêche déjà, pour borner
+  // le coût et la taille du prompt d'extraction.
+  const customQuestions = (
+    Array.isArray(assistant.custom_tone_questions) ? assistant.custom_tone_questions : []
+  ).slice(0, 6) as { id: string; question: string }[]
+  const allQuestions: { key: string; question: string }[] = [
+    ...Object.entries(QUESTIONS).map(([key, question]) => ({ key, question })),
+    ...customQuestions.map((q) => ({ key: q.id, question: q.question })),
+  ]
+
+  const incomplete = allQuestions
+    .filter((q) => (answers[q.key] ?? '').trim().length < MIN_ANSWER_LENGTH)
+    .map((q) => q.key)
   if (incomplete.length > 0) {
     return json(req, { error: 'invalid_answers', incomplete }, 400)
   }
@@ -586,7 +598,7 @@ Deno.serve(async (req) => {
   try {
     const guideRes = await callOpenAIStructured<GuideOutput>(
       CREATE_GUIDE_SYSTEM,
-      buildGuideInput(answers),
+      buildGuideInput(answers, allQuestions),
       'my_guide_schema',
       GUIDE_SCHEMA,
     )
