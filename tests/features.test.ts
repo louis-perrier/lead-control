@@ -16,6 +16,7 @@ function profile(overrides: Partial<Profile> = {}): Profile {
     full_name: null,
     role: 'user',
     plan_override: null,
+    plan_override_since: null,
     timezone: 'Europe/Paris',
     city: null,
     company_name: null,

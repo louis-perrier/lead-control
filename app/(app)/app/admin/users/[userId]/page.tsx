@@ -117,13 +117,18 @@ export default function AdminUserDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge tone={profile.plan_override ? 'primary' : 'muted'}>
-              {profile.plan_override === 'free_unlimited'
-                ? 'Accès libre'
-                : profile.plan_override === 'beta_byok'
-                  ? 'Bêta clé perso'
-                  : 'Plan standard'}
-            </Badge>
+            <div className="text-right">
+              <Badge tone={profile.plan_override ? 'primary' : 'muted'}>
+                {profile.plan_override === 'free_unlimited'
+                  ? 'Accès libre'
+                  : profile.plan_override === 'beta_byok'
+                    ? 'Bêta clé perso'
+                    : 'Plan standard'}
+              </Badge>
+              {profile.plan_override && profile.plan_override_since ? (
+                <p className="mt-0.5 text-xs text-muted">depuis {formatRelative(profile.plan_override_since)}</p>
+              ) : null}
+            </div>
             {profile.role === 'user' ? (
               <Button size="sm" variant="secondary" onClick={viewAsThisClient} disabled={enteringViewAs}>
                 {enteringViewAs ? 'Chargement…' : 'Voir comme ce client'}
