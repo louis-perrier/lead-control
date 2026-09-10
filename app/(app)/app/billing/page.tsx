@@ -175,6 +175,16 @@ function ManagePlan() {
         </CardBody>
       </Card>
 
+      {billing.planOverride != null ? (
+        <Card className="border-primary/30">
+          <CardBody className="text-sm text-muted">
+            {billing.planOverride === 'free_unlimited'
+              ? "Votre compte a un accès illimité offert par l'équipe LeadControl : votre plan actuel ne nécessite aucun paiement ici."
+              : "Vous êtes bêta-testeur avec votre propre clé API Anthropic : vos réponses passent par votre clé, votre plan actuel ne nécessite aucun paiement ici."}
+          </CardBody>
+        </Card>
+      ) : null}
+
       {billing.planOverride == null ? (
         <Card>
           <CardBody className="space-y-3">
