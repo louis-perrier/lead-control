@@ -12,6 +12,7 @@ export type Profile = {
   full_name: string | null
   role: Role
   plan_override: PlanOverride
+  plan_override_since: string | null
   timezone: string
   city: string | null
   company_name: string | null
