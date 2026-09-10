@@ -528,7 +528,8 @@ Deno.serve(async (req) => {
 
   const { data, error } = await admin.rpc('dispatch_scheduled_replies', { p_limit: 40 })
   if (error) {
-    await logEvent('error', 'assistant-dispatch', `réservation impossible: ${error.message}`)
+    // Panne réseau ponctuelle côté base : le cron réessaie de lui-même à la minute suivante.
+    await logEvent('warn', 'assistant-dispatch', `réservation impossible: ${error.message}`)
     return json(req, { error: 'reserve_failed' }, 500)
   }
   const due = (data ?? []) as DueConversation[]
