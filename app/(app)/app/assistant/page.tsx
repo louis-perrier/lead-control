@@ -6,7 +6,15 @@ import { useQuery } from '@tanstack/react-query'
 import { Instagram, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
-import { useAssistants, useChannelAccounts, useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
+import {
+  useAssistants,
+  useChannelAccounts,
+  useEffectiveUserId,
+  useFlags,
+  useInvalidate,
+  useMyOverrides,
+  useProfile,
+} from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import type { Assistant, AssistantSettings, ContextDocument } from '@/lib/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -123,6 +131,91 @@ function ChannelSection({ assistant }: { assistant: Assistant }) {
         onConfirm={disconnect}
         title="Déconnecter Instagram"
         message="L'assistant sera mis en pause et ne pourra plus lire ni envoyer de messages sur ce compte. Vos conversations restent visibles."
+        confirmLabel="Déconnecter"
+        danger
+        loading={busy}
+      />
+    </Card>
+  )
+}
+
+function CalendlySection() {
+  const { data: channels } = useChannelAccounts()
+  const toast = useToast()
+  const invalidate = useInvalidate()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const channel = channels?.find((c) => c.provider === 'calendly')
+
+  async function connect() {
+    setBusy(true)
+    try {
+      const { auth_url } = await callFunction<{ auth_url: string }>('calendly-oauth/start', {
+        body: { return_to: window.location.href },
+      })
+      window.location.href = auth_url
+    } catch {
+      toast('Impossible de démarrer la connexion Calendly.', 'error')
+      setBusy(false)
+    }
+  }
+
+  async function disconnect() {
+    if (!channel) return
+    setBusy(true)
+    try {
+      await callFunction('calendly-oauth/disconnect', { body: { channel_account_id: channel.id } })
+      toast('Compte Calendly déconnecté.')
+      invalidate('channel-accounts')
+    } catch {
+      toast('La déconnexion a échoué.', 'error')
+    }
+    setBusy(false)
+    setConfirmOpen(false)
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Calendly"
+        description="Reçoit les rendez-vous réservés par vos prospects via le lien envoyé par l'assistant."
+      />
+      <CardBody>
+        {channel ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-medium">{channel.handle ?? channel.label ?? 'Compte relié'}</span>
+            {channel.status === 'connected' ? (
+              <Badge tone="success">Connecté</Badge>
+            ) : (
+              <Badge tone="warning">Connexion expirée</Badge>
+            )}
+            <div className="ml-auto flex gap-2">
+              {channel.status !== 'connected' ? (
+                <Button size="sm" onClick={connect} disabled={busy}>
+                  <RefreshCw size={14} />
+                  Reconnecter
+                </Button>
+              ) : null}
+              <Button size="sm" variant="secondary" onClick={() => setConfirmOpen(true)} disabled={busy}>
+                Déconnecter
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted">Aucun compte Calendly relié pour le moment.</p>
+            <Button onClick={connect} disabled={busy}>
+              {busy ? 'Ouverture…' : 'Relier mon compte Calendly'}
+            </Button>
+          </div>
+        )}
+      </CardBody>
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={disconnect}
+        title="Déconnecter Calendly"
+        message="Les rendez-vous déjà réservés restent visibles, mais les nouvelles réservations ne seront plus suivies."
         confirmLabel="Déconnecter"
         danger
         loading={busy}
@@ -410,13 +503,22 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
       await save({ tone: { preset: 'custom' } })
       toast('Ton personnalisé généré et activé.')
       invalidate('assistants')
-    } catch {
-      toast('La génération a échoué. Réessayez.', 'error')
+    } catch (e) {
+      const message = e instanceof Error ? e.message : ''
+      if (message === 'invalid_answers') {
+        toast('Complétez les 6 réponses, avec au moins 200 caractères chacune.', 'error')
+      } else if (message === 'no_api_key') {
+        toast('Aucune clé API configurée : rendez-vous dans Réglages.', 'error')
+      } else {
+        toast('La génération a échoué. Réessayez.', 'error')
+      }
     }
     setGenerating(false)
   }
 
-  const answeredCount = Object.values(answers).filter((v) => v.trim().length > 0).length
+  const MIN_ANSWER_LENGTH = 200
+  const incompleteCount = TONE_QUESTIONS.filter((q) => (answers[q.key] ?? '').trim().length < MIN_ANSWER_LENGTH).length
+  const answersReady = incompleteCount === 0
   const options = allowCustom ? [...TONE_PRESETS, { value: 'custom', label: 'Personnalisé' } as const] : TONE_PRESETS
 
   return (
@@ -442,19 +544,26 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
         {preset === 'custom' && allowCustom ? (
           <div className="space-y-3 border-t border-border pt-4">
             <p className="text-sm text-muted">
-              Répondez à ces messages comme vous le feriez vraiment, avec vos mots. L'assistant en tire votre façon de vous exprimer, jamais le contenu de vos réponses.
+              Répondez à ces messages comme vous le feriez vraiment, avec vos mots. L'assistant en tire votre façon de vous exprimer, jamais le contenu de vos réponses. 200 caractères minimum par réponse, pour avoir assez de matière.
             </p>
-            {TONE_QUESTIONS.map((q) => (
-              <div key={q.key}>
-                <Label htmlFor={q.key}>{q.question}</Label>
-                <Textarea
-                  id={q.key}
-                  rows={2}
-                  value={answers[q.key] ?? ''}
-                  onChange={(e) => setAnswers((a) => ({ ...a, [q.key]: e.target.value }))}
-                />
-              </div>
-            ))}
+            {TONE_QUESTIONS.map((q) => {
+              const length = (answers[q.key] ?? '').trim().length
+              const ok = length >= MIN_ANSWER_LENGTH
+              return (
+                <div key={q.key}>
+                  <Label htmlFor={q.key}>{q.question}</Label>
+                  <Textarea
+                    id={q.key}
+                    rows={3}
+                    value={answers[q.key] ?? ''}
+                    onChange={(e) => setAnswers((a) => ({ ...a, [q.key]: e.target.value }))}
+                  />
+                  <FieldHint className={ok ? 'text-success' : undefined}>
+                    {length}/{MIN_ANSWER_LENGTH} caractères
+                  </FieldHint>
+                </div>
+              )
+            })}
             {assistant.custom_tone ? (
               <p className="text-xs text-muted">Un ton personnalisé est déjà actif. Répondez à nouveau pour le régénérer.</p>
             ) : null}
@@ -462,8 +571,13 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
         ) : null}
       </CardBody>
       {preset === 'custom' && allowCustom ? (
-        <div className="flex justify-end border-t border-border px-5 py-3.5">
-          <Button onClick={generate} disabled={generating || answeredCount < 3}>
+        <div className="flex items-center justify-end gap-3 border-t border-border px-5 py-3.5">
+          {!answersReady ? (
+            <p className="text-xs text-muted">
+              Encore {incompleteCount} réponse{incompleteCount > 1 ? 's' : ''} à compléter (200 caractères minimum).
+            </p>
+          ) : null}
+          <Button onClick={generate} disabled={generating || !answersReady}>
             {generating ? 'Génération…' : 'Générer mon ton'}
           </Button>
         </div>
@@ -475,16 +589,19 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
 function ContextDocumentsSection() {
   const toast = useToast()
   const invalidate = useInvalidate()
+  const effectiveUserId = useEffectiveUserId()
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: docs, isLoading } = useQuery({
-    queryKey: ['context-documents'],
+    queryKey: ['context-documents', effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<ContextDocument[]> => {
       const supabase = createClient()
       const { data } = await supabase
         .from('context_documents')
         .select('id, title, status, char_count, error_message, created_at')
+        .eq('user_id', effectiveUserId!)
         .order('created_at', { ascending: false })
       return (data ?? []) as ContextDocument[]
     },
@@ -604,7 +721,6 @@ const PAUSE_REASONS: Record<string, string> = {
   byok_removed: 'votre accès bêta a changé',
   subscription_ended: 'votre abonnement est terminé',
   channel_disconnected: 'le compte Instagram est déconnecté',
-  v2_migration: 'la nouvelle version de LeadControl est en place, vérifiez vos réglages puis réactivez',
   paused_by_admin: "l'équipe LeadControl l'a mis en pause",
 }
 
@@ -684,6 +800,7 @@ function AssistantContent() {
   const assistant = assistants?.[0]
   const allowCustomTone = hasFeature('custom_tone', flags, profile, overrides)
   const allowContextDocuments = hasFeature('context_documents', flags, profile, overrides)
+  const allowCalendly = hasFeature('calendly', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -692,6 +809,13 @@ function AssistantContent() {
       window.history.replaceState(null, '', window.location.pathname)
     } else if (searchParams.get('ig_error')) {
       toast('La connexion Instagram a échoué. Réessayez.', 'error')
+      window.history.replaceState(null, '', window.location.pathname)
+    } else if (searchParams.get('calendly_connected') === '1') {
+      toast('Compte Calendly connecté.')
+      invalidate('channel-accounts')
+      window.history.replaceState(null, '', window.location.pathname)
+    } else if (searchParams.get('calendly_error')) {
+      toast('La connexion Calendly a échoué. Réessayez.', 'error')
       window.history.replaceState(null, '', window.location.pathname)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -746,9 +870,10 @@ function AssistantContent() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <ActivationSection assistant={assistant} />
       <ChannelSection assistant={assistant} />
+      {allowCalendly ? <CalendlySection /> : null}
       <ProfileSection assistant={assistant} />
       <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       {allowContextDocuments ? <ContextDocumentsSection /> : null}
