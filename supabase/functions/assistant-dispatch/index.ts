@@ -248,12 +248,15 @@ async function handleConversation(due: DueConversation) {
   const resolved = await resolveApiKey(due.user_id, planOverride)
   if (!resolved) {
     if (planOverride === 'beta_byok') {
-      await stopWith(convId, 'missing_api_key')
+      // Message visible par le bêta-testeur : c'est sa propre clé, il peut agir dessus.
+      await stopWith(convId, 'missing_api_key', "Votre clé API Anthropic n'est pas configurée. Ajoutez-la dans Réglages pour que l'assistant puisse répondre.")
       await logEvent('warn', 'assistant-dispatch', 'clé Anthropic du bêta-testeur absente', {
         user_id: due.user_id,
         conversation_id: convId,
       })
     } else {
+      // Jamais montré au client de base : c'est un problème côté plateforme, seuls les
+      // admins doivent le voir (system_events), on retente juste plus tard.
       await retryLater(convId, 'platform_key_missing', 15 * 60 * 1000)
       await logEvent('error', 'assistant-dispatch', 'ANTHROPIC_API_KEY manquante côté plateforme', {
         conversation_id: convId,
@@ -265,7 +268,14 @@ async function handleConversation(due: DueConversation) {
   const canRes = await admin.rpc('can_consume_one_credit', { p_user_id: due.user_id })
   const can = canRes.data as { ok?: boolean; reason?: string } | null
   if (can?.ok === false) {
-    await stopWith(convId, can.reason ?? 'no_credits_left')
+    const reason = can.reason ?? 'no_credits_left'
+    const message =
+      reason === 'no_credits_left'
+        ? 'Tous les crédits du mois sont consommés. Achetez un pack de crédits ou attendez le renouvellement.'
+        : reason === 'no_active_subscription'
+          ? 'Aucun abonnement actif : rendez-vous dans Facturation pour continuer.'
+          : "L'assistant ne peut pas répondre pour le moment, contactez le support."
+    await stopWith(convId, reason, message)
     return
   }
 
@@ -367,17 +377,32 @@ async function handleConversation(due: DueConversation) {
     decision = parseDecision(res.text)
     await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: res.usage, source: resolved.source })
   } catch (e) {
+    const message = String(e)
+    const looksLikeKeyIssue = /401|invalid.*api.?key|authentication|x-api-key|insufficient|credit balance/i.test(message)
+    await logEvent('error', 'assistant-dispatch', `échec Anthropic conv=${convId}: ${message.slice(0, 300)}`, {
+      user_id: due.user_id,
+      conversation_id: convId,
+    })
+
+    // Clé du bêta-testeur invalide ou à court : message clair et immédiat, inutile
+    // de réessayer, ça ne se corrigera pas tout seul.
+    if (resolved.source === 'byok' && looksLikeKeyIssue) {
+      await stopWith(convId, 'invalid_api_key', 'Votre clé API Anthropic ne fonctionne plus (invalide ou à court de crédit). Vérifiez-la dans Réglages.')
+      return
+    }
+
     const meta = (conv.metadata ?? {}) as Record<string, unknown>
     const retries = Number(meta.dispatch_retries ?? 0) + 1
     if (retries < 3) {
       await admin.from('conversations').update({ metadata: { ...meta, dispatch_retries: retries } }).eq('id', convId)
       await retryLater(convId, `ai_retry_${retries}`, 15_000)
+    } else if (resolved.source === 'platform') {
+      // Jamais de détail technique montré à un client de base pour un souci côté
+      // plateforme : on retente en silence, seuls les admins voient l'échec loggé.
+      await admin.from('conversations').update({ metadata: { ...meta, dispatch_retries: 0 } }).eq('id', convId)
+      await retryLater(convId, 'platform_ai_error', 15 * 60 * 1000)
     } else {
-      await stopWith(convId, 'ai_error', `La génération de réponse a échoué : ${String(e).slice(0, 200)}`)
-      await logEvent('error', 'assistant-dispatch', `échec Anthropic conv=${convId}: ${String(e).slice(0, 300)}`, {
-        user_id: due.user_id,
-        conversation_id: convId,
-      })
+      await stopWith(convId, 'ai_error', "Un problème technique empêche l'assistant de répondre pour le moment. Nous nous en occupons.")
     }
     return
   }
