@@ -28,8 +28,8 @@ export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
   return <label className={cn('mb-1.5 block text-sm font-medium text-ink', className)} {...props} />
 }
 
-export function FieldHint({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1 text-xs text-muted">{children}</p>
+export function FieldHint({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p className={cn('mt-1 text-xs text-muted', className)}>{children}</p>
 }
 
 export function FieldError({ children }: { children?: React.ReactNode }) {
