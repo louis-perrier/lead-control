@@ -4,6 +4,8 @@ export type FlagStage = 'hidden' | 'staff' | 'beta' | 'all'
 export type AutomationState = 'idle' | 'scheduled' | 'pending' | 'stopped' | 'condition_stop' | 'error'
 export type HeatTag = 'unknown' | 'hot' | 'warm' | 'cold'
 
+export type CompanySize = '1' | '2-10' | '11-50' | '51-200' | '200+'
+
 export type Profile = {
   user_id: string
   email: string
@@ -11,6 +13,9 @@ export type Profile = {
   role: Role
   plan_override: PlanOverride
   timezone: string
+  city: string | null
+  company_name: string | null
+  company_size: CompanySize | null
   onboarding_completed_at: string | null
   credits_consumed_in_period: number
   created_at: string
@@ -22,6 +27,7 @@ export type ChannelAccount = {
   provider: 'instagram' | 'whatsapp' | 'calendly' | 'gmail'
   external_id: string
   handle: string | null
+  label: string | null
   status: 'connected' | 'expired' | 'error' | 'disconnected'
   token_expires_at: string | null
   last_error: string | null
@@ -115,6 +121,17 @@ export type Contact = {
   conversation_id: number | null
   last_interaction_at: string | null
   source: string
+}
+
+export type Booking = {
+  id: string
+  conversation_id: number | null
+  event_type_name: string | null
+  invitee_email: string | null
+  invitee_name: string | null
+  event_start_at: string | null
+  event_end_at: string | null
+  status: 'active' | 'canceled'
 }
 
 export type FeatureFlag = {
