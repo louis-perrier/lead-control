@@ -2,7 +2,7 @@
 // Signature HMAC obligatoire, dédoublonnage par mid, échos réconciliés,
 // planification de la réponse via schedule_conversation_debounce.
 import { admin, json, logEvent, SERVICE_ROLE_KEY, SUPABASE_URL } from '../_shared/core.ts'
-import { fetchContactProfile, getChannelToken } from '../_shared/instagram.ts'
+import { fetchContactProfile, getChannelToken, markSeen } from '../_shared/instagram.ts'
 
 const IG_APP_SECRET = Deno.env.get('IG_APP_SECRET')!
 const IG_VERIFY_TOKEN = Deno.env.get('IG_VERIFY_TOKEN')
@@ -159,6 +159,16 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
 
   const channel = await findChannel(accountId)
   if (!channel) return
+
+  if (!isEcho) {
+    // Vu dès la réception, pas juste avant l'envoi de la réponse : sinon le
+    // badge "Vu" et la réponse apparaissent au même instant, ce qui trahit le bot.
+    // @ts-ignore fourni par le runtime Edge
+    EdgeRuntime.waitUntil(
+      getChannelToken(channel.id).then((token) => (token ? markSeen(token, channel.external_id, contactId) : null)),
+    )
+  }
+
   const assistant = await findAssistant(channel.id)
   const { conv } = await findOrCreateConversation({
     channel,
