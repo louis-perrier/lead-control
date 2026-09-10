@@ -12,9 +12,11 @@ import {
 } from 'recharts'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import { useEffectiveUserId } from '@/lib/queries'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { EmptyState, Skeleton } from '@/components/ui/misc'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import { RoiKpiCard } from './roi-kpi-card'
 
 const PERIODS = [
   { days: 7, label: '7 jours' },
@@ -44,7 +46,7 @@ type DealRow = {
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <Card>
-      <CardBody className="py-3.5">
+      <CardBody className="py-3">
         <p className="text-xs font-medium text-muted">{label}</p>
         <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
         {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
@@ -56,26 +58,31 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
 export function StatsContent() {
   const [days, setDays] = useState<7 | 30 | 90>(7)
   const since = useMemo(() => new Date(Date.now() - days * 24 * 3600 * 1000), [days])
+  const effectiveUserId = useEffectiveUserId()
 
   const { data: conversations, isLoading: loadingConvs } = useQuery({
-    queryKey: ['stats-conversations'],
+    queryKey: ['stats-conversations', effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<ConversationRow[]> => {
       const supabase = createClient()
       const { data } = await supabase
         .from('conversations')
         .select('id, last_message_at, heat_tag')
+        .eq('user_id', effectiveUserId!)
         .limit(2000)
       return (data ?? []) as ConversationRow[]
     },
   })
 
   const { data: daily, isLoading: loadingDaily } = useQuery({
-    queryKey: ['stats-daily', days],
+    queryKey: ['stats-daily', days, effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<DailyRow[]> => {
       const supabase = createClient()
       const { data } = await supabase
         .from('v_daily_message_counts')
         .select('day, inbound, agent_replies, human_replies')
+        .eq('user_id', effectiveUserId!)
         .gte('day', since.toISOString())
         .order('day', { ascending: true })
       return (data ?? []) as DailyRow[]
@@ -83,10 +90,15 @@ export function StatsContent() {
   })
 
   const { data: deals, isLoading: loadingDeals } = useQuery({
-    queryKey: ['stats-deals'],
+    queryKey: ['stats-deals', effectiveUserId],
+    enabled: effectiveUserId !== null,
     queryFn: async (): Promise<DealRow[]> => {
       const supabase = createClient()
-      const { data } = await supabase.from('deals').select('amount, status, closed_at').limit(2000)
+      const { data } = await supabase
+        .from('deals')
+        .select('amount, status, closed_at')
+        .eq('user_id', effectiveUserId!)
+        .limit(2000)
       return (data ?? []) as DealRow[]
     },
   })
@@ -101,10 +113,14 @@ export function StatsContent() {
     const hot = (conversations ?? []).filter((c) => c.heat_tag === 'hot').length
     const inbound = (daily ?? []).reduce((sum, d) => sum + Number(d.inbound ?? 0), 0)
     const replies = (daily ?? []).reduce((sum, d) => sum + Number(d.agent_replies ?? 0), 0)
-    const revenue = (deals ?? [])
-      .filter((d) => d.status === 'won' && d.closed_at && Date.parse(d.closed_at) >= sinceMs)
+    const closedInWindow = (deals ?? []).filter((d) => d.closed_at && Date.parse(d.closed_at) >= sinceMs)
+    const revenue = closedInWindow
+      .filter((d) => d.status === 'won')
       .reduce((sum, d) => sum + Number(d.amount ?? 0), 0)
-    return { active, hot, inbound, replies, revenue }
+    const wonCount = closedInWindow.filter((d) => d.status === 'won').length
+    const lostCount = closedInWindow.filter((d) => d.status === 'lost').length
+    const closeRate = wonCount + lostCount > 0 ? (wonCount / (wonCount + lostCount)) * 100 : 0
+    return { active, hot, inbound, replies, revenue, closeRate }
   }, [conversations, daily, deals, since])
 
   const chartData = useMemo(
@@ -120,8 +136,12 @@ export function StatsContent() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
@@ -158,13 +178,17 @@ export function StatsContent() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <RoiKpiCard label="Taux de close" value={stats.closeRate} format="percent" percentDecimals={1} hint={`sur ${days} jours`} />
+        <RoiKpiCard label="CA généré" value={stats.revenue} format="currency" highlight hint={`sur ${days} jours`} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Conversations" value={String(conversations?.length ?? 0)} hint="au total" />
         <StatCard label="Conversations actives" value={String(stats.active)} hint={`sur ${days} jours`} />
         <StatCard label="Messages reçus" value={stats.inbound.toLocaleString('fr-FR')} hint={`sur ${days} jours`} />
         <StatCard label="Réponses de l'assistant" value={stats.replies.toLocaleString('fr-FR')} hint={`sur ${days} jours`} />
         <StatCard label="Prospects chauds" value={String(stats.hot)} hint="détectés par l'assistant" />
-        <StatCard label="CA gagné" value={formatCurrency(stats.revenue)} hint={`sur ${days} jours`} />
       </div>
 
       <Card>
