@@ -23,6 +23,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { ViewAsBanner } from '@/components/view-as/banner'
+import { AdminHealthBanner } from '@/components/admin/health-banner'
 
 const NAV = [
   { href: '/app', label: 'Accueil', icon: Home, exact: true },
@@ -196,6 +197,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main className="min-w-0 flex-1 pb-16 md:ml-60 md:pb-0">
         <ViewAsBanner />
+        {staff ? <AdminHealthBanner /> : null}
         {children}
       </main>
 

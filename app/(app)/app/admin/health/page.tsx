@@ -1,7 +1,9 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import { useInvalidate } from '@/lib/queries'
 import { Card, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState, Skeleton } from '@/components/ui/misc'
@@ -27,6 +29,15 @@ type FeedbackRow = {
 const LEVEL_TONE = { info: 'neutral', warn: 'warning', error: 'danger' } as const
 
 export default function AdminHealthPage() {
+  const invalidate = useInvalidate()
+
+  useEffect(() => {
+    createClient()
+      .rpc('mark_health_seen')
+      .then(() => invalidate('admin-health-banner'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const { data, isLoading } = useQuery({
     queryKey: ['admin-health'],
     queryFn: async () => {
