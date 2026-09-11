@@ -81,10 +81,7 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
             contact_external_id: other.id,
             contact_handle: other.username ?? null,
             contact_name: other.name ?? other.username ?? null,
-            // Marquer distinctement une conversation reconstituée depuis l'historique Instagram,
-            // pour ne jamais la faire passer pour une conversation vivante ignorée par l'agent.
-            // Seulement sur une ligne réellement nouvelle : ne jamais écraser l'état d'une
-            // conversation déjà suivie en direct qui tomberait sur le même fil.
+            // Seulement sur une ligne neuve, jamais sur un fil déjà suivi en direct.
             ...(existing.data ? {} : { automation_state: 'stopped', automation_reason: 'imported_history' }),
           },
           { onConflict: 'channel_account_id,external_thread_id', ignoreDuplicates: false },
