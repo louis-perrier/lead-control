@@ -47,6 +47,21 @@ async function start(req: Request) {
   return json(req, { auth_url: authUrl })
 }
 
+function audienceBlocks(settings: Record<string, unknown> | null, handle: string | null) {
+  const audience = (settings as { audience?: { mode?: string; handles?: string[] } } | null)?.audience
+  if (!audience || !handle) return false
+  const handles = (audience.handles ?? []).map((h) => h.replace(/^@/, '').toLowerCase())
+  const h = handle.replace(/^@/, '').toLowerCase()
+  if (audience.mode === 'blocklist') return handles.includes(h)
+  if (audience.mode === 'allowlist') return !handles.includes(h)
+  return false
+}
+
+function computeWaitSeconds(text: string) {
+  const bonus = Math.ceil(text.length / 100) * 2
+  return Math.min(90, Math.max(12, 12 + bonus))
+}
+
 async function syncRecentHistory(channelAccountId: string, igUserId: string, token: string, userId: string, assistantId: string | null) {
   try {
     const since = Math.floor((Date.now() - 15 * 24 * 3600 * 1000) / 1000)
@@ -55,6 +70,9 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
     )
     if (!res.ok) return
     const payload = await res.json()
+    const assistant = assistantId
+      ? (await admin.from('assistants').select('id, is_active, settings').eq('id', assistantId).maybeSingle()).data
+      : null
     for (const thread of payload.data ?? []) {
       const other = (thread.participants?.data ?? []).find((p: { id: string }) => p.id !== igUserId)
       if (!other) continue
@@ -69,6 +87,10 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
         .eq('channel_account_id', channelAccountId)
         .eq('external_thread_id', threadKey)
         .maybeSingle()
+      const last = messages[0]
+      // Dernier mot au prospect et fenêtre Meta de 24h encore ouverte : laissé actif au lieu d'être marqué en pause.
+      const resumable =
+        !existing.data && last.from?.id === other.id && Date.now() - Date.parse(last.created_time) < 24 * 3600 * 1000
       const convRes = await admin
         .from('conversations')
         .upsert(
@@ -81,8 +103,8 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
             contact_external_id: other.id,
             contact_handle: other.username ?? null,
             contact_name: other.name ?? other.username ?? null,
-            // Seulement sur une ligne neuve, jamais sur un fil déjà suivi en direct.
-            ...(existing.data ? {} : { automation_state: 'stopped', automation_reason: 'imported_history' }),
+            // Seulement sur une ligne neuve non reprenable, jamais sur un fil déjà suivi en direct.
+            ...(existing.data || resumable ? {} : { automation_state: 'stopped', automation_reason: 'imported_history' }),
           },
           { onConflict: 'channel_account_id,external_thread_id', ignoreDuplicates: false },
         )
@@ -106,7 +128,6 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
           })
           .then(() => {})
       }
-      const last = messages[0]
       await admin
         .from('conversations')
         .update({
@@ -114,6 +135,23 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
           last_message_preview: (last.message ?? '').slice(0, 140) || '[Message]',
         })
         .eq('id', convRes.data.id)
+      if (resumable && assistant?.is_active && !audienceBlocks(assistant.settings, other.username ?? null)) {
+        const allowedRes = await admin.rpc('assistant_next_allowed_time', {
+          p_assistant_id: assistant.id,
+          p_at: new Date().toISOString(),
+        })
+        const allowed = allowedRes.data ? new Date(allowedRes.data as string) : null
+        if (allowed) {
+          const wait = new Date(Date.now() + computeWaitSeconds(last.message ?? '') * 1000)
+          const target = allowed > wait ? allowed : wait
+          await admin.rpc('schedule_conversation_debounce', {
+            p_conversation_id: convRes.data.id,
+            p_next_reply_at: target.toISOString(),
+            p_cursor_at: last.created_time,
+            p_automation_reason: allowed > wait ? 'outside_schedule' : 'debounce_inbound',
+          })
+        }
+      }
     }
   } catch (e) {
     await logEvent('warn', 'instagram-oauth', `import historique échoué: ${String(e).slice(0, 200)}`, {
