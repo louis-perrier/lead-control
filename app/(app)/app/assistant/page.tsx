@@ -17,7 +17,8 @@ import {
 } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import { formatDateTime } from '@/lib/utils'
-import type { Assistant, AssistantSettings, ContextDocument } from '@/lib/types'
+import type { Assistant, AssistantSettings, CannedResponse, ContextDocument, FollowupItem } from '@/lib/types'
+import { AudioField } from '@/components/ui/audio-field'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Label, Textarea, FieldHint, FieldError } from '@/components/ui/input'
@@ -38,9 +39,13 @@ function useSaveSettings(assistant: Assistant | undefined) {
     if (!assistant) return
     setSaving(true)
     const supabase = createClient()
+    // Relecture juste avant l'écriture : le cache peut dater, et un second onglet
+    // écraserait sinon des réglages enregistrés entre-temps.
+    const current = await supabase.from('assistants').select('settings').eq('id', assistant.id).maybeSingle()
+    const base = (current.data?.settings ?? assistant.settings) as AssistantSettings
     const { error } = await supabase
       .from('assistants')
-      .update({ settings: { ...assistant.settings, ...patch }, ...extra })
+      .update({ settings: { ...base, ...patch }, ...extra })
       .eq('id', assistant.id)
     setSaving(false)
     if (error) {
@@ -960,6 +965,355 @@ function ContextDocumentsSection() {
   )
 }
 
+const MAX_FOLLOWUPS = 3
+const MAX_VARIANTS = 3
+const MIN_DELAY_MINUTES = 15
+const MAX_DELAY_MINUTES = 23 * 60 + 45
+const DELAY_HOURS = Array.from({ length: 24 }, (_, i) => i)
+const DELAY_MINUTES = [0, 15, 30, 45]
+
+const pillClass = (active: boolean) =>
+  active
+    ? 'rounded-full bg-primary px-3 py-1 text-sm text-white'
+    : 'rounded-full border border-border px-3 py-1 text-sm text-muted'
+
+function DelaySelect({ value, onChange }: { value: number; onChange: (minutes: number) => void }) {
+  const hour = Math.floor(value / 60)
+  const minute = value % 60
+  const selectClass =
+    'h-10 rounded-[10px] border border-border bg-surface px-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:opacity-50'
+  return (
+    <div className="flex items-center gap-1">
+      <select value={hour} onChange={(e) => onChange(Number(e.target.value) * 60 + minute)} className={selectClass}>
+        {DELAY_HOURS.map((h) => (
+          <option key={h} value={h}>
+            {h} h
+          </option>
+        ))}
+      </select>
+      <select value={minute} onChange={(e) => onChange(hour * 60 + Number(e.target.value))} className={selectClass}>
+        {DELAY_MINUTES.map((m) => (
+          <option key={m} value={m}>
+            {String(m).padStart(2, '0')}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function newFollowup(): FollowupItem {
+  return { id: crypto.randomUUID(), delay_minutes: 120, kind: 'text', variants: [''] }
+}
+
+function FollowupsSection({ assistant }: { assistant: Assistant }) {
+  const { save, saving } = useSaveSettings(assistant)
+  const initial = assistant.settings.followups
+  const [enabled, setEnabled] = useState(initial?.enabled ?? false)
+  const [afterOwn, setAfterOwn] = useState(initial?.after_own_message ?? false)
+  const [items, setItems] = useState<FollowupItem[]>(
+    initial?.items?.length ? initial.items : [newFollowup()],
+  )
+  const [error, setError] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  function edit(id: string, patch: Partial<FollowupItem>) {
+    setItems((list) => list.map((it) => (it.id === id ? { ...it, ...patch } : it)))
+  }
+
+  function editVariant(id: string, index: number, text: string) {
+    setItems((list) =>
+      list.map((it) =>
+        it.id === id ? { ...it, variants: (it.variants ?? ['']).map((v, i) => (i === index ? text : v)) } : it,
+      ),
+    )
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const cleaned = items.map((it) => ({
+      ...it,
+      variants: it.kind === 'text' ? (it.variants ?? []).map((v) => v.trim()).filter(Boolean) : undefined,
+    }))
+    if (enabled) {
+      let previous = 0
+      for (const [index, it] of cleaned.entries()) {
+        const delay = Number(it.delay_minutes)
+        if (delay < MIN_DELAY_MINUTES || delay > MAX_DELAY_MINUTES) {
+          setError(`Relance ${index + 1} : le délai doit être compris entre 15 minutes et 23 h 45.`)
+          return
+        }
+        if (delay <= previous) {
+          setError(`Relance ${index + 1} : son délai doit être plus long que celui de la relance précédente.`)
+          return
+        }
+        previous = delay
+        if (it.kind === 'audio' && !it.media_path) {
+          setError(`Relance ${index + 1} : enregistrez ou importez un vocal.`)
+          return
+        }
+        if (it.kind === 'text' && (it.variants ?? []).length === 0) {
+          setError(`Relance ${index + 1} : écrivez le message à envoyer.`)
+          return
+        }
+      }
+    }
+    setError('')
+    await save({ followups: { enabled, after_own_message: afterOwn, items: cleaned } })
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Relances"
+        description="Si le prospect ne répond plus, l'assistant envoie les messages que vous avez écrits ici. Instagram n'autorise ces envois que dans les 24 h qui suivent le dernier message du prospect."
+      />
+      <form onSubmit={submit}>
+        <CardBody className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <Label className="mb-0">Activer les relances</Label>
+            <Switch checked={enabled} onChange={setEnabled} label="Activer les relances" />
+          </div>
+
+          {enabled ? (
+            <>
+              <FieldHint>
+                Le délai part du dernier message échangé. Une relance prévue après la fermeture de la fenêtre de 24 h n'est pas envoyée, et une conversation en pause, clôturée ou jugée froide n'est jamais relancée.
+              </FieldHint>
+
+              {items.map((item, index) => (
+                <div key={item.id} className="space-y-3 rounded-[10px] border border-border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Label className="mb-0">Relance {index + 1}</Label>
+                      <span className="text-sm text-muted">après</span>
+                      <DelaySelect
+                        value={Number(item.delay_minutes) || 0}
+                        onChange={(minutes) => edit(item.id, { delay_minutes: minutes })}
+                      />
+                      <span className="text-sm text-muted">sans réponse</span>
+                    </div>
+                    {index > 0 ? (
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteTarget(item.id)}>
+                        Supprimer
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button type="button" className={pillClass(item.kind !== 'audio')} onClick={() => edit(item.id, { kind: 'text' })}>
+                      Texte
+                    </button>
+                    <button type="button" className={pillClass(item.kind === 'audio')} onClick={() => edit(item.id, { kind: 'audio' })}>
+                      Vocal
+                    </button>
+                  </div>
+
+                  {item.kind === 'audio' ? (
+                    <AudioField
+                      value={item.media_path ? { path: item.media_path, mime: item.media_mime ?? 'audio/wav', durationMs: item.media_duration_ms } : null}
+                      onChange={(value) =>
+                        edit(item.id, {
+                          media_path: value?.path,
+                          media_mime: value?.mime,
+                          media_duration_ms: value?.durationMs,
+                        })
+                      }
+                      folder={`${assistant.user_id}/${assistant.id}/followup-${item.id}`}
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      {(item.variants ?? ['']).map((variant, vIndex) => (
+                        <Textarea
+                          key={vIndex}
+                          rows={2}
+                          value={variant}
+                          placeholder={vIndex === 0 ? 'Votre message de relance' : `Variante ${vIndex + 1}`}
+                          onChange={(e) => editVariant(item.id, vIndex, e.target.value)}
+                        />
+                      ))}
+                      {(item.variants ?? []).length > 1 ? (
+                        <FieldHint>Une variante est tirée au hasard à chaque envoi.</FieldHint>
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={(item.variants ?? []).length >= MAX_VARIANTS}
+                        onClick={() => edit(item.id, { variants: [...(item.variants ?? []), ''] })}
+                      >
+                        <Plus size={14} className="mr-1" />
+                        {(item.variants ?? []).length >= MAX_VARIANTS ? 'Maximum atteint' : 'Ajouter une variante'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={items.length >= MAX_FOLLOWUPS}
+                onClick={() => setItems((list) => [...list, newFollowup()])}
+              >
+                <Plus size={14} className="mr-1" />
+                {items.length >= MAX_FOLLOWUPS ? 'Maximum atteint' : 'Ajouter une relance'}
+              </Button>
+
+              <div className="border-t border-border pt-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="mb-0">Relancer aussi après un message que j'ai écrit moi même</Label>
+                  <Switch checked={afterOwn} onChange={setAfterOwn} label="Relancer après mes propres messages" />
+                </div>
+                <FieldHint>
+                  Sans effet si vous avez pris la main sur la conversation, dans ce cas l'assistant ne relance jamais.
+                </FieldHint>
+              </div>
+            </>
+          ) : null}
+          <FieldError>{error}</FieldError>
+        </CardBody>
+        <div className="flex justify-end border-t border-border px-5 py-3.5">
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </Button>
+        </div>
+      </form>
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          setItems((list) => list.filter((it) => it.id !== deleteTarget))
+          setDeleteTarget(null)
+        }}
+        title="Supprimer cette relance"
+        message="Elle ne sera plus envoyée. Pensez à enregistrer ensuite."
+        confirmLabel="Supprimer"
+        danger
+      />
+    </Card>
+  )
+}
+
+const MAX_CANNED = 5
+
+function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
+  const { save, saving } = useSaveSettings(assistant)
+  const [entries, setEntries] = useState<CannedResponse[]>(assistant.settings.canned_responses ?? [])
+  const [error, setError] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  function edit(id: string, patch: Partial<CannedResponse>) {
+    setEntries((list) => list.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    for (const [index, entry] of entries.entries()) {
+      if (!entry.trigger.trim()) {
+        setError(`Réponse ${index + 1} : décrivez la question à laquelle elle répond.`)
+        return
+      }
+      if (entry.kind === 'audio' ? !entry.media_path : !(entry.text ?? '').trim()) {
+        setError(`Réponse ${index + 1} : ajoutez le contenu à envoyer.`)
+        return
+      }
+    }
+    setError('')
+    await save({ canned_responses: entries })
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Réponses préenregistrées"
+        description="Quand le prospect pose une de ces questions, l'assistant envoie votre réponse telle quelle au lieu d'en rédiger une. Chaque réponse ne part qu'une fois par conversation."
+      />
+      <form onSubmit={submit}>
+        <CardBody className="space-y-3">
+          {entries.length === 0 ? (
+            <FieldHint>Aucune réponse préenregistrée. L'assistant rédige toutes ses réponses.</FieldHint>
+          ) : null}
+          {entries.map((entry, index) => (
+            <div key={entry.id} className="space-y-3 rounded-[10px] border border-border p-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={entry.trigger}
+                  placeholder="Quand le prospect demande ce que vous faites dans la vie"
+                  onChange={(e) => edit(entry.id, { trigger: e.target.value })}
+                  className="flex-1"
+                />
+                <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteTarget(entry.id)}>
+                  Supprimer
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className={pillClass(entry.kind !== 'audio')} onClick={() => edit(entry.id, { kind: 'text' })}>
+                  Texte
+                </button>
+                <button type="button" className={pillClass(entry.kind === 'audio')} onClick={() => edit(entry.id, { kind: 'audio' })}>
+                  Vocal
+                </button>
+              </div>
+              {entry.kind === 'audio' ? (
+                <AudioField
+                  value={entry.media_path ? { path: entry.media_path, mime: entry.media_mime ?? 'audio/wav', durationMs: entry.media_duration_ms } : null}
+                  onChange={(value) =>
+                    edit(entry.id, {
+                      media_path: value?.path,
+                      media_mime: value?.mime,
+                      media_duration_ms: value?.durationMs,
+                    })
+                  }
+                  folder={`${assistant.user_id}/${assistant.id}/canned-${entry.id}`}
+                />
+              ) : (
+                <Textarea
+                  rows={3}
+                  value={entry.text ?? ''}
+                  placeholder="La réponse envoyée mot pour mot"
+                  onChange={(e) => edit(entry.id, { text: e.target.value })}
+                />
+              )}
+            </div>
+          ))}
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={entries.length >= MAX_CANNED}
+            onClick={() =>
+              setEntries((list) => [...list, { id: crypto.randomUUID(), trigger: '', kind: 'text', text: '' }])
+            }
+          >
+            <Plus size={14} className="mr-1" />
+            {entries.length >= MAX_CANNED ? 'Maximum atteint' : 'Ajouter une réponse'}
+          </Button>
+          <FieldError>{error}</FieldError>
+        </CardBody>
+        <div className="flex justify-end border-t border-border px-5 py-3.5">
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </Button>
+        </div>
+      </form>
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          setEntries((list) => list.filter((e) => e.id !== deleteTarget))
+          setDeleteTarget(null)
+        }}
+        title="Supprimer cette réponse"
+        message="L'assistant rédigera de nouveau lui même pour cette question. Pensez à enregistrer ensuite."
+        confirmLabel="Supprimer"
+        danger
+      />
+    </Card>
+  )
+}
+
 const PAUSE_REASONS: Record<string, string> = {
   byok_removed: 'votre accès bêta a changé',
   subscription_ended: 'votre abonnement est terminé',
@@ -1044,6 +1398,8 @@ function AssistantContent() {
   const allowCustomTone = hasFeature('custom_tone', flags, profile, overrides)
   const allowContextDocuments = hasFeature('context_documents', flags, profile, overrides)
   const allowCalendly = hasFeature('calendly', flags, profile, overrides)
+  const allowFollowups = hasFeature('followups', flags, profile, overrides)
+  const allowCannedResponses = hasFeature('canned_responses', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -1121,6 +1477,8 @@ function AssistantContent() {
       {allowContextDocuments ? <ContextDocumentsSection /> : null}
       <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       <ScheduleSection assistant={assistant} />
+      {allowFollowups ? <FollowupsSection assistant={assistant} /> : null}
+      {allowCannedResponses ? <CannedResponsesSection assistant={assistant} /> : null}
       <AudienceSection assistant={assistant} />
     </div>
   )
