@@ -225,8 +225,6 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
       p_now: now,
       p_preview: preview,
     })
-    // Le coach a répondu depuis l'app Instagram : même règle que depuis la boîte de réception,
-    // sinon l'option ne vaudrait que pour la moitié des endroits où il écrit.
     if (messageType === 'audio' && attachment?.payload?.url) {
       try {
         await storeAndTranscribeAudio(conv.id, insert.data.id, attachment.payload.url)
@@ -237,6 +235,8 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
           .eq('id', insert.data.id)
       }
     }
+    // Le coach a répondu depuis l'app Instagram : même règle que depuis la boîte de réception,
+    // sinon l'option ne vaudrait que pour la moitié des endroits où il écrit.
     const followups = (assistant?.settings as { followups?: FollowupSettings } | undefined)?.followups
     if (assistant?.is_active && followups?.after_own_message) {
       try {
