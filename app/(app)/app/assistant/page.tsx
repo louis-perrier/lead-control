@@ -425,8 +425,9 @@ function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-const MINUTES = ['00', '15', '30', '45']
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 
+// Deux menus plutôt que le champ natif : il s'affiche en 12 h chez un navigateur anglophone.
 function TimeSelect({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled?: boolean }) {
   const [hour, minute] = value.split(':')
   const selectClass =
@@ -435,6 +436,7 @@ function TimeSelect({ value, onChange, disabled }: { value: string; onChange: (v
     <div className="flex items-center gap-1">
       <select
         disabled={disabled}
+        aria-label="Heures"
         value={hour ?? '09'}
         onChange={(e) => onChange(`${e.target.value}:${minute ?? '00'}`)}
         className={selectClass}
@@ -447,6 +449,7 @@ function TimeSelect({ value, onChange, disabled }: { value: string; onChange: (v
       </select>
       <select
         disabled={disabled}
+        aria-label="Minutes"
         value={minute ?? '00'}
         onChange={(e) => onChange(`${hour ?? '09'}:${e.target.value}`)}
         className={selectClass}
@@ -476,6 +479,10 @@ function ScheduleSection({ assistant }: { assistant: Assistant }) {
     e.preventDefault()
     setError('')
     if (!alwaysOn) {
+      if (!start || !end) {
+        setError('Renseignez une heure de début et une heure de fin.')
+        return
+      }
       if (start >= end) {
         setError("L'heure de début doit précéder l'heure de fin.")
         return
@@ -969,35 +976,41 @@ const MAX_FOLLOWUPS = 3
 const MAX_VARIANTS = 3
 const MIN_DELAY_MINUTES = 15
 const MAX_DELAY_MINUTES = 23 * 60 + 45
-const DELAY_HOURS = Array.from({ length: 24 }, (_, i) => i)
-const DELAY_MINUTES = [0, 15, 30, 45]
-
 const pillClass = (active: boolean) =>
   active
     ? 'rounded-full bg-primary px-3 py-1 text-sm text-white'
     : 'rounded-full border border-border px-3 py-1 text-sm text-muted'
 
+// 60 minutes saisies basculent sur l'heure suivante, la valeur stockée restant un nombre
+// de minutes. Rien à corriger à la saisie, l'affichage se renormalise au rendu.
 function DelaySelect({ value, onChange }: { value: number; onChange: (minutes: number) => void }) {
   const hour = Math.floor(value / 60)
   const minute = value % 60
-  const selectClass =
-    'h-10 rounded-[10px] border border-border bg-surface px-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:opacity-50'
+  const inputClass =
+    'h-10 w-16 rounded-[10px] border border-border bg-surface px-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary'
+  const part = (raw: string) => Math.max(0, Math.floor(Number(raw) || 0))
   return (
     <div className="flex items-center gap-1">
-      <select value={hour} onChange={(e) => onChange(Number(e.target.value) * 60 + minute)} className={selectClass}>
-        {DELAY_HOURS.map((h) => (
-          <option key={h} value={h}>
-            {h} h
-          </option>
-        ))}
-      </select>
-      <select value={minute} onChange={(e) => onChange(hour * 60 + Number(e.target.value))} className={selectClass}>
-        {DELAY_MINUTES.map((m) => (
-          <option key={m} value={m}>
-            {String(m).padStart(2, '0')}
-          </option>
-        ))}
-      </select>
+      <input
+        type="number"
+        min={0}
+        max={23}
+        aria-label="Heures"
+        value={hour}
+        onChange={(e) => onChange(part(e.target.value) * 60 + minute)}
+        className={inputClass}
+      />
+      <span className="text-sm text-muted">h</span>
+      <input
+        type="number"
+        min={0}
+        max={59}
+        aria-label="Minutes"
+        value={minute}
+        onChange={(e) => onChange(hour * 60 + part(e.target.value))}
+        className={inputClass}
+      />
+      <span className="text-sm text-muted">min</span>
     </div>
   )
 }
