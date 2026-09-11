@@ -3,6 +3,8 @@
 // planification de la réponse via schedule_conversation_debounce.
 import { admin, json, logEvent, SERVICE_ROLE_KEY, SUPABASE_URL } from '../_shared/core.ts'
 import { fetchContactProfile, getChannelToken, markSeen } from '../_shared/instagram.ts'
+import { planFollowups } from '../_shared/followups.ts'
+import type { FollowupSettings } from '../_shared/followups.ts'
 
 const IG_APP_SECRET = Deno.env.get('IG_APP_SECRET')!
 const IG_VERIFY_TOKEN = Deno.env.get('IG_VERIFY_TOKEN')
@@ -210,6 +212,21 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
       p_now: now,
       p_preview: preview,
     })
+    // Le coach a répondu depuis l'app Instagram : même règle que depuis la boîte de réception,
+    // sinon l'option ne vaudrait que pour la moitié des endroits où il écrit.
+    const followups = (assistant?.settings as { followups?: FollowupSettings } | undefined)?.followups
+    if (assistant?.is_active && followups?.after_own_message) {
+      try {
+        await planFollowups({
+          conversationId: conv.id,
+          assistantId: assistant.id,
+          anchorMessageId: insert.data.id,
+          settings: followups,
+        })
+      } catch (_) {
+        // le message est déjà chez le prospect, une relance non programmée n'est pas bloquante
+      }
+    }
     return
   }
 

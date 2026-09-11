@@ -29,15 +29,18 @@ async function skip(id: string, reason: string, errorMessage?: string) {
     .eq('id', id)
 }
 
-async function postpone(id: string, at: number) {
+// Un report n'est pas une tentative d'envoi : on rend le jeton pris à la réservation,
+// sinon une relance repoussée plusieurs fois finirait abandonnée sans avoir rien tenté.
+async function postpone(due: DueFollowup, at: number) {
   await admin
     .from('followups')
     .update({
       status: 'pending',
       scheduled_at: new Date(at + Math.floor(Math.random() * MAX_JITTER_MS)).toISOString(),
       locked_at: null,
+      attempts: Math.max(0, due.attempts - 1),
     })
-    .eq('id', id)
+    .eq('id', due.id)
 }
 
 // Une reprise après interruption ne renvoie jamais : un second message identique chez le
@@ -116,7 +119,7 @@ async function handleFollowup(due: DueFollowup) {
   const allowedAt = Date.parse(allowed.data as string)
   if (allowedAt > Date.now() + 1000) {
     if (allowedAt > closesAt) return skip(due.id, 'window_expired')
-    return postpone(due.id, allowedAt)
+    return postpone(due, allowedAt)
   }
 
   const channel = await admin
