@@ -18,13 +18,13 @@ Deno.serve(async (req) => {
 
   const { data: msg } = await admin
     .from('conversation_messages')
-    .select('media_path, message_type, conversations!inner(user_id)')
+    .select('media_path, media_bucket, message_type, conversations!inner(user_id)')
     .eq('id', body.message_id)
     .maybeSingle()
   const owner = (msg as unknown as { conversations?: { user_id?: string } } | null)?.conversations?.user_id
   if (!msg?.media_path || owner !== user.id) return json(req, { error: 'not_found' }, 404)
 
-  const bucket = msg.message_type === 'image' ? 'ig-images' : 'ig-audio'
+  const bucket = msg.media_bucket ?? (msg.message_type === 'image' ? 'ig-images' : 'ig-audio')
   const signed = await admin.storage.from(bucket).createSignedUrl(msg.media_path, 600)
   if (signed.error || !signed.data) return json(req, { error: 'sign_failed' }, 500)
   return json(req, { url: signed.data.signedUrl })

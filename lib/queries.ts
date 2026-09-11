@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
 import { useViewAsTargetId } from '@/lib/view-as/state'
-import type { Assistant, BillingInfo, ChannelAccount, FeatureFlag, Profile } from '@/lib/types'
+import type { Assistant, BillingInfo, ChannelAccount, FeatureFlag, Followup, Profile } from '@/lib/types'
 
 function useAuthUserId() {
   return useQuery({
@@ -127,6 +127,23 @@ export function useMyOverrides() {
       return (data ?? []) as { key: string; enabled: boolean }[]
     },
     staleTime: 5 * 60_000,
+  })
+}
+
+export function usePendingFollowup(conversationId: number) {
+  return useQuery({
+    queryKey: ['followup', conversationId],
+    queryFn: async (): Promise<Followup | null> => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('followups')
+        .select('id, conversation_id, slot_index, scheduled_at, status')
+        .eq('conversation_id', conversationId)
+        .eq('status', 'pending')
+        .order('scheduled_at', { ascending: true })
+        .limit(1)
+      return (data?.[0] ?? null) as Followup | null
+    },
   })
 }
 

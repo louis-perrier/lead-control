@@ -395,6 +395,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.assistant-dispatch]
 verify_jwt = false
+[functions.followups-dispatch]
+verify_jwt = false
 [functions.instagram-token-refresh]
 verify_jwt = false
 [functions.billing]

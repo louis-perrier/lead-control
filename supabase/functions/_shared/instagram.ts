@@ -29,6 +29,27 @@ export async function sendInstagramText(
   return body.message_id ?? null
 }
 
+// Meta va chercher le fichier lui-même à l'URL fournie : elle doit rester joignable
+// le temps de l'appel. Formats acceptés côté Instagram : aac, m4a, wav, mp4.
+export async function sendInstagramAudio(
+  token: string,
+  igUserId: string,
+  recipientId: string,
+  audioUrl: string,
+): Promise<string | null> {
+  const res = await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      recipient: { id: recipientId },
+      message: { attachment: { type: 'audio', payload: { url: audioUrl, is_reusable: false } } },
+    }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(`graph_send_audio_${res.status}:${JSON.stringify(body).slice(0, 300)}`)
+  return body.message_id ?? null
+}
+
 export async function markSeen(token: string, igUserId: string, recipientId: string) {
   try {
     await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {

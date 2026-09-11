@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
-import { useInvalidate } from '@/lib/queries'
+import { useInvalidate, usePendingFollowup } from '@/lib/queries'
 import type { Booking, Conversation, ConversationMessage } from '@/lib/types'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -301,6 +301,7 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
   const toast = useToast()
   const invalidate = useInvalidate()
   const { data: messages, isLoading } = useMessages(conversation.id)
+  const { data: followup } = usePendingFollowup(conversation.id)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [pauseOpen, setPauseOpen] = useState(false)
@@ -360,6 +361,18 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
     setPauseOpen(false)
   }
 
+  async function cancelFollowup() {
+    const { error } = await createClient().rpc('cancel_conversation_followups', {
+      p_conversation_id: conversation.id,
+    })
+    if (error) {
+      toast('Impossible d’annuler la relance.', 'error')
+      return
+    }
+    toast('Relance annulée.')
+    invalidate('followup')
+  }
+
   async function send(e: React.FormEvent) {
     e.preventDefault()
     const text = draft.trim()
@@ -417,6 +430,14 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
             </button>
           </div>
         </header>
+        {followup ? (
+          <div className="flex items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2 text-sm">
+            <span className="text-muted">Relance prévue à {formatDateTime(followup.scheduled_at)}</span>
+            <button type="button" onClick={cancelFollowup} className="text-primary hover:underline">
+              Annuler la relance
+            </button>
+          </div>
+        ) : null}
 
         <div className="flex-1 space-y-2.5 overflow-y-auto px-3 py-4">
           {isLoading ? (
