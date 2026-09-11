@@ -651,7 +651,11 @@ Deno.serve(async (req) => {
     }
 
     const block = approved ? approvedBlock : bestBlock || DEFAULT_TONE
-    await admin.from('assistants').update({ custom_tone: block, updated_at: new Date().toISOString() }).eq('id', assistantId)
+    const generatedAt = new Date().toISOString()
+    await admin
+      .from('assistants')
+      .update({ custom_tone: block, custom_tone_generated_at: generatedAt, updated_at: generatedAt })
+      .eq('id', assistantId)
     return json(req, { ok: true, tone: block })
   } catch (e) {
     await logEvent('error', 'generate-custom-tone', `génération échouée: ${String(e).slice(0, 300)}`, { user_id: user.id })
