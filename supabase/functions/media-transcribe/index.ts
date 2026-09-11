@@ -18,13 +18,15 @@ Deno.serve(async (req) => {
 
   const msgRes = await admin
     .from('conversation_messages')
-    .select('id, conversation_id, media_path, media_mime, transcript_status, sent_at')
+    .select('id, conversation_id, direction, media_path, media_mime, transcript_status, sent_at')
     .eq('id', body.message_id)
     .maybeSingle()
   const msg = msgRes.data
   if (!msg?.media_path) return json(req, { error: 'not_found' }, 404)
 
   async function reschedule() {
+    // Un vocal du coach est transcrit pour que l'agent le lise, il ne déclenche pas de réponse.
+    if (msg!.direction !== 'in') return
     const conv = await admin
       .from('conversations')
       .select('id, assistant_id, automation_state')

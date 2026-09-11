@@ -4,6 +4,7 @@
 import { admin, json, logEvent, SERVICE_ROLE_KEY, SUPABASE_URL } from '../_shared/core.ts'
 import { fetchContactProfile, getChannelToken, markSeen } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
+import { audienceBlocks } from '../_shared/audience.ts'
 import type { FollowupSettings } from '../_shared/followups.ts'
 
 const IG_APP_SECRET = Deno.env.get('IG_APP_SECRET')!
@@ -129,14 +130,26 @@ async function findOrCreateConversation(opts: {
   return { conv: inserted.data, created: true }
 }
 
-function audienceBlocks(settings: Record<string, unknown> | null, handle: string | null) {
-  const audience = (settings as { audience?: { mode?: string; handles?: string[] } } | null)?.audience
-  if (!audience || !handle) return false
-  const handles = (audience.handles ?? []).map((h) => h.replace(/^@/, '').toLowerCase())
-  const h = handle.replace(/^@/, '').toLowerCase()
-  if (audience.mode === 'blocklist') return handles.includes(h)
-  if (audience.mode === 'allowlist') return !handles.includes(h)
-  return false
+// Le vocal du coach était stocké sans son fichier ni sa transcription : l'agent lisait
+// un blanc et pouvait ouvrir la conversation comme si personne n'avait encore parlé.
+async function storeAndTranscribeAudio(convId: number, messageId: number, url: string) {
+  const path = `${convId}/${messageId}.m4a`
+  const mime = await downloadMedia(url, 'ig-audio', path)
+  await admin
+    .from('conversation_messages')
+    .update({ media_path: path, media_mime: mime })
+    .eq('id', messageId)
+  // @ts-ignore fourni par le runtime Edge
+  EdgeRuntime.waitUntil(
+    fetch(`${SUPABASE_URL}/functions/v1/media-transcribe`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ message_id: messageId }),
+    }),
+  )
 }
 
 async function handleEvent(accountId: string, event: IgMessagingEvent) {
@@ -214,6 +227,16 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
     })
     // Le coach a répondu depuis l'app Instagram : même règle que depuis la boîte de réception,
     // sinon l'option ne vaudrait que pour la moitié des endroits où il écrit.
+    if (messageType === 'audio' && attachment?.payload?.url) {
+      try {
+        await storeAndTranscribeAudio(conv.id, insert.data.id, attachment.payload.url)
+      } catch (e) {
+        await admin
+          .from('conversation_messages')
+          .update({ transcript_status: 'failed', transcript_error: String(e).slice(0, 200) })
+          .eq('id', insert.data.id)
+      }
+    }
     const followups = (assistant?.settings as { followups?: FollowupSettings } | undefined)?.followups
     if (assistant?.is_active && followups?.after_own_message) {
       try {
@@ -237,24 +260,8 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
   })
 
   if (messageType === 'audio' && attachment?.payload?.url) {
-    const path = `${conv.id}/${insert.data.id}.m4a`
     try {
-      const mime = await downloadMedia(attachment.payload.url, 'ig-audio', path)
-      await admin
-        .from('conversation_messages')
-        .update({ media_path: path, media_mime: mime })
-        .eq('id', insert.data.id)
-      // @ts-ignore fourni par le runtime Edge
-      EdgeRuntime.waitUntil(
-        fetch(`${SUPABASE_URL}/functions/v1/media-transcribe`, {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-          },
-          body: JSON.stringify({ message_id: insert.data.id }),
-        }),
-      )
+      await storeAndTranscribeAudio(conv.id, insert.data.id, attachment.payload.url)
     } catch (e) {
       await admin
         .from('conversation_messages')

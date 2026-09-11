@@ -8,6 +8,7 @@ import type { FollowupSettings } from '../_shared/followups.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
 import { tryCannedResponse } from './canned.ts'
+import { audienceBlocks } from '../_shared/audience.ts'
 import { resolveTone } from './types.ts'
 import type { AgentDecision, WindowMessage } from './types.ts'
 
@@ -201,7 +202,7 @@ async function handleConversation(due: DueConversation) {
   const convId = due.id
   const convRes = await admin
     .from('conversations')
-    .select('id, user_id, summary, contact_external_id, metadata, automation_state')
+    .select('id, user_id, summary, contact_external_id, contact_handle, metadata, automation_state')
     .eq('id', convId)
     .single()
   if (convRes.error) return
@@ -219,6 +220,13 @@ async function handleConversation(due: DueConversation) {
   const assistant = assistantRes.data
   if (!assistant || !assistant.is_active) {
     await stopWith(convId, 'agent_inactive')
+    return
+  }
+
+  // Dernier verrou du filtre d'audience : c'est le seul point par lequel passent toutes
+  // les planifications, le webhook ne voyait pas celles créées après une transcription.
+  if (audienceBlocks(assistant.settings, conv.contact_handle)) {
+    await stopWith(convId, 'audience_blocked')
     return
   }
 
