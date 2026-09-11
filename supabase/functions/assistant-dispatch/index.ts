@@ -226,7 +226,12 @@ async function handleConversation(due: DueConversation) {
   // Dernier verrou du filtre d'audience : c'est le seul point par lequel passent toutes
   // les planifications, le webhook ne voyait pas celles créées après une transcription.
   if (audienceBlocks(assistant.settings, conv.contact_handle)) {
-    await stopWith(convId, 'audience_blocked')
+    await releaseLock(convId, {
+      automation_state: 'idle',
+      automation_reason: 'audience_blocked',
+      next_reply_at: null,
+      debounce_until: null,
+    })
     return
   }
 
