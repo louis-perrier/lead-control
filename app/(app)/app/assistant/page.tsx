@@ -331,10 +331,22 @@ function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
   const { save } = useSaveSettings(assistant)
   const [links, setLinks] = useState(assistant.settings.stop_condition?.secondary_links ?? [])
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [linkErrors, setLinkErrors] = useState<Record<string, string>>({})
 
   async function persist(next: typeof links) {
     setLinks(next)
     await save({ stop_condition: { ...assistant.settings.stop_condition, secondary_links: next } })
+  }
+
+  function validateAndPersist(next: typeof links) {
+    const errors: Record<string, string> = {}
+    for (const l of next) {
+      if (l.link.trim() && !/^https?:\/\/\S+$/.test(l.link.trim())) {
+        errors[l.id] = 'Le lien doit commencer par http:// ou https://'
+      }
+    }
+    setLinkErrors(errors)
+    if (Object.keys(errors).length === 0) persist(next)
   }
 
   function addLink() {
@@ -368,7 +380,7 @@ function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
               value={l.condition}
               placeholder="Condition : quand proposer ce lien"
               onChange={(e) => editLink(l.id, { condition: e.target.value })}
-              onBlur={() => persist(links)}
+              onBlur={() => validateAndPersist(links)}
               className="flex-1"
             />
             <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteTarget(l.id)}>
@@ -379,8 +391,9 @@ function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
             value={l.link}
             placeholder="https://..."
             onChange={(e) => editLink(l.id, { link: e.target.value })}
-            onBlur={() => persist(links)}
+            onBlur={() => validateAndPersist(links)}
           />
+          <FieldError>{linkErrors[l.id]}</FieldError>
         </div>
       ))}
       <Button
