@@ -5,6 +5,7 @@ export type AssistantContext = {
   qualification: string
   stopText: string
   stopLink: string
+  secondaryLinks: { condition: string; link: string }[]
   tone: string
   summary: string
 }

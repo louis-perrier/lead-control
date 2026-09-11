@@ -2,7 +2,7 @@
 // appelle Anthropic (clé plateforme ou clé du bêta-testeur), envoie la réponse
 // sur Instagram et consomme le crédit. Déclenché chaque minute par pg_cron.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
-import { getChannelToken, markSeen, sendInstagramText } from '../_shared/instagram.ts'
+import { getChannelToken, sendInstagramText } from '../_shared/instagram.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
 import { resolveTone } from './types.ts'
@@ -355,6 +355,10 @@ async function handleConversation(due: DueConversation) {
     qualification: settings.qualification ?? '',
     stopText: settings.stop_condition?.text ?? '',
     stopLink: settings.stop_condition?.link ?? '',
+    secondaryLinks: (settings.stop_condition?.secondary_links ?? []).map((l) => ({
+      condition: l.condition ?? '',
+      link: l.link ?? '',
+    })),
     tone: resolveTone(settings.tone?.preset, assistant.custom_tone),
     summary,
   })
@@ -406,8 +410,6 @@ async function handleConversation(due: DueConversation) {
     }
     return
   }
-
-  await markSeen(token, igUserId, conv.contact_external_id)
 
   if (decision.should_notify_human) {
     await releaseLock(convId, {

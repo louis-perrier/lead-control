@@ -8,6 +8,12 @@ export function buildSystemPrompt(ctx: AssistantContext) {
   const stopLink = ctx.stopLink
     ? `${ctx.stopLink.split('?')[0]}?utm_source=leadcontrol&utm_content=${ctx.conversationId}`
     : ''
+  const secondaryLinks = ctx.secondaryLinks
+    .filter((l) => l.link.trim())
+    .map((l) => ({
+      condition: l.condition.trim(),
+      link: `${l.link.trim().split('?')[0]}?utm_source=leadcontrol&utm_content=${ctx.conversationId}`,
+    }))
 
   return `## BLOC 1 — MISSION
 
@@ -141,6 +147,17 @@ ${
     ? `Envoie le lien uniquement si ces 3 conditions sont toutes remplies simultanément : besoin clair (situation, objectif et frein identifiés), intérêt explicite (le prospect a exprimé sa volonté d'acheter ou demandé comment accéder au produit), et capacité d'investissement confirmée (évoquée positivement par le prospect sans être contredite ensuite). Si l'une manque, ne pas envoyer le lien, qualifier d'abord.
 
 Si les 3 conditions sont remplies et que le prospect demande le lien directement, envoie-le sans étapes superflues. Sinon, rappelle brièvement ce qu'il cherche, la valeur principale, et demande une validation douce avant d'envoyer.`
+    : ''
+}
+
+${
+  secondaryLinks.length > 0
+    ? `### Priorité 9 bis — Liens secondaires
+
+En plus du lien principal, l'opérateur a défini des liens alternatifs, chacun avec sa propre condition d'usage :
+${secondaryLinks.map((l, i) => `${i + 1}. Condition : ${l.condition || '(non précisée)'} → lien : ${l.link}`).join('\n')}
+
+N'utilise un lien secondaire qu'à la place du lien principal, jamais en plus. Ne l'envoie que si sa condition correspond clairement à la situation du prospect alors que les 3 conditions de la Priorité 9 pour le lien principal ne sont pas toutes réunies. Si aucune condition secondaire ne correspond clairement, ignore ces liens et applique la Priorité 9 normalement.`
     : ''
 }
 
