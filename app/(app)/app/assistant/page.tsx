@@ -16,6 +16,7 @@ import {
   useProfile,
 } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
+import { formatDateTime } from '@/lib/utils'
 import type { Assistant, AssistantSettings, ContextDocument } from '@/lib/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -245,7 +246,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
       product: { name: productName.trim() },
       context: context.trim(),
       qualification: qualification.trim(),
-      stop_condition: { text: stopText.trim(), link: stopLink.trim() },
+      stop_condition: { ...s.stop_condition, text: stopText.trim(), link: stopLink.trim() },
     })
   }
 
@@ -267,7 +268,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
             />
           </div>
           <div>
-            <Label htmlFor="context">Contexte de vente</Label>
+            <Label htmlFor="context">Présentation de l'offre</Label>
             <Textarea
               id="context"
               rows={6}
@@ -275,7 +276,9 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
               onChange={(e) => setContext(e.target.value)}
               placeholder="Votre méthode, vos clients types, vos prix, vos arguments, ce que l'assistant doit savoir."
             />
-            <FieldHint>Plus le contexte est précis, plus les réponses sont justes.</FieldHint>
+            <FieldHint>
+              Plus c'est précis, plus les réponses sont justes. Pour des documents longs, utilisez plutôt les documents de contexte juste en dessous.
+            </FieldHint>
           </div>
           <div>
             <Label htmlFor="qualification">Questions de qualification (optionnel)</Label>
@@ -289,7 +292,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="stopText">Objectif de la conversation</Label>
+              <Label htmlFor="stopText">Objectif visé (contexte donné à l'assistant)</Label>
               <Textarea
                 id="stopText"
                 rows={3}
@@ -299,7 +302,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
               />
             </div>
             <div>
-              <Label htmlFor="stopLink">Lien à partager une fois prêt</Label>
+              <Label htmlFor="stopLink">Lien principal</Label>
               <Input
                 id="stopLink"
                 value={stopLink}
@@ -310,6 +313,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
               <FieldHint>Envoyé au prospect quand l'objectif est atteint.</FieldHint>
             </div>
           </div>
+          <SecondaryLinksField assistant={assistant} />
         </CardBody>
         <div className="flex justify-end border-t border-border px-5 py-3.5">
           <Button type="submit" disabled={saving}>
@@ -321,9 +325,128 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
   )
 }
 
+const MAX_SECONDARY_LINKS = 4
+
+function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
+  const { save } = useSaveSettings(assistant)
+  const [links, setLinks] = useState(assistant.settings.stop_condition?.secondary_links ?? [])
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  async function persist(next: typeof links) {
+    setLinks(next)
+    await save({ stop_condition: { ...assistant.settings.stop_condition, secondary_links: next } })
+  }
+
+  function addLink() {
+    if (links.length >= MAX_SECONDARY_LINKS) return
+    setLinks((l) => [...l, { id: crypto.randomUUID(), condition: '', link: '' }])
+  }
+
+  function editLink(id: string, patch: Partial<{ condition: string; link: string }>) {
+    setLinks((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  }
+
+  async function confirmRemove() {
+    if (!deleteTarget) return
+    const id = deleteTarget
+    setDeleteTarget(null)
+    await persist(links.filter((x) => x.id !== id))
+  }
+
+  return (
+    <div className="space-y-3 border-t border-border pt-4">
+      <div>
+        <Label className="mb-0">Liens secondaires (optionnel)</Label>
+        <FieldHint>
+          Proposés à la place du lien principal quand leur condition correspond mieux, par exemple une offre gratuite pour un prospect pas encore prêt à investir.
+        </FieldHint>
+      </div>
+      {links.map((l) => (
+        <div key={l.id} className="space-y-1.5 rounded-[10px] border border-border p-3">
+          <div className="flex items-center gap-2">
+            <Input
+              value={l.condition}
+              placeholder="Condition : quand proposer ce lien"
+              onChange={(e) => editLink(l.id, { condition: e.target.value })}
+              onBlur={() => persist(links)}
+              className="flex-1"
+            />
+            <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteTarget(l.id)}>
+              Supprimer
+            </Button>
+          </div>
+          <Input
+            value={l.link}
+            placeholder="https://..."
+            onChange={(e) => editLink(l.id, { link: e.target.value })}
+            onBlur={() => persist(links)}
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        onClick={addLink}
+        disabled={links.length >= MAX_SECONDARY_LINKS}
+      >
+        <Plus size={14} className="mr-1" />
+        {links.length >= MAX_SECONDARY_LINKS ? 'Maximum atteint' : 'Ajouter un lien'}
+      </Button>
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmRemove}
+        title="Supprimer ce lien"
+        message="Il ne sera plus proposé par l'assistant."
+        confirmLabel="Supprimer"
+        danger
+      />
+    </div>
+  )
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTES = ['00', '15', '30', '45']
+
+function TimeSelect({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled?: boolean }) {
+  const [hour, minute] = value.split(':')
+  const selectClass =
+    'h-10 rounded-[10px] border border-border bg-surface px-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:opacity-50'
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        disabled={disabled}
+        value={hour ?? '09'}
+        onChange={(e) => onChange(`${e.target.value}:${minute ?? '00'}`)}
+        className={selectClass}
+      >
+        {HOURS.map((h) => (
+          <option key={h} value={h}>
+            {h} h
+          </option>
+        ))}
+      </select>
+      <select
+        disabled={disabled}
+        value={minute ?? '00'}
+        onChange={(e) => onChange(`${hour ?? '09'}:${e.target.value}`)}
+        className={selectClass}
+      >
+        {MINUTES.map((m) => (
+          <option key={m} value={m}>
+            {m}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 function ScheduleSection({ assistant }: { assistant: Assistant }) {
   const { save, saving } = useSaveSettings(assistant)
   const schedule = assistant.settings.schedule ?? {}
+  const [alwaysOn, setAlwaysOn] = useState(schedule.always_on ?? false)
   const [days, setDays] = useState<boolean[]>(
     schedule.days && schedule.days.length === 7 ? schedule.days : Array(7).fill(true),
   )
@@ -334,15 +457,17 @@ function ScheduleSection({ assistant }: { assistant: Assistant }) {
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (start >= end) {
-      setError("L'heure de début doit précéder l'heure de fin.")
-      return
+    if (!alwaysOn) {
+      if (start >= end) {
+        setError("L'heure de début doit précéder l'heure de fin.")
+        return
+      }
+      if (!days.some(Boolean)) {
+        setError('Sélectionnez au moins un jour actif.')
+        return
+      }
     }
-    if (!days.some(Boolean)) {
-      setError('Sélectionnez au moins un jour actif.')
-      return
-    }
-    save({ schedule: { ...schedule, days, start, end } })
+    save({ schedule: { ...schedule, always_on: alwaysOn, days, start, end } })
   }
 
   return (
@@ -353,32 +478,40 @@ function ScheduleSection({ assistant }: { assistant: Assistant }) {
       />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {DAY_LABELS.map((label, i) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setDays((d) => d.map((v, j) => (j === i ? !v : v)))}
-                className={
-                  days[i]
-                    ? 'rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white'
-                    : 'rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted'
-                }
-              >
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-3">
+            <Label className="mb-0">Toujours actif (24h/24, 7j/7)</Label>
+            <Switch checked={alwaysOn} onChange={setAlwaysOn} label="Toujours actif" />
           </div>
-          <div className="flex flex-wrap items-end gap-4">
-            <div>
-              <Label htmlFor="start">De</Label>
-              <Input id="start" type="time" value={start} onChange={(e) => setStart(e.target.value)} className="w-32" />
-            </div>
-            <div>
-              <Label htmlFor="end">À</Label>
-              <Input id="end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="w-32" />
-            </div>
-          </div>
+          {!alwaysOn ? (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {DAY_LABELS.map((label, i) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setDays((d) => d.map((v, j) => (j === i ? !v : v)))}
+                    className={
+                      days[i]
+                        ? 'rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white'
+                        : 'rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted'
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-end gap-4">
+                <div>
+                  <Label>De</Label>
+                  <TimeSelect value={start} onChange={setStart} />
+                </div>
+                <div>
+                  <Label>À</Label>
+                  <TimeSelect value={end} onChange={setEnd} />
+                </div>
+              </div>
+            </>
+          ) : null}
           <FieldError>{error}</FieldError>
         </CardBody>
         <div className="flex justify-end border-t border-border px-5 py-3.5">
@@ -494,6 +627,13 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
   const [generating, setGenerating] = useState(false)
   const [customQuestions, setCustomQuestions] = useState(assistant.custom_tone_questions)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const mountedRef = useRef(false)
+  const [touchedSinceGenerate, setTouchedSinceGenerate] = useState(false)
+
+  useEffect(() => {
+    if (mountedRef.current) setTouchedSinceGenerate(true)
+    mountedRef.current = true
+  }, [answers, customQuestions])
 
   function choosePreset(value: string) {
     setPreset(value)
@@ -531,6 +671,7 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
     try {
       await callFunction('generate-custom-tone', { body: { assistant_id: assistant.id, answers } })
       await save({ tone: { preset: 'custom' } })
+      setTouchedSinceGenerate(false)
       toast('Ton personnalisé généré et activé.')
       invalidate('assistants')
     } catch (e) {
@@ -579,6 +720,17 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
             <p className="text-sm text-muted">
               Répondez à ces messages comme vous le feriez vraiment, avec vos mots. L'assistant en tire votre façon de vous exprimer, jamais le contenu de vos réponses. 200 caractères minimum par réponse, pour avoir assez de matière.
             </p>
+            {!assistant.custom_tone ? (
+              <Badge tone="muted">Pas encore généré</Badge>
+            ) : touchedSinceGenerate ? (
+              <Badge tone="warning">Modifié depuis, pas encore régénéré</Badge>
+            ) : (
+              <Badge tone="success">
+                {assistant.custom_tone_generated_at
+                  ? `Ton généré le ${formatDateTime(assistant.custom_tone_generated_at)}`
+                  : 'Ton généré'}
+              </Badge>
+            )}
             {TONE_QUESTIONS.map((q) => {
               const length = (answers[q.key] ?? '').trim().length
               const ok = length >= MIN_ANSWER_LENGTH
@@ -634,9 +786,6 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
               <Plus size={14} className="mr-1" />
               {customQuestions.length >= MAX_CUSTOM_TONE_QUESTIONS ? 'Maximum atteint' : 'Ajouter une question'}
             </Button>
-            {assistant.custom_tone ? (
-              <p className="text-xs text-muted">Un ton personnalisé est déjà actif. Répondez à nouveau pour le régénérer.</p>
-            ) : null}
           </div>
         ) : null}
       </CardBody>
@@ -956,8 +1105,8 @@ function AssistantContent() {
       <ChannelSection assistant={assistant} />
       {allowCalendly ? <CalendlySection /> : null}
       <ProfileSection assistant={assistant} />
-      <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       {allowContextDocuments ? <ContextDocumentsSection /> : null}
+      <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       <ScheduleSection assistant={assistant} />
       <AudienceSection assistant={assistant} />
     </div>

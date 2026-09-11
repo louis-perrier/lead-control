@@ -38,9 +38,14 @@ export type AssistantSettings = {
   product?: { name?: string }
   context?: string
   qualification?: string
-  stop_condition?: { text?: string; link?: string }
+  stop_condition?: {
+    text?: string
+    link?: string
+    secondary_links?: { id: string; condition: string; link: string }[]
+  }
   tone?: { preset?: string }
   schedule?: {
+    always_on?: boolean
     days?: boolean[]
     start?: string
     end?: string
@@ -60,6 +65,7 @@ export type Assistant = {
   settings: AssistantSettings
   custom_tone: string | null
   custom_tone_questions: { id: string; question: string }[]
+  custom_tone_generated_at: string | null
 }
 
 export type Conversation = {
