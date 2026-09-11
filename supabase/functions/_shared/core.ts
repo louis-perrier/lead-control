@@ -51,12 +51,22 @@ export function isServiceCall(req: Request) {
   return (req.headers.get('authorization') ?? '') === `Bearer ${SERVICE_ROLE_KEY}`
 }
 
+// La base est injoignable quelques secondes plusieurs fois par heure. Sans ce réessai,
+// une coupure passagère se traduit par un jeton refusé et une minute de traitement perdue.
 export async function isCronCall(req: Request) {
   const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
   if (!token) return false
   if (token === SERVICE_ROLE_KEY) return true
-  const { data } = await admin.rpc('internal_token_matches', { p_token: token })
-  return data === true
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const { data, error } = await admin.rpc('internal_token_matches', { p_token: token })
+    if (!error) return data === true
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
+      continue
+    }
+    await logEvent('warn', 'core', `vérification du jeton interne impossible: ${error.message}`)
+  }
+  return false
 }
 
 type EventExtra = { user_id?: string | null; conversation_id?: number | null; payload?: Record<string, unknown> }
