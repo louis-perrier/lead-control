@@ -14,7 +14,9 @@ export function stateLabel(conv: Conversation): { text: string; tone: 'primary' 
     case 'pending':
       return { text: 'L’assistant rédige sa réponse', tone: 'primary' }
     case 'stopped':
-      return { text: 'En pause : vous avez la main', tone: 'warning' }
+      return conv.automation_reason === 'imported_history'
+        ? { text: 'Importé depuis l’historique Instagram', tone: 'muted' }
+        : { text: 'En pause : vous avez la main', tone: 'warning' }
     case 'condition_stop':
       return { text: 'Objectif atteint', tone: 'success' }
     case 'error':
