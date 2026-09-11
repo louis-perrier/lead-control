@@ -53,6 +53,42 @@ export type AssistantSettings = {
   }
   audience?: { mode?: 'all' | 'allowlist' | 'blocklist'; handles?: string[] }
   deal?: { average_value?: number | null }
+  followups?: FollowupSettings
+  canned_responses?: CannedResponse[]
+}
+
+export type FollowupItem = {
+  id: string
+  delay_minutes: number
+  kind: 'text' | 'audio'
+  variants?: string[]
+  media_path?: string
+  media_mime?: string
+  media_duration_ms?: number
+}
+
+export type FollowupSettings = {
+  enabled?: boolean
+  after_own_message?: boolean
+  items?: FollowupItem[]
+}
+
+export type CannedResponse = {
+  id: string
+  trigger: string
+  kind: 'text' | 'audio'
+  text?: string
+  media_path?: string
+  media_mime?: string
+  media_duration_ms?: number
+}
+
+export type Followup = {
+  id: string
+  conversation_id: number
+  slot_index: number
+  scheduled_at: string
+  status: 'pending' | 'sending' | 'sent' | 'skipped' | 'cancelled'
 }
 
 export type Assistant = {

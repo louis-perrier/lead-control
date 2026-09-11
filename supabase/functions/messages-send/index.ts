@@ -2,6 +2,8 @@
 // et peut mettre l'assistant en pause sur la conversation (prise de main).
 import { admin, getUser, handleOptions, json } from '../_shared/core.ts'
 import { getChannelToken, sendInstagramText } from '../_shared/instagram.ts'
+import { planFollowups } from '../_shared/followups.ts'
+import type { FollowupSettings } from '../_shared/followups.ts'
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
@@ -21,7 +23,7 @@ Deno.serve(async (req) => {
 
   const convRes = await admin
     .from('conversations')
-    .select('id, user_id, channel_account_id, contact_external_id, automation_state')
+    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, automation_state')
     .eq('id', body.conversation_id)
     .maybeSingle()
   const conv = convRes.data
@@ -89,6 +91,29 @@ Deno.serve(async (req) => {
     p_now: now,
     p_preview: text.slice(0, 140),
   })
+  // Prendre la main coupe les relances : l'option ne vise que les messages envoyés
+  // sans prise de main, où l'assistant reste aux commandes de la conversation.
+  if (!body.take_over && conv.assistant_id) {
+    const agent = await admin
+      .from('assistants')
+      .select('settings')
+      .eq('id', conv.assistant_id)
+      .maybeSingle()
+    const followups = (agent.data?.settings as { followups?: FollowupSettings } | null)?.followups
+    if (followups?.after_own_message) {
+      try {
+        await planFollowups({
+          conversationId: conv.id,
+          assistantId: conv.assistant_id,
+          anchorMessageId: inserted.data.id,
+          settings: followups,
+        })
+      } catch (_) {
+        // le message est parti, une relance non programmée ne doit pas faire échouer l'envoi
+      }
+    }
+  }
+
   if (body.take_over && !['stopped', 'condition_stop'].includes(conv.automation_state)) {
     await admin
       .from('conversations')
