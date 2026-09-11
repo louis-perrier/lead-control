@@ -3,8 +3,11 @@
 // sur Instagram et consomme le crédit. Déclenché chaque minute par pg_cron.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
 import { getChannelToken, sendInstagramText } from '../_shared/instagram.ts'
+import { planFollowups } from '../_shared/followups.ts'
+import type { FollowupSettings } from '../_shared/followups.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
+import { tryCannedResponse } from './canned.ts'
 import { resolveTone } from './types.ts'
 import type { AgentDecision, WindowMessage } from './types.ts'
 
@@ -312,6 +315,21 @@ async function handleConversation(due: DueConversation) {
 
   const settings = (assistant.settings ?? {}) as Record<string, any>
 
+  const handledByCanned = await tryCannedResponse({
+    convId,
+    userId: due.user_id,
+    assistantId: assistant.id,
+    settings,
+    metadata: (conv.metadata ?? {}) as Record<string, unknown>,
+    lastCustomerText: lastInbound ? renderMessage(lastInbound) : '',
+    apiKey: resolved.key,
+    keySource: resolved.source,
+    token,
+    igUserId,
+    recipientId: conv.contact_external_id,
+  })
+  if (handledByCanned) return
+
   let context = settings.context ?? ''
   const { data: docs } = await admin
     .from('context_documents')
@@ -436,6 +454,7 @@ async function handleConversation(due: DueConversation) {
     .slice(0, 2)
 
   let sentCount = 0
+  let anchorMessageId: number | null = null
   if (decision.should_response && blocks.length > 0) {
     for (const [i, block] of blocks.entries()) {
       if (await customerRepliedSince(convId, automationStart)) break
@@ -467,6 +486,7 @@ async function handleConversation(due: DueConversation) {
           })
           .eq('id', inserted.data!.id)
         sentCount += 1
+        anchorMessageId = inserted.data!.id
         if (sentCount === 1) {
           await admin.rpc('consume_one_credit', { p_user_id: due.user_id })
         }
@@ -521,6 +541,20 @@ async function handleConversation(due: DueConversation) {
       () => {},
       () => {},
     )
+    // Échouer ici ne doit pas remettre en cause une réponse déjà partie chez le prospect.
+    try {
+      await planFollowups({
+        conversationId: convId,
+        assistantId: assistant.id,
+        anchorMessageId,
+        settings: (assistant.settings as { followups?: FollowupSettings } | null)?.followups,
+      })
+    } catch (e) {
+      await logEvent('warn', 'assistant-dispatch', `relances non programmées conv=${convId}: ${String(e).slice(0, 200)}`, {
+        user_id: due.user_id,
+        conversation_id: convId,
+      })
+    }
   }
 }
 
