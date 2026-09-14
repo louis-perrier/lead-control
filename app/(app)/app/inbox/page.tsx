@@ -80,12 +80,13 @@ function InboxContent() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations', filter: `user_id=eq.${profile.user_id}` },
-        () => invalidate('conversations'),
+        // Un envoi ou une annulation de relance change toujours la conversation : le bandeau suit.
+        () => invalidate('conversations', 'followup'),
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'conversation_messages' },
-        () => invalidate('conversations', 'messages'),
+        () => invalidate('conversations', 'messages', 'followup'),
       )
       .subscribe()
     return () => {
