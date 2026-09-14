@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   bestKeywordMatch,
+  firstJsonObject,
   isOnlyPoliteness,
   matchKeyword,
   normalizeWords,
@@ -75,5 +76,17 @@ describe('outils', () => {
     expect(bestKeywordMatch('vidéo ia', entries)).toEqual({ entry: entries[1], match: 'exact' })
     expect(bestKeywordMatch('je veux des vidéos ia', entries)).toEqual({ entry: entries[1], match: 'contains' })
     expect(bestKeywordMatch('tu fais quoi ?', entries)).toBeNull()
+  })
+})
+
+describe('firstJsonObject', () => {
+  it('lit le JSON même suivi d’une explication', () => {
+    expect(firstJsonObject('{"situation": 1, "reste": false}\n\nLe prospect demande {vraiment} ça.')).toEqual({ situation: 1, reste: false })
+    expect(firstJsonObject('```json\n{"envoyer": true, "reste": true}\n```')).toEqual({ envoyer: true, reste: true })
+  })
+
+  it('renvoie null sans JSON lisible', () => {
+    expect(firstJsonObject('{"situation": 1, "res')).toBeNull()
+    expect(firstJsonObject('aucune')).toBeNull()
   })
 })

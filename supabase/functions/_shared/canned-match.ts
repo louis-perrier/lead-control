@@ -98,3 +98,14 @@ export function bestKeywordMatch<T extends { trigger?: string }>(
   }
   return best ? { entry: best.entry, match: best.match } : null
 }
+
+// Le petit modèle ajoute parfois une explication après son JSON : seul le premier objet compte.
+export function firstJsonObject(text: string): Record<string, unknown> | null {
+  const match = text.match(/\{[^{}]*\}/)
+  if (!match) return null
+  try {
+    return JSON.parse(match[0])
+  } catch {
+    return null
+  }
+}
