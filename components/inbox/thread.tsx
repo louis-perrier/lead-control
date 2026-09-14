@@ -20,6 +20,7 @@ import { callFunction } from '@/lib/api'
 import { useAssistants, useFlags, useInvalidate, useMyOverrides, usePendingFollowup, useProfile } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import { useAvatarUrls } from '@/lib/avatars'
+import { markConversationNotificationsRead, useNotificationsEnabled } from '@/lib/notifications'
 import type { Conversation, ConversationMessage } from '@/lib/types'
 import {
   assistedSuggestion,
@@ -252,6 +253,13 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
   const { data: messages, isLoading } = useMessages(conversation.id)
   const { data: followup } = usePendingFollowup(conversation.id)
   const avatars = useAvatarUrls([conversation.contact_avatar_path])
+  const notificationsEnabled = useNotificationsEnabled()
+
+  useEffect(() => {
+    if (!notificationsEnabled) return
+    markConversationNotificationsRead(conversation.id).then((changed) => changed && invalidate('notifications'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation.id, conversation.automation_state, notificationsEnabled])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [pauseOpen, setPauseOpen] = useState(false)

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
 import { useAvatarUrls } from '@/lib/avatars'
-import { useInvalidate } from '@/lib/queries'
+import { useInvalidate, useProfile } from '@/lib/queries'
 import { markNotificationsRead, notificationTitle, useNotifications, usePushState } from '@/lib/notifications'
 import type { AppNotification } from '@/lib/types'
 import { cn, formatRelative } from '@/lib/utils'
@@ -16,7 +16,8 @@ export function NotificationBell({ className }: { className?: string }) {
   const invalidate = useInvalidate()
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-  const { data: notifications, isLoading, isError } = useNotifications(true)
+  const { data: profile } = useProfile()
+  const { data: notifications, isLoading, isError } = useNotifications(profile?.user_id)
   const [pushState] = usePushState()
   const avatars = useAvatarUrls((notifications ?? []).map((n) => n.conversations?.contact_avatar_path))
   const unread = (notifications ?? []).filter((n) => !n.read_at)
@@ -125,7 +126,7 @@ export function NotificationBell({ className }: { className?: string }) {
               onClick={() => setOpen(false)}
               className="border-t border-border px-4 py-2.5 text-center text-xs font-medium text-primary hover:bg-bg"
             >
-              Recevoir les notifications sur ce téléphone
+              Recevoir les notifications sur cet appareil
             </Link>
           ) : null}
         </div>

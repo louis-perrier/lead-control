@@ -382,7 +382,7 @@ function NotificationsCard() {
     <Card>
       <div id="notifications" className="scroll-mt-16" />
       <CardHeader
-        title="Notifications sur ce téléphone"
+        title="Notifications sur cet appareil"
         description="Recevez une alerte quand l’assistant a besoin de vous ou qu’il est bloqué, même application fermée."
       />
       <CardBody className="space-y-3 text-sm">

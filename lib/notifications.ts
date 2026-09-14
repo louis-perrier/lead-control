@@ -17,14 +17,15 @@ export function useNotificationsEnabled() {
   return !viewAs && hasFeature('notifications', flags, profile, overrides)
 }
 
-export function useNotifications(enabled: boolean) {
+export function useNotifications(userId: string | null | undefined) {
   return useQuery({
-    queryKey: ['notifications'],
-    enabled,
+    queryKey: ['notifications', userId],
+    enabled: Boolean(userId),
     queryFn: async (): Promise<AppNotification[]> => {
       const { data, error } = await createClient()
         .from('notifications')
         .select('id, user_id, conversation_id, kind, body, created_at, read_at, conversations(contact_name, contact_handle, contact_avatar_path)')
+        .eq('user_id', userId!)
         .order('created_at', { ascending: false })
         .limit(30)
       if (error) throw error
@@ -57,6 +58,17 @@ export function useNotificationsLive(enabled: boolean, userId: string | null | u
 export async function markNotificationsRead(ids: number[]) {
   if (ids.length === 0) return
   await createClient().from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids)
+}
+
+// Ouvrir la conversation vaut lecture : sinon la cloche reste allumée pour un sujet déjà traité.
+export async function markConversationNotificationsRead(conversationId: number) {
+  const { data } = await createClient()
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('conversation_id', conversationId)
+    .is('read_at', null)
+    .select('id')
+  return (data ?? []).length > 0
 }
 
 export function notificationTitle(n: AppNotification) {
