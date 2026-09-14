@@ -28,6 +28,8 @@ type ConversationRow = {
   id: number
   last_message_at: string | null
   heat_tag: string
+  outcome: 'won' | 'lost' | null
+  closed_at: string | null
 }
 
 type DailyRow = {
@@ -67,7 +69,7 @@ export function StatsContent() {
       const supabase = createClient()
       const { data } = await supabase
         .from('conversations')
-        .select('id, last_message_at, heat_tag')
+        .select('id, last_message_at, heat_tag, outcome, closed_at')
         .eq('user_id', effectiveUserId!)
         .limit(2000)
       return (data ?? []) as ConversationRow[]
@@ -117,8 +119,10 @@ export function StatsContent() {
     const revenue = closedInWindow
       .filter((d) => d.status === 'won')
       .reduce((sum, d) => sum + Number(d.amount ?? 0), 0)
-    const wonCount = closedInWindow.filter((d) => d.status === 'won').length
-    const lostCount = closedInWindow.filter((d) => d.status === 'lost').length
+    // Une conversation perdue ne crée pas de ligne deals : le taux se lit sur les clôtures.
+    const closedConvs = (conversations ?? []).filter((c) => c.outcome && c.closed_at && Date.parse(c.closed_at) >= sinceMs)
+    const wonCount = closedConvs.filter((c) => c.outcome === 'won').length
+    const lostCount = closedConvs.filter((c) => c.outcome === 'lost').length
     const closeRate = wonCount + lostCount > 0 ? (wonCount / (wonCount + lostCount)) * 100 : 0
     return { active, hot, inbound, replies, revenue, closeRate }
   }, [conversations, daily, deals, since])
