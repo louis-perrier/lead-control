@@ -3,7 +3,7 @@
 // Meta n'accepte un envoi automatisé que dans les 24 h qui suivent le dernier message du prospect.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
 import { getChannelToken, sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
-import { findFollowupItem, nextFollowupItem, pickVariant, planNextFollowup, usableFollowupItems } from '../_shared/followups.ts'
+import { findFollowupItem, nextFollowupItem, pickVariant, planFollowupSlot, usableFollowupItems } from '../_shared/followups.ts'
 import type { FollowupItem, FollowupSettings } from '../_shared/followups.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { formatFirstName, hasNameVariable, renderFollowupText, usableDisplayName } from '../_shared/followup-text.ts'
@@ -27,7 +27,8 @@ type DueFollowup = {
 
 const FIRST_NAME_SYSTEM =
   'Tu lis des messages envoyés par un prospect sur Instagram. Si le prospect y donne explicitement ' +
-  'son propre prénom, réponds uniquement par ce prénom. Sinon réponds uniquement : aucun.'
+  'son propre prénom, réponds uniquement par ce prénom. Ignore tout autre prénom, en particulier celui ' +
+  'de la personne à qui il écrit. Sinon réponds uniquement : aucun.'
 
 type NameSource = {
   id: number
@@ -44,7 +45,7 @@ async function resolveFirstName(conv: NameSource): Promise<string | null> {
   const meta = conv.metadata ?? {}
   if (typeof meta.first_name === 'string') return meta.first_name || fallback
   try {
-    const profile = await admin.from('profiles').select('plan_override').eq('user_id', conv.user_id).maybeSingle()
+    const profile = await admin.from('profiles').select('plan_override, full_name').eq('user_id', conv.user_id).maybeSingle()
     const key = await resolveApiKey(conv.user_id, profile.data?.plan_override ?? null)
     if (!key) return fallback
     const msgs = await admin
@@ -69,7 +70,10 @@ async function resolveFirstName(conv: NameSource): Promise<string | null> {
       })
       await recordUsage({ userId: conv.user_id, conversationId: conv.id, model: AI_MODEL_SUMMARY, usage: res.usage, source: key.source })
       const word = res.text.trim().split(/\s+/)[0]?.replace(/[.,!]+$/, '') ?? ''
-      if (/^\p{L}[\p{L}'-]{1,19}$/u.test(word) && word.toLowerCase() !== 'aucun') found = formatFirstName(word)
+      // Un prospect qui écrit « Salut Thibaut » ne doit jamais recevoir le prénom du coach.
+      const coachFirstName = (profile.data?.full_name ?? '').trim().split(/\s+/)[0]?.toLowerCase()
+      const lower = word.toLowerCase()
+      if (/^\p{L}[\p{L}'-]{1,19}$/u.test(word) && lower !== 'aucun' && lower !== coachFirstName) found = formatFirstName(word)
     }
     await admin
       .from('conversations')
@@ -117,7 +121,7 @@ async function chainNext(due: DueFollowup, anchorMessageId: number) {
     const items = usableFollowupItems((agent.data?.settings as { followups?: FollowupSettings } | null)?.followups)
     const next = nextFollowupItem(items, await followupItemId(due.id), due.slot_index)
     if (!next) return
-    await planNextFollowup({
+    await planFollowupSlot({
       conversationId: due.conversation_id,
       assistantId,
       anchorMessageId,

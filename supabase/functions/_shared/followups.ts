@@ -15,7 +15,7 @@ export type { FollowupItem, FollowupSettings } from './followup-plan.ts'
 
 // L'insertion passe par plan_followups : entre l'envoi de la réponse et ce point, le prospect
 // a pu répondre, et seule la RPC voit la conversation verrouillée pour le vérifier.
-async function planSlot(params: {
+export async function planFollowupSlot(params: {
   conversationId: number
   assistantId: string
   anchorMessageId: number
@@ -41,21 +41,11 @@ export async function planFollowups(params: {
 }) {
   const [first] = usableFollowupItems(params.settings)
   if (!first || !params.assistantId || !params.anchorMessageId) return
-  await planSlot({
+  await planFollowupSlot({
     conversationId: params.conversationId,
     assistantId: params.assistantId,
     anchorMessageId: params.anchorMessageId,
     slot: 1,
     item: first,
   })
-}
-
-export async function planNextFollowup(params: {
-  conversationId: number
-  assistantId: string
-  anchorMessageId: number
-  slot: number
-  item: FollowupItem
-}) {
-  await planSlot(params)
 }
