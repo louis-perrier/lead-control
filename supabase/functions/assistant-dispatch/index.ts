@@ -4,7 +4,6 @@
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
 import { getChannelToken, sendInstagramText } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
-import type { FollowupSettings } from '../_shared/followups.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
 import { tryCannedResponse } from './canned.ts'
@@ -288,6 +287,7 @@ async function handleConversation(due: DueConversation) {
     assistantId: assistant.id,
     settings,
     metadata,
+    contactHandle: conv.contact_handle,
     lastCustomerText: lastInbound ? renderMessage(lastInbound) : '',
     recentLines: (() => {
       const at = lastInbound ? messages.lastIndexOf(lastInbound) : messages.length
@@ -566,7 +566,8 @@ async function handleConversation(due: DueConversation) {
         conversationId: convId,
         assistantId: assistant.id,
         anchorMessageId,
-        settings: (assistant.settings as { followups?: FollowupSettings } | null)?.followups,
+        assistantSettings: assistant.settings,
+        contactHandle: conv.contact_handle,
       })
     } catch (e) {
       await logEvent('warn', 'assistant-dispatch', `relances non programmées conv=${convId}: ${String(e).slice(0, 200)}`, {

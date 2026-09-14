@@ -286,7 +286,8 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
           conversationId: conv.id,
           assistantId: assistant.id,
           anchorMessageId: insert.data.id,
-          settings: followups,
+          assistantSettings: assistant.settings,
+          contactHandle: conv.contact_handle,
         })
       } catch (_) {
         // le message est déjà chez le prospect, une relance non programmée n'est pas bloquante

@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
   const convRes = await admin
     .from('conversations')
-    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, automation_state, last_customer_message_at')
+    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, contact_handle, automation_state, last_customer_message_at')
     .eq('id', body.conversation_id)
     .maybeSingle()
   const conv = convRes.data
@@ -116,7 +116,8 @@ Deno.serve(async (req) => {
           conversationId: conv.id,
           assistantId: conv.assistant_id,
           anchorMessageId: inserted.data.id,
-          settings: followups,
+          assistantSettings: agent.data?.settings,
+          contactHandle: conv.contact_handle,
         })
       } catch (_) {
         // le message est parti, une relance non programmée ne doit pas faire échouer l'envoi
