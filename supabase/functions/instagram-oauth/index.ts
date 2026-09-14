@@ -2,6 +2,7 @@
 // (échange du code, token longue durée, abonnement webhook, import 15 jours),
 // /disconnect. Le token vit dans secrets.channel_tokens, jamais côté client.
 import { admin, getUser, handleOptions, json, logEvent } from '../_shared/core.ts'
+import { removeChannelAvatars } from '../_shared/avatars.ts'
 
 const IG_APP_ID = Deno.env.get('IG_APP_ID')!
 const IG_APP_SECRET = Deno.env.get('IG_APP_SECRET')!
@@ -302,6 +303,8 @@ async function disconnect(req: Request) {
     .from('assistants')
     .update({ is_active: false, paused_reason: 'channel_disconnected', updated_at: new Date().toISOString() })
     .eq('channel_account_id', account.id)
+  // Les photos de profil ne se rafraîchissent plus sans jeton : on ne garde pas de copie.
+  await removeChannelAvatars(account.user_id, account.id)
   return json(req, { ok: true })
 }
 
