@@ -1142,6 +1142,7 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
   const { save, saving } = useSaveSettings(assistant)
   const initial = assistant.settings.followups
   const [assisted, setAssisted] = useState<AssistedFollowup[]>(initial?.assisted ?? [])
+  const [assistedDeleteTarget, setAssistedDeleteTarget] = useState<string | null>(null)
   const [enabled, setEnabled] = useState(initial?.enabled ?? false)
   const [afterOwn, setAfterOwn] = useState(initial?.after_own_message ?? false)
   const [items, setItems] = useState<FollowupItem[]>(
@@ -1367,7 +1368,7 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() => setAssisted((list) => list.filter((t) => t.id !== template.id))}
+                      onClick={() => setAssistedDeleteTarget(template.id)}
                     >
                       Supprimer
                     </Button>
@@ -1416,6 +1417,18 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
         confirmLabel="Supprimer"
         danger
       />
+      <ConfirmDialog
+        open={assistedDeleteTarget != null}
+        onClose={() => setAssistedDeleteTarget(null)}
+        onConfirm={() => {
+          setAssisted((list) => list.filter((t) => t.id !== assistedDeleteTarget))
+          setAssistedDeleteTarget(null)
+        }}
+        title="Supprimer ce message proposé"
+        message="Il ne vous sera plus proposé dans « À relancer ». Pensez à enregistrer ensuite."
+        confirmLabel="Supprimer"
+        danger
+      />
     </Card>
   )
 }
@@ -1452,7 +1465,7 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
     <Card>
       <CardHeader
         title="Réponses préenregistrées"
-        description="Quand le prospect pose une de ces questions, l'assistant envoie votre réponse telle quelle au lieu d'en rédiger une. Chaque réponse ne part qu'une fois par conversation."
+        description="Quand le prospect se trouve dans une de ces situations, l'assistant envoie votre réponse telle quelle. Chaque réponse ne part qu'une fois par conversation."
       />
       <form onSubmit={submit}>
         <CardBody className="space-y-3">
