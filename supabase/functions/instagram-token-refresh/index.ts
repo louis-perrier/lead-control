@@ -1,6 +1,45 @@
 // Rafraîchit chaque nuit les tokens Instagram longue durée qui expirent
 // sous 10 jours. Un échec marque le compte expired, visible dans l'app.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
+import { AVATAR_REFRESH_MS, refreshContactAvatar } from '../_shared/avatars.ts'
+import { getChannelToken } from '../_shared/instagram.ts'
+
+const AVATAR_BATCH = 50
+const AVATAR_PARALLEL = 5
+
+// Remplit les photos des conversations existantes et rafraîchit celles des prospects qui
+// n'ont pas réécrit depuis une semaine. Borné pour tenir dans la durée du cron.
+async function refreshStaleAvatars() {
+  const staleBefore = new Date(Date.now() - AVATAR_REFRESH_MS).toISOString()
+  const activeSince = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+  const { data: accounts } = await admin.from('channel_accounts').select('id').eq('status', 'connected')
+  const connected = (accounts ?? []).map((a) => a.id)
+  if (connected.length === 0) return 0
+  const { data: stale } = await admin
+    .from('conversations')
+    .select('id, user_id, channel_account_id, contact_external_id')
+    .in('channel_account_id', connected)
+    .not('contact_external_id', 'is', null)
+    .gte('last_message_at', activeSince)
+    .or(`contact_avatar_checked_at.is.null,contact_avatar_checked_at.lt.${staleBefore}`)
+    .limit(AVATAR_BATCH)
+  const queue = [...(stale ?? [])]
+  const tokens = new Map<string, Promise<string | null>>()
+  const tokenFor = (id: string) => {
+    if (!tokens.has(id)) tokens.set(id, getChannelToken(id).catch(() => null))
+    return tokens.get(id)!
+  }
+  await Promise.all(
+    Array.from({ length: AVATAR_PARALLEL }, async () => {
+      while (queue.length) {
+        const conv = queue.shift()!
+        const token = await tokenFor(conv.channel_account_id)
+        if (token) await refreshContactAvatar(conv, token)
+      }
+    }),
+  )
+  return stale?.length ?? 0
+}
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405 })
@@ -59,5 +98,6 @@ Deno.serve(async (req) => {
   if (failed > 0) {
     await logEvent('warn', 'instagram-token-refresh', `${failed} compte(s) Instagram non rafraîchi(s)`)
   }
-  return json(req, { refreshed, failed })
+  const avatars = await refreshStaleAvatars()
+  return json(req, { refreshed, failed, avatars })
 })
