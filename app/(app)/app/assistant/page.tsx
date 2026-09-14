@@ -1492,7 +1492,7 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
                 {entry.trigger.trim() ? (
                   <FieldHint>
                     {triggerKind(entry.trigger) === 'keyword'
-                      ? `Mot-clé : part quand le message contient « ${entry.trigger.trim()} », même avec une petite faute.`
+                      ? `Mot-clé : part quand le message contient « ${entry.trigger.trim()} », sans tenir compte des majuscules, accents ni pluriels.`
                       : 'Situation : l’assistant reconnaît les messages qui y correspondent, quelle que soit la formulation.'}
                   </FieldHint>
                 ) : index === 0 ? (
