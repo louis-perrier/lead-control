@@ -34,6 +34,7 @@ const sections = [
     paragraphs: [
       "We collect personal information that you voluntarily provide when you create an account, request information, engage with the Services, or contact us. The personal information depends on your choices, the features you use, and the products involved.",
       "Social media login data may also be processed when you choose that registration path.",
+      "When someone sends a direct message to an Instagram account connected to LeadControl, we store a copy of their Instagram profile picture in private storage so the account owner can recognize the conversation. The copy is refreshed weekly and deleted when the Instagram account is disconnected.",
     ],
     listTitle: "Typical data you share includes:",
     list: [

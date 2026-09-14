@@ -121,6 +121,7 @@ export type Conversation = {
   contact_id: string | null
   contact_name: string | null
   contact_handle: string | null
+  contact_avatar_path: string | null
   automation_state: AutomationState
   automation_reason: string | null
   next_reply_at: string | null

@@ -7,6 +7,7 @@ import { Download, MessageCircle, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEffectiveUserId, useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
+import { useAvatarUrls } from '@/lib/avatars'
 import { PROSPECT_STAGES, nextAction, prospectStage } from '@/lib/prospects'
 import type { NextAction, ProspectStage } from '@/lib/prospects'
 import type { Conversation } from '@/lib/types'
@@ -250,6 +251,8 @@ export default function ProspectsPage() {
     return map
   }, [rows])
 
+  const avatars = useAvatarUrls(rows.map((row) => row.conv.contact_avatar_path))
+
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase()
     return rows.filter(
@@ -361,7 +364,7 @@ export default function ProspectsPage() {
                   >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2.5">
-                        <Avatar name={row.conv.contact_name ?? row.conv.contact_handle} className="size-8" />
+                        <Avatar name={row.conv.contact_name ?? row.conv.contact_handle} src={row.conv.contact_avatar_path ? avatars[row.conv.contact_avatar_path] : null} className="size-8" />
                         <div className="min-w-0">
                           <p className="truncate font-medium">{displayName(row.conv)}</p>
                           {row.conv.contact_name && row.conv.contact_handle ? (
@@ -393,7 +396,7 @@ export default function ProspectsPage() {
                     onClick={() => setOpenId(row.conv.id)}
                     className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-bg/60"
                   >
-                    <Avatar name={row.conv.contact_name ?? row.conv.contact_handle} className="size-8" />
+                    <Avatar name={row.conv.contact_name ?? row.conv.contact_handle} src={row.conv.contact_avatar_path ? avatars[row.conv.contact_avatar_path] : null} className="size-8" />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         <span className="truncate text-sm font-medium">{displayName(row.conv)}</span>
