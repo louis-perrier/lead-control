@@ -267,7 +267,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
   return (
     <Card>
       <CardHeader
-        title="Ce que vend le coach"
+        title="Ce que vous vendez"
         description="L'assistant s'appuie sur ces informations pour répondre à votre place."
       />
       <form onSubmit={submit}>
