@@ -24,6 +24,8 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { ViewAsBanner } from '@/components/view-as/banner'
 import { AdminHealthBanner } from '@/components/admin/health-banner'
+import { NotificationBell } from '@/components/shell/notification-bell'
+import { useNotificationsEnabled, useNotificationsLive } from '@/lib/notifications'
 
 const NAV = [
   { href: '/app', label: 'Accueil', icon: Home, exact: true },
@@ -106,6 +108,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: realProfile } = useRealProfile()
   const { data: billing } = useBilling()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const notificationsEnabled = useNotificationsEnabled()
+  useNotificationsLive(notificationsEnabled, realProfile?.user_id)
 
   const staff = isStaff(realProfile)
   const isActive = (href: string, exact?: boolean) =>
@@ -127,10 +131,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-surface md:flex">
-        <div className="flex h-14 items-center px-4">
+        <div className="flex h-14 items-center justify-between px-4">
           <Link href="/app">
             <img src="/logoMarque@2x.png" alt="LeadControl" className="h-7 w-auto" />
           </Link>
+          {notificationsEnabled ? <NotificationBell /> : null}
         </div>
         <nav className="flex-1 space-y-0.5 px-2 py-2">
           {NAV.map(({ href, label, icon: Icon, exact }) => (
@@ -196,6 +201,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="min-w-0 flex-1 pb-16 md:ml-60 md:pb-0">
+        {notificationsEnabled ? (
+          <div className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-border bg-surface px-3 md:hidden">
+            <Link href="/app">
+              <img src="/logoMarque@2x.png" alt="LeadControl" className="h-6 w-auto" />
+            </Link>
+            <NotificationBell />
+          </div>
+        ) : null}
         <ViewAsBanner />
         {staff ? <AdminHealthBanner /> : null}
         {children}
