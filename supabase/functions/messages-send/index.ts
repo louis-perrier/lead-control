@@ -1,7 +1,8 @@
-// Envoi manuel depuis la boîte de réception. Respecte la fenêtre Meta de 24 h
-// et peut mettre l'assistant en pause sur la conversation (prise de main).
+// Envoi manuel depuis la boîte de réception. Respecte les fenêtres Meta (24 h, 7 jours avec
+// Human Agent) et peut mettre l'assistant en pause sur la conversation (prise de main).
 import { admin, getUser, handleOptions, json } from '../_shared/core.ts'
 import { getChannelToken, sendInstagramText } from '../_shared/instagram.ts'
+import { STANDARD_WINDOW_MS, manualSendMode } from '../_shared/messaging-window.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import type { FollowupSettings } from '../_shared/followups.ts'
 
@@ -23,7 +24,7 @@ Deno.serve(async (req) => {
 
   const convRes = await admin
     .from('conversations')
-    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, automation_state')
+    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, automation_state, last_customer_message_at')
     .eq('id', body.conversation_id)
     .maybeSingle()
   const conv = convRes.data
@@ -32,18 +33,25 @@ Deno.serve(async (req) => {
     return json(req, { error: 'channel_missing' }, 409)
   }
 
-  const lastInbound = await admin
-    .from('conversation_messages')
-    .select('sent_at')
-    .eq('conversation_id', conv.id)
-    .eq('author_type', 'customer')
-    .order('sent_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  const lastAt = lastInbound.data?.sent_at ? Date.parse(lastInbound.data.sent_at) : 0
-  if (!lastAt || Date.now() - lastAt > 24 * 3600 * 1000) {
-    return json(req, { error: 'window_expired' }, 403)
+  let lastCustomerAt: string | null = conv.last_customer_message_at
+  if (!lastCustomerAt) {
+    const lastInbound = await admin
+      .from('conversation_messages')
+      .select('sent_at')
+      .eq('conversation_id', conv.id)
+      .eq('author_type', 'customer')
+      .order('sent_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    lastCustomerAt = lastInbound.data?.sent_at ?? null
   }
+  const beyondStandard = !lastCustomerAt || Date.now() - Date.parse(lastCustomerAt) > STANDARD_WINDOW_MS
+  const humanAgent = beyondStandard
+    ? (await admin.rpc('user_has_feature', { p_user: user.id, p_key: 'human_agent' })).data === true
+    : false
+  const mode = manualSendMode(lastCustomerAt, Date.now(), humanAgent)
+  if (mode === 'expired') return json(req, { error: 'window_expired' }, 403)
+  if (mode === 'closed') return json(req, { error: 'window_closed' }, 403)
 
   const channel = await admin
     .from('channel_accounts')
@@ -73,7 +81,9 @@ Deno.serve(async (req) => {
   if (inserted.error) return json(req, { error: 'insert_failed' }, 500)
 
   try {
-    const mid = await sendInstagramText(token, channel.data.external_id, conv.contact_external_id, text)
+    const mid = await sendInstagramText(token, channel.data.external_id, conv.contact_external_id, text, {
+      humanAgent: mode === 'human_agent',
+    })
     await admin
       .from('conversation_messages')
       .update({ external_message_id: mid ?? provisional, send_state: 'sent' })

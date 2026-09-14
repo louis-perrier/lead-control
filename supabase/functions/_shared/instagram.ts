@@ -13,16 +13,25 @@ export async function getChannelToken(channelAccountId: string): Promise<string 
   return data?.long_lived_token ?? data?.access_token ?? null
 }
 
+export type SendOptions = { humanAgent?: boolean }
+
+// Le tag n'est admis par Meta que sur un message écrit ou validé par un humain, entre 24 h et
+// 7 jours après le dernier message du prospect. Seul l'envoi manuel de la boîte le passe.
+function humanAgentFields(opts?: SendOptions) {
+  return opts?.humanAgent ? { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' } : {}
+}
+
 export async function sendInstagramText(
   token: string,
   igUserId: string,
   recipientId: string,
   text: string,
+  opts?: SendOptions,
 ): Promise<string | null> {
   const res = await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ recipient: { id: recipientId }, message: { text } }),
+    body: JSON.stringify({ recipient: { id: recipientId }, message: { text }, ...humanAgentFields(opts) }),
   })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(`graph_send_${res.status}:${JSON.stringify(body).slice(0, 300)}`)
@@ -36,6 +45,7 @@ export async function sendInstagramAudio(
   igUserId: string,
   recipientId: string,
   audioUrl: string,
+  opts?: SendOptions,
 ): Promise<string | null> {
   const res = await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
     method: 'POST',
@@ -43,6 +53,7 @@ export async function sendInstagramAudio(
     body: JSON.stringify({
       recipient: { id: recipientId },
       message: { attachment: { type: 'audio', payload: { url: audioUrl, is_reusable: false } } },
+      ...humanAgentFields(opts),
     }),
   })
   const body = await res.json().catch(() => ({}))
