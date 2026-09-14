@@ -7,12 +7,14 @@ import { admin } from './core.ts'
 export const AI_MODEL_REPLY = 'claude-sonnet-5'
 export const AI_MODEL_SUMMARY = 'claude-haiku-4-5-20251001'
 
-// $ par million de tokens, estimation affichée dans l'admin, à ajuster si le
-// tarif Anthropic change.
+// $ par million de tokens, tarif public Anthropic, à ajuster s'il change.
+// Écriture en cache : 1,25x l'entrée sur 5 min, 2x sur 1 h. Lecture : 0,1x.
 const PRICING: Record<string, { input: number; output: number }> = {
-  'claude-sonnet-5': { input: 3, output: 15 },
-  'claude-haiku-4-5-20251001': { input: 0.8, output: 4 },
+  'claude-sonnet-5': { input: 2, output: 10 },
+  'claude-haiku-4-5-20251001': { input: 1, output: 5 },
 }
+
+export type SystemInput = string | { text: string; cache: boolean }[]
 
 export type ResolvedKey = { key: string; source: 'platform' | 'byok' }
 
@@ -28,15 +30,23 @@ export async function resolveApiKey(userId: string, planOverride: string | null)
 export async function generateText(opts: {
   apiKey: string
   model: string
-  system: string
+  system: SystemInput
   prompt: string
   maxTokens?: number
 }) {
   const client = new Anthropic({ apiKey: opts.apiKey })
+  const system =
+    typeof opts.system === 'string'
+      ? opts.system
+      : opts.system.map((block) => ({
+          type: 'text' as const,
+          text: block.text,
+          ...(block.cache ? { cache_control: { type: 'ephemeral' as const, ttl: '1h' as const } } : {}),
+        }))
   const res = await client.messages.create({
     model: opts.model,
     max_tokens: opts.maxTokens ?? 2048,
-    system: opts.system,
+    system,
     messages: [{ role: 'user', content: opts.prompt }],
   })
   const text = res.content
@@ -51,20 +61,32 @@ export async function recordUsage(opts: {
   userId: string
   conversationId: number | null
   model: string
-  usage: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number } | null
+  usage: {
+    input_tokens?: number
+    output_tokens?: number
+    cache_read_input_tokens?: number | null
+    cache_creation_input_tokens?: number | null
+    cache_creation?: { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number } | null
+  } | null
   source: 'platform' | 'byok'
 }) {
   const p = PRICING[opts.model] ?? { input: 5, output: 25 }
   const input = opts.usage?.input_tokens ?? 0
   const output = opts.usage?.output_tokens ?? 0
+  const cacheRead = opts.usage?.cache_read_input_tokens ?? 0
+  const cacheWrite = opts.usage?.cache_creation_input_tokens ?? 0
+  const write1h = opts.usage?.cache_creation?.ephemeral_1h_input_tokens ?? 0
+  const write5m = Math.max(0, cacheWrite - write1h)
+  const inputCost = input + cacheRead * 0.1 + write5m * 1.25 + write1h * 2
   await admin.from('ai_usage').insert({
     user_id: opts.userId,
     conversation_id: opts.conversationId,
     model: opts.model,
     input_tokens: input,
     output_tokens: output,
-    cache_read_tokens: opts.usage?.cache_read_input_tokens ?? 0,
+    cache_read_tokens: cacheRead,
+    cache_creation_tokens: cacheWrite,
     key_source: opts.source,
-    cost_estimate_usd: (input * p.input + output * p.output) / 1_000_000,
+    cost_estimate_usd: (inputCost * p.input + output * p.output) / 1_000_000,
   })
 }
