@@ -1,7 +1,7 @@
 // Réponses préenregistrées, reconnues hors du prompt principal repris de la V1. Si le message
 // ne demande rien d'autre, la génération complète est évitée ; sinon l'agent répond au reste.
 import { admin, logEvent } from '../_shared/core.ts'
-import { bestKeywordMatch, isOnlyPoliteness, triggerKind } from '../_shared/canned-match.ts'
+import { bestKeywordMatch, firstJsonObject, isOnlyPoliteness, triggerKind } from '../_shared/canned-match.ts'
 import { AI_MODEL_SUMMARY, generateText, recordUsage } from '../_shared/ai.ts'
 import { sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
@@ -33,10 +33,10 @@ const CLASSIFIER_SYSTEM =
   'Tu es un routeur de messages. Tu ne rédiges rien, tu choisis au plus une situation. ' +
   'Ne choisis une situation que si le dernier message du prospect y correspond sans ambiguïté ' +
   'et si la réponse associée reste cohérente avec ce que le prospect a déjà dit. Les échanges ' +
-  'précédents servent seulement à le comprendre. Dans le doute, choisis aucune. ' +
-  'Réponds uniquement en JSON : {"id": "identifiant ou aucune", "reste": true ou false}. ' +
+  'précédents servent seulement à le comprendre. Dans le doute, choisis 0. ' +
   '"reste" vaut true si le dernier message du prospect contient aussi une autre question ou ' +
-  'information qui appelle une réponse, en plus de la situation choisie.'
+  'information qui appelle une réponse, en plus de la situation choisie. ' +
+  'Réponds uniquement par ce JSON, sans aucun texte autour : {"situation": numéro ou 0, "reste": true ou false}'
 
 const KEYWORD_CHECK_SYSTEM =
   'Tu vérifies si une réponse préenregistrée peut partir telle quelle. Le dernier message du ' +
@@ -44,7 +44,7 @@ const KEYWORD_CHECK_SYSTEM =
   'de ce mot-clé et si la réponse reste cohérente avec ce que le prospect a dit : elle ne lui ' +
   'redemande pas une information déjà donnée et ne le contredit pas. "reste" vaut true si le ' +
   'message contient aussi une autre question ou information qui appelle une réponse. ' +
-  'Réponds uniquement en JSON : {"envoyer": true ou false, "reste": true ou false}.'
+  'Réponds uniquement par ce JSON, sans aucun texte autour : {"envoyer": true ou false, "reste": true ou false}'
 
 type AiContext = {
   apiKey: string
@@ -78,14 +78,6 @@ async function askSmallModel(ctx: AiContext, system: string, body: string, maxTo
   return res.text
 }
 
-function parseJson(text: string): Record<string, unknown> | null {
-  try {
-    return JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
-  } catch {
-    return null
-  }
-}
-
 async function confirmKeyword(ctx: AiContext, entry: CannedResponse): Promise<{ id: string; other: boolean } | null> {
   const text = await askSmallModel(
     ctx,
@@ -93,17 +85,16 @@ async function confirmKeyword(ctx: AiContext, entry: CannedResponse): Promise<{ 
     `Mot-clé : ${entry.trigger}\nRéponse préenregistrée : ${replyPreview(entry)}`,
     40,
   )
-  const parsed = parseJson(text)
+  const parsed = firstJsonObject(text)
   return parsed?.envoyer === true ? { id: entry.id!, other: parsed.reste === true } : null
 }
 
 async function classify(ctx: AiContext, entries: CannedResponse[]): Promise<{ id: string; other: boolean } | null> {
-  const list = entries.map((e) => `${e.id} : ${e.trigger}\n  Réponse associée : ${replyPreview(e)}`).join('\n')
+  // Des numéros plutôt que les identifiants : moins de tokens, et une réponse jamais coupée.
+  const list = entries.map((e, i) => `${i + 1}. ${e.trigger}\n   Réponse associée : ${replyPreview(e)}`).join('\n')
   const text = await askSmallModel(ctx, CLASSIFIER_SYSTEM, `Situations :\n${list}`, 60)
-  const parsed = parseJson(text)
-  const id = parsed ? String(parsed.id ?? '') : text
-  const answer = id.toLowerCase().replace(/[^a-z0-9_-]/g, '')
-  const match = entries.find((e) => (e.id ?? '').toLowerCase() === answer)
+  const parsed = firstJsonObject(text)
+  const match = entries[Number(parsed?.situation) - 1]
   return match?.id ? { id: match.id, other: parsed?.reste === true } : null
 }
 
