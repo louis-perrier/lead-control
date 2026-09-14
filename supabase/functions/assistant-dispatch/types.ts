@@ -10,16 +10,7 @@ export type AssistantContext = {
   summary: string
 }
 
-export type AgentDecision = {
-  reply_text: string | null
-  should_response: boolean
-  stop_successful: boolean
-  should_notify_human: boolean
-  heat_tag: 'hot' | 'warm' | 'cold' | 'unknown'
-  heat_reason: string
-  summary: string | null
-  reason: string | null
-}
+export type { AgentDecision } from './decision.ts'
 
 export type WindowMessage = {
   direction: 'in' | 'out'

@@ -1269,16 +1269,23 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
           ) : null}
           {entries.map((entry, index) => (
             <div key={entry.id} className="space-y-3 rounded-[10px] border border-border p-3">
-              <div className="flex items-center gap-2">
-                <Input
-                  value={entry.trigger}
-                  placeholder="Quand le prospect demande ce que vous faites dans la vie"
-                  onChange={(e) => edit(entry.id, { trigger: e.target.value })}
-                  className="flex-1"
-                />
-                <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteTarget(entry.id)}>
-                  Supprimer
-                </Button>
+              <div>
+                <Label htmlFor={`canned-trigger-${entry.id}`}>Situation</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id={`canned-trigger-${entry.id}`}
+                    value={entry.trigger}
+                    placeholder="Le prospect demande ce que vous faites dans la vie"
+                    onChange={(e) => edit(entry.id, { trigger: e.target.value })}
+                    className="flex-1"
+                  />
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteTarget(entry.id)}>
+                    Supprimer
+                  </Button>
+                </div>
+                {index === 0 ? (
+                  <FieldHint>Décrivez la situation, pas une phrase exacte. « Tu bosses dans quoi ? » la déclenche aussi.</FieldHint>
+                ) : null}
               </div>
               <div className="flex gap-2">
                 <button type="button" className={pillClass(entry.kind !== 'audio')} onClick={() => edit(entry.id, { kind: 'text' })}>
