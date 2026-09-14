@@ -3,8 +3,11 @@
 // Meta n'accepte un envoi automatisé que dans les 24 h qui suivent le dernier message du prospect.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
 import { getChannelToken, sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
-import { pickVariant, usableFollowupItems } from '../_shared/followups.ts'
+import { findFollowupItem, nextFollowupItem, pickVariant, planNextFollowup, usableFollowupItems } from '../_shared/followups.ts'
 import type { FollowupItem, FollowupSettings } from '../_shared/followups.ts'
+import { audienceBlocks } from '../_shared/audience.ts'
+import { formatFirstName, hasNameVariable, renderFollowupText, usableDisplayName } from '../_shared/followup-text.ts'
+import { AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 
 const AUDIO_URL_TTL_SECONDS = 3600
 const MAX_ATTEMPTS = 3
@@ -20,6 +23,62 @@ type DueFollowup = {
   slot_index: number
   message_id: number | null
   attempts: number
+}
+
+const FIRST_NAME_SYSTEM =
+  'Tu lis des messages envoyés par un prospect sur Instagram. Si le prospect y donne explicitement ' +
+  'son propre prénom, réponds uniquement par ce prénom. Sinon réponds uniquement : aucun.'
+
+type NameSource = {
+  id: number
+  user_id: string
+  contact_name: string | null
+  contact_handle: string | null
+  metadata: Record<string, unknown> | null
+}
+
+// Le prénom donné par le prospect prime sur son nom Instagram, souvent un pseudo. Le résultat
+// est mémorisé, y compris « aucun », pour ne payer la lecture qu'une fois par conversation.
+async function resolveFirstName(conv: NameSource): Promise<string | null> {
+  const fallback = usableDisplayName(conv.contact_name, conv.contact_handle)
+  const meta = conv.metadata ?? {}
+  if (typeof meta.first_name === 'string') return meta.first_name || fallback
+  try {
+    const profile = await admin.from('profiles').select('plan_override').eq('user_id', conv.user_id).maybeSingle()
+    const key = await resolveApiKey(conv.user_id, profile.data?.plan_override ?? null)
+    if (!key) return fallback
+    const msgs = await admin
+      .from('conversation_messages')
+      .select('body_text, transcript')
+      .eq('conversation_id', conv.id)
+      .eq('author_type', 'customer')
+      .order('id', { ascending: false })
+      .limit(30)
+    const lines = (msgs.data ?? [])
+      .reverse()
+      .map((m) => (m.transcript || m.body_text || '').trim())
+      .filter(Boolean)
+    let found = ''
+    if (lines.length > 0) {
+      const res = await generateText({
+        apiKey: key.key,
+        model: AI_MODEL_SUMMARY,
+        system: FIRST_NAME_SYSTEM,
+        prompt: lines.join('\n').slice(-4000),
+        maxTokens: 12,
+      })
+      await recordUsage({ userId: conv.user_id, conversationId: conv.id, model: AI_MODEL_SUMMARY, usage: res.usage, source: key.source })
+      const word = res.text.trim().split(/\s+/)[0]?.replace(/[.,!]+$/, '') ?? ''
+      if (/^\p{L}[\p{L}'-]{1,19}$/u.test(word) && word.toLowerCase() !== 'aucun') found = formatFirstName(word)
+    }
+    await admin
+      .from('conversations')
+      .update({ metadata: { ...meta, first_name: found } })
+      .eq('id', conv.id)
+    return found || fallback
+  } catch (_) {
+    return fallback
+  }
 }
 
 async function skip(id: string, reason: string, errorMessage?: string) {
@@ -43,6 +102,35 @@ async function postpone(due: DueFollowup, at: number) {
     .eq('id', due.id)
 }
 
+async function followupItemId(id: string) {
+  const { data } = await admin.from('followups').select('item_id').eq('id', id).maybeSingle()
+  return (data?.item_id as string | null) ?? null
+}
+
+// La relance suivante ne naît qu'une fois celle-ci partie, avec son propre délai.
+async function chainNext(due: DueFollowup, anchorMessageId: number) {
+  try {
+    const conv = await admin.from('conversations').select('assistant_id').eq('id', due.conversation_id).maybeSingle()
+    const assistantId = due.assistant_id ?? conv.data?.assistant_id
+    if (!assistantId) return
+    const agent = await admin.from('assistants').select('settings').eq('id', assistantId).maybeSingle()
+    const items = usableFollowupItems((agent.data?.settings as { followups?: FollowupSettings } | null)?.followups)
+    const next = nextFollowupItem(items, await followupItemId(due.id), due.slot_index)
+    if (!next) return
+    await planNextFollowup({
+      conversationId: due.conversation_id,
+      assistantId,
+      anchorMessageId,
+      slot: due.slot_index + 1,
+      item: next,
+    })
+  } catch (e) {
+    await logEvent('warn', 'followups-dispatch', `relance suivante non planifiée conv=${due.conversation_id}: ${String(e).slice(0, 200)}`, {
+      conversation_id: due.conversation_id,
+    })
+  }
+}
+
 // Une reprise après interruption ne renvoie jamais : un second message identique chez le
 // prospect coûte plus cher qu'une relance manquée.
 async function resolveInterrupted(due: DueFollowup): Promise<boolean> {
@@ -62,6 +150,7 @@ async function resolveInterrupted(due: DueFollowup): Promise<boolean> {
         external_message_id: msg.data.external_message_id,
       })
       .eq('id', due.id)
+    await chainNext(due, due.message_id)
   } else {
     await skip(due.id, 'interrupted')
   }
@@ -74,7 +163,7 @@ async function handleFollowup(due: DueFollowup) {
 
   const convRes = await admin
     .from('conversations')
-    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, automation_state, heat_tag')
+    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, contact_name, contact_handle, metadata, automation_state, heat_tag')
     .eq('id', due.conversation_id)
     .maybeSingle()
   const conv = convRes.data
@@ -94,10 +183,11 @@ async function handleFollowup(due: DueFollowup) {
     .maybeSingle()
   const agent = agentRes.data
   if (!agent || !agent.is_active) return skip(due.id, 'agent_inactive')
+  if (audienceBlocks(agent.settings, conv.contact_handle)) return skip(due.id, 'audience_blocked')
 
   const settings = (agent.settings ?? {}) as { followups?: FollowupSettings }
   const items = usableFollowupItems(settings.followups)
-  const item: FollowupItem | undefined = items[due.slot_index - 1]
+  const item: FollowupItem | null = findFollowupItem(items, await followupItemId(due.id), due.slot_index)
   if (!item) return skip(due.id, 'followup_removed')
 
   const closesRes = await admin.rpc('conversation_window_closes_at', { p_conversation_id: conv.id })
@@ -131,8 +221,9 @@ async function handleFollowup(due: DueFollowup) {
   if (!token || !channel.data?.external_id) return skip(due.id, 'channel_token_missing')
 
   const isAudio = item.kind === 'audio'
-  const text = isAudio ? null : pickVariant(item)
-  if (!isAudio && !text) return skip(due.id, 'followup_removed')
+  const variant = isAudio ? null : pickVariant(item)
+  if (!isAudio && !variant) return skip(due.id, 'followup_removed')
+  const text = variant && hasNameVariable(variant) ? renderFollowupText(variant, await resolveFirstName(conv)) : variant
 
   let audioUrl: string | null = null
   if (isAudio) {
@@ -222,6 +313,7 @@ async function handleFollowup(due: DueFollowup) {
     () => {},
     () => {},
   )
+  await chainNext(due, inserted.data.id)
 }
 
 Deno.serve(async (req) => {
