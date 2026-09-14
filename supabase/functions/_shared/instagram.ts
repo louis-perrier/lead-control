@@ -77,6 +77,18 @@ export async function markSeen(token: string, igUserId: string, recipientId: str
   }
 }
 
+export async function sendTypingOn(token: string, igUserId: string, recipientId: string) {
+  try {
+    await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ recipient: { id: recipientId }, sender_action: 'typing_on' }),
+    })
+  } catch (_) {
+    // l'indicateur de saisie est un confort, jamais bloquant
+  }
+}
+
 export async function fetchContactProfile(token: string, igScopedId: string) {
   try {
     const res = await fetch(
