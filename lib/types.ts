@@ -210,3 +210,14 @@ export type BillingInfo = {
   currentPeriodEnd: string | null
   isTrial: boolean
 }
+
+export type AppNotification = {
+  id: number
+  user_id: string
+  conversation_id: number | null
+  kind: 'needs_you' | 'blocked'
+  body: string
+  created_at: string
+  read_at: string | null
+  conversations: { contact_name: string | null; contact_handle: string | null; contact_avatar_path: string | null } | null
+}

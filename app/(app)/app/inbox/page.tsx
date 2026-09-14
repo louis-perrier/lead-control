@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useEffectiveUserId, useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import { useAvatarUrls } from '@/lib/avatars'
+import { useNotificationsEnabled } from '@/lib/notifications'
 import type { Conversation } from '@/lib/types'
 import { needsManualFollowup } from '@/supabase/functions/_shared/messaging-window'
 import { cn, formatRelative } from '@/lib/utils'
@@ -77,6 +78,7 @@ function InboxContent() {
   const { data: flags } = useFlags()
   const { data: overrides } = useMyOverrides()
   const humanAgent = hasFeature('human_agent', flags, profile, overrides)
+  const notificationsEnabled = useNotificationsEnabled()
   const filters = FILTERS.filter((f) => f.key !== 'followup' || humanAgent)
 
   const selectedId = Number(searchParams.get('c')) || null
@@ -129,7 +131,8 @@ function InboxContent() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] md:h-dvh">
+    // La barre du haut (cloche) n'existe sur mobile qu'avec les notifications activées.
+    <div className={cn('flex md:h-dvh', notificationsEnabled ? 'h-[calc(100dvh-7rem)]' : 'h-[calc(100dvh-4rem)]')}>
       {/* Liste */}
       <section
         className={cn(

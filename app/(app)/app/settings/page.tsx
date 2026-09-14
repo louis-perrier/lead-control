@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
 import { useInvalidate, useProfile } from '@/lib/queries'
+import { disablePush, enablePush, useNotificationsEnabled, usePushState } from '@/lib/notifications'
+import type { PushState } from '@/lib/notifications'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -344,6 +346,85 @@ function ByokCard() {
   )
 }
 
+function NotificationsCard() {
+  const enabled = useNotificationsEnabled()
+  const toast = useToast()
+  const [state, setState] = usePushState({ resave: true })
+  const [busy, setBusy] = useState(false)
+
+  if (!enabled) return null
+
+  async function run(action: () => Promise<PushState>, success?: string) {
+    setBusy(true)
+    try {
+      const next = await action()
+      setState(next)
+      if (next === 'on' && success) toast(success)
+      if (next === 'denied') toast('Les notifications sont bloquées pour ce site sur cet appareil.', 'error')
+    } catch {
+      toast('L’opération a échoué. Réessayez.', 'error')
+    }
+    setBusy(false)
+  }
+
+  async function sendTest() {
+    setBusy(true)
+    try {
+      const res = await callFunction<{ delivered: number }>('notifications-push', { body: { test: true } })
+      toast(res.delivered > 0 ? 'Notification de test envoyée.' : 'Aucun appareil n’a pu la recevoir. Désactivez puis réactivez.', res.delivered > 0 ? 'success' : 'error')
+    } catch {
+      toast('Impossible d’envoyer la notification de test.', 'error')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <Card>
+      <div id="notifications" className="scroll-mt-16" />
+      <CardHeader
+        title="Notifications sur ce téléphone"
+        description="Recevez une alerte quand l’assistant a besoin de vous ou qu’il est bloqué, même application fermée."
+      />
+      <CardBody className="space-y-3 text-sm">
+        {state === 'loading' ? (
+          <p className="text-muted">Vérification de cet appareil…</p>
+        ) : state === 'unsupported' ? (
+          <p className="text-muted">Ce navigateur ne permet pas les notifications. Utilisez Chrome sur Android, ou Safari sur iPhone.</p>
+        ) : state === 'ios_install' ? (
+          <ol className="list-decimal space-y-1 pl-5 text-muted">
+            <li>Dans Safari, touchez le bouton Partager.</li>
+            <li>Choisissez « Sur l’écran d’accueil ».</li>
+            <li>Ouvrez LeadControl depuis la nouvelle icône, puis revenez ici pour activer.</li>
+          </ol>
+        ) : state === 'denied' ? (
+          <p className="text-muted">
+            Les notifications sont bloquées pour LeadControl. Autorisez-les dans les réglages du navigateur ou du
+            téléphone, puis rechargez la page.
+          </p>
+        ) : state === 'off' ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="flex-1 text-muted">Désactivées sur cet appareil.</p>
+            <Button onClick={() => run(enablePush, 'Notifications activées sur cet appareil.')} disabled={busy}>
+              {busy ? 'Activation…' : 'Activer'}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="success">Activées sur cet appareil</Badge>
+            <span className="flex-1" />
+            <Button size="sm" variant="secondary" onClick={sendTest} disabled={busy}>
+              Envoyer un test
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => run(disablePush)} disabled={busy}>
+              Désactiver
+            </Button>
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
 function DangerCard() {
   const router = useRouter()
   const toast = useToast()
@@ -405,6 +486,7 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-muted">Votre compte et vos préférences.</p>
       </div>
       <ProfileCard />
+      <NotificationsCard />
       <AboutCard />
       <PasswordCard />
       <ByokCard />
