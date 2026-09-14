@@ -14,10 +14,8 @@ export type AgentDecision = {
 
 export type ParsedDecision = { decision: AgentDecision; readable: boolean }
 
-// Le modèle est instruit de séparer les bulles par une ligne vide à l'intérieur
-// de reply_text : s'il retranscrit ce saut de ligne tel quel au lieu de l'échapper
-// en \n, le JSON devient invalide. On répare en échappant les caractères de
-// contrôle bruts, mais seulement à l'intérieur des chaînes, pas entre les jetons.
+// Les bulles sont séparées par une ligne vide dans reply_text : un saut de ligne brut rend le
+// JSON invalide, on l'échappe donc à l'intérieur des chaînes seulement.
 export function sanitizeJsonControlChars(raw: string) {
   let result = ''
   let inString = false
