@@ -149,6 +149,7 @@ export type ContextDocument = {
   title: string
   status: 'processing' | 'ready' | 'error'
   char_count: number | null
+  source_char_count?: number | null
   error_message: string | null
   created_at: string
 }

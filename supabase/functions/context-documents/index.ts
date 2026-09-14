@@ -77,7 +77,13 @@ Deno.serve(async (req) => {
     }
     await admin
       .from('context_documents')
-      .update({ status: 'ready', extracted_text: text, char_count: text.length, updated_at: new Date().toISOString() })
+      .update({
+        status: 'ready',
+        extracted_text: text,
+        char_count: text.length,
+        source_char_count: rawText.trim().length,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', inserted.id)
     return json(req, { ok: true, id: inserted.id, status: 'ready' })
   }
