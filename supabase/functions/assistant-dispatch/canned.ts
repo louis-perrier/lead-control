@@ -6,7 +6,6 @@ import { AI_MODEL_SUMMARY, generateText, recordUsage } from '../_shared/ai.ts'
 import { sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import { finalizeConversation } from './finalize.ts'
-import type { FollowupSettings } from '../_shared/followups.ts'
 
 export type CannedResponse = {
   id?: string
@@ -92,6 +91,7 @@ export async function tryCannedResponse(params: {
   assistantId: string
   settings: Record<string, unknown>
   metadata: Record<string, unknown>
+  contactHandle: string | null
   lastCustomerText: string
   recentLines: string[]
   apiKey: string
@@ -224,7 +224,8 @@ export async function tryCannedResponse(params: {
       conversationId: params.convId,
       assistantId: params.assistantId,
       anchorMessageId: inserted.data.id,
-      settings: (params.settings as { followups?: FollowupSettings }).followups,
+      assistantSettings: params.settings,
+      contactHandle: params.contactHandle,
     })
   } catch (_) {
     // la réponse est partie, une relance non programmée ne justifie pas d'échouer

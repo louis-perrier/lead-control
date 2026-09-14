@@ -1,4 +1,5 @@
 import { admin } from './core.ts'
+import { audienceBlocks } from './audience.ts'
 import { usableFollowupItems } from './followup-plan.ts'
 import type { FollowupItem, FollowupSettings } from './followup-plan.ts'
 
@@ -33,13 +34,17 @@ export async function planFollowupSlot(params: {
 
 // Seule la première relance est planifiée : la suivante l'est au moment où celle-ci part
 // vraiment, sinon deux relances reportées hors horaires partaient à la même ouverture.
+// Le filtre d'audience se vérifie ici, un message écrit à la main à un compte exclu en programmait une.
 export async function planFollowups(params: {
   conversationId: number
   assistantId: string | null
   anchorMessageId: number | null
-  settings?: FollowupSettings | null
+  assistantSettings: Record<string, unknown> | null | undefined
+  contactHandle: string | null | undefined
 }) {
-  const [first] = usableFollowupItems(params.settings)
+  const settings = params.assistantSettings ?? null
+  if (audienceBlocks(settings, params.contactHandle ?? null)) return
+  const [first] = usableFollowupItems((settings as { followups?: FollowupSettings } | null)?.followups)
   if (!first || !params.assistantId || !params.anchorMessageId) return
   await planFollowupSlot({
     conversationId: params.conversationId,
