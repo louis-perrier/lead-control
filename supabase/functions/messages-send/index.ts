@@ -101,9 +101,9 @@ Deno.serve(async (req) => {
     p_now: now,
     p_preview: text.slice(0, 140),
   })
-  // Prendre la main coupe les relances : l'option ne vise que les messages envoyés
-  // sans prise de main, où l'assistant reste aux commandes de la conversation.
-  if (!body.take_over && conv.assistant_id) {
+  // Prendre la main coupe les relances, et après 24 h une relance automatique ne partirait pas :
+  // l'option ne vise que les messages envoyés sans prise de main, dans la fenêtre standard.
+  if (!body.take_over && conv.assistant_id && mode === 'standard') {
     const agent = await admin
       .from('assistants')
       .select('settings')
