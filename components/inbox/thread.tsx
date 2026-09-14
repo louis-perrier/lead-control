@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
 import { useAssistants, useFlags, useInvalidate, useMyOverrides, usePendingFollowup, useProfile } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
+import { useAvatarUrls } from '@/lib/avatars'
 import type { Conversation, ConversationMessage } from '@/lib/types'
 import {
   assistedSuggestion,
@@ -32,7 +33,7 @@ import { cn, formatDateTime } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, ConfirmDialog } from '@/components/ui/dialog'
 import { Input, Label } from '@/components/ui/input'
-import { Skeleton, Spinner } from '@/components/ui/misc'
+import { Avatar, Skeleton, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/toast'
 import { StateBadge } from './state-banner'
 import { ProspectDetails } from '@/components/prospects/prospect-details'
@@ -250,6 +251,7 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
   const invalidate = useInvalidate()
   const { data: messages, isLoading } = useMessages(conversation.id)
   const { data: followup } = usePendingFollowup(conversation.id)
+  const avatars = useAvatarUrls([conversation.contact_avatar_path])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [pauseOpen, setPauseOpen] = useState(false)
@@ -394,6 +396,11 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
           <button onClick={onBack} aria-label="Retour à la liste" className="text-muted hover:text-ink md:hidden">
             <ArrowLeft size={18} />
           </button>
+          <Avatar
+            name={conversation.contact_name ?? conversation.contact_handle}
+            src={conversation.contact_avatar_path ? avatars[conversation.contact_avatar_path] : null}
+            className="size-8"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">
               {conversation.contact_name ?? conversation.contact_handle ?? 'Contact Instagram'}

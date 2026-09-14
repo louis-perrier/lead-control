@@ -7,6 +7,7 @@ import { Inbox as InboxIcon, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useEffectiveUserId, useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
+import { useAvatarUrls } from '@/lib/avatars'
 import type { Conversation } from '@/lib/types'
 import { needsManualFollowup } from '@/supabase/functions/_shared/messaging-window'
 import { cn, formatRelative } from '@/lib/utils'
@@ -104,6 +105,8 @@ function InboxContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.user_id])
 
+  const avatars = useAvatarUrls((conversations ?? []).map((c) => c.contact_avatar_path))
+
   const list = useMemo(() => {
     const term = search.trim().toLowerCase()
     return (conversations ?? [])
@@ -192,7 +195,7 @@ function InboxContent() {
                   selected?.id === conv.id && 'bg-primary/5',
                 )}
               >
-                <Avatar name={conv.contact_name ?? conv.contact_handle} />
+                <Avatar name={conv.contact_name ?? conv.contact_handle} src={conv.contact_avatar_path ? avatars[conv.contact_avatar_path] : null} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
                     <p className={cn('truncate text-sm', conv.unread_count > 0 ? 'font-semibold' : 'font-medium')}>

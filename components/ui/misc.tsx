@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { cn, initialsOf } from '@/lib/utils'
 
 export function Skeleton({ className }: { className?: string }) {
@@ -40,7 +41,28 @@ export function EmptyState({
   )
 }
 
-export function Avatar({ name, className }: { name: string | null | undefined; className?: string }) {
+export function Avatar({
+  name,
+  src,
+  className,
+}: {
+  name: string | null | undefined
+  src?: string | null
+  className?: string
+}) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  if (src && src !== failedSrc) {
+    return (
+      <img
+        src={src}
+        alt=""
+        aria-hidden
+        loading="lazy"
+        onError={() => setFailedSrc(src)}
+        className={cn('size-9 shrink-0 rounded-full bg-chip object-cover', className)}
+      />
+    )
+  }
   return (
     <span
       className={cn(
