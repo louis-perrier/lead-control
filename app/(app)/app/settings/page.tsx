@@ -388,7 +388,7 @@ function DangerCard() {
         onClose={() => setOpen(false)}
         onConfirm={deleteAccount}
         title="Supprimer mon compte"
-        message="Cette action est définitive : conversations, contacts et réglages seront supprimés. Confirmez-vous la demande de suppression ?"
+        message="Cette action est définitive : conversations, prospects et réglages seront supprimés. Confirmez-vous la demande de suppression ?"
         confirmLabel="Oui, supprimer mon compte"
         danger
         loading={busy}

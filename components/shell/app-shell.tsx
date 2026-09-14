@@ -28,7 +28,7 @@ import { AdminHealthBanner } from '@/components/admin/health-banner'
 const NAV = [
   { href: '/app', label: 'Accueil', icon: Home, exact: true },
   { href: '/app/inbox', label: 'Boîte de réception', icon: Inbox },
-  { href: '/app/contacts', label: 'Contacts', icon: Users },
+  { href: '/app/prospects', label: 'Prospects', icon: Users },
   { href: '/app/assistant', label: 'Assistant', icon: Bot },
   { href: '/app/settings', label: 'Réglages', icon: Settings },
 ]
