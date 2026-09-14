@@ -6,6 +6,10 @@ import type { Conversation } from '@/lib/types'
 
 // Traduit l'état machine de la conversation en langage clair pour le coach.
 export function stateLabel(conv: Conversation): { text: string; tone: 'primary' | 'success' | 'warning' | 'danger' | 'muted' } {
+  // Une clôture passe la conversation en pause : sans ce test elle s'affichait « En pause ».
+  if (conv.outcome) {
+    return { text: conv.outcome === 'won' ? 'Clôturée : gagnée' : 'Clôturée : perdue', tone: conv.outcome === 'won' ? 'success' : 'muted' }
+  }
   switch (conv.automation_state) {
     case 'scheduled':
       return conv.next_reply_at
@@ -25,9 +29,7 @@ export function stateLabel(conv: Conversation): { text: string; tone: 'primary' 
         tone: 'danger',
       }
     default:
-      return conv.outcome
-        ? { text: conv.outcome === 'won' ? 'Clôturée : gagnée' : 'Clôturée : perdue', tone: 'muted' }
-        : { text: 'L’assistant répond aux nouveaux messages', tone: 'muted' }
+      return { text: 'L’assistant répond aux nouveaux messages', tone: 'muted' }
   }
 }
 
