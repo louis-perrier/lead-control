@@ -9,6 +9,10 @@ import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApi
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
 import { tryCannedResponse } from './canned.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
+import { allocateBudget, cutAtBoundary } from '../_shared/context-budget.ts'
+import { linkBase, parseDecision, stopConfirmed } from './decision.ts'
+import { finalizeConversation } from './finalize.ts'
+import { splitSystemForCache } from './system-blocks.ts'
 import { resolveTone } from './types.ts'
 import type { AgentDecision, WindowMessage } from './types.ts'
 
@@ -16,7 +20,10 @@ import type { AgentDecision, WindowMessage } from './types.ts'
 // la fenêtre pour obtenir le même niveau de contexte.
 const MIN_WINDOW = 20
 const MAX_WINDOW = 100
-const MAX_CONTEXT_DOCS_CHARS = 6000
+// Le modèle réfléchit avant d'écrire et ce raisonnement consomme le même budget :
+// à 1 024 tokens, un quart des réponses était coupé avant la fin du JSON.
+const REPLY_MAX_TOKENS = 4096
+const REPLY_RETRY_MAX_TOKENS = 8192
 
 type DueConversation = {
   id: number
@@ -92,6 +99,10 @@ async function fetchWindow(convId: number, cursor: string | null): Promise<Windo
   return ([...(backfill.data ?? []).reverse(), ...pendingMessages] as WindowMessage[])
 }
 
+function speaker(m: WindowMessage) {
+  return m.author_type === 'customer' ? 'PROSPECT' : m.author_type === 'human' ? 'OPÉRATEUR' : 'TOI'
+}
+
 function renderMessage(m: WindowMessage) {
   if (m.message_type === 'audio') {
     if (m.transcript_status === 'done' && m.transcript?.trim()) return `[Vocal] ${m.transcript.trim()}`
@@ -102,98 +113,39 @@ function renderMessage(m: WindowMessage) {
   return m.body_text?.trim() ?? ''
 }
 
-// Le modèle est instruit de séparer les bulles par une ligne vide à l'intérieur
-// de reply_text : s'il retranscrit ce saut de ligne tel quel au lieu de l'échapper
-// en \n, le JSON devient invalide. On répare en échappant les caractères de
-// contrôle bruts, mais seulement à l'intérieur des chaînes, pas entre les jetons.
-function sanitizeJsonControlChars(raw: string) {
-  let result = ''
-  let inString = false
-  let escaped = false
-  for (const ch of raw) {
-    if (inString) {
-      if (escaped) {
-        result += ch
-        escaped = false
-      } else if (ch === '\\') {
-        result += ch
-        escaped = true
-      } else if (ch === '"') {
-        result += ch
-        inString = false
-      } else if (ch === '\n') {
-        result += '\\n'
-      } else if (ch === '\r') {
-        result += '\\r'
-      } else if (ch === '\t') {
-        result += '\\t'
-      } else {
-        result += ch
-      }
-    } else {
-      if (ch === '"') inString = true
-      result += ch
-    }
-  }
-  return result
-}
-
-function parseDecision(text: string): AgentDecision {
-  const cleaned = text.replace(/^```(?:json)?/m, '').replace(/```\s*$/m, '').trim()
-  try {
-    const start = cleaned.indexOf('{')
-    const end = cleaned.lastIndexOf('}')
-    const parsed = JSON.parse(sanitizeJsonControlChars(cleaned.slice(start, end + 1)))
-    return {
-      reply_text: typeof parsed.reply_text === 'string' ? parsed.reply_text : null,
-      should_response: parsed.should_response !== false,
-      stop_successful: parsed.stop_successful === true,
-      should_notify_human: parsed.should_notify_human === true,
-      heat_tag: ['hot', 'warm', 'cold', 'unknown'].includes(parsed.heat_tag) ? parsed.heat_tag : 'unknown',
-      heat_reason: typeof parsed.heat_reason === 'string' ? parsed.heat_reason : '',
-      summary: typeof parsed.summary === 'string' ? parsed.summary : null,
-      reason: typeof parsed.reason === 'string' ? parsed.reason : null,
-    }
-  } catch {
-    // JSON toujours invalide malgré la réparation : on tente d'extraire au moins
-    // reply_text au lasso plutôt que d'abandonner.
-    const match = cleaned.match(/"reply_text"\s*:\s*"((?:[^"\\]|\\.)*)"/)
-    if (match) {
-      const extracted = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
-      return {
-        reply_text: extracted || null,
-        should_response: Boolean(extracted),
-        stop_successful: false,
-        should_notify_human: false,
-        heat_tag: 'unknown',
-        heat_reason: '',
-        summary: null,
-        reason: null,
-      }
-    }
-    // Si la sortie ressemble à du JSON cassé, ne jamais l'envoyer telle quelle
-    // au prospect : on escalade plutôt que de traiter ça comme la réponse elle-même.
-    const looksLikeJson = /^\s*\{/.test(cleaned)
-    return {
-      reply_text: looksLikeJson ? null : cleaned || null,
-      should_response: !looksLikeJson && Boolean(cleaned),
-      stop_successful: false,
-      should_notify_human: looksLikeJson,
-      heat_tag: 'unknown',
-      heat_reason: '',
-      summary: null,
-      reason: looksLikeJson ? 'Réponse du modèle illisible (JSON invalide) : vérifiez le dernier message.' : null,
-    }
-  }
-}
-
-async function customerRepliedSince(convId: number, sinceIso: string) {
+// Comparaison sur l'id et non sur sent_at : l'horodatage vient de Meta et peut précéder
+// l'arrivée du webhook, un message livré en retard passerait inaperçu.
+async function customerWroteAfter(convId: number, lastSeenId: number) {
   const { data } = await admin
     .from('conversation_messages')
     .select('id')
     .eq('conversation_id', convId)
     .eq('author_type', 'customer')
-    .gt('sent_at', sinceIso)
+    .gt('id', lastSeenId)
+    .limit(1)
+  return (data?.length ?? 0) > 0
+}
+
+async function stopLinkAlreadySent(convId: number, stopLink: string) {
+  const base = linkBase(stopLink)
+  if (!base) return false
+  const { data } = await admin
+    .from('conversation_messages')
+    .select('id')
+    .eq('conversation_id', convId)
+    .eq('author_type', 'agent')
+    .eq('send_state', 'sent')
+    .ilike('body_text', `%${base}%`)
+    .limit(1)
+  return (data?.length ?? 0) > 0
+}
+
+async function hasActiveBooking(convId: number) {
+  const { data } = await admin
+    .from('bookings')
+    .select('id')
+    .eq('conversation_id', convId)
+    .neq('status', 'canceled')
     .limit(1)
   return (data?.length ?? 0) > 0
 }
@@ -319,29 +271,40 @@ async function handleConversation(due: DueConversation) {
     return
   }
 
-  const messages = await fetchWindow(convId, due.pending_cursor_at)
+  let messages = await fetchWindow(convId, due.pending_cursor_at)
   const lastInbound = [...messages].reverse().find((m) => m.author_type === 'customer')
   if (lastInbound?.message_type === 'audio' && lastInbound.transcript_status === 'processing') {
     await retryLater(convId, 'audio_transcription_pending', 10_000)
     return
   }
+  const lastSeenCustomerId = lastInbound?.id ?? 0
 
   const settings = (assistant.settings ?? {}) as Record<string, any>
+  let metadata = (conv.metadata ?? {}) as Record<string, unknown>
 
-  const handledByCanned = await tryCannedResponse({
+  const canned = await tryCannedResponse({
     convId,
     userId: due.user_id,
     assistantId: assistant.id,
     settings,
-    metadata: (conv.metadata ?? {}) as Record<string, unknown>,
+    metadata,
     lastCustomerText: lastInbound ? renderMessage(lastInbound) : '',
+    recentLines: (() => {
+      const at = lastInbound ? messages.lastIndexOf(lastInbound) : messages.length
+      return messages.slice(Math.max(0, at - 6), at).map((m) => `${speaker(m)} : ${renderMessage(m)}`)
+    })(),
     apiKey: resolved.key,
     keySource: resolved.source,
     token,
     igUserId,
     recipientId: conv.contact_external_id,
   })
-  if (handledByCanned) return
+  if (canned.sent && !canned.continueWithAgent) return
+  const creditAlreadyConsumed = canned.sent
+  if (canned.sent) {
+    metadata = canned.metadata
+    messages = await fetchWindow(convId, due.pending_cursor_at)
+  }
 
   let context = settings.context ?? ''
   const { data: docs } = await admin
@@ -351,14 +314,12 @@ async function handleConversation(due: DueConversation) {
     .eq('status', 'ready')
     .order('created_at', { ascending: true })
   if (docs && docs.length > 0) {
-    let remaining = MAX_CONTEXT_DOCS_CHARS
-    const parts: string[] = []
-    for (const d of docs) {
-      if (remaining <= 0) break
-      const text = (d.extracted_text ?? '').slice(0, remaining)
-      if (text) parts.push(`### ${d.title}\n${text}`)
-      remaining -= text.length
-    }
+    const texts = docs.map((d) => d.extracted_text ?? '')
+    const caps = allocateBudget(texts.map((t) => t.length))
+    const parts = docs
+      .map((d, i) => ({ title: d.title, text: cutAtBoundary(texts[i], caps[i]) }))
+      .filter((d) => d.text)
+      .map((d) => `### ${d.title}\n${d.text}`)
     if (parts.length > 0) context = `${context}\n\n${parts.join('\n\n')}`.trim()
   }
 
@@ -393,24 +354,49 @@ async function handleConversation(due: DueConversation) {
     tone: resolveTone(settings.tone?.preset, assistant.custom_tone),
     summary,
   })
-  const transcriptLines = messages.map((m) => {
-    const who = m.author_type === 'customer' ? 'PROSPECT' : m.author_type === 'human' ? 'OPÉRATEUR' : 'TOI'
-    return `${who} : ${renderMessage(m)}`
-  })
+  const transcriptLines = messages.map((m) => `${speaker(m)} : ${renderMessage(m)}`)
   const prompt = `Conversation (du plus ancien au plus récent) :\n${transcriptLines.join('\n')}\n\nRéponds au dernier message du prospect en respectant le format de sortie JSON.`
 
+  const systemBlocks = splitSystemForCache(system)
   const automationStart = new Date().toISOString()
   let decision: AgentDecision
+  let unreadable = false
   try {
-    const res = await generateText({
+    const first = await generateText({
       apiKey: resolved.key,
       model: AI_MODEL_REPLY,
-      system,
+      system: systemBlocks,
       prompt,
-      maxTokens: 1024,
+      maxTokens: REPLY_MAX_TOKENS,
     })
-    decision = parseDecision(res.text)
-    await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: res.usage, source: resolved.source })
+    await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: first.usage, source: resolved.source })
+    let parsed = parseDecision(first.text)
+    if (!parsed.readable || first.stopReason === 'max_tokens') {
+      await logEvent('warn', 'assistant-dispatch', `sortie illisible conv=${convId} (${first.stopReason}), nouvel essai : ${first.text.slice(0, 300)}`, {
+        user_id: due.user_id,
+        conversation_id: convId,
+      })
+      const retry = await generateText({
+        apiKey: resolved.key,
+        model: AI_MODEL_REPLY,
+        system: systemBlocks,
+        prompt,
+        maxTokens: REPLY_RETRY_MAX_TOKENS,
+      })
+      await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: retry.usage, source: resolved.source })
+      const retried = parseDecision(retry.text)
+      // La seconde sortie ne remplace la première que si elle apporte mieux : un JSON
+      // complet, ou au moins une réponse là où la première n'en avait pas.
+      if (retried.readable || (!parsed.decision.reply_text && retried.decision.reply_text)) parsed = retried
+      if (!retried.readable) {
+        await logEvent('error', 'assistant-dispatch', `sortie toujours illisible conv=${convId} (${retry.stopReason}) : ${retry.text.slice(0, 300)}`, {
+          user_id: due.user_id,
+          conversation_id: convId,
+        })
+      }
+    }
+    decision = parsed.decision
+    unreadable = !parsed.readable && !decision.reply_text
   } catch (e) {
     const message = String(e)
     const looksLikeKeyIssue = /401|invalid.*api.?key|authentication|x-api-key|insufficient|credit balance/i.test(message)
@@ -426,15 +412,14 @@ async function handleConversation(due: DueConversation) {
       return
     }
 
-    const meta = (conv.metadata ?? {}) as Record<string, unknown>
-    const retries = Number(meta.dispatch_retries ?? 0) + 1
+    const retries = Number(metadata.dispatch_retries ?? 0) + 1
     if (retries < 3) {
-      await admin.from('conversations').update({ metadata: { ...meta, dispatch_retries: retries } }).eq('id', convId)
+      await admin.from('conversations').update({ metadata: { ...metadata, dispatch_retries: retries } }).eq('id', convId)
       await retryLater(convId, `ai_retry_${retries}`, 15_000)
     } else if (resolved.source === 'platform') {
       // Jamais de détail technique montré à un client de base pour un souci côté
       // plateforme : on retente en silence, seuls les admins voient l'échec loggé.
-      await admin.from('conversations').update({ metadata: { ...meta, dispatch_retries: 0 } }).eq('id', convId)
+      await admin.from('conversations').update({ metadata: { ...metadata, dispatch_retries: 0 } }).eq('id', convId)
       await retryLater(convId, 'platform_ai_error', 15 * 60 * 1000)
     } else {
       await stopWith(convId, 'ai_error', "Un problème technique empêche l'assistant de répondre pour le moment. Nous nous en occupons.")
@@ -442,21 +427,29 @@ async function handleConversation(due: DueConversation) {
     return
   }
 
+  // Une sortie illisible ne dit rien du prospect : on garde la température et le résumé connus.
+  const profilePatch = {
+    heat_tag: decision.heat_tag ?? undefined,
+    heat_reason: decision.heat_tag ? decision.heat_reason || null : undefined,
+    summary: decision.summary?.trim() ? decision.summary : summary || undefined,
+  }
+
   if (decision.should_notify_human) {
-    await releaseLock(convId, {
-      automation_state: 'error',
-      automation_reason: 'notify_human',
-      next_reply_at: null,
-      debounce_until: null,
-      pending_cursor_at: null,
-      pending_since: null,
-      pending_inbound_count: 0,
-      last_error_code: 'notify_human',
-      last_error_message: decision.reason || 'L’assistant demande une intervention humaine sur cette conversation.',
-      heat_tag: decision.heat_tag,
-      heat_reason: decision.heat_reason || null,
-      summary: decision.summary ?? summary ?? null,
-    })
+    await finalizeConversation(
+      convId,
+      {
+        automation_state: 'error',
+        automation_reason: 'notify_human',
+        next_reply_at: null,
+        debounce_until: null,
+        pending_cursor_at: null,
+        pending_since: null,
+        pending_inbound_count: 0,
+        last_error_code: unreadable ? 'model_output_unreadable' : 'notify_human',
+        last_error_message: decision.reason || 'L’assistant demande une intervention humaine sur cette conversation.',
+      },
+      { ...profilePatch, metadata },
+    )
     return
   }
 
@@ -467,10 +460,10 @@ async function handleConversation(due: DueConversation) {
     .slice(0, 2)
 
   let sentCount = 0
-  let anchorMessageId: number | null = null
+  let anchorMessageId: number | null = canned.messageId
   if (decision.should_response && blocks.length > 0) {
     for (const [i, block] of blocks.entries()) {
-      if (await customerRepliedSince(convId, automationStart)) break
+      if (await customerWroteAfter(convId, lastSeenCustomerId)) break
       const provisional = `local:${crypto.randomUUID()}`
       const inserted = await admin
         .from('conversation_messages')
@@ -500,7 +493,7 @@ async function handleConversation(due: DueConversation) {
           .eq('id', inserted.data!.id)
         sentCount += 1
         anchorMessageId = inserted.data!.id
-        if (sentCount === 1) {
+        if (sentCount === 1 && !creditAlreadyConsumed) {
           await admin.rpc('consume_one_credit', { p_user_id: due.user_id })
         }
         if (i < blocks.length - 1) {
@@ -521,39 +514,52 @@ async function handleConversation(due: DueConversation) {
     }
   }
 
+  let stopReached = false
+  if (decision.stop_successful) {
+    const stopLink = settings.stop_condition?.link ?? ''
+    const base = linkBase(stopLink)
+    const linkSent = base ? blocks.slice(0, sentCount).some((b) => b.includes(base)) || (await stopLinkAlreadySent(convId, stopLink)) : false
+    const hasBooking = base && !linkSent ? await hasActiveBooking(convId) : false
+    stopReached = stopConfirmed({ stopSuccessful: true, stopLink, linkSent, hasBooking })
+  }
+
   const now = new Date().toISOString()
-  const meta = (conv.metadata ?? {}) as Record<string, unknown>
-  delete meta.dispatch_retries
-  await admin
-    .from('conversations')
-    .update({
-      automation_state: decision.stop_successful ? 'condition_stop' : 'idle',
-      automation_reason: decision.stop_successful ? 'stop_successful' : sentCount > 0 ? 'replied' : 'no_reply_needed',
+  const replied = sentCount > 0 || canned.sent
+  delete metadata.dispatch_retries
+  await finalizeConversation(
+    convId,
+    {
+      automation_state: stopReached ? 'condition_stop' : 'idle',
+      automation_reason: stopReached
+        ? 'stop_successful'
+        : decision.stop_successful
+          ? 'stop_unconfirmed'
+          : replied
+            ? 'replied'
+            : 'no_reply_needed',
       next_reply_at: null,
       debounce_until: null,
       pending_cursor_at: null,
       pending_since: null,
       pending_inbound_count: 0,
-      is_processing: false,
-      processing_started_at: null,
-      last_agent_reply_at: sentCount > 0 ? now : undefined,
-      last_message_at: sentCount > 0 ? now : undefined,
-      last_message_preview: sentCount > 0 ? blocks[blocks.length - 1].slice(0, 140) : undefined,
-      agent_sent_count: undefined,
-      heat_tag: decision.heat_tag,
-      heat_reason: decision.heat_reason || null,
-      summary: decision.summary ?? (summary || null),
       last_error_code: null,
       last_error_message: null,
-      metadata: meta,
-      updated_at: now,
-    })
-    .eq('id', convId)
+    },
+    {
+      last_agent_reply_at: replied ? now : undefined,
+      last_message_at: sentCount > 0 ? now : undefined,
+      last_message_preview: sentCount > 0 ? blocks[sentCount - 1].slice(0, 140) : undefined,
+      ...profilePatch,
+      metadata,
+    },
+  )
   if (sentCount > 0) {
     await admin.rpc('bump_agent_sent', { p_conversation_id: convId, p_count: sentCount }).then(
       () => {},
       () => {},
     )
+  }
+  if (replied) {
     // Échouer ici ne doit pas remettre en cause une réponse déjà partie chez le prospect.
     try {
       await planFollowups({

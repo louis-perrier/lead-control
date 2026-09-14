@@ -334,10 +334,10 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
 
   async function togglePause() {
     const supabase = createClient()
-    if (paused && conversation.automation_state !== 'condition_stop') {
+    if (paused) {
       const { error } = await supabase.rpc('resume_conversation', { p_conversation_id: conversation.id })
       if (error) {
-        toast('Impossible de relancer l’assistant.', 'error')
+        toast('Impossible de reprendre l’assistant.', 'error')
       } else {
         toast('L’assistant reprend la main sur cette conversation.')
       }
@@ -409,10 +409,10 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            {conversation.automation_state !== 'condition_stop' && !conversation.outcome ? (
+            {!conversation.outcome ? (
               <Button size="sm" variant="secondary" onClick={() => setPauseOpen(true)}>
                 {paused ? <Play size={14} /> : <Pause size={14} />}
-                <span className="hidden sm:inline">{paused ? 'Relancer l’assistant' : 'Mettre en pause'}</span>
+                <span className="hidden sm:inline">{paused ? 'Reprendre l’assistant' : 'Mettre en pause'}</span>
               </Button>
             ) : null}
             {!conversation.outcome ? (
@@ -497,13 +497,15 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
         open={pauseOpen}
         onClose={() => setPauseOpen(false)}
         onConfirm={togglePause}
-        title={paused ? 'Relancer l’assistant' : 'Mettre l’assistant en pause'}
+        title={paused ? 'Reprendre l’assistant' : 'Mettre l’assistant en pause'}
         message={
-          paused
-            ? 'L’assistant reprendra les réponses automatiques sur cette conversation.'
-            : 'L’assistant ne répondra plus sur cette conversation tant que vous ne le relancez pas.'
+          conversation.automation_state === 'condition_stop'
+            ? 'L’objectif était marqué atteint. L’assistant répondra de nouveau aux prochains messages de ce prospect.'
+            : paused
+              ? 'L’assistant reprendra les réponses automatiques sur cette conversation.'
+              : 'L’assistant ne répondra plus sur cette conversation tant que vous ne le reprenez pas.'
         }
-        confirmLabel={paused ? 'Relancer' : 'Mettre en pause'}
+        confirmLabel={paused ? 'Reprendre' : 'Mettre en pause'}
       />
       <CloseDialog conversation={conversation} open={closeOpen} onClose={() => setCloseOpen(false)} />
     </div>

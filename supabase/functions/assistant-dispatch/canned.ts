@@ -5,6 +5,7 @@ import { admin, logEvent } from '../_shared/core.ts'
 import { AI_MODEL_SUMMARY, generateText, recordUsage } from '../_shared/ai.ts'
 import { sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
+import { finalizeConversation } from './finalize.ts'
 import type { FollowupSettings } from '../_shared/followups.ts'
 
 export type CannedResponse = {
@@ -31,8 +32,11 @@ export function usableCannedResponses(list?: CannedResponse[] | null): CannedRes
 
 const CLASSIFIER_SYSTEM =
   'Tu es un routeur de messages. Tu ne rédiges rien, tu choisis au plus une situation. ' +
-  'Ne choisis une situation que si le message du prospect y correspond sans ambiguïté. ' +
-  'Dans le doute, réponds aucune.'
+  'Ne choisis une situation que si le dernier message du prospect y correspond sans ambiguïté, ' +
+  'les échanges précédents servent seulement à le comprendre. Dans le doute, choisis aucune. ' +
+  'Réponds uniquement en JSON : {"id": "identifiant ou aucune", "reste": true ou false}. ' +
+  '"reste" vaut true si le dernier message du prospect contient aussi une autre question ou ' +
+  'information qui appelle une réponse, en plus de la situation choisie.'
 
 async function classify(opts: {
   apiKey: string
@@ -40,16 +44,18 @@ async function classify(opts: {
   userId: string
   convId: number
   lastCustomerText: string
+  recentLines: string[]
   entries: CannedResponse[]
-}): Promise<string | null> {
+}): Promise<{ id: string; other: boolean } | null> {
   const list = opts.entries.map((e) => `${e.id} : ${e.trigger}`).join('\n')
-  const prompt = `Message du prospect :\n"${opts.lastCustomerText.slice(0, 1000)}"\n\nSituations :\n${list}\n\nRéponds uniquement par un identifiant de la liste, ou par le mot aucune.`
+  const recent = opts.recentLines.length ? `Échanges précédents :\n${opts.recentLines.join('\n').slice(-1500)}\n\n` : ''
+  const prompt = `${recent}Dernier message du prospect :\n"${opts.lastCustomerText.slice(0, 1000)}"\n\nSituations :\n${list}`
   const res = await generateText({
     apiKey: opts.apiKey,
     model: AI_MODEL_SUMMARY,
     system: CLASSIFIER_SYSTEM,
     prompt,
-    maxTokens: 20,
+    maxTokens: 60,
   })
   await recordUsage({
     userId: opts.userId,
@@ -58,12 +64,28 @@ async function classify(opts: {
     usage: res.usage,
     source: opts.keySource,
   })
-  const answer = res.text.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+  let id = ''
+  let other = false
+  try {
+    const parsed = JSON.parse(res.text.slice(res.text.indexOf('{'), res.text.lastIndexOf('}') + 1))
+    id = String(parsed.id ?? '')
+    other = parsed.reste === true
+  } catch {
+    id = res.text
+  }
+  const answer = id.toLowerCase().replace(/[^a-z0-9_-]/g, '')
   const match = opts.entries.find((e) => (e.id ?? '').toLowerCase() === answer)
-  return match?.id ?? null
+  return match?.id ? { id: match.id, other } : null
 }
 
-// Renvoie true si une réponse préenregistrée a été envoyée : l'appelant s'arrête là.
+export type CannedOutcome = {
+  sent: boolean
+  // Le message du prospect demande autre chose : l'agent principal répond au reste dans le même tour.
+  continueWithAgent: boolean
+  metadata: Record<string, unknown>
+  messageId: number | null
+}
+
 export async function tryCannedResponse(params: {
   convId: number
   userId: string
@@ -71,21 +93,23 @@ export async function tryCannedResponse(params: {
   settings: Record<string, unknown>
   metadata: Record<string, unknown>
   lastCustomerText: string
+  recentLines: string[]
   apiKey: string
   keySource: 'platform' | 'byok'
   token: string
   igUserId: string
   recipientId: string
-}): Promise<boolean> {
+}): Promise<CannedOutcome> {
+  const none: CannedOutcome = { sent: false, continueWithAgent: false, metadata: params.metadata, messageId: null }
   const all = usableCannedResponses(params.settings.canned_responses as CannedResponse[] | undefined)
-  if (all.length === 0 || !params.lastCustomerText.trim()) return false
+  if (all.length === 0 || !params.lastCustomerText.trim()) return none
   const used = Array.isArray(params.metadata.canned_used) ? (params.metadata.canned_used as string[]) : []
   // Une même réponse ne se rejoue jamais dans une conversation, sinon le prospect
   // reçoit deux fois le même vocal.
   const entries = all.filter((e) => !used.includes(e.id!))
-  if (entries.length === 0) return false
+  if (entries.length === 0) return none
 
-  let chosen: string | null = null
+  let chosen: { id: string; other: boolean } | null = null
   try {
     chosen = await classify({
       apiKey: params.apiKey,
@@ -93,13 +117,14 @@ export async function tryCannedResponse(params: {
       userId: params.userId,
       convId: params.convId,
       lastCustomerText: params.lastCustomerText,
+      recentLines: params.recentLines,
       entries,
     })
   } catch (_) {
-    return false
+    return none
   }
-  if (!chosen) return false
-  const entry = entries.find((e) => e.id === chosen)!
+  if (!chosen) return none
+  const entry = entries.find((e) => e.id === chosen!.id)!
   const isAudio = entry.kind === 'audio'
 
   let audioUrl: string | null = null
@@ -108,7 +133,7 @@ export async function tryCannedResponse(params: {
       .from('assistant-audio')
       .createSignedUrl(entry.media_path!, AUDIO_URL_TTL_SECONDS)
     audioUrl = signed.data?.signedUrl ?? null
-    if (!audioUrl) return false
+    if (!audioUrl) return none
   }
 
   const now = new Date().toISOString()
@@ -131,7 +156,7 @@ export async function tryCannedResponse(params: {
     })
     .select('id')
     .single()
-  if (inserted.error) return false
+  if (inserted.error) return none
 
   let mid: string | null = null
   try {
@@ -147,7 +172,7 @@ export async function tryCannedResponse(params: {
       user_id: params.userId,
       conversation_id: params.convId,
     })
-    return false
+    return none
   }
 
   await admin
@@ -160,9 +185,23 @@ export async function tryCannedResponse(params: {
 
   const meta = { ...params.metadata, canned_used: [...used, entry.id!] }
   delete (meta as Record<string, unknown>).dispatch_retries
-  await admin
-    .from('conversations')
-    .update({
+  await admin.rpc('bump_agent_sent', { p_conversation_id: params.convId, p_count: 1 }).then(
+    () => {},
+    () => {},
+  )
+
+  // L'agent reprend la main dans ce tour : l'état et les relances sont posés à la fin.
+  if (chosen.other) {
+    await admin
+      .from('conversations')
+      .update({ metadata: meta, last_message_at: now, last_message_preview: (isAudio ? '[Vocal]' : entry.text!).slice(0, 140) })
+      .eq('id', params.convId)
+    return { sent: true, continueWithAgent: true, metadata: meta, messageId: inserted.data.id }
+  }
+
+  await finalizeConversation(
+    params.convId,
+    {
       automation_state: 'idle',
       automation_reason: 'canned_response',
       next_reply_at: null,
@@ -170,20 +209,15 @@ export async function tryCannedResponse(params: {
       pending_cursor_at: null,
       pending_since: null,
       pending_inbound_count: 0,
-      is_processing: false,
-      processing_started_at: null,
+      last_error_code: null,
+      last_error_message: null,
+    },
+    {
       last_agent_reply_at: now,
       last_message_at: now,
       last_message_preview: (isAudio ? '[Vocal]' : entry.text!).slice(0, 140),
-      last_error_code: null,
-      last_error_message: null,
       metadata: meta,
-      updated_at: now,
-    })
-    .eq('id', params.convId)
-  await admin.rpc('bump_agent_sent', { p_conversation_id: params.convId, p_count: 1 }).then(
-    () => {},
-    () => {},
+    },
   )
   try {
     await planFollowups({
@@ -195,5 +229,5 @@ export async function tryCannedResponse(params: {
   } catch (_) {
     // la réponse est partie, une relance non programmée ne justifie pas d'échouer
   }
-  return true
+  return { sent: true, continueWithAgent: false, metadata: meta, messageId: inserted.data.id }
 }
