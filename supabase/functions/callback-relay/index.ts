@@ -196,6 +196,25 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
   const preview =
     message.text?.trim().slice(0, 140) || (messageType === 'audio' ? '[Vocal]' : '[Photo]')
 
+  // Écho d'un envoi fait depuis LeadControl, arrivé avant que l'id Meta soit enregistré :
+  // compté comme un message du coach, il doublait la bulle et replanifiait les relances.
+  if (isEcho) {
+    let own = admin
+      .from('conversation_messages')
+      .select('id')
+      .eq('conversation_id', conv.id)
+      .eq('direction', 'out')
+      .like('external_message_id', 'local:%')
+      .eq('message_type', messageType)
+      .gte('created_at', new Date(Date.now() - 2 * 60 * 1000).toISOString())
+    if (messageType === 'text') own = own.eq('body_text', message.text ?? '')
+    const { data: match } = await own.order('id', { ascending: false }).limit(1).maybeSingle()
+    if (match) {
+      await admin.from('conversation_messages').update({ external_message_id: message.mid }).eq('id', match.id)
+      return
+    }
+  }
+
   const insert = await admin
     .from('conversation_messages')
     .insert({
