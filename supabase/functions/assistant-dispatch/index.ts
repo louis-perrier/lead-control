@@ -277,7 +277,7 @@ async function handleConversation(due: DueConversation) {
     await retryLater(convId, 'audio_transcription_pending', 10_000)
     return
   }
-  const lastSeenCustomerId = lastInbound?.id ?? 0
+  const lastSeenId = messages.reduce((max, m) => Math.max(max, m.id), 0)
 
   const settings = (assistant.settings ?? {}) as Record<string, any>
   let metadata = (conv.metadata ?? {}) as Record<string, unknown>
@@ -463,7 +463,7 @@ async function handleConversation(due: DueConversation) {
   let anchorMessageId: number | null = canned.messageId
   if (decision.should_response && blocks.length > 0) {
     for (const [i, block] of blocks.entries()) {
-      if (await customerWroteAfter(convId, lastSeenCustomerId)) break
+      if (await customerWroteAfter(convId, lastSeenId)) break
       const provisional = `local:${crypto.randomUUID()}`
       const inserted = await admin
         .from('conversation_messages')
