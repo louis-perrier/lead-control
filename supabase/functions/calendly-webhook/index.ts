@@ -5,7 +5,8 @@ import { admin, handleOptions, json, logEvent } from '../_shared/core.ts'
 const CALENDLY_WEBHOOK_SECRET = Deno.env.get('CALENDLY_WEBHOOK_SECRET') ?? ''
 
 async function verifySignature(req: Request, body: string) {
-  if (!CALENDLY_WEBHOOK_SECRET) return true
+  // Sans secret, n'importe qui pourrait marquer une conversation « objectif atteint ».
+  if (!CALENDLY_WEBHOOK_SECRET) return false
   const signature = req.headers.get('Calendly-Webhook-Signature')
   if (!signature) return false
   const parts = Object.fromEntries(signature.split(',').map((p) => p.split('=') as [string, string]))
@@ -55,13 +56,17 @@ async function handleInviteeCreated(payload: Record<string, unknown>) {
     : { data: null }
   if (eventRes.data) return
 
+  // payload.name est le nom de l'invité ; le nom et les horaires du rendez-vous sont dans scheduled_event.
+  const scheduled = p.scheduled_event as Record<string, unknown> | undefined
   await admin.from('bookings').insert({
     user_id: userId,
     conversation_id: conversationId,
-    event_type_uri: (p.event_type as string) ?? null,
-    event_type_name: (p.name as string) ?? null,
+    event_type_uri: (scheduled?.event_type as string) ?? (p.event_type as string) ?? null,
+    event_type_name: (scheduled?.name as string) ?? null,
     invitee_email: (p.email as string) ?? null,
     invitee_name: (p.name as string) ?? null,
+    event_start_at: (scheduled?.start_time as string) ?? null,
+    event_end_at: (scheduled?.end_time as string) ?? null,
     event_uri: eventUri ?? null,
     status: 'active',
     raw_payload: payload,
