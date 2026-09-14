@@ -67,10 +67,18 @@ export type FollowupItem = {
   media_duration_ms?: number
 }
 
+/** Relance proposée au coach après 24 h, envoyée par lui en un clic (module Human Agent). */
+export type AssistedFollowup = {
+  id: string
+  days: number
+  text: string
+}
+
 export type FollowupSettings = {
   enabled?: boolean
   after_own_message?: boolean
   items?: FollowupItem[]
+  assisted?: AssistedFollowup[]
 }
 
 export type CannedResponse = {
@@ -128,6 +136,8 @@ export type Conversation = {
   outcome: 'won' | 'lost' | null
   closed_at: string | null
   last_error_message: string | null
+  last_customer_message_at: string | null
+  metadata: Record<string, unknown> | null
 }
 
 export type ConversationMessage = {

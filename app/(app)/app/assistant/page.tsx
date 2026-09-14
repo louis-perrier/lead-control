@@ -26,7 +26,7 @@ import {
   renderFollowupText,
 } from '@/supabase/functions/_shared/followup-text'
 import { formatDuration } from '@/lib/audio'
-import type { Assistant, AssistantSettings, CannedResponse, ContextDocument, FollowupItem } from '@/lib/types'
+import type { AssistedFollowup, Assistant, AssistantSettings, CannedResponse, ContextDocument, FollowupItem } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -1135,9 +1135,13 @@ function followupPreview(item: FollowupItem) {
   return first ? renderFollowupText(first, null) : 'Message à écrire'
 }
 
-function FollowupsSection({ assistant }: { assistant: Assistant }) {
+const MAX_ASSISTED = 3
+const ASSISTED_DAYS = [2, 3, 4, 5, 6]
+
+function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; allowAssisted: boolean }) {
   const { save, saving } = useSaveSettings(assistant)
   const initial = assistant.settings.followups
+  const [assisted, setAssisted] = useState<AssistedFollowup[]>(initial?.assisted ?? [])
   const [enabled, setEnabled] = useState(initial?.enabled ?? false)
   const [afterOwn, setAfterOwn] = useState(initial?.after_own_message ?? false)
   const [items, setItems] = useState<FollowupItem[]>(
@@ -1182,8 +1186,14 @@ function FollowupsSection({ assistant }: { assistant: Assistant }) {
         }
       }
     }
+    const cleanedAssisted = assisted.map((t) => ({ ...t, text: t.text.trim() })).filter((t) => t.text)
+    const assistedWithoutFallback = cleanedAssisted.findIndex((t) => hasMissingFallback(t.text))
+    if (assistedWithoutFallback >= 0) {
+      setError(`Message proposé du jour ${cleanedAssisted[assistedWithoutFallback].days} : ajoutez un texte de secours au prénom, par exemple {prénom|toi}.`)
+      return
+    }
     setError('')
-    await save({ followups: { enabled, after_own_message: afterOwn, items: cleaned } })
+    await save({ followups: { enabled, after_own_message: afterOwn, items: cleaned, assisted: cleanedAssisted } })
   }
 
   return (
@@ -1319,6 +1329,72 @@ function FollowupsSection({ assistant }: { assistant: Assistant }) {
                 </FieldHint>
               </div>
             </>
+          ) : null}
+
+          {allowAssisted ? (
+            <div className="space-y-3 border-t border-border pt-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Label className="mb-0">Après 24 h, envoyées par vous</Label>
+                <Badge tone="primary">Human Agent</Badge>
+              </div>
+              <FieldHint>
+                Instagram interdit l'envoi automatique passé 24 h. Ces messages vous attendent dans « À relancer » : vous les relisez et les envoyez d'un clic.
+              </FieldHint>
+              {assisted.map((template) => (
+                <div key={template.id} className="space-y-2 rounded-[10px] border border-border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Label htmlFor={`assisted-${template.id}`} className="mb-0">
+                        Jour
+                      </Label>
+                      <select
+                        id={`assisted-${template.id}`}
+                        value={template.days}
+                        onChange={(e) =>
+                          setAssisted((list) => list.map((t) => (t.id === template.id ? { ...t, days: Number(e.target.value) } : t)))
+                        }
+                        className="h-10 rounded-[10px] border border-border bg-surface px-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                      >
+                        {ASSISTED_DAYS.map((day) => (
+                          <option key={day} value={day}>
+                            {day}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-sm text-muted">après votre dernier message</span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setAssisted((list) => list.filter((t) => t.id !== template.id))}
+                    >
+                      Supprimer
+                    </Button>
+                  </div>
+                  <VariantField
+                    value={template.text}
+                    placeholder="Le message qui vous sera proposé"
+                    onChange={(text) => setAssisted((list) => list.map((t) => (t.id === template.id ? { ...t, text } : t)))}
+                  />
+                </div>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={assisted.length >= MAX_ASSISTED}
+                onClick={() =>
+                  setAssisted((list) => [
+                    ...list,
+                    { id: crypto.randomUUID(), days: Math.min(6, list.length ? Math.max(...list.map((t) => t.days)) + 2 : 2), text: '' },
+                  ])
+                }
+              >
+                <Plus size={14} className="mr-1" />
+                {assisted.length >= MAX_ASSISTED ? 'Maximum atteint' : 'Ajouter un message proposé'}
+              </Button>
+            </div>
           ) : null}
           <FieldError>{error}</FieldError>
         </CardBody>
@@ -1555,6 +1631,7 @@ function AssistantContent() {
   const allowCalendly = hasFeature('calendly', flags, profile, overrides)
   const allowFollowups = hasFeature('followups', flags, profile, overrides)
   const allowCannedResponses = hasFeature('canned_responses', flags, profile, overrides)
+  const allowHumanAgent = hasFeature('human_agent', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -1632,7 +1709,7 @@ function AssistantContent() {
       {allowContextDocuments ? <ContextDocumentsSection /> : null}
       <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       <ScheduleSection assistant={assistant} />
-      {allowFollowups ? <FollowupsSection assistant={assistant} /> : null}
+      {allowFollowups ? <FollowupsSection assistant={assistant} allowAssisted={allowHumanAgent} /> : null}
       {allowCannedResponses ? <CannedResponsesSection assistant={assistant} /> : null}
       <AudienceSection assistant={assistant} />
     </div>

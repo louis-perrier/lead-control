@@ -17,8 +17,17 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
-import { useInvalidate, usePendingFollowup } from '@/lib/queries'
+import { useAssistants, useFlags, useInvalidate, useMyOverrides, usePendingFollowup, useProfile } from '@/lib/queries'
+import { hasFeature } from '@/lib/features'
 import type { Booking, Conversation, ConversationMessage } from '@/lib/types'
+import {
+  assistedSuggestion,
+  formatRemaining,
+  humanAgentRemainingMs,
+  manualSendMode,
+  needsManualFollowup,
+} from '@/supabase/functions/_shared/messaging-window'
+import { renderFollowupText, usableDisplayName } from '@/supabase/functions/_shared/followup-text'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -309,6 +318,18 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
   const [closeOpen, setCloseOpen] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const { data: flags } = useFlags()
+  const { data: profile } = useProfile()
+  const { data: overrides } = useMyOverrides()
+  const { data: assistants } = useAssistants()
+  const humanAgent = hasFeature('human_agent', flags, profile, overrides)
+  const [now, setNow] = useState(() => Date.now())
+  const prefilledFor = useRef<number | null>(null)
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
 
   const paused = ['stopped', 'error', 'condition_stop'].includes(conversation.automation_state)
 
@@ -327,11 +348,43 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id])
 
-  const windowExpired = useMemo(() => {
-    const lastInbound = [...(messages ?? [])].reverse().find((m) => m.author_type === 'customer')
-    if (!lastInbound) return true
-    return Date.now() - Date.parse(lastInbound.sent_at) > 24 * 3600 * 1000
-  }, [messages])
+  const lastCustomerAt = useMemo(
+    () =>
+      conversation.last_customer_message_at ??
+      [...(messages ?? [])].reverse().find((m) => m.author_type === 'customer')?.sent_at ??
+      null,
+    [conversation.last_customer_message_at, messages],
+  )
+  const sendMode = manualSendMode(lastCustomerAt, now, humanAgent)
+  const windowExpired = sendMode === 'expired' || sendMode === 'closed'
+  const followupDue = humanAgent && needsManualFollowup(conversation, now)
+  const assistant = assistants?.find((a) => a.id === conversation.assistant_id)
+  const suggestion = followupDue
+    ? assistedSuggestion(assistant?.settings.followups?.assisted, conversation.last_message_at, now)
+    : null
+
+  useEffect(() => {
+    if (!suggestion || prefilledFor.current === conversation.id) return
+    prefilledFor.current = conversation.id
+    const known = conversation.metadata?.first_name
+    const firstName = typeof known === 'string' && known ? known : usableDisplayName(conversation.contact_name, conversation.contact_handle)
+    setDraft((current) => current || renderFollowupText(suggestion.text, firstName))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation.id, suggestion?.id])
+
+  async function dismissFollowup() {
+    const { error } = await createClient()
+      .from('conversations')
+      .update({ metadata: { ...(conversation.metadata ?? {}), assisted_dismissed_at: new Date().toISOString() } })
+      .eq('id', conversation.id)
+    if (error) {
+      toast('Impossible d’écarter ce prospect des relances.', 'error')
+      return
+    }
+    setDraft('')
+    toast('Ce prospect ne vous sera plus proposé, sauf s’il vous réécrit.')
+    invalidate('conversations')
+  }
 
   async function togglePause() {
     const supabase = createClient()
@@ -387,6 +440,8 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
       setDraft(text)
       if (err instanceof Error && err.message === 'window_expired') {
         toast('Envoi impossible : plus de 24 h depuis le dernier message du prospect (règle Instagram).', 'error')
+      } else if (err instanceof Error && err.message === 'window_closed') {
+        toast('Envoi impossible : le prospect doit vous réécrire pour rouvrir la conversation (règle Instagram).', 'error')
       } else {
         toast('L’envoi a échoué. Réessayez.', 'error')
       }
@@ -439,6 +494,17 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
             </button>
           </div>
         ) : null}
+        {followupDue ? (
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border bg-primary/5 px-3 py-2 text-sm">
+            <span className="text-ink">
+              Plus de réponse depuis {formatRemaining(now - Date.parse(conversation.last_message_at!))}.
+              {suggestion ? ' Une relance est prête ci-dessous : relisez, puis envoyez.' : ' Vous pouvez encore le relancer à la main.'}
+            </span>
+            <button type="button" onClick={dismissFollowup} className="text-muted hover:text-ink hover:underline">
+              Ne pas relancer
+            </button>
+          </div>
+        ) : null}
 
         <div className="flex-1 space-y-2.5 overflow-y-auto px-3 py-4">
           {isLoading ? (
@@ -454,9 +520,16 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
         </div>
 
         <form onSubmit={send} className="border-t border-border bg-surface p-3">
-          {windowExpired ? (
+          {sendMode === 'human_agent' ? (
             <p className="mb-2 text-xs text-muted">
-              Plus de 24 h depuis le dernier message du prospect : Instagram n'autorise plus l'envoi.
+              Réponse à la main possible encore{' '}
+              <span className="font-medium tabular-nums text-ink">{formatRemaining(humanAgentRemainingMs(lastCustomerAt, now))}</span>.
+            </p>
+          ) : windowExpired ? (
+            <p className="mb-2 text-xs text-muted">
+              {humanAgent
+                ? 'Plus de 7 jours depuis le dernier message du prospect : Instagram n’autorise plus l’envoi tant qu’il n’a pas réécrit.'
+                : 'Plus de 24 h depuis le dernier message du prospect : Instagram n’autorise plus l’envoi.'}
             </p>
           ) : null}
           <div className="flex items-end gap-2">

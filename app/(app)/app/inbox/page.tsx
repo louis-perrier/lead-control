@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Inbox as InboxIcon, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useEffectiveUserId, useInvalidate, useProfile } from '@/lib/queries'
+import { useEffectiveUserId, useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
+import { hasFeature } from '@/lib/features'
 import type { Conversation } from '@/lib/types'
+import { needsManualFollowup } from '@/supabase/functions/_shared/messaging-window'
 import { cn, formatRelative } from '@/lib/utils'
 import { Avatar, EmptyState, Skeleton } from '@/components/ui/misc'
 import { Input } from '@/components/ui/input'
@@ -16,6 +18,7 @@ import { Thread } from '@/components/inbox/thread'
 const FILTERS = [
   { key: 'all', label: 'Toutes' },
   { key: 'unread', label: 'Non lues' },
+  { key: 'followup', label: 'À relancer' },
   { key: 'hot', label: 'Chaudes' },
   { key: 'paused', label: 'En pause' },
   { key: 'error', label: 'Erreurs' },
@@ -24,10 +27,12 @@ const FILTERS = [
 
 type FilterKey = (typeof FILTERS)[number]['key']
 
-function matchesFilter(conv: Conversation, filter: FilterKey) {
+function matchesFilter(conv: Conversation, filter: FilterKey, now: number) {
   switch (filter) {
     case 'unread':
       return conv.unread_count > 0
+    case 'followup':
+      return needsManualFollowup(conv, now)
     case 'hot':
       return conv.heat_tag === 'hot'
     case 'paused':
@@ -68,6 +73,10 @@ function InboxContent() {
   const invalidate = useInvalidate()
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
+  const { data: flags } = useFlags()
+  const { data: overrides } = useMyOverrides()
+  const humanAgent = hasFeature('human_agent', flags, profile, overrides)
+  const filters = FILTERS.filter((f) => f.key !== 'followup' || humanAgent)
 
   const selectedId = Number(searchParams.get('c')) || null
   const selected = conversations?.find((c) => c.id === selectedId) ?? null
@@ -98,7 +107,7 @@ function InboxContent() {
   const list = useMemo(() => {
     const term = search.trim().toLowerCase()
     return (conversations ?? [])
-      .filter((c) => matchesFilter(c, filter))
+      .filter((c) => matchesFilter(c, filter, Date.now()))
       .filter(
         (c) =>
           !term ||
@@ -106,6 +115,11 @@ function InboxContent() {
           (c.contact_handle ?? '').toLowerCase().includes(term),
       )
   }, [conversations, filter, search])
+
+  const followupCount = useMemo(
+    () => (humanAgent ? (conversations ?? []).filter((c) => needsManualFollowup(c, Date.now())).length : 0),
+    [conversations, humanAgent],
+  )
 
   function open(conv: Conversation) {
     router.replace(`/app/inbox?c=${conv.id}`, { scroll: false })
@@ -132,7 +146,7 @@ function InboxContent() {
             />
           </div>
           <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pb-0.5">
-            {FILTERS.map((f) => (
+            {filters.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
@@ -142,6 +156,7 @@ function InboxContent() {
                 )}
               >
                 {f.label}
+                {f.key === 'followup' && followupCount > 0 ? <span className="ml-1 tabular-nums opacity-80">{followupCount}</span> : null}
               </button>
             ))}
           </div>
