@@ -15,7 +15,7 @@ import { useToast } from '@/components/ui/toast'
 const BASIC_FEATURES = [
   'Assistant IA sur vos DM Instagram',
   '5 000 réponses par mois',
-  'Boîte de réception, contacts et statistiques',
+  'Boîte de réception, suivi des prospects et statistiques',
   'Réponses selon vos horaires',
 ]
 

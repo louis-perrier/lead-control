@@ -138,6 +138,7 @@ export type Conversation = {
   last_error_message: string | null
   last_customer_message_at: string | null
   metadata: Record<string, unknown> | null
+  notes: string | null
 }
 
 export type ConversationMessage = {
