@@ -1,6 +1,6 @@
-// Réponses préenregistrées. Le tri se fait par un appel dédié sur le petit modèle, pas dans
-// le prompt principal : celui-ci est repris de la V1 et ne doit pas gagner une voie de sortie
-// supplémentaire. Quand une réponse correspond, la génération complète est évitée.
+// Réponses préenregistrées. Le tri se fait par un appel dédié sur le petit modèle, jamais dans
+// le prompt principal repris de la V1. Si le message ne demande rien d'autre, la génération
+// complète est évitée ; sinon l'agent répond au reste dans le même tour.
 import { admin, logEvent } from '../_shared/core.ts'
 import { AI_MODEL_SUMMARY, generateText, recordUsage } from '../_shared/ai.ts'
 import { sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'

@@ -20,9 +20,8 @@ export const MIN_DELAY_MINUTES = 15
 export const MAX_DELAY_MINUTES = 23 * 60 + 45
 export const MESSAGING_WINDOW_MINUTES = 24 * 60
 
-// Une relance incomplète est ignorée plutôt que bloquante : le client peut enregistrer
-// un brouillon sans que l'assistant se mette à envoyer du vide. L'ordre de saisie compte :
-// chaque délai part de la relance précédente.
+// Un brouillon incomplet est ignoré sans bloquer. L'ordre de saisie compte : chaque délai
+// part de la relance précédente, la liste n'est donc jamais triée.
 export function usableFollowupItems(settings?: FollowupSettings | null): FollowupItem[] {
   if (!settings?.enabled) return []
   const items = Array.isArray(settings.items) ? settings.items : []

@@ -1,8 +1,7 @@
 import { admin } from '../_shared/core.ts'
 
-// L'état de fin n'est posé que si la conversation est toujours dans l'état réservé :
-// un message arrivé pendant la rédaction l'a replanifiée, une pause du coach doit tenir.
-// Renvoie false quand l'état a changé entre-temps, seules les données communes sont écrites.
+// Un message arrivé pendant la rédaction replanifie la conversation et une pause du coach doit
+// tenir : l'état n'est posé que s'il n'a pas bougé, sinon seules les données communes le sont.
 export async function finalizeConversation(
   convId: number,
   statePatch: Record<string, unknown>,
