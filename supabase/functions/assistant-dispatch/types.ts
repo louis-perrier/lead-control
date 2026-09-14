@@ -21,6 +21,7 @@ export type WindowMessage = {
   transcript_status: string
   transcript_error: string | null
   sent_at: string
+  send_state: string | null
   id: number
 }
 

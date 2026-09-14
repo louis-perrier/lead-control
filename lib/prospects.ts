@@ -59,6 +59,9 @@ export function nextAction(
   }
   if (opts.followupAt) return { key: 'followup_planned', at: opts.followupAt, needsCoach: false }
   if (opts.humanAgent && needsManualFollowup(conv, opts.now)) return { key: 'manual_followup', needsCoach: true }
+  if (conv.automation_state === 'scheduled' && conv.automation_reason === 'human_active') {
+    return { key: 'awaiting_reply', needsCoach: true }
+  }
   if (conv.automation_state === 'scheduled' || conv.automation_state === 'pending') {
     return { key: 'assistant_replying', needsCoach: false }
   }

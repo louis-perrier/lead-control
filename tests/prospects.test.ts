@@ -44,6 +44,7 @@ describe('nextAction', () => {
   it('montre la relance prévue et l’assistant au travail', () => {
     expect(nextAction(base, { ...opts, followupAt: hoursAgo(-3) })?.key).toBe('followup_planned')
     expect(nextAction({ ...base, automation_state: 'scheduled' }, opts)?.key).toBe('assistant_replying')
+    expect(nextAction({ ...base, automation_state: 'scheduled', automation_reason: 'human_active' }, opts)?.key).toBe('awaiting_reply')
     expect(nextAction({ ...base, automation_state: 'condition_stop' }, opts)?.key).toBe('goal_reached')
   })
 
