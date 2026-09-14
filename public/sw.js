@@ -1,5 +1,8 @@
 // Service worker des notifications. Il ne met rien en cache : l'application reste en ligne.
 
+// Sans prise de contrôle, les onglets ouverts avant l'activation ne peuvent pas être redirigés.
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
+
 self.addEventListener('push', (event) => {
   let data = {}
   try {
@@ -23,8 +26,11 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
       const open = windows.find((w) => new URL(w.url).origin === self.location.origin)
-      if (open) return open.focus().then((w) => (w ? w.navigate(url) : self.clients.openWindow(url)))
-      return self.clients.openWindow(url)
+      if (!open) return self.clients.openWindow(url)
+      return open
+        .focus()
+        .then((w) => w.navigate(url))
+        .catch(() => self.clients.openWindow(url))
     }),
   )
 })
