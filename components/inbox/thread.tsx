@@ -37,11 +37,12 @@ function useMessages(conversationId: number) {
         .from('conversation_messages')
         .select('id, conversation_id, direction, author_type, body_text, message_type, media_path, transcript, transcript_status, send_state, sent_at')
         .eq('conversation_id', conversationId)
-        .order('sent_at', { ascending: true })
-        .order('id', { ascending: true })
+        .order('sent_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(200)
       if (error) throw error
-      return (data ?? []) as ConversationMessage[]
+      // Les 200 plus récents, remis dans l'ordre de lecture : un long fil affichait les plus anciens.
+      return ((data ?? []) as ConversationMessage[]).reverse()
     },
   })
 }
