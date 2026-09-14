@@ -2,14 +2,15 @@
 // appelle Anthropic (clé plateforme ou clé du bêta-testeur), envoie la réponse
 // sur Instagram et consomme le crédit. Déclenché chaque minute par pg_cron.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
-import { getChannelToken, sendInstagramText } from '../_shared/instagram.ts'
+import { getChannelToken, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
 import { tryCannedResponse } from './canned.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { allocateBudget, cutAtBoundary } from '../_shared/context-budget.ts'
-import { linkBase, parseDecision, stopConfirmed } from './decision.ts'
+import { alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from './decision.ts'
+import { splitReply, typingPauses } from './bubbles.ts'
 import { finalizeConversation } from './finalize.ts'
 import { splitSystemForCache } from './system-blocks.ts'
 import { resolveTone } from './types.ts'
@@ -64,7 +65,7 @@ async function retryLater(convId: number, reason: string, delayMs: number) {
 }
 
 async function fetchWindow(convId: number, cursor: string | null): Promise<WindowMessage[]> {
-  const fields = 'id, direction, author_type, body_text, message_type, transcript, transcript_status, transcript_error, sent_at'
+  const fields = 'id, direction, author_type, body_text, message_type, transcript, transcript_status, transcript_error, sent_at, send_state'
   if (!cursor) {
     const { data, error } = await admin
       .from('conversation_messages')
@@ -186,6 +187,51 @@ async function handleConversation(due: DueConversation) {
     return
   }
 
+  let messages = await fetchWindow(convId, due.pending_cursor_at)
+  const lastInbound = [...messages].reverse().find((m) => m.author_type === 'customer')
+  if (lastInbound?.message_type === 'audio' && lastInbound.transcript_status === 'processing') {
+    await retryLater(convId, 'audio_transcription_pending', 10_000)
+    return
+  }
+  const lastSeenId = messages.reduce((max, m) => Math.max(max, m.id), 0)
+
+  // Quelqu'un a répondu à la main pendant l'attente : rien à ajouter, aucun appel IA.
+  if (alreadyAnswered(messages)) {
+    await finalizeConversation(
+      convId,
+      {
+        automation_state: 'idle',
+        automation_reason: 'already_answered',
+        next_reply_at: null,
+        debounce_until: null,
+        pending_cursor_at: null,
+        pending_since: null,
+        pending_inbound_count: 0,
+      },
+      {},
+    )
+    return
+  }
+
+  const lastHuman = await admin
+    .from('conversation_messages')
+    .select('sent_at')
+    .eq('conversation_id', convId)
+    .eq('author_type', 'human')
+    .order('sent_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const waitForHuman = humanActiveUntil(lastHuman.data?.sent_at, Date.now())
+  if (waitForHuman) {
+    await releaseLock(convId, {
+      automation_state: 'scheduled',
+      automation_reason: 'human_active',
+      next_reply_at: waitForHuman.toISOString(),
+      debounce_until: waitForHuman.toISOString(),
+    })
+    return
+  }
+
   const profileRes = await admin
     .from('profiles')
     .select('plan_override')
@@ -269,14 +315,6 @@ async function handleConversation(due: DueConversation) {
     await stopWith(convId, 'channel_missing', 'Compte Instagram introuvable.')
     return
   }
-
-  let messages = await fetchWindow(convId, due.pending_cursor_at)
-  const lastInbound = [...messages].reverse().find((m) => m.author_type === 'customer')
-  if (lastInbound?.message_type === 'audio' && lastInbound.transcript_status === 'processing') {
-    await retryLater(convId, 'audio_transcription_pending', 10_000)
-    return
-  }
-  const lastSeenId = messages.reduce((max, m) => Math.max(max, m.id), 0)
 
   const settings = (assistant.settings ?? {}) as Record<string, any>
   let metadata = (conv.metadata ?? {}) as Record<string, unknown>
@@ -453,17 +491,39 @@ async function handleConversation(due: DueConversation) {
     return
   }
 
-  const blocks = (decision.reply_text ?? '')
-    .split(/\n\s*\n/)
-    .map((b) => b.trim())
-    .filter(Boolean)
-    .slice(0, 2)
+  // Le prompt ne laisse plus le choix de se taire : une réponse écrite part toujours, même si
+  // should_response dit le contraire.
+  const blocks = splitReply(decision.reply_text ?? '')
+  if (blocks.length === 0 && !canned.sent) {
+    await finalizeConversation(
+      convId,
+      {
+        automation_state: 'error',
+        automation_reason: 'notify_human',
+        next_reply_at: null,
+        debounce_until: null,
+        pending_cursor_at: null,
+        pending_since: null,
+        pending_inbound_count: 0,
+        last_error_code: 'no_reply',
+        last_error_message: 'L’assistant n’a pas su répondre à ce message. Répondez-lui ou reprenez l’assistant.',
+      },
+      { ...profilePatch, metadata },
+    )
+    return
+  }
 
+  const pauses = typingPauses(blocks)
   let sentCount = 0
   let anchorMessageId: number | null = canned.messageId
-  if (decision.should_response && blocks.length > 0) {
+  if (blocks.length > 0) {
     for (const [i, block] of blocks.entries()) {
       if (await customerWroteAfter(convId, lastSeenId)) break
+      if (pauses[i] > 0) {
+        await sendTypingOn(token, igUserId, conv.contact_external_id)
+        await new Promise((r) => setTimeout(r, pauses[i]))
+        if (await customerWroteAfter(convId, lastSeenId)) break
+      }
       const provisional = `local:${crypto.randomUUID()}`
       const inserted = await admin
         .from('conversation_messages')
@@ -495,9 +555,6 @@ async function handleConversation(due: DueConversation) {
         anchorMessageId = inserted.data!.id
         if (sentCount === 1 && !creditAlreadyConsumed) {
           await admin.rpc('consume_one_credit', { p_user_id: due.user_id })
-        }
-        if (i < blocks.length - 1) {
-          await new Promise((r) => setTimeout(r, Math.min(8000, Math.max(1500, block.length * 60))))
         }
       } catch (e) {
         await admin
