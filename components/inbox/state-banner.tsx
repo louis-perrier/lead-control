@@ -12,6 +12,9 @@ export function stateLabel(conv: Conversation): { text: string; tone: 'primary' 
   }
   switch (conv.automation_state) {
     case 'scheduled':
+      if (conv.automation_reason === 'human_active' && conv.next_reply_at) {
+        return { text: `Vous avez écrit à la main : l’assistant attend jusqu’à ${formatDateTime(conv.next_reply_at)}`, tone: 'warning' }
+      }
       return conv.next_reply_at
         ? { text: `Réponse prévue à ${formatDateTime(conv.next_reply_at)}`, tone: 'primary' }
         : { text: 'Réponse en préparation', tone: 'primary' }

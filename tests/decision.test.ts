@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { linkBase, parseDecision, stopConfirmed } from '../supabase/functions/assistant-dispatch/decision'
+import { HUMAN_ACTIVE_MS, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from '../supabase/functions/assistant-dispatch/decision'
 
 describe('parseDecision', () => {
   it('lit un JSON complet', () => {
@@ -63,5 +63,37 @@ describe('stopConfirmed', () => {
   it('compare le lien sans ses paramètres', () => {
     expect(linkBase(link)).toBe('https://calendly.com/coach/appel')
     expect(linkBase(' https://skool.com/groupe/ ')).toBe('https://skool.com/groupe')
+  })
+})
+
+describe('alreadyAnswered', () => {
+  it('répond quand le dernier message enregistré vient du prospect', () => {
+    expect(alreadyAnswered([{ id: 1, author_type: 'agent' }, { id: 2, author_type: 'customer' }])).toBe(false)
+  })
+
+  it('se tait quand quelqu’un a répondu à la main après', () => {
+    expect(alreadyAnswered([{ id: 2, author_type: 'customer' }, { id: 3, author_type: 'human', send_state: 'sent' }])).toBe(true)
+  })
+
+  it('se fie à l’ordre d’enregistrement, pas à l’ordre d’affichage', () => {
+    // Message du prospect horodaté avant la bulle, mais arrivé après.
+    expect(alreadyAnswered([{ id: 5, author_type: 'customer' }, { id: 4, author_type: 'agent', send_state: 'sent' }])).toBe(false)
+  })
+
+  it('ignore un envoi échoué', () => {
+    expect(alreadyAnswered([{ id: 2, author_type: 'customer' }, { id: 3, author_type: 'agent', send_state: 'failed' }])).toBe(false)
+  })
+})
+
+describe('humanActiveUntil', () => {
+  const now = Date.parse('2026-09-14T12:00:00Z')
+
+  it('attend une heure après un message écrit à la main', () => {
+    expect(humanActiveUntil('2026-09-14T11:30:00Z', now)?.toISOString()).toBe('2026-09-14T12:30:00.000Z')
+  })
+
+  it('reprend au-delà d’une heure', () => {
+    expect(humanActiveUntil(new Date(now - HUMAN_ACTIVE_MS - 1).toISOString(), now)).toBeNull()
+    expect(humanActiveUntil(null, now)).toBeNull()
   })
 })

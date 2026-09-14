@@ -107,6 +107,27 @@ export function parseDecision(text: string): ParsedDecision {
   }
 }
 
+// Ordre d'insertion et non sent_at : l'horodatage Meta d'un message du prospect peut précéder
+// celui d'une bulle déjà enregistrée, et ce message passerait pour déjà traité.
+export function alreadyAnswered(messages: { id: number; author_type: string; send_state?: string | null }[]) {
+  let lastCustomer = 0
+  let lastOutgoing = 0
+  for (const m of messages) {
+    if (m.author_type === 'customer') lastCustomer = Math.max(lastCustomer, m.id)
+    else if (m.send_state !== 'failed') lastOutgoing = Math.max(lastOutgoing, m.id)
+  }
+  return lastOutgoing > lastCustomer
+}
+
+export const HUMAN_ACTIVE_MS = 60 * 60 * 1000
+
+// Un message écrit à la main il y a moins d'une heure : l'agent laisse la personne répondre.
+export function humanActiveUntil(lastHumanSentAt: string | null | undefined, now: number) {
+  if (!lastHumanSentAt) return null
+  const until = Date.parse(lastHumanSentAt) + HUMAN_ACTIVE_MS
+  return until > now ? new Date(until) : null
+}
+
 export function linkBase(link: string | null | undefined) {
   return (link ?? '').trim().split('?')[0].split('#')[0].replace(/\/+$/, '')
 }
