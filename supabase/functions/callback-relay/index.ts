@@ -76,6 +76,22 @@ async function findAssistant(channelAccountId: string) {
   return data
 }
 
+async function refreshContactProfile(convId: number, channelId: string, contactId: string) {
+  try {
+    const token = await getChannelToken(channelId)
+    if (!token) return
+    const profile = await fetchContactProfile(token, contactId)
+    if (!profile?.name && !profile?.username) return
+    await admin
+      .from('conversations')
+      .update({ contact_name: profile.name ?? null, contact_handle: profile.username ?? null })
+      .eq('id', convId)
+      .is('contact_handle', null)
+  } catch (_) {
+    // réessayé au prochain message
+  }
+}
+
 async function findOrCreateConversation(opts: {
   channel: { id: string; user_id: string; external_id: string }
   assistantId: string | null
@@ -88,7 +104,14 @@ async function findOrCreateConversation(opts: {
     .eq('channel_account_id', opts.channel.id)
     .eq('external_thread_id', threadId)
     .maybeSingle()
-  if (existing.data) return { conv: existing.data, created: false }
+  if (existing.data) {
+    // Le profil a pu échouer à la création : sans nom ni pseudo, le prospect restait anonyme partout.
+    if (!existing.data.contact_name && !existing.data.contact_handle) {
+      // @ts-ignore fourni par le runtime Edge
+      EdgeRuntime.waitUntil(refreshContactProfile(existing.data.id, opts.channel.id, opts.contactId))
+    }
+    return { conv: existing.data, created: false }
+  }
 
   let contactName: string | null = null
   let contactHandle: string | null = null
