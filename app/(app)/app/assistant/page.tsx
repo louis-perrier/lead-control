@@ -18,6 +18,7 @@ import {
 import { hasFeature } from '@/lib/features'
 import { formatDateTime } from '@/lib/utils'
 import { readShares } from '@/supabase/functions/_shared/context-budget'
+import { triggerKind } from '@/supabase/functions/_shared/canned-match'
 import { MESSAGING_WINDOW_MINUTES, cumulativeOffsets } from '@/supabase/functions/_shared/followup-plan'
 import {
   NAME_VARIABLE_TEMPLATE,
@@ -1465,7 +1466,7 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
     <Card>
       <CardHeader
         title="Réponses préenregistrées"
-        description="Quand le prospect se trouve dans une de ces situations, l'assistant envoie votre réponse telle quelle. Chaque réponse ne part qu'une fois par conversation."
+        description="Quand le prospect écrit un de ces mots-clés ou se trouve dans une de ces situations, l'assistant envoie votre réponse telle quelle. Chaque réponse ne part qu'une fois par conversation."
       />
       <form onSubmit={submit}>
         <CardBody className="space-y-3">
@@ -1475,12 +1476,12 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
           {entries.map((entry, index) => (
             <div key={entry.id} className="space-y-3 rounded-[10px] border border-border p-3">
               <div>
-                <Label htmlFor={`canned-trigger-${entry.id}`}>Situation</Label>
+                <Label htmlFor={`canned-trigger-${entry.id}`}>Mot-clé ou situation</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     id={`canned-trigger-${entry.id}`}
                     value={entry.trigger}
-                    placeholder="Le prospect demande ce que vous faites dans la vie"
+                    placeholder="Vidéo IA, ou : le prospect demande ce que vous faites"
                     onChange={(e) => edit(entry.id, { trigger: e.target.value })}
                     className="flex-1"
                   />
@@ -1488,8 +1489,14 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
                     Supprimer
                   </Button>
                 </div>
-                {index === 0 ? (
-                  <FieldHint>Décrivez la situation, pas une phrase exacte. « Tu bosses dans quoi ? » la déclenche aussi.</FieldHint>
+                {entry.trigger.trim() ? (
+                  <FieldHint>
+                    {triggerKind(entry.trigger) === 'keyword'
+                      ? `Mot-clé : part quand le message contient « ${entry.trigger.trim()} », même avec une petite faute.`
+                      : 'Situation : l’assistant reconnaît les messages qui y correspondent, quelle que soit la formulation.'}
+                  </FieldHint>
+                ) : index === 0 ? (
+                  <FieldHint>Un mot-clé court (ex. Vidéo IA) ou une situation décrite en phrase.</FieldHint>
                 ) : null}
               </div>
               <div className="flex gap-2">

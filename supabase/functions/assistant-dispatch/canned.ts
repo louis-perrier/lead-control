@@ -1,7 +1,7 @@
-// Réponses préenregistrées. Le tri se fait par un appel dédié sur le petit modèle, jamais dans
-// le prompt principal repris de la V1. Si le message ne demande rien d'autre, la génération
-// complète est évitée ; sinon l'agent répond au reste dans le même tour.
+// Réponses préenregistrées, reconnues hors du prompt principal repris de la V1. Si le message
+// ne demande rien d'autre, la génération complète est évitée ; sinon l'agent répond au reste.
 import { admin, logEvent } from '../_shared/core.ts'
+import { bestKeywordMatch, isOnlyPoliteness, triggerKind } from '../_shared/canned-match.ts'
 import { AI_MODEL_SUMMARY, generateText, recordUsage } from '../_shared/ai.ts'
 import { sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
@@ -31,50 +31,80 @@ export function usableCannedResponses(list?: CannedResponse[] | null): CannedRes
 
 const CLASSIFIER_SYSTEM =
   'Tu es un routeur de messages. Tu ne rédiges rien, tu choisis au plus une situation. ' +
-  'Ne choisis une situation que si le dernier message du prospect y correspond sans ambiguïté, ' +
-  'les échanges précédents servent seulement à le comprendre. Dans le doute, choisis aucune. ' +
+  'Ne choisis une situation que si le dernier message du prospect y correspond sans ambiguïté ' +
+  'et si la réponse associée reste cohérente avec ce que le prospect a déjà dit. Les échanges ' +
+  'précédents servent seulement à le comprendre. Dans le doute, choisis aucune. ' +
   'Réponds uniquement en JSON : {"id": "identifiant ou aucune", "reste": true ou false}. ' +
   '"reste" vaut true si le dernier message du prospect contient aussi une autre question ou ' +
   'information qui appelle une réponse, en plus de la situation choisie.'
 
-async function classify(opts: {
+const KEYWORD_CHECK_SYSTEM =
+  'Tu vérifies si une réponse préenregistrée peut partir telle quelle. Le dernier message du ' +
+  'prospect contient le mot-clé indiqué. "envoyer" vaut true seulement si le message parle bien ' +
+  'de ce mot-clé et si la réponse reste cohérente avec ce que le prospect a dit : elle ne lui ' +
+  'redemande pas une information déjà donnée et ne le contredit pas. "reste" vaut true si le ' +
+  'message contient aussi une autre question ou information qui appelle une réponse. ' +
+  'Réponds uniquement en JSON : {"envoyer": true ou false, "reste": true ou false}.'
+
+type AiContext = {
   apiKey: string
   keySource: 'platform' | 'byok'
   userId: string
   convId: number
   lastCustomerText: string
   recentLines: string[]
-  entries: CannedResponse[]
-}): Promise<{ id: string; other: boolean } | null> {
-  const list = opts.entries.map((e) => `${e.id} : ${e.trigger}`).join('\n')
-  const recent = opts.recentLines.length ? `Échanges précédents :\n${opts.recentLines.join('\n').slice(-1500)}\n\n` : ''
-  const prompt = `${recent}Dernier message du prospect :\n"${opts.lastCustomerText.slice(0, 1000)}"\n\nSituations :\n${list}`
+}
+
+function replyPreview(entry: CannedResponse) {
+  return entry.kind === 'audio' ? '(message vocal)' : (entry.text ?? '').slice(0, 300)
+}
+
+async function askSmallModel(ctx: AiContext, system: string, body: string, maxTokens: number) {
+  const recent = ctx.recentLines.length ? `Échanges précédents :\n${ctx.recentLines.join('\n').slice(-1500)}\n\n` : ''
   const res = await generateText({
-    apiKey: opts.apiKey,
+    apiKey: ctx.apiKey,
     model: AI_MODEL_SUMMARY,
-    system: CLASSIFIER_SYSTEM,
-    prompt,
-    maxTokens: 60,
+    system,
+    prompt: `${recent}Dernier message du prospect :\n"${ctx.lastCustomerText.slice(0, 1000)}"\n\n${body}`,
+    maxTokens,
   })
   await recordUsage({
-    userId: opts.userId,
-    conversationId: opts.convId,
+    userId: ctx.userId,
+    conversationId: ctx.convId,
     model: AI_MODEL_SUMMARY,
     usage: res.usage,
-    source: opts.keySource,
+    source: ctx.keySource,
   })
-  let id = ''
-  let other = false
+  return res.text
+}
+
+function parseJson(text: string): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(res.text.slice(res.text.indexOf('{'), res.text.lastIndexOf('}') + 1))
-    id = String(parsed.id ?? '')
-    other = parsed.reste === true
+    return JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
   } catch {
-    id = res.text
+    return null
   }
+}
+
+async function confirmKeyword(ctx: AiContext, entry: CannedResponse): Promise<{ id: string; other: boolean } | null> {
+  const text = await askSmallModel(
+    ctx,
+    KEYWORD_CHECK_SYSTEM,
+    `Mot-clé : ${entry.trigger}\nRéponse préenregistrée : ${replyPreview(entry)}`,
+    40,
+  )
+  const parsed = parseJson(text)
+  return parsed?.envoyer === true ? { id: entry.id!, other: parsed.reste === true } : null
+}
+
+async function classify(ctx: AiContext, entries: CannedResponse[]): Promise<{ id: string; other: boolean } | null> {
+  const list = entries.map((e) => `${e.id} : ${e.trigger}\n  Réponse associée : ${replyPreview(e)}`).join('\n')
+  const text = await askSmallModel(ctx, CLASSIFIER_SYSTEM, `Situations :\n${list}`, 60)
+  const parsed = parseJson(text)
+  const id = parsed ? String(parsed.id ?? '') : text
   const answer = id.toLowerCase().replace(/[^a-z0-9_-]/g, '')
-  const match = opts.entries.find((e) => (e.id ?? '').toLowerCase() === answer)
-  return match?.id ? { id: match.id, other } : null
+  const match = entries.find((e) => (e.id ?? '').toLowerCase() === answer)
+  return match?.id ? { id: match.id, other: parsed?.reste === true } : null
 }
 
 export type CannedOutcome = {
@@ -102,24 +132,30 @@ export async function tryCannedResponse(params: {
 }): Promise<CannedOutcome> {
   const none: CannedOutcome = { sent: false, continueWithAgent: false, metadata: params.metadata, messageId: null }
   const all = usableCannedResponses(params.settings.canned_responses as CannedResponse[] | undefined)
-  if (all.length === 0 || !params.lastCustomerText.trim()) return none
+  if (all.length === 0 || isOnlyPoliteness(params.lastCustomerText)) return none
   const used = Array.isArray(params.metadata.canned_used) ? (params.metadata.canned_used as string[]) : []
   // Une même réponse ne se rejoue jamais dans une conversation, sinon le prospect
   // reçoit deux fois le même vocal.
   const entries = all.filter((e) => !used.includes(e.id!))
   if (entries.length === 0) return none
 
+  const ctx: AiContext = {
+    apiKey: params.apiKey,
+    keySource: params.keySource,
+    userId: params.userId,
+    convId: params.convId,
+    lastCustomerText: params.lastCustomerText,
+    recentLines: params.recentLines,
+  }
+  // Un message qui se résume au mot-clé part sans appel IA ; le petit modèle ne sert qu'à
+  // vérifier un mot-clé noyé dans un message plus long, puis à reconnaître les situations.
   let chosen: { id: string; other: boolean } | null = null
   try {
-    chosen = await classify({
-      apiKey: params.apiKey,
-      keySource: params.keySource,
-      userId: params.userId,
-      convId: params.convId,
-      lastCustomerText: params.lastCustomerText,
-      recentLines: params.recentLines,
-      entries,
-    })
+    const hit = bestKeywordMatch(params.lastCustomerText, entries)
+    if (hit?.match === 'exact') chosen = { id: hit.entry.id!, other: false }
+    else if (hit) chosen = await confirmKeyword(ctx, hit.entry)
+    const situations = entries.filter((e) => triggerKind(e.trigger ?? '') === 'situation')
+    if (!chosen && situations.length > 0) chosen = await classify(ctx, situations)
   } catch (_) {
     return none
   }
