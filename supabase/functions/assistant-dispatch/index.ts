@@ -218,6 +218,7 @@ async function handleConversation(due: DueConversation) {
     .select('sent_at')
     .eq('conversation_id', convId)
     .eq('author_type', 'human')
+    .neq('send_state', 'failed')
     .order('sent_at', { ascending: false })
     .limit(1)
     .maybeSingle()
