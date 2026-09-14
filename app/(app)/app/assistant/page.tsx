@@ -17,6 +17,7 @@ import {
 } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import { formatDateTime } from '@/lib/utils'
+import { readShares } from '@/supabase/functions/_shared/context-budget'
 import type { Assistant, AssistantSettings, CannedResponse, ContextDocument, FollowupItem } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -855,9 +856,9 @@ function ContextDocumentsSection() {
       const supabase = createClient()
       const { data } = await supabase
         .from('context_documents')
-        .select('id, title, status, char_count, error_message, created_at')
+        .select('id, title, status, char_count, source_char_count, error_message, created_at')
         .eq('user_id', effectiveUserId!)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: true })
       return (data ?? []) as ContextDocument[]
     },
   })
@@ -918,6 +919,13 @@ function ContextDocumentsSection() {
   }
 
   const atQuota = quota ? quota.used >= quota.max : false
+  // Même partage que l'assistant : seuls les documents prêts se répartissent la place.
+  const shares = useMemo(() => {
+    const ready = (docs ?? []).filter((d) => d.status === 'ready')
+    const computed = readShares(ready.map((d) => ({ length: d.char_count ?? 0, sourceLength: d.source_char_count })))
+    return new Map(ready.map((d, i) => [d.id, computed[i]]))
+  }, [docs])
+  const somePartial = [...shares.values()].some((share) => !share.complete)
 
   return (
     <Card>
@@ -942,9 +950,17 @@ function ContextDocumentsSection() {
               <div key={d.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
                 <span className="truncate">{d.title}</span>
                 <div className="flex items-center gap-2">
-                  <Badge tone={d.status === 'ready' ? 'success' : d.status === 'error' ? 'danger' : 'muted'}>
-                    {d.status === 'ready' ? 'Prêt' : d.status === 'error' ? 'Erreur' : 'Traitement…'}
-                  </Badge>
+                  {d.status === 'ready' ? (
+                    shares.get(d.id)?.complete === false ? (
+                      <Badge tone="warning">Lu en partie · {shares.get(d.id)!.percent} %</Badge>
+                    ) : (
+                      <Badge tone="success">Lu en entier</Badge>
+                    )
+                  ) : (
+                    <Badge tone={d.status === 'error' ? 'danger' : 'muted'}>
+                      {d.status === 'error' ? 'Erreur' : 'Traitement…'}
+                    </Badge>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => remove(d.id)}>
                     Supprimer
                   </Button>
@@ -953,6 +969,9 @@ function ContextDocumentsSection() {
             ))}
           </div>
         )}
+        {somePartial ? (
+          <FieldHint>Vos documents dépassent la place disponible. Raccourcissez le plus long pour qu'il soit lu en entier.</FieldHint>
+        ) : null}
         <input
           ref={fileRef}
           type="file"
