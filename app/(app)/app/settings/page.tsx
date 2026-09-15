@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
 import { useInvalidate, useProfile } from '@/lib/queries'
+import { Bell, BellOff, BellRing, ChevronRight, Share, Smartphone, SquarePlus } from 'lucide-react'
 import { disablePush, enablePush, useNotificationsEnabled, usePushState } from '@/lib/notifications'
 import type { PushState } from '@/lib/notifications'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input, Label, FieldError, FieldHint } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
+import { InfoTip } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/toast'
 
 function ProfileCard() {
@@ -360,7 +362,7 @@ function NotificationsCard() {
       const next = await action()
       setState(next)
       if (next === 'on' && success) toast(success)
-      if (next === 'denied') toast('Les notifications sont bloquées pour ce site sur cet appareil.', 'error')
+      if (next === 'denied') toast('Notifications bloquées sur cet appareil.', 'error')
     } catch {
       toast('L’opération a échoué. Réessayez.', 'error')
     }
@@ -371,49 +373,66 @@ function NotificationsCard() {
     setBusy(true)
     try {
       const res = await callFunction<{ delivered: number }>('notifications-push', { body: { test: true } })
-      toast(res.delivered > 0 ? 'Notification de test envoyée.' : 'Aucun appareil n’a pu la recevoir. Désactivez puis réactivez.', res.delivered > 0 ? 'success' : 'error')
+      toast(res.delivered > 0 ? 'Notification de test envoyée.' : 'Non reçue : désactivez puis réactivez.', res.delivered > 0 ? 'success' : 'error')
     } catch {
       toast('Impossible d’envoyer la notification de test.', 'error')
     }
     setBusy(false)
   }
 
+  const status = (Icon: typeof Bell, text: string, tip?: string, tone = 'text-muted') => (
+    <span className={`inline-flex items-center gap-2 ${tone}`}>
+      <Icon size={16} />
+      {text}
+      {tip ? <InfoTip text={tip} /> : null}
+    </span>
+  )
+
   return (
     <Card>
       <div id="notifications" className="scroll-mt-16" />
       <CardHeader
-        title="Notifications sur cet appareil"
-        description="Recevez une alerte quand l’assistant a besoin de vous ou qu’il est bloqué, même application fermée."
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            Notifications
+            <InfoTip text="Une alerte sur cet appareil quand l’assistant a besoin de vous." />
+          </span>
+        }
       />
-      <CardBody className="space-y-3 text-sm">
+      <CardBody className="text-sm">
         {state === 'loading' ? (
-          <p className="text-muted">Vérification de cet appareil…</p>
+          <span className="text-muted">Vérification…</span>
         ) : state === 'unsupported' ? (
-          <p className="text-muted">Ce navigateur ne permet pas les notifications. Utilisez Chrome sur Android, ou Safari sur iPhone.</p>
+          status(BellOff, 'Non disponible sur ce navigateur', 'Utilisez Chrome sur Android, ou l’app installée sur iPhone.')
         ) : state === 'ios_install' ? (
-          <ol className="list-decimal space-y-1 pl-5 text-muted">
-            <li>Dans Safari, touchez le bouton Partager.</li>
-            <li>Choisissez « Sur l’écran d’accueil ».</li>
-            <li>Ouvrez LeadControl depuis la nouvelle icône, puis revenez ici pour activer.</li>
-          </ol>
+          <div className="flex flex-wrap items-center gap-1.5 text-muted">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-1">
+              <Share size={14} /> Partager
+            </span>
+            <ChevronRight size={14} />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-1">
+              <SquarePlus size={14} /> Sur l’écran d’accueil
+            </span>
+            <ChevronRight size={14} />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-1">
+              <Smartphone size={14} /> Ouvrir l’icône
+            </span>
+            <InfoTip text="Sur iPhone, les notifications passent par l’app ajoutée à l’écran d’accueil." />
+          </div>
         ) : state === 'denied' ? (
-          <p className="text-muted">
-            Les notifications sont bloquées pour LeadControl. Autorisez-les dans les réglages du navigateur ou du
-            téléphone, puis rechargez la page.
-          </p>
+          status(BellOff, 'Bloquées sur cet appareil', 'Autorisez LeadControl dans les réglages de notifications du téléphone.')
         ) : state === 'off' ? (
           <div className="flex flex-wrap items-center gap-3">
-            <p className="flex-1 text-muted">Désactivées sur cet appareil.</p>
-            <Button onClick={() => run(enablePush, 'Notifications activées sur cet appareil.')} disabled={busy}>
+            <span className="flex-1">{status(Bell, 'Désactivées sur cet appareil')}</span>
+            <Button onClick={() => run(enablePush, 'Notifications activées.')} disabled={busy}>
               {busy ? 'Activation…' : 'Activer'}
             </Button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="success">Activées sur cet appareil</Badge>
-            <span className="flex-1" />
+            <span className="flex-1">{status(BellRing, 'Activées sur cet appareil', undefined, 'text-success')}</span>
             <Button size="sm" variant="secondary" onClick={sendTest} disabled={busy}>
-              Envoyer un test
+              Tester
             </Button>
             <Button size="sm" variant="ghost" onClick={() => run(disablePush)} disabled={busy}>
               Désactiver

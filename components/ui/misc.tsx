@@ -76,6 +76,33 @@ export function Avatar({
   )
 }
 
+/** Infobulle « ! » : une phrase de 15 mots au plus, révélée au survol ou au toucher. */
+export function InfoTip({ text, label = 'Plus d’informations' }: { text: string; label?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="relative inline-flex align-middle" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        onBlur={() => setOpen(false)}
+        className="flex size-4 items-center justify-center rounded-full border border-border text-[10px] font-semibold leading-none text-muted hover:border-ink hover:text-ink"
+      >
+        !
+      </button>
+      {open ? (
+        <span
+          role="tooltip"
+          className="absolute left-0 top-full z-50 mt-1.5 w-56 max-w-[calc(100vw-3rem)] rounded-[10px] bg-ink px-2.5 py-1.5 text-xs font-normal leading-snug text-white shadow-soft"
+        >
+          {text}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
 export function Switch({
   checked,
   onChange,

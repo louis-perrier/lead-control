@@ -126,7 +126,7 @@ export function NotificationBell({ className }: { className?: string }) {
               onClick={() => setOpen(false)}
               className="border-t border-border px-4 py-2.5 text-center text-xs font-medium text-primary hover:bg-bg"
             >
-              Recevoir les notifications sur cet appareil
+              Activer sur cet appareil
             </Link>
           ) : null}
         </div>
