@@ -46,7 +46,7 @@ function useMessages(conversationId: number) {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('conversation_messages')
-        .select('id, conversation_id, direction, author_type, body_text, message_type, media_path, transcript, transcript_status, send_state, sent_at')
+        .select('id, conversation_id, direction, author_type, body_text, message_type, media_path, transcript, transcript_status, send_state, sent_at, reaction')
         .eq('conversation_id', conversationId)
         .order('sent_at', { ascending: false })
         .order('id', { ascending: false })
@@ -131,10 +131,10 @@ function MediaBubble({ message }: { message: ConversationMessage }) {
 function Bubble({ message }: { message: ConversationMessage }) {
   const mine = message.direction === 'out'
   return (
-    <div className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex', mine ? 'justify-end' : 'justify-start', message.reaction && 'pb-2.5')}>
       <div
         className={cn(
-          'max-w-[78%] rounded-2xl px-3.5 py-2 text-sm',
+          'relative max-w-[78%] rounded-2xl px-3.5 py-2 text-sm',
           mine
             ? message.author_type === 'agent'
               ? 'rounded-br-sm bg-primary text-white'
@@ -152,6 +152,14 @@ function Bubble({ message }: { message: ConversationMessage }) {
           {formatDateTime(message.sent_at)}
           {message.send_state === 'failed' ? ' · échec d’envoi' : ''}
         </p>
+        {message.reaction ? (
+          <span
+            className="absolute -bottom-2.5 right-2 rounded-full border border-border bg-surface px-1 text-xs leading-5"
+            title="Réaction envoyée par l’assistant"
+          >
+            {message.reaction}
+          </span>
+        ) : null}
       </div>
     </div>
   )

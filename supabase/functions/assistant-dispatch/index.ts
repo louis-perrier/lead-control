@@ -2,7 +2,7 @@
 // appelle Anthropic (clé plateforme ou clé du bêta-testeur), envoie la réponse
 // sur Instagram et consomme le crédit. Déclenché chaque minute par pg_cron.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
-import { getChannelToken, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
+import { getChannelToken, sendInstagramReaction, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
@@ -11,6 +11,8 @@ import { audienceBlocks } from '../_shared/audience.ts'
 import { allocateBudget, cutAtBoundary } from '../_shared/context-budget.ts'
 import { alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from './decision.ts'
 import { splitReply, typingPauses } from './bubbles.ts'
+import { closingCheck } from './closing.ts'
+import { firstJsonObject } from '../_shared/canned-match.ts'
 import { finalizeConversation } from './finalize.ts'
 import { splitSystemForCache } from './system-blocks.ts'
 import { resolveTone } from './types.ts'
@@ -148,6 +150,73 @@ async function hasActiveBooking(convId: number) {
     .neq('status', 'canceled')
     .limit(1)
   return (data?.length ?? 0) > 0
+}
+
+const CLOSING_CHECK_SYSTEM =
+  'Tu lis la fin d\'une conversation Instagram entre un compte et un prospect. Réponds true seulement si ' +
+  'le dernier message du compte clôturait la conversation (au revoir, bonne continuation, remerciement final) ' +
+  'et que la réponse du prospect se contente de remercier, saluer, acquiescer ou dire au revoir, sans nouvelle ' +
+  'question, information, demande ni émotion à accueillir. Dans le doute, false. ' +
+  'Réponds uniquement par ce JSON, sans aucun texte autour : {"cloture": true ou false}'
+
+// Fin d'échange : un like au lieu d'un nouvel au revoir. Au moindre échec on laisse l'agent
+// répondre normalement, un silence non voulu coûterait plus cher qu'un message de trop.
+async function likeClosingMessage(opts: {
+  convId: number
+  userId: string
+  messages: WindowMessage[]
+  apiKey: string
+  keySource: 'platform' | 'byok'
+  token: string
+  igUserId: string
+  recipientId: string
+}) {
+  const check = closingCheck(opts.messages)
+  if (!check) return false
+  if (check.verdict === 'ask') {
+    try {
+      const res = await generateText({
+        apiKey: opts.apiKey,
+        model: AI_MODEL_SUMMARY,
+        system: CLOSING_CHECK_SYSTEM,
+        prompt: `Dernier message du compte :\n"${check.accountTurn.slice(0, 600)}"\n\nRéponse du prospect :\n"${check.prospectReply}"`,
+        maxTokens: 20,
+      })
+      await recordUsage({ userId: opts.userId, conversationId: opts.convId, model: AI_MODEL_SUMMARY, usage: res.usage, source: opts.keySource })
+      if (firstJsonObject(res.text)?.cloture !== true) return false
+    } catch (_) {
+      return false
+    }
+  }
+  const target = await admin.from('conversation_messages').select('external_message_id').eq('id', check.targetId).maybeSingle()
+  const mid = target.data?.external_message_id
+  if (!mid || mid.startsWith('local:')) return false
+  try {
+    await sendInstagramReaction(opts.token, opts.igUserId, opts.recipientId, mid)
+  } catch (e) {
+    await logEvent('warn', 'assistant-dispatch', `like de fin d'échange impossible conv=${opts.convId}: ${String(e).slice(0, 200)}`, {
+      user_id: opts.userId,
+      conversation_id: opts.convId,
+    })
+    return false
+  }
+  await admin.from('conversation_messages').update({ reaction: '❤️' }).eq('id', check.targetId)
+  await finalizeConversation(
+    opts.convId,
+    {
+      automation_state: 'idle',
+      automation_reason: 'liked_closing',
+      next_reply_at: null,
+      debounce_until: null,
+      pending_cursor_at: null,
+      pending_since: null,
+      pending_inbound_count: 0,
+      last_error_code: null,
+      last_error_message: null,
+    },
+    {},
+  )
+  return true
 }
 
 async function handleConversation(due: DueConversation) {
@@ -319,6 +388,22 @@ async function handleConversation(due: DueConversation) {
 
   const settings = (assistant.settings ?? {}) as Record<string, any>
   let metadata = (conv.metadata ?? {}) as Record<string, unknown>
+
+  // Aucun crédit ni relance pour un like : ce n'est pas une réponse.
+  if (
+    await likeClosingMessage({
+      convId,
+      userId: due.user_id,
+      messages,
+      apiKey: resolved.key,
+      keySource: resolved.source,
+      token,
+      igUserId,
+      recipientId: conv.contact_external_id,
+    })
+  ) {
+    return
+  }
 
   const canned = await tryCannedResponse({
     convId,

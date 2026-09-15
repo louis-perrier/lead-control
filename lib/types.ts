@@ -154,6 +154,7 @@ export type ConversationMessage = {
   transcript_status: 'none' | 'processing' | 'done' | 'failed'
   send_state: 'received' | 'queued' | 'sent' | 'failed' | 'cancelled'
   sent_at: string
+  reaction: string | null
 }
 
 export type ContextDocument = {
