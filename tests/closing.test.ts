@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { closingCheck } from '../supabase/functions/assistant-dispatch/closing'
+import { closingCheck, isFarewell } from '../supabase/functions/assistant-dispatch/closing'
 
 let nextId = 1
 const agent = (body: string) => ({ id: nextId++, author_type: 'agent', message_type: 'text', body_text: body, send_state: 'sent' })
@@ -94,5 +94,20 @@ describe('closingCheck, l’agent doit répondre', () => {
 
   it('rien à liker si le dernier message vient du compte', () => {
     expect(closingCheck([prospect('Merci'), agent('Avec plaisir, à bientôt !')])).toBeNull()
+  })
+})
+
+describe('isFarewell, pour ne pas relancer après un au revoir', () => {
+  it('reconnaît un au revoir', () => {
+    expect(isFarewell('avec plaisir')).toBe(true)
+    expect(isFarewell('Avec plaisir, à bientôt !')).toBe(true)
+    expect(isFarewell("Avec plaisir, hésite pas si t'as des questions en regardant le Skool ce soir.")).toBe(true)
+  })
+
+  it('garde la relance après une question, un lien ou un message en cours de discussion', () => {
+    expect(isFarewell('T’as déjà une idée du sujet ?')).toBe(false)
+    expect(isFarewell('Yes avec plaisir, voilà le lien : https://www.skool.com/groupe')).toBe(false)
+    expect(isFarewell("Tu vas y trouver de quoi bien démarrer sur la moto.")).toBe(false)
+    expect(isFarewell(null)).toBe(false)
   })
 })

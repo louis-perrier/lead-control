@@ -253,6 +253,7 @@ export async function tryCannedResponse(params: {
       anchorMessageId: inserted.data.id,
       assistantSettings: params.settings,
       contactHandle: params.contactHandle,
+      anchorText: isAudio ? null : entry.text,
     })
   } catch (_) {
     // la réponse est partie, une relance non programmée ne justifie pas d'échouer

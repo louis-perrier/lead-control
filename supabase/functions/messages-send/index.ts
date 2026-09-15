@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
           anchorMessageId: inserted.data.id,
           assistantSettings: agent.data?.settings,
           contactHandle: conv.contact_handle,
+          anchorText: text,
         })
       } catch (_) {
         // le message est parti, une relance non programmée ne doit pas faire échouer l'envoi

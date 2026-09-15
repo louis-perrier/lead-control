@@ -1,5 +1,6 @@
 import { admin } from './core.ts'
 import { audienceBlocks } from './audience.ts'
+import { isFarewell } from '../assistant-dispatch/closing.ts'
 import { usableFollowupItems } from './followup-plan.ts'
 import type { FollowupItem, FollowupSettings } from './followup-plan.ts'
 
@@ -41,9 +42,11 @@ export async function planFollowups(params: {
   anchorMessageId: number | null
   assistantSettings: Record<string, unknown> | null | undefined
   contactHandle: string | null | undefined
+  anchorText: string | null | undefined
 }) {
   const settings = params.assistantSettings ?? null
   if (audienceBlocks(settings, params.contactHandle ?? null)) return
+  if (isFarewell(params.anchorText)) return
   const [first] = usableFollowupItems((settings as { followups?: FollowupSettings } | null)?.followups)
   if (!first || !params.assistantId || !params.anchorMessageId) return
   await planFollowupSlot({
