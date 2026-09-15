@@ -711,6 +711,7 @@ async function handleConversation(due: DueConversation) {
         anchorMessageId,
         assistantSettings: assistant.settings,
         contactHandle: conv.contact_handle,
+        anchorText: sentCount > 0 ? blocks.slice(0, sentCount).join('\n') : null,
       })
     } catch (e) {
       await logEvent('warn', 'assistant-dispatch', `relances non programmées conv=${convId}: ${String(e).slice(0, 200)}`, {

@@ -58,7 +58,9 @@ export type ClosingCheck = {
   targetId: number
 }
 
-function concludes(text: string) {
+// Sert aussi aux relances : relancer « au cas où tu n'aurais pas vu » après un au revoir sonne faux.
+export function isFarewell(text: string | null | undefined) {
+  if (!text?.trim() || text.includes('?')) return false
   const normalized = ` ${normalizeWords(text).join(' ')} `
   const has = (markers: string[]) => markers.some((marker) => normalized.includes(` ${marker} `))
   return has(FAREWELLS) || (has(THANKS_REPLIES) && !/https?:\/\//i.test(text))
@@ -79,7 +81,7 @@ export function closingCheck(messages: Message[]): ClosingCheck | null {
 
   const accountTurn = turn.map((m) => m.body_text!.trim()).join('\n')
   const prospectReply = tail.map((m) => m.body_text!.trim()).join('\n')
-  if (accountTurn.includes('?') || !concludes(accountTurn)) return null
+  if (!isFarewell(accountTurn)) return null
   if (prospectReply.includes('?') || prospectReply.length > CLOSING_MAX_CHARS) return null
 
   const words = normalizeWords(prospectReply)
