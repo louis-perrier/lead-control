@@ -97,7 +97,8 @@ function InboxContent() {
       )
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'conversation_messages' },
+        // Mises à jour comprises : une réaction ou un accusé de lecture s'affiche sans recharger.
+        { event: '*', schema: 'public', table: 'conversation_messages' },
         () => invalidate('conversations', 'messages', 'followup'),
       )
       .subscribe()

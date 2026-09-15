@@ -77,6 +77,19 @@ export async function markSeen(token: string, igUserId: string, recipientId: str
   }
 }
 
+// Réaction posée sur un message du prospect ; même fenêtre de 24 h qu'un envoi.
+export async function sendInstagramReaction(token: string, igUserId: string, recipientId: string, messageId: string) {
+  const res = await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ recipient: { id: recipientId }, sender_action: 'react', payload: { message_id: messageId, reaction: 'love' } }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(`graph_react_${res.status}:${JSON.stringify(body).slice(0, 300)}`)
+  }
+}
+
 export async function sendTypingOn(token: string, igUserId: string, recipientId: string) {
   try {
     await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
