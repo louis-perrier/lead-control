@@ -80,7 +80,12 @@ export function Avatar({
 export function InfoTip({ text, label = 'Plus d’informations' }: { text: string; label?: string }) {
   const [open, setOpen] = useState(false)
   return (
-    <span className="relative inline-flex align-middle" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+    // Survol à la souris seulement : sur écran tactile, le toucher simule un survol puis un clic qui refermait aussitôt.
+    <span
+      className="relative inline-flex align-middle"
+      onPointerEnter={(e) => e.pointerType === 'mouse' && setOpen(true)}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && setOpen(false)}
+    >
       <button
         type="button"
         aria-label={label}
