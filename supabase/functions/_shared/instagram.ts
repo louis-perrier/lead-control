@@ -1,4 +1,4 @@
-import { admin } from './core.ts'
+import { admin, logEvent } from './core.ts'
 
 export const GRAPH = 'https://graph.instagram.com/v25.0'
 
@@ -92,13 +92,15 @@ export async function sendInstagramReaction(token: string, igUserId: string, rec
 
 export async function sendTypingOn(token: string, igUserId: string, recipientId: string) {
   try {
-    await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
+    const res = await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ recipient: { id: recipientId }, sender_action: 'typing_on' }),
     })
+    // Jamais bloquant, mais un refus de Meta doit se voir dans Santé plutôt que passer inaperçu.
+    if (!res.ok) await logEvent('warn', 'instagram', `« en train d'écrire » refusé : ${res.status} ${(await res.text()).slice(0, 200)}`)
   } catch (_) {
-    // l'indicateur de saisie est un confort, jamais bloquant
+    // l'indicateur de saisie est un confort
   }
 }
 
