@@ -21,8 +21,7 @@ async function readPdf(bytes: Uint8Array, limit: number) {
     }
     text += '\n\n'
   }
-  const sourceLength = pages < pdf.numPages ? Math.round((text.length * pdf.numPages) / pages) : text.length
-  return { text, sourceLength }
+  return { text, pages, totalPages: pdf.numPages }
 }
 
 export async function extractDocumentText(kind: DocumentKind, file: Blob, limit: number): Promise<Extraction> {
@@ -32,16 +31,17 @@ export async function extractDocumentText(kind: DocumentKind, file: Blob, limit:
   }
   const bytes = new Uint8Array(await file.arrayBuffer())
   if (kind === 'pdf') {
-    let read: { text: string; sourceLength: number }
+    let read: { text: string; pages: number; totalPages: number }
     try {
       read = await readPdf(bytes, limit)
     } catch (e) {
       return { error: 'PDF protégé ou illisible : exportez-le à nouveau depuis le document d’origine.', detail: String(e).slice(0, 200) }
     }
     const text = tidyText(read.text)
-    return looksScanned(text)
-      ? { error: 'PDF scanné : il ne contient que des images, aucun texte à lire.' }
-      : { text, sourceLength: Math.max(read.sourceLength, text.length) }
+    if (looksScanned(text)) return { error: 'PDF scanné : il ne contient que des images, aucun texte à lire.' }
+    // Mesurée sur le texte nettoyé, comme char_count : sinon un PDF lu en entier paraît lu en partie.
+    const sourceLength = read.pages < read.totalPages ? Math.round((text.length * read.totalPages) / read.pages) : text.length
+    return { text, sourceLength }
   }
   try {
     const files = unzipSync(bytes, { filter: (f) => f.name === 'word/document.xml' })
