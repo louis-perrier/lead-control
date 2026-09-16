@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/button'
 import { Input, Label, Textarea, FieldHint, FieldError } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/dialog'
-import { Skeleton, Switch } from '@/components/ui/misc'
+import { InfoTip, Skeleton, Switch } from '@/components/ui/misc'
 import { EmptyState } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/toast'
 
@@ -851,6 +851,23 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
   )
 }
 
+const MAX_DOCUMENT_BYTES = 300_000
+
+// Un message par cause : sans raison affichée, l'utilisateur ne peut que signaler « ça ne marche pas ».
+function documentFormatError(name: string) {
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  if (ext === 'pdf') return 'Les PDF ne sont pas encore acceptés : enregistrez-le en .txt puis réimportez-le.'
+  if (['doc', 'docx', 'pages', 'odt', 'rtf'].includes(ext)) return 'Format texte enrichi non accepté : enregistrez-le en .txt puis réimportez-le.'
+  return 'Format non accepté : fichiers .txt ou .md uniquement.'
+}
+
+function documentUploadError(message: string) {
+  if (/invalid key/i.test(message)) return 'Nom de fichier refusé : renommez-le sans caractères spéciaux.'
+  if (/too large|exceed|payload/i.test(message)) return 'Fichier trop lourd : 300 Ko maximum.'
+  if (/fetch|network|timeout|load failed/i.test(message)) return 'Connexion interrompue : réessayez.'
+  return 'Envoi impossible pour le moment : réessayez dans un instant.'
+}
+
 function ContextDocumentsSection() {
   const toast = useToast()
   const invalidate = useInvalidate()
@@ -878,11 +895,11 @@ function ContextDocumentsSection() {
 
   async function upload(file: File) {
     if (!/\.(txt|md)$/i.test(file.name)) {
-      toast('Seuls les fichiers .txt et .md sont acceptés pour le moment.', 'error')
+      toast(documentFormatError(file.name), 'error')
       return
     }
-    if (file.size > 300_000) {
-      toast('Fichier trop volumineux (300 Ko maximum).', 'error')
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      toast(`Fichier trop lourd (${Math.ceil(file.size / 1000)} Ko) : 300 Ko maximum.`, 'error')
       return
     }
     setUploading(true)
@@ -893,7 +910,7 @@ function ContextDocumentsSection() {
     const path = `${user!.id}/${crypto.randomUUID()}-${storageSafeName(file.name)}`
     const { error: uploadError } = await supabase.storage.from('context-documents').upload(path, file)
     if (uploadError) {
-      toast('L’envoi a échoué.', 'error')
+      toast(documentUploadError(uploadError.message), 'error')
       setUploading(false)
       return
     }
@@ -902,14 +919,14 @@ function ContextDocumentsSection() {
         body: { storage_path: path, title: file.name, mime_type: file.type },
       })
       toast(
-        res.status === 'ready' ? 'Document ajouté.' : 'Le document n’a pas pu être lu.',
+        res.status === 'ready' ? 'Document ajouté.' : 'Aucun texte lisible dans ce fichier : vérifiez son contenu.',
         res.status === 'ready' ? 'success' : 'error',
       )
     } catch (e) {
       toast(
         e instanceof Error && e.message === 'quota_reached'
-          ? 'Vous avez atteint le nombre de documents autorisé par votre offre.'
-          : 'L’ajout a échoué.',
+          ? `Limite atteinte (${quota?.max ?? 0} documents) : supprimez-en un pour en ajouter.`
+          : 'Import interrompu : réessayez.',
         'error',
       )
     }
@@ -946,7 +963,7 @@ function ContextDocumentsSection() {
         {quota ? (
           <p className="text-xs text-muted">
             {quota.used} / {quota.max} document{quota.max > 1 ? 's' : ''} utilisé{quota.used > 1 ? 's' : ''}
-            {quota.max === 0 ? ', nécessite un abonnement actif' : ''}
+            {quota.max === 0 ? ', nécessite un abonnement actif' : ' · .txt ou .md · 300 Ko max'}
           </p>
         ) : null}
         {isLoading ? (
@@ -965,10 +982,13 @@ function ContextDocumentsSection() {
                     ) : (
                       <Badge tone="success">Lu en entier</Badge>
                     )
+                  ) : d.status === 'error' ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Badge tone="danger">Erreur</Badge>
+                      <InfoTip text={d.error_message ?? 'Ce document n’a pas pu être lu : supprimez-le et réimportez-le.'} />
+                    </span>
                   ) : (
-                    <Badge tone={d.status === 'error' ? 'danger' : 'muted'}>
-                      {d.status === 'error' ? 'Erreur' : 'Traitement…'}
-                    </Badge>
+                    <Badge tone="muted">Traitement…</Badge>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => remove(d.id)}>
                     Supprimer
@@ -992,9 +1012,14 @@ function ContextDocumentsSection() {
             e.target.value = ''
           }}
         />
-        <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading || atQuota}>
-          {uploading ? 'Envoi…' : 'Ajouter un document'}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading || atQuota}>
+            {uploading ? 'Envoi…' : 'Ajouter un document'}
+          </Button>
+          {atQuota && quota && quota.max > 0 ? (
+            <span className="text-xs text-muted">Limite atteinte : supprimez un document pour en ajouter.</span>
+          ) : null}
+        </div>
       </CardBody>
     </Card>
   )
