@@ -7,6 +7,14 @@ import { MAX_DOCUMENT_BYTES, documentKind } from '../_shared/document-text.ts'
 import { extractDocumentText } from '../_shared/document-extract.ts'
 
 const MAX_CHARS = 40_000
+const STALE_IMPORT_MS = 2 * 60 * 1000
+
+// Seuls les documents lus, ou en cours d'import depuis peu, comptent dans le quota : un import raté
+// ou interrompu (fonction arrêtée en plein travail) reste affiché mais ne prend pas de place.
+function countedDocuments() {
+  const since = new Date(Date.now() - STALE_IMPORT_MS).toISOString()
+  return `status.eq.ready,and(status.eq.processing,created_at.gt."${since}")`
+}
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
@@ -46,6 +54,7 @@ Deno.serve(async (req) => {
       .from('context_documents')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
+      .or(countedDocuments())
     const { data: maxDocs } = await admin.rpc('max_context_documents', { p_user_id: user.id })
     const max = Number(maxDocs ?? 0)
     if ((count ?? 0) >= max) {
@@ -97,6 +106,7 @@ Deno.serve(async (req) => {
       .from('context_documents')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
+      .or(countedDocuments())
     return json(req, { max: Number(maxDocs ?? 0), used: count ?? 0 })
   }
 

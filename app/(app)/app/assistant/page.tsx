@@ -852,6 +852,9 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
   )
 }
 
+// Au-delà, un document encore « en traitement » a été interrompu côté serveur.
+const STALE_IMPORT_MS = 2 * 60 * 1000
+
 // Un message par cause : sans raison affichée, l'utilisateur ne peut que signaler « ça ne marche pas ».
 function documentFormatError(name: string) {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
@@ -980,10 +983,16 @@ function ContextDocumentsSection() {
                     ) : (
                       <Badge tone="success">Lu en entier</Badge>
                     )
-                  ) : d.status === 'error' ? (
+                  ) : d.status === 'error' || Date.now() - Date.parse(d.created_at) > STALE_IMPORT_MS ? (
                     <span className="inline-flex items-center gap-1">
                       <Badge tone="danger">Erreur</Badge>
-                      <InfoTip text={d.error_message ?? 'Ce document n’a pas pu être lu : supprimez-le et réimportez-le.'} />
+                      <InfoTip
+                        text={
+                          d.status === 'error' && d.error_message
+                            ? d.error_message
+                            : 'Import interrompu : supprimez ce document et réimportez-le.'
+                        }
+                      />
                     </span>
                   ) : (
                     <Badge tone="muted">Traitement…</Badge>
