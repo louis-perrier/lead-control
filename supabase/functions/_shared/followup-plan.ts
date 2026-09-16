@@ -7,6 +7,7 @@ export type FollowupItem = {
   variants?: string[]
   media_path?: string
   media_mime?: string
+  transcript?: string
 }
 
 export type FollowupSettings = {

@@ -65,6 +65,7 @@ export type FollowupItem = {
   media_path?: string
   media_mime?: string
   media_duration_ms?: number
+  transcript?: string
 }
 
 /** Relance proposée au coach après 24 h, envoyée par lui en un clic (module Human Agent). */
@@ -89,6 +90,8 @@ export type CannedResponse = {
   media_path?: string
   media_mime?: string
   media_duration_ms?: number
+  moment?: string
+  transcript?: string
 }
 
 export type Followup = {

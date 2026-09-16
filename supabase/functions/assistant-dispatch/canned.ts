@@ -1,7 +1,15 @@
 // Réponses préenregistrées, reconnues hors du prompt principal repris de la V1. Si le message
 // ne demande rien d'autre, la génération complète est évitée ; sinon l'agent répond au reste.
 import { admin, logEvent } from '../_shared/core.ts'
-import { bestKeywordMatch, firstJsonObject, isOnlyPoliteness, triggerKind } from '../_shared/canned-match.ts'
+import {
+  bestKeywordMatch,
+  firstJsonObject,
+  isOnlyPoliteness,
+  keywordCheckInput,
+  sendsWithoutCheck,
+  situationList,
+  triggerKind,
+} from '../_shared/canned-match.ts'
 import { AI_MODEL_SUMMARY, generateText, recordUsage } from '../_shared/ai.ts'
 import { sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
@@ -14,6 +22,8 @@ export type CannedResponse = {
   text?: string
   media_path?: string
   media_mime?: string
+  moment?: string
+  transcript?: string
 }
 
 export const MAX_CANNED_RESPONSES = 5
@@ -33,7 +43,8 @@ const CLASSIFIER_SYSTEM =
   'Tu es un routeur de messages. Tu ne rédiges rien, tu choisis au plus une situation. ' +
   'Ne choisis une situation que si le dernier message du prospect y correspond sans ambiguïté ' +
   'et si la réponse associée reste cohérente avec ce que le prospect a déjà dit. Les échanges ' +
-  'précédents servent seulement à le comprendre. Dans le doute, choisis 0. ' +
+  'précédents servent seulement à le comprendre : une phrase proche écrite par TOI ou OPÉRATEUR ne suffit pas. ' +
+  'Si un moment est indiqué, la conversation doit en être à ce moment-là. Dans le doute, choisis 0. ' +
   '"reste" vaut true si le dernier message du prospect contient aussi une autre question ou ' +
   'information qui appelle une réponse, en plus de la situation choisie. ' +
   'Réponds uniquement par ce JSON, sans aucun texte autour : {"situation": numéro ou 0, "reste": true ou false}'
@@ -42,7 +53,8 @@ const KEYWORD_CHECK_SYSTEM =
   'Tu vérifies si une réponse préenregistrée peut partir telle quelle. Le dernier message du ' +
   'prospect contient le mot-clé indiqué. "envoyer" vaut true seulement si le message parle bien ' +
   'de ce mot-clé et si la réponse reste cohérente avec ce que le prospect a dit : elle ne lui ' +
-  'redemande pas une information déjà donnée et ne le contredit pas. "reste" vaut true si le ' +
+  'redemande pas une information déjà donnée et ne le contredit pas. Si un moment est indiqué, ' +
+  'la conversation doit aussi en être à ce moment-là. "reste" vaut true si le ' +
   'message contient aussi une autre question ou information qui appelle une réponse. ' +
   'Réponds uniquement par ce JSON, sans aucun texte autour : {"envoyer": true ou false, "reste": true ou false}'
 
@@ -53,10 +65,6 @@ type AiContext = {
   convId: number
   lastCustomerText: string
   recentLines: string[]
-}
-
-function replyPreview(entry: CannedResponse) {
-  return entry.kind === 'audio' ? '(message vocal)' : (entry.text ?? '').slice(0, 300)
 }
 
 async function askSmallModel(ctx: AiContext, system: string, body: string, maxTokens: number) {
@@ -79,20 +87,14 @@ async function askSmallModel(ctx: AiContext, system: string, body: string, maxTo
 }
 
 async function confirmKeyword(ctx: AiContext, entry: CannedResponse): Promise<{ id: string; other: boolean } | null> {
-  const text = await askSmallModel(
-    ctx,
-    KEYWORD_CHECK_SYSTEM,
-    `Mot-clé : ${entry.trigger}\nRéponse préenregistrée : ${replyPreview(entry)}`,
-    40,
-  )
+  const text = await askSmallModel(ctx, KEYWORD_CHECK_SYSTEM, keywordCheckInput(entry), 40)
   const parsed = firstJsonObject(text)
   return parsed?.envoyer === true ? { id: entry.id!, other: parsed.reste === true } : null
 }
 
 async function classify(ctx: AiContext, entries: CannedResponse[]): Promise<{ id: string; other: boolean } | null> {
   // Des numéros plutôt que les identifiants : moins de tokens, et une réponse jamais coupée.
-  const list = entries.map((e, i) => `${i + 1}. ${e.trigger}\n   Réponse associée : ${replyPreview(e)}`).join('\n')
-  const text = await askSmallModel(ctx, CLASSIFIER_SYSTEM, `Situations :\n${list}`, 60)
+  const text = await askSmallModel(ctx, CLASSIFIER_SYSTEM, `Situations :\n${situationList(entries)}`, 60)
   const parsed = firstJsonObject(text)
   const match = entries[Number(parsed?.situation) - 1]
   return match?.id ? { id: match.id, other: parsed?.reste === true } : null
@@ -138,12 +140,12 @@ export async function tryCannedResponse(params: {
     lastCustomerText: params.lastCustomerText,
     recentLines: params.recentLines,
   }
-  // Un message qui se résume au mot-clé part sans appel IA ; le petit modèle ne sert qu'à
-  // vérifier un mot-clé noyé dans un message plus long, puis à reconnaître les situations.
+  // Un message qui se résume au mot-clé part sans appel IA, sauf si un moment est précisé ;
+  // le petit modèle vérifie les autres mots-clés, puis reconnaît les situations.
   let chosen: { id: string; other: boolean } | null = null
   try {
     const hit = bestKeywordMatch(params.lastCustomerText, entries)
-    if (hit?.match === 'exact') chosen = { id: hit.entry.id!, other: false }
+    if (hit && sendsWithoutCheck(hit)) chosen = { id: hit.entry.id!, other: false }
     else if (hit) chosen = await confirmKeyword(ctx, hit.entry)
     const situations = entries.filter((e) => triggerKind(e.trigger ?? '') === 'situation')
     if (!chosen && situations.length > 0) chosen = await classify(ctx, situations)
@@ -178,6 +180,9 @@ export async function tryCannedResponse(params: {
       media_path: isAudio ? entry.media_path : null,
       media_mime: isAudio ? entry.media_mime ?? 'audio/wav' : null,
       media_bucket: isAudio ? 'assistant-audio' : null,
+      // L'agent relit ainsi ce que dit le vocal dans les tours suivants.
+      transcript: isAudio ? entry.transcript?.trim() || null : null,
+      transcript_status: isAudio && entry.transcript?.trim() ? 'done' : 'none',
       send_state: 'queued',
       sent_at: now,
     })

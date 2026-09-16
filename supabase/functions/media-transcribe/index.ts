@@ -1,12 +1,55 @@
-// Transcription d'un vocal Instagram (OpenAI Whisper), puis replanification
-// du dispatch. Appel interne uniquement (clé service role).
-import { admin, isServiceCall, json } from '../_shared/core.ts'
+// Transcription d'un vocal (OpenAI Whisper). Appel interne (clé service role) pour un vocal
+// Instagram, suivi d'une replanification ; appel utilisateur pour un vocal de l'assistant.
+import { admin, getUser, handleOptions, isServiceCall, json, logEvent } from '../_shared/core.ts'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')
 
+async function whisper(file: Blob, name: string, mime: string) {
+  const form = new FormData()
+  form.set('model', 'whisper-1')
+  form.set('response_format', 'verbose_json')
+  form.set('file', new File([file], name, { type: mime }))
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${OPENAI_API_KEY}` },
+    body: form,
+  })
+  const payload = await res.json()
+  if (!res.ok) throw new Error(`whisper_${res.status}:${JSON.stringify(payload).slice(0, 200)}`)
+  return payload as { text?: string; duration?: number }
+}
+
+// Vocal enregistré dans les réglages : le texte est rangé avec la réponse ou la relance.
+async function transcribeSavedAudio(req: Request) {
+  const user = await getUser(req)
+  if (!user) return json(req, { error: 'Unauthorized' }, 401)
+  let body: { audio_path?: string } = {}
+  try {
+    body = await req.json()
+  } catch {
+    return json(req, { error: 'invalid_body' }, 400)
+  }
+  const path = body.audio_path ?? ''
+  if (!path.startsWith(`${user.id}/`) || path.includes('..')) return json(req, { error: 'not_found' }, 404)
+  if (!OPENAI_API_KEY) return json(req, { error: 'openai_key_missing' }, 409)
+  const file = await admin.storage.from('assistant-audio').download(path)
+  if (file.error || !file.data) return json(req, { error: 'not_found' }, 404)
+  const mime = file.data.type || 'audio/wav'
+  const name = mime.includes('wav') ? 'audio.wav' : mime.includes('mp4') ? 'audio.mp4' : 'audio.m4a'
+  try {
+    const out = await whisper(file.data, name, mime)
+    return json(req, { text: (out.text ?? '').trim() })
+  } catch (e) {
+    await logEvent('warn', 'media-transcribe', `vocal de l'assistant non transcrit : ${String(e).slice(0, 200)}`, { user_id: user.id })
+    return json(req, { error: 'transcription_failed' }, 502)
+  }
+}
+
 Deno.serve(async (req) => {
+  const opt = handleOptions(req)
+  if (opt) return opt
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405 })
-  if (!isServiceCall(req)) return new Response('unauthorized', { status: 401 })
+  if (!isServiceCall(req)) return transcribeSavedAudio(req)
 
   let body: { message_id?: number } = {}
   try {
@@ -61,17 +104,7 @@ Deno.serve(async (req) => {
     const file = await admin.storage.from('ig-audio').download(msg.media_path)
     if (file.error || !file.data) throw new Error(`download:${file.error?.message}`)
 
-    const form = new FormData()
-    form.set('model', 'whisper-1')
-    form.set('response_format', 'verbose_json')
-    form.set('file', new File([file.data], 'audio.m4a', { type: msg.media_mime ?? 'audio/mp4' }))
-    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: form,
-    })
-    const payload = await res.json()
-    if (!res.ok) throw new Error(`whisper_${res.status}:${JSON.stringify(payload).slice(0, 200)}`)
+    const payload = await whisper(file.data, 'audio.m4a', msg.media_mime ?? 'audio/mp4')
 
     await admin
       .from('conversation_messages')

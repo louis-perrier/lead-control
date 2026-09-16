@@ -1333,6 +1333,7 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
                             media_path: value?.path,
                             media_mime: value?.mime,
                             media_duration_ms: value?.durationMs,
+                            transcript: value?.transcript,
                           })
                         }
                         folder={`${assistant.user_id}/${assistant.id}/followup-${item.id}`}
@@ -1521,7 +1522,7 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
       }
     }
     setError('')
-    await save({ canned_responses: entries })
+    await save({ canned_responses: entries.map((entry) => ({ ...entry, moment: entry.moment?.trim() || undefined })) })
   }
 
   return (
@@ -1554,12 +1555,23 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
                 {entry.trigger.trim() ? (
                   <FieldHint>
                     {triggerKind(entry.trigger) === 'keyword'
-                      ? `Mot-clé : part quand le message contient « ${entry.trigger.trim()} », sans tenir compte des majuscules, accents ni pluriels.`
-                      : 'Situation : l’assistant reconnaît les messages qui y correspondent, quelle que soit la formulation.'}
+                      ? `Mot-clé : part quand le prospect écrit « ${entry.trigger.trim()} », même sans accents ni majuscules.`
+                      : 'Situation : part quand le prospect écrit un message qui y correspond.'}
                   </FieldHint>
                 ) : index === 0 ? (
                   <FieldHint>Un mot-clé court (ex. Vidéo IA) ou une situation décrite en phrase.</FieldHint>
                 ) : null}
+              </div>
+              <div>
+                <Label htmlFor={`canned-moment-${entry.id}`}>
+                  Moment de la conversation <span className="font-normal text-muted">(facultatif)</span>
+                </Label>
+                <Input
+                  id={`canned-moment-${entry.id}`}
+                  value={entry.moment ?? ''}
+                  placeholder="Ex. : il vient de dire qu’il débute"
+                  onChange={(e) => edit(entry.id, { moment: e.target.value })}
+                />
               </div>
               <div className="flex gap-2">
                 <button type="button" className={pillClass(entry.kind !== 'audio')} onClick={() => edit(entry.id, { kind: 'text' })}>
@@ -1577,6 +1589,7 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
                       media_path: value?.path,
                       media_mime: value?.mime,
                       media_duration_ms: value?.durationMs,
+                      transcript: value?.transcript,
                     })
                   }
                   folder={`${assistant.user_id}/${assistant.id}/canned-${entry.id}`}

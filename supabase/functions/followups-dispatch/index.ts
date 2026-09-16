@@ -266,6 +266,8 @@ async function handleFollowup(due: DueFollowup) {
       media_path: isAudio ? item.media_path : null,
       media_mime: isAudio ? item.media_mime ?? 'audio/wav' : null,
       media_bucket: isAudio ? 'assistant-audio' : null,
+      transcript: isAudio ? item.transcript?.trim() || null : null,
+      transcript_status: isAudio && item.transcript?.trim() ? 'done' : 'none',
       send_state: 'queued',
       sent_at: now,
     })

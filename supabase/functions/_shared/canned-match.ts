@@ -1,5 +1,5 @@
-// Reconnaissance des mots-clés des réponses préenregistrées. Aucun import : le module sert
-// aussi à l'écran de réglage et aux tests.
+// Reconnaissance des réponses préenregistrées et texte soumis au petit modèle. Aucun import :
+// le module sert aussi à l'écran de réglage et aux tests.
 
 export type TriggerKind = 'keyword' | 'situation'
 export type KeywordMatch = 'exact' | 'contains' | 'none'
@@ -97,6 +97,44 @@ export function bestKeywordMatch<T extends { trigger?: string }>(
     if (better) best = { entry, match, size }
   }
   return best ? { entry: best.entry, match: best.match } : null
+}
+
+export type CannedDescription = {
+  trigger?: string
+  moment?: string
+  kind?: 'text' | 'audio'
+  text?: string
+  transcript?: string
+}
+
+function momentOf(entry: CannedDescription) {
+  return (entry.moment ?? '').trim()
+}
+
+// Sans transcription, le modèle ne peut pas juger si le vocal colle à la conversation.
+export function cannedPreview(entry: CannedDescription) {
+  if (entry.kind !== 'audio') return (entry.text ?? '').slice(0, 300)
+  const transcript = (entry.transcript ?? '').trim()
+  return transcript ? `(message vocal) ${transcript.slice(0, 600)}` : '(message vocal)'
+}
+
+// Un moment précisé oblige à relire la conversation, même quand le mot-clé est seul.
+export function sendsWithoutCheck(hit: { entry: CannedDescription; match: 'exact' | 'contains' }) {
+  return hit.match === 'exact' && !momentOf(hit.entry)
+}
+
+export function keywordCheckInput(entry: CannedDescription) {
+  const moment = momentOf(entry)
+  return `Mot-clé : ${entry.trigger}\n${moment ? `Moment : ${moment}\n` : ''}Réponse préenregistrée : ${cannedPreview(entry)}`
+}
+
+export function situationList(entries: CannedDescription[]) {
+  return entries
+    .map((e, i) => {
+      const moment = momentOf(e)
+      return `${i + 1}. ${e.trigger}\n${moment ? `   Moment : ${moment}\n` : ''}   Réponse associée : ${cannedPreview(e)}`
+    })
+    .join('\n')
 }
 
 // Le petit modèle ajoute parfois une explication après son JSON : seul le premier objet compte.

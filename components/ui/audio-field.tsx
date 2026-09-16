@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Mic, Square, Trash2, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { callFunction } from '@/lib/api'
 import {
   ACCEPTED_AUDIO_EXTENSIONS,
   MAX_RECORDING_SECONDS,
@@ -16,7 +17,7 @@ import { FieldError, FieldHint } from '@/components/ui/input'
 
 export const AUDIO_BUCKET = 'assistant-audio'
 
-export type AudioValue = { path: string; mime: string; durationMs?: number }
+export type AudioValue = { path: string; mime: string; durationMs?: number; transcript?: string }
 
 type Props = {
   value: AudioValue | null
@@ -87,13 +88,21 @@ export function AudioField({ value, onChange, folder, disabled }: Props) {
     const path = `${folder}/${crypto.randomUUID()}.${extension}`
     const previous = value?.path
     const res = await supabase.storage.from(AUDIO_BUCKET).upload(path, blob, { contentType: mime })
-    setBusy(false)
     if (res.error) {
+      setBusy(false)
       setError("L'enregistrement n'a pas pu être envoyé. Réessayez.")
       return
     }
     if (previous) await supabase.storage.from(AUDIO_BUCKET).remove([previous])
-    onChange({ path, mime, durationMs })
+    // Sans le texte, l'assistant ne sait ni quand l'envoyer ni ce qu'il a dit ; un échec ne bloque pas.
+    let transcript: string | undefined
+    try {
+      transcript = (await callFunction<{ text: string }>('media-transcribe', { body: { audio_path: path } })).text || undefined
+    } catch (_) {
+      transcript = undefined
+    }
+    setBusy(false)
+    onChange({ path, mime, durationMs, transcript })
   }
 
   async function startRecording() {

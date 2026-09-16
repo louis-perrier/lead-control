@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
   bestKeywordMatch,
+  cannedPreview,
   firstJsonObject,
   isOnlyPoliteness,
+  keywordCheckInput,
   matchKeyword,
   normalizeWords,
   sameWord,
+  sendsWithoutCheck,
+  situationList,
   triggerKind,
 } from '../supabase/functions/_shared/canned-match'
 
@@ -88,5 +92,45 @@ describe('firstJsonObject', () => {
   it('renvoie null sans JSON lisible', () => {
     expect(firstJsonObject('{"situation": 1, "res')).toBeNull()
     expect(firstJsonObject('aucune')).toBeNull()
+  })
+})
+
+describe('texte soumis au petit modèle', () => {
+  const vocal = {
+    trigger: 'Tu fais des vidéos depuis combien de temps ?',
+    kind: 'audio' as const,
+    transcript: '  Moi ça fait trois ans que je fais des vidéos.  ',
+  }
+
+  it('montre ce que dit un vocal quand il est transcrit', () => {
+    expect(cannedPreview(vocal)).toBe('(message vocal) Moi ça fait trois ans que je fais des vidéos.')
+    expect(cannedPreview({ kind: 'audio' })).toBe('(message vocal)')
+    expect(cannedPreview({ kind: 'audio', transcript: 'x'.repeat(900) })).toHaveLength(616)
+    expect(cannedPreview({ kind: 'text', text: 'Salut' })).toBe('Salut')
+  })
+
+  it('garde le format d’origine sans moment', () => {
+    const entry = { trigger: 'Vidéo ia', kind: 'text' as const, text: 'Tu débutes ?' }
+    expect(situationList([entry])).toBe('1. Vidéo ia\n   Réponse associée : Tu débutes ?')
+    expect(keywordCheckInput(entry)).toBe('Mot-clé : Vidéo ia\nRéponse préenregistrée : Tu débutes ?')
+  })
+
+  it('ajoute le moment quand il est précisé', () => {
+    const entry = { ...vocal, moment: ' il vient de dire qu’il débute ' }
+    expect(situationList([{ trigger: 'Prix', text: 'Gratuit' }, entry])).toBe(
+      '1. Prix\n   Réponse associée : Gratuit\n' +
+        '2. Tu fais des vidéos depuis combien de temps ?\n   Moment : il vient de dire qu’il débute\n' +
+        '   Réponse associée : (message vocal) Moi ça fait trois ans que je fais des vidéos.',
+    )
+    expect(keywordCheckInput({ trigger: 'Vidéo ia', text: 'Ok', moment: 'il débute' })).toBe(
+      'Mot-clé : Vidéo ia\nMoment : il débute\nRéponse préenregistrée : Ok',
+    )
+  })
+
+  it('vérifie un mot-clé exact dès qu’un moment est précisé', () => {
+    expect(sendsWithoutCheck({ entry: { trigger: 'Vidéo ia' }, match: 'exact' })).toBe(true)
+    expect(sendsWithoutCheck({ entry: { trigger: 'Vidéo ia', moment: '  ' }, match: 'exact' })).toBe(true)
+    expect(sendsWithoutCheck({ entry: { trigger: 'Vidéo ia', moment: 'il débute' }, match: 'exact' })).toBe(false)
+    expect(sendsWithoutCheck({ entry: { trigger: 'Vidéo ia' }, match: 'contains' })).toBe(false)
   })
 })
