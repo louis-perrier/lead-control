@@ -4,6 +4,22 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs)
 }
 
+// Le stockage Supabase refuse les caractères hors ASCII dans un chemin (« ’ », accents) :
+// l'import échouait en 400 sur un nom de fichier ordinaire. Le nom affiché, lui, reste intact.
+export function storageSafeName(name: string) {
+  const dot = name.lastIndexOf('.')
+  const base = dot > 0 ? name.slice(0, dot) : name
+  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, '') : ''
+  const safe = base
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[-.]+|[-.]+$/g, '')
+    .slice(0, 80)
+  return `${safe || 'document'}${ext ? `.${ext}` : ''}`
+}
+
 export function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return ''
   const d = typeof value === 'string' ? new Date(value) : value

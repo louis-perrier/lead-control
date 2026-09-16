@@ -16,7 +16,7 @@ import {
   useProfile,
 } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
-import { formatDateTime } from '@/lib/utils'
+import { formatDateTime, storageSafeName } from '@/lib/utils'
 import { readShares } from '@/supabase/functions/_shared/context-budget'
 import { triggerKind } from '@/supabase/functions/_shared/canned-match'
 import { MESSAGING_WINDOW_MINUTES, cumulativeOffsets } from '@/supabase/functions/_shared/followup-plan'
@@ -890,7 +890,7 @@ function ContextDocumentsSection() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const path = `${user!.id}/${crypto.randomUUID()}-${file.name}`
+    const path = `${user!.id}/${crypto.randomUUID()}-${storageSafeName(file.name)}`
     const { error: uploadError } = await supabase.storage.from('context-documents').upload(path, file)
     if (uploadError) {
       toast('L’envoi a échoué.', 'error')
