@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Instagram, Plus, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
+import { isViewAsReadOnly } from '@/lib/view-as/state'
 import {
   useAssistants,
   useChannelAccounts,
@@ -659,7 +660,8 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
   const toast = useToast()
   const invalidate = useInvalidate()
   const [preset, setPreset] = useState(assistant.settings.tone?.preset ?? 'normal')
-  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [answers, setAnswers] = useState<Record<string, string>>(assistant.custom_tone_answers ?? {})
+  const savedAnswersRef = useRef(JSON.stringify(assistant.custom_tone_answers ?? {}))
   const [generating, setGenerating] = useState(false)
   const [customQuestions, setCustomQuestions] = useState(assistant.custom_tone_questions)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
@@ -670,6 +672,34 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
     if (mountedRef.current) setTouchedSinceGenerate(true)
     mountedRef.current = true
   }, [answers, customQuestions])
+
+  // Les réponses sont gardées en base : les réécrire à chaque génération décourageait de régénérer.
+  async function persistAnswers(next: Record<string, string>) {
+    const serialized = JSON.stringify(next)
+    if (serialized === savedAnswersRef.current || isViewAsReadOnly()) return
+    const { error } = await createClient().from('assistants').update({ custom_tone_answers: next }).eq('id', assistant.id)
+    if (error) {
+      toast('Réponses non enregistrées. Réessayez.', 'error')
+      return
+    }
+    savedAnswersRef.current = serialized
+  }
+
+  const latestAnswersRef = useRef(answers)
+  latestAnswersRef.current = answers
+  useEffect(() => {
+    const timer = setTimeout(() => void persistAnswers(answers), 1000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers])
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === 'hidden') void persistAnswers(latestAnswersRef.current)
+    }
+    document.addEventListener('visibilitychange', flush)
+    return () => document.removeEventListener('visibilitychange', flush)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function choosePreset(value: string) {
     setPreset(value)
@@ -754,7 +784,7 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
         {preset === 'custom' && allowCustom ? (
           <div className="space-y-3 border-t border-border pt-4">
             <p className="text-sm text-muted">
-              Répondez à ces messages comme vous le feriez vraiment, avec vos mots. L'assistant en tire votre façon de vous exprimer, jamais le contenu de vos réponses. 200 caractères minimum par réponse, pour avoir assez de matière.
+              Répondez à ces messages comme vous le feriez vraiment, avec vos mots. L'assistant en tire votre façon de vous exprimer, jamais le contenu de vos réponses. 200 caractères minimum par réponse, enregistrées au fil de la saisie.
             </p>
             {!assistant.custom_tone ? (
               <Badge tone="muted">Pas encore généré</Badge>
