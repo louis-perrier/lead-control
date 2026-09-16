@@ -686,8 +686,8 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
   }
 
   const latestAnswersRef = useRef(answers)
-  latestAnswersRef.current = answers
   useEffect(() => {
+    latestAnswersRef.current = answers
     const timer = setTimeout(() => void persistAnswers(answers), 1000)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -784,7 +784,7 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
         {preset === 'custom' && allowCustom ? (
           <div className="space-y-3 border-t border-border pt-4">
             <p className="text-sm text-muted">
-              Répondez à ces messages comme vous le feriez vraiment, avec vos mots. L'assistant en tire votre façon de vous exprimer, jamais le contenu de vos réponses. 200 caractères minimum par réponse, enregistrées au fil de la saisie.
+              Répondez à ces messages comme vous le feriez vraiment, avec vos mots. L'assistant en tire votre façon de vous exprimer, jamais le contenu de vos réponses. 200 caractères minimum par réponse ; tout est enregistré au fil de la saisie.
             </p>
             {!assistant.custom_tone ? (
               <Badge tone="muted">Pas encore généré</Badge>
