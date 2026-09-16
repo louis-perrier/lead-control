@@ -1,8 +1,10 @@
 // Documents de contexte (RAG) : le fichier est déjà dans le bucket privé
 // context-documents/<user_id>/... (upload direct depuis le navigateur, RLS storage).
-// Cette fonction lit le fichier avec la clé service role pour en extraire le texte,
-// seule étape qui ne peut pas se faire côté client.
-import { admin, getUser, handleOptions, json } from '../_shared/core.ts'
+// Cette fonction lit le fichier avec la clé service role pour en extraire le texte
+// (.txt, .md, .pdf, .docx), seule étape qui ne peut pas se faire côté client.
+import { admin, getUser, handleOptions, json, logEvent } from '../_shared/core.ts'
+import { MAX_DOCUMENT_BYTES, documentKind } from '../_shared/document-text.ts'
+import { extractDocumentText } from '../_shared/document-extract.ts'
 
 const MAX_CHARS = 40_000
 
@@ -58,30 +60,31 @@ Deno.serve(async (req) => {
       .single()
     if (insertError) return json(req, { error: 'insert_failed' }, 500)
 
+    const fail = async (message: string) => {
+      await admin.from('context_documents').update({ status: 'error', error_message: message }).eq('id', inserted.id)
+      return json(req, { ok: true, id: inserted.id, status: 'error', message })
+    }
     const download = await admin.storage.from('context-documents').download(storagePath)
-    if (download.error) {
-      await admin
-        .from('context_documents')
-        .update({ status: 'error', error_message: 'Fichier introuvable après import.' })
-        .eq('id', inserted.id)
-      return json(req, { error: 'download_failed' }, 500)
+    if (download.error) return fail('Fichier introuvable après import : réimportez-le.')
+    const kind = documentKind(title) ?? documentKind(storagePath)
+    if (!kind) return fail('Format non accepté : fichiers .txt, .md, .pdf ou .docx uniquement.')
+    if (download.data.size > MAX_DOCUMENT_BYTES) return fail('Fichier trop lourd : 5 Mo maximum.')
+
+    const extraction = await extractDocumentText(kind, download.data, MAX_CHARS)
+    if ('error' in extraction) {
+      if (extraction.detail) {
+        await logEvent('warn', 'context-documents', `extraction ${kind} impossible : ${extraction.detail}`, { user_id: user.id })
+      }
+      return fail(extraction.error)
     }
-    const rawText = await download.data.text()
-    const text = rawText.slice(0, MAX_CHARS).trim()
-    if (!text) {
-      await admin
-        .from('context_documents')
-        .update({ status: 'error', error_message: 'Le document ne contient aucun texte lisible.' })
-        .eq('id', inserted.id)
-      return json(req, { ok: true, id: inserted.id, status: 'error' })
-    }
+    const text = extraction.text.slice(0, MAX_CHARS).trim()
     await admin
       .from('context_documents')
       .update({
         status: 'ready',
         extracted_text: text,
         char_count: text.length,
-        source_char_count: rawText.trim().length,
+        source_char_count: extraction.sourceLength,
         updated_at: new Date().toISOString(),
       })
       .eq('id', inserted.id)

@@ -18,6 +18,7 @@ import {
 import { hasFeature } from '@/lib/features'
 import { formatDateTime, storageSafeName } from '@/lib/utils'
 import { readShares } from '@/supabase/functions/_shared/context-budget'
+import { ACCEPTED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_BYTES, documentKind } from '@/supabase/functions/_shared/document-text'
 import { triggerKind } from '@/supabase/functions/_shared/canned-match'
 import { MESSAGING_WINDOW_MINUTES, cumulativeOffsets } from '@/supabase/functions/_shared/followup-plan'
 import {
@@ -851,19 +852,16 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
   )
 }
 
-const MAX_DOCUMENT_BYTES = 300_000
-
 // Un message par cause : sans raison affichée, l'utilisateur ne peut que signaler « ça ne marche pas ».
 function documentFormatError(name: string) {
   const ext = name.split('.').pop()?.toLowerCase() ?? ''
-  if (ext === 'pdf') return 'Les PDF ne sont pas encore acceptés : enregistrez-le en .txt puis réimportez-le.'
-  if (['doc', 'docx', 'pages', 'odt', 'rtf'].includes(ext)) return 'Format texte enrichi non accepté : enregistrez-le en .txt puis réimportez-le.'
-  return 'Format non accepté : fichiers .txt ou .md uniquement.'
+  if (['doc', 'pages', 'odt', 'rtf'].includes(ext)) return 'Format non accepté : enregistrez-le en .docx ou en PDF puis réimportez-le.'
+  return 'Format non accepté : fichiers .txt, .md, .pdf ou .docx uniquement.'
 }
 
 function documentUploadError(message: string) {
   if (/invalid key/i.test(message)) return 'Nom de fichier refusé : renommez-le sans caractères spéciaux.'
-  if (/too large|exceed|payload/i.test(message)) return 'Fichier trop lourd : 300 Ko maximum.'
+  if (/too large|exceed|payload/i.test(message)) return 'Fichier trop lourd : 5 Mo maximum.'
   if (/fetch|network|timeout|load failed/i.test(message)) return 'Connexion interrompue : réessayez.'
   return 'Envoi impossible pour le moment : réessayez dans un instant.'
 }
@@ -894,12 +892,12 @@ function ContextDocumentsSection() {
   })
 
   async function upload(file: File) {
-    if (!/\.(txt|md)$/i.test(file.name)) {
+    if (!documentKind(file.name)) {
       toast(documentFormatError(file.name), 'error')
       return
     }
     if (file.size > MAX_DOCUMENT_BYTES) {
-      toast(`Fichier trop lourd (${Math.ceil(file.size / 1000)} Ko) : 300 Ko maximum.`, 'error')
+      toast(`Fichier trop lourd (${(file.size / 1024 / 1024).toFixed(1).replace('.', ',')} Mo) : 5 Mo maximum.`, 'error')
       return
     }
     setUploading(true)
@@ -915,11 +913,11 @@ function ContextDocumentsSection() {
       return
     }
     try {
-      const res = await callFunction<{ status: string }>('context-documents/register', {
+      const res = await callFunction<{ status: string; message?: string }>('context-documents/register', {
         body: { storage_path: path, title: file.name, mime_type: file.type },
       })
       toast(
-        res.status === 'ready' ? 'Document ajouté.' : 'Aucun texte lisible dans ce fichier : vérifiez son contenu.',
+        res.status === 'ready' ? 'Document ajouté.' : res.message ?? 'Aucun texte lisible dans ce fichier.',
         res.status === 'ready' ? 'success' : 'error',
       )
     } catch (e) {
@@ -957,13 +955,13 @@ function ContextDocumentsSection() {
     <Card>
       <CardHeader
         title="Documents de contexte"
-        description="Plutôt que tout écrire dans le contexte, importez un ou plusieurs documents (.txt, .md)."
+        description="Plutôt que tout écrire dans le contexte, importez un ou plusieurs documents."
       />
       <CardBody className="space-y-3">
         {quota ? (
           <p className="text-xs text-muted">
             {quota.used} / {quota.max} document{quota.max > 1 ? 's' : ''} utilisé{quota.used > 1 ? 's' : ''}
-            {quota.max === 0 ? ', nécessite un abonnement actif' : ' · .txt ou .md · 300 Ko max'}
+            {quota.max === 0 ? ', nécessite un abonnement actif' : ' · .txt, .md, .pdf, .docx · 5 Mo max'}
           </p>
         ) : null}
         {isLoading ? (
@@ -1004,7 +1002,7 @@ function ContextDocumentsSection() {
         <input
           ref={fileRef}
           type="file"
-          accept=".txt,.md"
+          accept={ACCEPTED_DOCUMENT_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0]
