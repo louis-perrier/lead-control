@@ -417,5 +417,9 @@ verify_jwt = true
 verify_jwt = false
 [functions.calendly-webhook]
 verify_jwt = false
+[functions.google-oauth]
+verify_jwt = false
+[functions.google-calendar-sync]
+verify_jwt = false
 [functions.notifications-push]
 verify_jwt = false
