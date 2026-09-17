@@ -47,7 +47,12 @@ function useSaveSettings(assistant: Assistant | undefined) {
   const invalidate = useInvalidate()
   const [saving, setSaving] = useState(false)
 
-  async function save(patch: Partial<AssistantSettings>, extra: Record<string, unknown> = {}) {
+  // Un objet imbriqué (stop_condition, booking) se passe en fonction : il est alors
+  // fusionné avec la valeur relue en base, pas avec celle du cache.
+  async function save(
+    patch: Partial<AssistantSettings> | ((base: AssistantSettings) => Partial<AssistantSettings>),
+    extra: Record<string, unknown> = {},
+  ) {
     if (!assistant) return
     setSaving(true)
     const supabase = createClient()
@@ -55,9 +60,10 @@ function useSaveSettings(assistant: Assistant | undefined) {
     // écraserait sinon des réglages enregistrés entre-temps.
     const current = await supabase.from('assistants').select('settings').eq('id', assistant.id).maybeSingle()
     const base = (current.data?.settings ?? assistant.settings) as AssistantSettings
+    const resolved = typeof patch === 'function' ? patch(base) : patch
     const { error } = await supabase
       .from('assistants')
-      .update({ settings: { ...base, ...patch }, ...extra })
+      .update({ settings: { ...base, ...resolved }, ...extra })
       .eq('id', assistant.id)
     setSaving(false)
     if (error) {
@@ -259,12 +265,12 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
       setLinkError('Le lien doit commencer par http:// ou https://')
       return
     }
-    save({
+    save((fresh) => ({
       product: { name: productName.trim() },
       context: context.trim(),
       qualification: qualification.trim(),
-      stop_condition: { ...s.stop_condition, text: stopText.trim(), link: stopLink.trim() },
-    })
+      stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
+    }))
   }
 
   return (
@@ -352,7 +358,7 @@ function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
 
   async function persist(next: typeof links) {
     setLinks(next)
-    await save({ stop_condition: { ...assistant.settings.stop_condition, secondary_links: next } })
+    await save((fresh) => ({ stop_condition: { ...fresh.stop_condition, secondary_links: next } }))
   }
 
   function validateAndPersist(next: typeof links) {
