@@ -6,6 +6,7 @@ import { fetchContactProfile, getChannelToken, markSeen } from '../_shared/insta
 import { planFollowups } from '../_shared/followups.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { avatarIsStale, refreshContactAvatar } from '../_shared/avatars.ts'
+import { notifyNeedsYou } from '../_shared/notify.ts'
 import type { FollowupSettings } from '../_shared/followups.ts'
 
 const IG_APP_SECRET = Deno.env.get('IG_APP_SECRET')!
@@ -107,7 +108,7 @@ async function findOrCreateConversation(opts: {
   })
   const existing = await admin
     .from('conversations')
-    .select('id, automation_state, assistant_id, contact_name, contact_handle, pending_cursor_at, contact_avatar_checked_at')
+    .select('id, automation_state, automation_reason, assistant_id, contact_name, contact_handle, pending_cursor_at, contact_avatar_checked_at')
     .eq('channel_account_id', opts.channel.id)
     .eq('external_thread_id', threadId)
     .maybeSingle()
@@ -149,13 +150,13 @@ async function findOrCreateConversation(opts: {
       contact_name: contactName,
       contact_handle: contactHandle,
     })
-    .select('id, automation_state, assistant_id, contact_name, contact_handle, pending_cursor_at, contact_avatar_checked_at')
+    .select('id, automation_state, automation_reason, assistant_id, contact_name, contact_handle, pending_cursor_at, contact_avatar_checked_at')
     .single()
   if (inserted.error) {
     // course entre deux webhooks : on relit
     const retry = await admin
       .from('conversations')
-      .select('id, automation_state, assistant_id, contact_name, contact_handle, pending_cursor_at, contact_avatar_checked_at')
+      .select('id, automation_state, automation_reason, assistant_id, contact_name, contact_handle, pending_cursor_at, contact_avatar_checked_at')
       .eq('channel_account_id', opts.channel.id)
       .eq('external_thread_id', threadId)
       .single()
@@ -348,6 +349,11 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
       // photo perdue, le texte de la conversation reste exploitable
     }
     return // comme en V1, une image seule ne déclenche pas de réponse automatique
+  }
+
+  // L'agent reste arrêté après une réservation dans l'agenda : c'est au compte de répondre.
+  if (conv.automation_state === 'condition_stop' && conv.automation_reason === 'calendar_booked') {
+    await notifyNeedsYou(channel.user_id, conv.id, 'Le prospect a réécrit après son rendez-vous')
   }
 
   // Planification de la réponse automatique
