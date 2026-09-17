@@ -1,7 +1,10 @@
 // Cron quotidien : Google ne prévient pas quand un rendez-vous est supprimé ou déplacé dans
 // l'agenda, on relit donc les réservations à venir.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
-import { GoogleError, getEvent, getGoogleAccessToken, meetLinkOf, type GoogleAccount } from '../_shared/google.ts'
+import { GoogleError, findGoogleAccount, getEvent, getGoogleAccessToken, meetLinkOf } from '../_shared/google.ts'
+
+// Une passe par jour : au-delà, le reste est repris la nuit suivante.
+const TIME_BUDGET_MS = 100_000
 
 type BookingRow = {
   id: string
@@ -11,6 +14,7 @@ type BookingRow = {
   event_start_at: string | null
   event_end_at: string | null
   meet_link: string | null
+  raw_payload: { account_id?: string } | null
 }
 
 async function cancelBooking(b: BookingRow) {
@@ -30,29 +34,24 @@ Deno.serve(async (req) => {
 
   const { data, error } = await admin
     .from('bookings')
-    .select('id, user_id, conversation_id, external_event_id, event_start_at, event_end_at, meet_link')
+    .select('id, user_id, conversation_id, external_event_id, event_start_at, event_end_at, meet_link, raw_payload')
     .eq('provider', 'google')
     .eq('status', 'active')
     .not('external_event_id', 'is', null)
     .gt('event_end_at', new Date().toISOString())
-    .limit(500)
+    .order('event_start_at', { ascending: true })
+    .limit(200)
   if (error) return json(req, { error: error.message }, 500)
 
   const byUser = new Map<string, BookingRow[]>()
   for (const b of (data ?? []) as BookingRow[]) byUser.set(b.user_id, [...(byUser.get(b.user_id) ?? []), b])
 
+  const startedAt = Date.now()
   let canceled = 0
   let moved = 0
   for (const [userId, bookings] of byUser) {
-    // Le compte peut avoir été déconnecté ou remplacé : on relit l'agenda qui porte les rendez-vous.
-    const { data: accounts } = await admin
-      .from('channel_accounts')
-      .select('id, user_id, handle')
-      .eq('user_id', userId)
-      .eq('provider', 'google')
-      .eq('status', 'connected')
-      .limit(1)
-    const account = accounts?.[0] as GoogleAccount | undefined
+    if (Date.now() - startedAt > TIME_BUDGET_MS) break
+    const account = await findGoogleAccount(userId)
     if (!account) continue
     let token: string
     try {
@@ -61,6 +60,8 @@ Deno.serve(async (req) => {
       continue
     }
     for (const b of bookings) {
+      // Réservé sur un autre compte Google que celui relié aujourd'hui : illisible ici, pas annulé.
+      if (b.raw_payload?.account_id !== account.id) continue
       try {
         const event = await getEvent(account, token, b.external_event_id)
         if (event.status === 'cancelled') {
