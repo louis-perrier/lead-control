@@ -23,7 +23,7 @@ type StageInput = Pick<
 export function prospectStage(conv: StageInput, hasActiveBooking: boolean): ProspectStage {
   if (conv.outcome === 'won') return 'won'
   if (conv.outcome === 'lost') return 'lost'
-  if (hasActiveBooking || conv.automation_reason === 'calendly_booked') return 'booked'
+  if (hasActiveBooking || conv.automation_reason === 'calendly_booked' || conv.automation_reason === 'calendar_booked') return 'booked'
   if (conv.heat_tag === 'hot' || conv.heat_tag === 'warm') return 'qualified'
   if (conv.heat_tag === 'cold') return 'unqualified'
   if (conv.inbound_count >= 2 || conv.agent_sent_count + conv.human_sent_count > 0) return 'talking'

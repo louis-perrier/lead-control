@@ -25,6 +25,7 @@ describe('prospectStage', () => {
     expect(prospectStage({ ...base, heat_tag: 'cold' }, false)).toBe('unqualified')
     expect(prospectStage({ ...base, heat_tag: 'hot' }, true)).toBe('booked')
     expect(prospectStage({ ...base, automation_reason: 'calendly_booked' }, false)).toBe('booked')
+    expect(prospectStage({ ...base, automation_reason: 'calendar_booked' }, false)).toBe('booked')
   })
 
   it('fait primer l’issue de la clôture', () => {

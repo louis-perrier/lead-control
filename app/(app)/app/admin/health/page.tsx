@@ -48,7 +48,7 @@ export default function AdminHealthPage() {
           .select('id, level, source, message, created_at')
           .order('created_at', { ascending: false })
           .limit(50),
-        supabase.from('channel_accounts').select('id, handle, user_id').eq('status', 'expired'),
+        supabase.from('channel_accounts').select('id, handle, user_id').eq('provider', 'instagram').eq('status', 'expired'),
         supabase
           .from('feedback')
           .select('id, rating, message, created_at')

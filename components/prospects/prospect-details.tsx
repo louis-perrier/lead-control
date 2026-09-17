@@ -13,7 +13,7 @@ export function useBooking(conversationId: number) {
       const supabase = createClient()
       const { data } = await supabase
         .from('bookings')
-        .select('id, conversation_id, event_type_name, invitee_email, invitee_name, event_start_at, event_end_at, status')
+        .select('id, provider, meet_link, conversation_id, event_type_name, invitee_email, invitee_name, event_start_at, event_end_at, status')
         .eq('conversation_id', conversationId)
         .order('event_start_at', { ascending: false })
         .limit(1)
@@ -55,12 +55,17 @@ export function ProspectDetails({ conversation }: { conversation: Conversation }
         <div>
           <p className={sectionTitle}>Rendez-vous</p>
           <div className="flex items-center gap-2">
-            <span>{booking.event_type_name ?? 'Rendez-vous Calendly'}</span>
+            <span>{booking.event_type_name ?? (booking.provider === 'google' ? 'Appel Google Meet' : 'Rendez-vous Calendly')}</span>
             <Badge tone={booking.status === 'active' ? 'success' : 'muted'}>
               {booking.status === 'active' ? 'Confirmé' : 'Annulé'}
             </Badge>
           </div>
           {booking.event_start_at ? <p className="mt-1 text-muted">{formatDateTime(booking.event_start_at)}</p> : null}
+          {booking.meet_link && booking.status === 'active' ? (
+            <a href={booking.meet_link} target="_blank" rel="noreferrer" className="mt-1 inline-block text-primary hover:underline">
+              Rejoindre l’appel Meet
+            </a>
+          ) : null}
         </div>
       ) : null}
       {conversation.outcome ? (
