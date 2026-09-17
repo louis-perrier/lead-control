@@ -1,16 +1,18 @@
 import { admin } from './core.ts'
 
-// Même clé que le trigger des erreurs : une seule notification non lue par conversation,
-// l'ancienne est close pour que le push reparte.
-export async function notifyNeedsYou(userId: string, conversationId: number, body: string) {
+// Même clé que le trigger des erreurs : une seule notification non lue par conversation.
+// renew clôt l'ancienne pour que le push reparte ; sans lui, une notification non lue suffit.
+export async function notifyNeedsYou(userId: string, conversationId: number, body: string, opts: { renew?: boolean } = {}) {
   const key = `conv:${conversationId}`
   try {
-    await admin
-      .from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('dedupe_key', key)
-      .is('read_at', null)
+    if (opts.renew) {
+      await admin
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('dedupe_key', key)
+        .is('read_at', null)
+    }
     await admin.from('notifications').insert({
       user_id: userId,
       conversation_id: conversationId,

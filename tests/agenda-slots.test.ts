@@ -4,11 +4,13 @@ import {
   agendaSettingsError,
   checkSlot,
   computeOffers,
+  isValidTimezone,
   localIso,
-  nextOfferStep,
   normalizeAgenda,
   offerMentioned,
+  planOffers,
   rangeLabel,
+  recordSentOffers,
   zonedToUtc,
   type AgendaSettings,
 } from '../supabase/functions/_shared/agenda-slots'
@@ -78,34 +80,71 @@ describe('zonedToUtc', () => {
   })
 })
 
-describe('nextOfferStep', () => {
-  const offers = computeOffers({ now: NOW, tz: TZ, settings, busy: [] })
+describe('planOffers et recordSentOffers', () => {
+  const first = 'Je suis dispo vendredi 18 septembre entre 12 h et 15 h, ou lundi 21 entre 9 h et 12 h.'
+  const second = 'Sinon mercredi 23 septembre entre 12h et 15h ?'
 
   it('commence par les plages du premier tour', () => {
-    const step = nextOfferStep(offers, settings, [], TZ)
-    expect(step).toMatchObject({ kind: 'offer', round: 1 })
-    expect(step.kind === 'offer' && step.offers).toHaveLength(2)
+    const { step, stored } = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: null })
+    expect(step).toMatchObject({ kind: 'offer', round: 1, proposed: [] })
+    expect(step.kind === 'offer' && step.offers.map((o) => o.label)).toEqual([
+      'vendredi 18 septembre entre 12 h et 15 h',
+      'lundi 21 septembre entre 9 h et 12 h',
+    ])
+    expect(stored.offers).toHaveLength(3)
   })
 
   it('passe à la nouvelle plage puis à la question ouverte', () => {
-    const first = 'Je suis dispo vendredi 18 septembre entre 12 h et 15 h, ou lundi 21 entre 9 h et 12 h.'
-    const second = nextOfferStep(offers, settings, [first], TZ)
-    expect(second).toMatchObject({ kind: 'offer', round: 2 })
-    expect(second.kind === 'offer' && second.offers[0].label).toBe('mercredi 23 septembre entre 12 h et 15 h')
+    const t1 = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: null })
+    const after1 = recordSentOffers(t1.stored, t1.step, [first], TZ)
+    expect(after1).toMatchObject({ rounds: 1 })
+    const t2 = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: after1 })
+    expect(t2.step.kind === 'offer' && t2.step.offers.map((o) => o.label)).toEqual(['mercredi 23 septembre entre 12 h et 15 h'])
+    expect(t2.step.proposed).toHaveLength(2)
 
-    const ask = nextOfferStep(offers, settings, [first, 'Sinon mercredi 23 septembre entre 12 h et 15 h ?'], TZ)
-    expect(ask).toEqual({ kind: 'ask', proposed: offers })
+    const after2 = recordSentOffers(t2.stored, t2.step, [second], TZ)
+    const t3 = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: after2 })
+    expect(t3.step).toMatchObject({ kind: 'ask' })
+    expect(t3.step.proposed).toHaveLength(3)
+  })
+
+  it('ne compte rien quand la plage n’a pas été citée', () => {
+    const t1 = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: null })
+    expect(recordSentOffers(t1.stored, t1.step, ['Tu fais quoi dans la vie ?'], TZ)).toEqual(t1.stored)
+  })
+
+  it('ne présente pas comme proposée une plage jamais envoyée', () => {
+    const t1 = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: null })
+    const after1 = recordSentOffers(t1.stored, t1.step, [first], TZ)
+    // Le vendredi proposé se remplit : il sort des plages proposées, une nouvelle plage est calculée.
+    const busy = [{ start: paris(9, 18, 12), end: paris(9, 18, 15) }]
+    const t2 = planOffers({ now: NOW, tz: TZ, settings, busy, stored: after1 })
+    expect(t2.step.proposed.map((o) => o.label)).toEqual(['lundi 21 septembre entre 9 h et 12 h'])
+    expect(t2.step).toMatchObject({ kind: 'offer', round: 2 })
+    expect(t2.step.kind === 'offer' && t2.step.offers[0].label).not.toContain('lundi 21')
   })
 
   it('demande directement sans plage à proposer', () => {
-    expect(nextOfferStep([], { ...settings, first_offer: 0 }, [], TZ)).toEqual({ kind: 'ask', proposed: [] })
+    const { step } = planOffers({ now: NOW, tz: TZ, settings: { ...settings, first_offer: 0 }, busy: [], stored: null })
+    expect(step).toEqual({ kind: 'ask', proposed: [] })
   })
 
-  it('reconnaît le premier du mois', () => {
+  it('repart de zéro quand les réglages changent', () => {
+    const t1 = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: null })
+    const after1 = recordSentOffers(t1.stored, t1.step, [first], TZ)
+    const other = planOffers({ now: NOW, tz: TZ, settings: { ...settings, duration_min: 30 }, busy: [], stored: after1 })
+    expect(other.step).toMatchObject({ kind: 'offer', round: 1, proposed: [] })
+  })
+
+  it('reconnaît le premier du mois sans confondre les heures et les dates', () => {
     const offer = { start: paris(10, 1, 12), end: paris(10, 1, 15), label: '' }
     expect(rangeLabel(offer.start, offer.end, TZ)).toBe('jeudi 1er octobre entre 12 h et 15 h')
-    expect(offerMentioned(offer, ['Jeudi 1er octobre ça te va ?'], TZ)).toBe(true)
-    expect(offerMentioned(offer, ['Jeudi 11 octobre ça te va ?'], TZ)).toBe(false)
+    expect(offerMentioned(offer, ['Jeudi 1er octobre de 12h à 15h, ça te va ?'], TZ)).toBe(true)
+    expect(offerMentioned(offer, ['Jeudi 11 octobre de 12h à 15h ?'], TZ)).toBe(false)
+    expect(offerMentioned(offer, ['Jeudi 1er octobre de 9 h à 12 h ?'], TZ)).toBe(false)
+    const tuesday = { start: paris(9, 15, 15), end: paris(9, 15, 18), label: '' }
+    expect(offerMentioned(tuesday, ['mardi 22 septembre entre 15 h et 18 h'], TZ)).toBe(false)
+    expect(offerMentioned(tuesday, ['mardi 22 à 14h30, et le 15 ?'], TZ)).toBe(false)
   })
 })
 
@@ -164,10 +203,17 @@ describe('réglages', () => {
     })
   })
 
-  it('signale une plage plus courte que l’appel ou plus longue que la journée', () => {
+  it('signale une plage plus courte que l’appel ou un appel plus long que la journée', () => {
     expect(agendaSettingsError({ ...settings, duration_min: 90, range_hours: 1 })).toMatch(/au moins le temps/)
-    expect(agendaSettingsError({ ...settings, start: '09:00', end: '11:00', range_hours: 3 })).toMatch(/dépasser/)
+    expect(agendaSettingsError({ ...settings, first_offer: 0, duration_min: 90, start: '09:00', end: '10:00' })).toMatch(/plus longtemps/)
+    // Plage plus large que la journée : ramenée aux heures d'appel, sans erreur.
+    expect(agendaSettingsError({ ...settings, start: '09:00', end: '11:00', range_hours: 3 })).toBeNull()
     expect(agendaSettingsError(settings)).toBeNull()
+  })
+
+  it('reconnaît un fuseau invalide', () => {
+    expect(isValidTimezone('Europe/Paris')).toBe(true)
+    expect(isValidTimezone('Paris')).toBe(false)
   })
 
   it('écrit une heure locale lisible par les outils', () => {

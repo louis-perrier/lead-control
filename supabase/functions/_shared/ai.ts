@@ -36,6 +36,8 @@ export async function generateText(opts: {
   maxTokens?: number
   tools?: ToolDefinition[]
   runTool?: RunTool
+  maxToolRounds?: number
+  lastRoundNote?: string
 }) {
   const client = new Anthropic({ apiKey: opts.apiKey })
   const system =
@@ -46,13 +48,25 @@ export async function generateText(opts: {
           text: block.text,
           ...(block.cache ? { cache_control: { type: 'ephemeral' as const, ttl: '1h' as const } } : {}),
         }))
-  const responses = await runToolLoop({
-    create: (params) => client.messages.create(params as any) as unknown as Promise<LoopResponse>,
-    params: { model: opts.model, max_tokens: opts.maxTokens ?? 2048, system },
-    prompt: opts.prompt,
-    tools: opts.tools,
-    runTool: opts.runTool,
-  })
+  const seen: LoopResponse[] = []
+  let responses: LoopResponse[]
+  try {
+    responses = await runToolLoop({
+      create: (params) => client.messages.create(params as any) as unknown as Promise<LoopResponse>,
+      params: { model: opts.model, max_tokens: opts.maxTokens ?? 2048, system },
+      prompt: opts.prompt,
+      tools: opts.tools,
+      runTool: opts.runTool,
+      maxToolRounds: opts.maxToolRounds,
+      lastRoundNote: opts.lastRoundNote,
+      onResponse: (res) => seen.push(res),
+    })
+  } catch (e) {
+    // Les tours déjà facturés avant la panne restent à compter.
+    throw Object.assign(e instanceof Error ? e : new Error(String(e)), {
+      partialUsage: seen.length > 0 ? sumUsage(seen.map((r) => r.usage)) : null,
+    })
+  }
   const last = responses[responses.length - 1]
   return {
     text: finalText(last),

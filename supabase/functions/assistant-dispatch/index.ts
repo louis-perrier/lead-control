@@ -17,7 +17,7 @@ import { finalizeConversation } from './finalize.ts'
 import { splitSystemForCache } from './system-blocks.ts'
 import { resolveTone } from './types.ts'
 import type { AgentDecision, WindowMessage } from './types.ts'
-import { FAILURE_MESSAGES, agendaEnabled, meetLinkSent, prepareAgendaTurn, type AgendaTurn } from './agenda.ts'
+import { FAILURE_MESSAGES, LAST_ROUND_NOTE, agendaEnabled, meetLinkSent, prepareAgendaTurn, type AgendaTurn } from './agenda.ts'
 import { withAgendaSection } from './agenda-prompt.ts'
 import { momentLabel } from '../_shared/agenda-slots.ts'
 
@@ -443,12 +443,14 @@ async function handleConversation(due: DueConversation) {
       tz: timezone,
       settings,
       metadata,
-      sentTexts: messages.filter((m) => m.author_type === 'agent' && m.send_state !== 'failed').map((m) => m.body_text ?? ''),
       contactName: conv.contact_name ?? '',
       contactHandle: conv.contact_handle,
     })
-    metadata = { ...metadata, agenda_offers: agenda.storedOffers }
+    if (agenda.storedOffers) metadata = { ...metadata, agenda_offers: agenda.storedOffers }
   }
+  const agendaTools = agenda
+    ? { tools: agenda.tools, runTool: agenda.runTool, maxToolRounds: 3, lastRoundNote: LAST_ROUND_NOTE }
+    : {}
 
   let context = settings.context ?? ''
   const { data: docs } = await admin
@@ -513,8 +515,7 @@ async function handleConversation(due: DueConversation) {
       system: systemBlocks,
       prompt,
       maxTokens: REPLY_MAX_TOKENS,
-      tools: agenda?.tools,
-      runTool: agenda?.runTool,
+      ...agendaTools,
     })
     await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: first.usage, source: resolved.source })
     let parsed = parseDecision(first.text)
@@ -523,14 +524,24 @@ async function handleConversation(due: DueConversation) {
         user_id: due.user_id,
         conversation_id: convId,
       })
+      // Réservé pendant le premier essai : le second doit le savoir pour confirmer, pas reproposer.
+      const bookedFirst = agenda?.result.bookedThisTurn ? agenda.result.booking : null
+      const retrySystem =
+        agenda && bookedFirst
+          ? splitSystemForCache(
+              withAgendaSection(baseSystem, {
+                ...agenda.prompt,
+                booked: { label: momentLabel(Date.parse(bookedFirst.event_start_at), agenda.timezone), confirmed: false },
+              }),
+            )
+          : systemBlocks
       const retry = await generateText({
         apiKey: resolved.key,
         model: AI_MODEL_REPLY,
-        system: systemBlocks,
+        system: retrySystem,
         prompt,
         maxTokens: REPLY_RETRY_MAX_TOKENS,
-        tools: agenda?.tools,
-        runTool: agenda?.runTool,
+        ...agendaTools,
       })
       await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: retry.usage, source: resolved.source })
       const retried = parseDecision(retry.text)
@@ -547,6 +558,10 @@ async function handleConversation(due: DueConversation) {
     decision = parsed.decision
     unreadable = !parsed.readable && !decision.reply_text
   } catch (e) {
+    const partialUsage = (e as { partialUsage?: Parameters<typeof recordUsage>[0]['usage'] }).partialUsage
+    if (partialUsage) {
+      await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: partialUsage, source: resolved.source })
+    }
     const message = String(e)
     const looksLikeKeyIssue = /401|invalid.*api.?key|authentication|x-api-key|insufficient|credit balance/i.test(message)
     await logEvent('error', 'assistant-dispatch', `échec Anthropic conv=${convId}: ${message.slice(0, 300)}`, {
@@ -593,7 +608,7 @@ async function handleConversation(due: DueConversation) {
     decision = {
       ...decision,
       should_notify_human: false,
-      reply_text: `C'est noté pour ${momentLabel(Date.parse(bookedNow.event_start_at), timezone)}.`,
+      reply_text: `C'est noté pour ${momentLabel(Date.parse(bookedNow.event_start_at), agenda!.timezone)}.`,
     }
   }
 
@@ -720,6 +735,8 @@ async function handleConversation(due: DueConversation) {
   const now = new Date().toISOString()
   const replied = sentCount > 0 || canned.sent
   delete metadata.dispatch_retries
+  const sentOffers = agenda?.recordSent(blocks.slice(0, sentCount))
+  if (sentOffers) metadata = { ...metadata, agenda_offers: sentOffers }
   // Une panne Google pendant la réservation : le prospect a eu une réponse d'attente, le compte prend la main.
   const agendaFailure = !stopReached && !agenda?.result.booking ? agenda?.result.failure ?? null : null
   await finalizeConversation(

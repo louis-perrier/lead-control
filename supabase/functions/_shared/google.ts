@@ -24,13 +24,15 @@ export class GoogleError extends Error {
 
 export type GoogleAccount = { id: string; user_id: string; handle: string | null }
 
+// Un compte expiré reste le compte de l'utilisateur : il doit le reconnecter, pas revenir au lien.
 export async function findGoogleAccount(userId: string): Promise<GoogleAccount | null> {
   const { data } = await admin
     .from('channel_accounts')
     .select('id, user_id, handle')
     .eq('user_id', userId)
     .eq('provider', 'google')
-    .eq('status', 'connected')
+    .in('status', ['connected', 'expired'])
+    .order('status', { ascending: true })
     .order('connected_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -38,7 +40,11 @@ export async function findGoogleAccount(userId: string): Promise<GoogleAccount |
 }
 
 async function markExpired(account: GoogleAccount, reason: string) {
-  await admin.from('channel_accounts').update({ status: 'expired', last_error: reason.slice(0, 200) }).eq('id', account.id)
+  await admin
+    .from('channel_accounts')
+    .update({ status: 'expired', last_error: reason.slice(0, 200) })
+    .eq('id', account.id)
+    .neq('status', 'disconnected')
   await logEvent('warn', 'google', `agenda Google à reconnecter : ${reason.slice(0, 200)}`, { user_id: account.user_id })
 }
 
@@ -89,8 +95,9 @@ export async function getGoogleAccessToken(account: GoogleAccount) {
     .eq('channel_account_id', account.id)
   await admin
     .from('channel_accounts')
-    .update({ token_expires_at: expiresAt, last_refresh_at: new Date().toISOString() })
+    .update({ status: 'connected', last_error: null, token_expires_at: expiresAt, last_refresh_at: new Date().toISOString() })
     .eq('id', account.id)
+    .neq('status', 'disconnected')
   return res.payload.access_token
 }
 
@@ -139,6 +146,7 @@ export type CalendarEvent = {
   id: string
   status?: string
   hangoutLink?: string
+  attendees?: { email?: string }[]
   start?: { dateTime?: string }
   end?: { dateTime?: string }
   conferenceData?: {
@@ -204,10 +212,14 @@ export async function createMeetEvent(opts: {
         attempt -= 1
         continue
       }
-      if (!(e instanceof GoogleError) || e.code !== 'conflict') throw e
-      // Déjà créé par un essai précédent, sauf s'il a été supprimé depuis : l'id reste pris.
-      const existing = await getEvent(account, token, eventId)
-      if (existing.status !== 'cancelled') event = existing
+      // Délai dépassé ou id déjà pris : l'événement a pu être créé, on le relit avant de conclure.
+      if (!(e instanceof GoogleError) || (e.code !== 'conflict' && e.code !== 'unavailable')) throw e
+      const existing = await getEvent(account, token, eventId).catch((err) => {
+        if (err instanceof GoogleError && err.code === 'not_found') return null
+        throw err
+      })
+      if (existing && existing.status !== 'cancelled') event = existing
+      else if (e.code === 'unavailable') throw e
     }
   }
   if (!event) throw new GoogleError('conflict', 'identifiants d’événement épuisés')
@@ -216,7 +228,10 @@ export async function createMeetEvent(opts: {
     await new Promise((r) => setTimeout(r, 1000))
     event = await getEvent(account, token, event.id).catch(() => event!)
   }
-  return { event, meetLink: meetLinkOf(event), emailRejected }
+  const invited = Boolean(
+    opts.email && event.attendees?.some((a) => a.email?.toLowerCase() === opts.email!.toLowerCase()),
+  )
+  return { event, meetLink: meetLinkOf(event), invited }
 }
 
 export async function revokeGoogleToken(token: string) {

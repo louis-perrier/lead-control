@@ -99,5 +99,26 @@ describe('runToolLoop', () => {
     const client = fakeClient([call('t1'), { content: [], stop_reason: 'max_tokens', usage: null }])
     const res = await runToolLoop({ create: client.create, params: {}, prompt: 'p', tools: [tool], runTool: async () => ({ content: 'x' }) })
     expect(finalText(res[res.length - 1])).toBe('')
+    expect(finalText({ ...call('t2'), stop_reason: 'max_tokens' })).toBe('')
+  })
+
+  it('ajoute la consigne du dernier tour après les résultats', async () => {
+    const client = fakeClient([call('t1'), call('t2'), text('{}')])
+    const seen: LoopResponse[] = []
+    await runToolLoop({
+      create: client.create,
+      params: {},
+      prompt: 'p',
+      tools: [tool],
+      runTool: async () => ({ content: 'occupé' }),
+      maxToolRounds: 2,
+      lastRoundNote: 'Ne confirme rien.',
+      onResponse: (r) => seen.push(r),
+    })
+    const firstResults = (client.calls[1].messages as { content: unknown }[])[2].content as unknown[]
+    const lastResults = (client.calls[2].messages as { content: unknown }[])[4].content as unknown[]
+    expect(firstResults).toHaveLength(1)
+    expect(lastResults[lastResults.length - 1]).toEqual({ type: 'text', text: 'Ne confirme rien.' })
+    expect(seen).toHaveLength(3)
   })
 })

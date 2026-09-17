@@ -22,9 +22,10 @@ export type ToolDefinition = {
 export type ToolOutcome = { content: string; isError?: boolean }
 export type RunTool = (name: string, input: Record<string, unknown>) => Promise<ToolOutcome>
 
-// Le texte d'un tour qui appelle un outil (« je regarde ») n'est jamais envoyé au prospect :
-// seule la dernière réponse compte.
+// Le texte d'un tour qui appelle un outil (« je regarde ») n'est jamais envoyé au prospect,
+// même quand ce tour est coupé et devient la dernière réponse.
 export function finalText(res: LoopResponse) {
+  if (res.content.some((b) => b.type === 'tool_use')) return ''
   return res.content
     .filter((b) => b.type === 'text')
     .map((b) => b.text ?? '')
@@ -39,10 +40,14 @@ export async function runToolLoop(opts: {
   tools?: ToolDefinition[]
   runTool?: RunTool
   maxToolRounds?: number
+  lastRoundNote?: string
+  onResponse?: (res: LoopResponse) => void
 }): Promise<LoopResponse[]> {
   const messages: Record<string, unknown>[] = [{ role: 'user', content: opts.prompt }]
   if (!opts.tools?.length || !opts.runTool) {
-    return [await opts.create({ ...opts.params, messages: [...messages] })]
+    const res = await opts.create({ ...opts.params, messages: [...messages] })
+    opts.onResponse?.(res)
+    return [res]
   }
   const maxRounds = opts.maxToolRounds ?? 2
   const responses: LoopResponse[] = []
@@ -55,6 +60,7 @@ export async function runToolLoop(opts: {
       tool_choice: round === maxRounds ? { type: 'none' } : { type: 'auto', disable_parallel_tool_use: true },
     })
     responses.push(res)
+    opts.onResponse?.(res)
     const uses = res.content.filter((b) => b.type === 'tool_use')
     if (res.stop_reason !== 'tool_use' || uses.length === 0) break
 
@@ -76,7 +82,11 @@ export async function runToolLoop(opts: {
     }
     // Le tour de l'assistant repart tel quel : ses blocs de réflexion doivent suivre.
     messages.push({ role: 'assistant', content: res.content })
-    messages.push({ role: 'user', content: results })
+    const lastRound = round + 1 === maxRounds
+    messages.push({
+      role: 'user',
+      content: lastRound && opts.lastRoundNote ? [...results, { type: 'text', text: opts.lastRoundNote }] : results,
+    })
   }
   return responses
 }

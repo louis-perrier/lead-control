@@ -66,8 +66,8 @@ export function agendaSettingsError(s: AgendaSettings) {
   const span = toMinutes(s.end) - toMinutes(s.start)
   if (span <= 0) return 'L’heure de fin doit suivre l’heure de début.'
   if (!s.days.some(Boolean)) return 'Choisissez au moins un jour.'
+  if (s.duration_min > span) return 'L’appel dure plus longtemps que vos heures d’appel.'
   if (s.range_hours * 60 < s.duration_min) return 'Une plage doit durer au moins le temps de l’appel.'
-  if (s.first_offer > 0 && s.range_hours * 60 > span) return 'Une plage ne peut pas dépasser vos heures d’appel.'
   return null
 }
 
@@ -222,6 +222,10 @@ function pick(cands: Candidate[], preferred: Period, avoid: Period | null) {
   return null
 }
 
+export function offerStillFree(o: Offer, now: number, busy: Interval[]) {
+  return o.start >= now + MIN_NOTICE_MS && !overlaps(o.start, o.end, busy)
+}
+
 export function offerCount(s: AgendaSettings) {
   return s.first_offer > 0 ? s.first_offer + s.extra_offers : 0
 }
@@ -241,7 +245,7 @@ export function computeOffers(opts: {
   const count = opts.count ?? offerCount(s)
   const today = zonedParts(now, tz)
   const notBefore = now + MIN_NOTICE_MS
-  const kept = (opts.keep ?? []).filter((o) => o.start >= notBefore && !overlaps(o.start, o.end, busy))
+  const kept = (opts.keep ?? []).filter((o) => offerStillFree(o, now, busy))
   if (kept.length >= count) return kept.slice(0, count)
 
   const keptDays = new Set(kept.map((o) => dayKey(o.start, tz)))
@@ -284,37 +288,88 @@ export type OfferStep =
   | { kind: 'offer'; round: number; offers: Offer[]; proposed: Offer[] }
   | { kind: 'ask'; proposed: Offer[] }
 
-export function offerRounds(offers: Offer[], s: AgendaSettings): Offer[][] {
-  if (s.first_offer <= 0 || offers.length === 0) return []
-  const rounds = [offers.slice(0, s.first_offer)]
-  for (let i = s.first_offer; i < offers.length; i++) rounds.push([offers[i]])
-  return rounds
-}
+// Plages mémorisées par conversation : sent = débuts des plages vraiment envoyées,
+// rounds = nombre de propositions déjà faites.
+export type StoredOffers = { key: string; offers: Offer[]; sent: number[]; rounds: number }
 
 function normalize(text: string) {
-  return text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-// Une plage compte comme proposée si une bulle envoyée cite son jour et sa date.
+// Une plage compte comme citée si une bulle donne son jour, sa date et ses heures de début et de fin.
 export function offerMentioned(offer: Offer, texts: string[], tz: string) {
   const p = zonedParts(offer.start, tz)
+  const end = zonedParts(offer.end, tz)
   const weekday = new RegExp(`\\b${normalize(WEEKDAYS[p.weekday])}\\b`)
-  const date = new RegExp(`(^|\\D)${p.day}(er)?(\\D|$)`)
+  const date = new RegExp(`(?<![\\d:h])${p.day}(er)?(?![\\d:]|\\s?h)`)
+  const hour = (h: number) => new RegExp(`(?<![\\d:])${h}\\s?h`)
   return texts.some((t) => {
     const n = normalize(t)
-    return weekday.test(n) && date.test(n)
+    return weekday.test(n) && date.test(n) && hour(p.hour).test(n) && hour(end.hour).test(n)
   })
 }
 
-export function nextOfferStep(offers: Offer[], s: AgendaSettings, sentTexts: string[], tz: string): OfferStep {
-  const rounds = offerRounds(offers, s)
-  let last = -1
-  rounds.forEach((round, i) => {
-    if (round.every((o) => offerMentioned(o, sentTexts, tz))) last = i
+function unsentNeeded(s: AgendaSettings, rounds: number) {
+  if (s.first_offer <= 0) return 0
+  if (rounds === 0) return s.first_offer + s.extra_offers
+  return Math.max(0, s.extra_offers - (rounds - 1))
+}
+
+export function planOffers(opts: {
+  now: number
+  tz: string
+  settings: AgendaSettings
+  busy: Interval[]
+  stored: Partial<StoredOffers> | null | undefined
+}): { stored: StoredOffers; step: OfferStep } {
+  const { settings: s, tz } = opts
+  const key = offersKey(s, tz)
+  const base: StoredOffers =
+    opts.stored?.key === key
+      ? {
+          key,
+          offers: Array.isArray(opts.stored.offers) ? opts.stored.offers : [],
+          sent: Array.isArray(opts.stored.sent) ? opts.stored.sent : [],
+          rounds: Number(opts.stored.rounds) || 0,
+        }
+      : { key, offers: [], sent: [], rounds: 0 }
+  const isSent = (o: Offer) => base.sent.includes(o.start)
+  // Les plages déjà envoyées passent devant : ce sont celles qu'on doit garder en priorité.
+  const keep = [...base.offers.filter(isSent), ...base.offers.filter((o) => !isSent(o))]
+  const sentStillFree = keep.filter((o) => isSent(o) && offerStillFree(o, opts.now, opts.busy)).length
+  const offers = computeOffers({
+    now: opts.now,
+    tz,
+    settings: s,
+    busy: opts.busy,
+    keep,
+    count: sentStillFree + unsentNeeded(s, base.rounds),
   })
-  const proposed = rounds.slice(0, last + 1).flat()
-  const next = rounds[last + 1]
-  return next ? { kind: 'offer', round: last + 2, offers: next, proposed } : { kind: 'ask', proposed }
+  const proposed = offers.filter(isSent)
+  const unsent = offers.filter((o) => !isSent(o))
+  const stored = { ...base, offers }
+  if (s.first_offer <= 0 || unsent.length === 0 || base.rounds > s.extra_offers) {
+    return { stored, step: { kind: 'ask', proposed } }
+  }
+  const next = base.rounds === 0 ? unsent.slice(0, s.first_offer) : unsent.slice(0, 1)
+  return { stored, step: { kind: 'offer', round: base.rounds + 1, offers: next, proposed } }
+}
+
+// Après l'envoi : seules les plages de l'étape vraiment citées comptent comme proposées.
+export function recordSentOffers(stored: StoredOffers, step: OfferStep | null, sentTexts: string[], tz: string): StoredOffers {
+  if (!step || step.kind !== 'offer') return stored
+  const cited = step.offers.filter((o) => offerMentioned(o, sentTexts, tz))
+  if (cited.length === 0) return stored
+  return { ...stored, sent: [...stored.sent, ...cited.map((o) => o.start)], rounds: stored.rounds + 1 }
+}
+
+export function isValidTimezone(tz: string) {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz })
+    return true
+  } catch {
+    return false
+  }
 }
 
 export type SlotCheck =
