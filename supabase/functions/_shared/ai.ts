@@ -1,5 +1,6 @@
-import Anthropic from 'npm:@anthropic-ai/sdk'
+import Anthropic from 'npm:@anthropic-ai/sdk@0.126.0'
 import { admin } from './core.ts'
+import { finalText, runToolLoop, sumUsage, type LoopResponse, type RunTool, type ToolDefinition } from './tool-loop.ts'
 
 // La V1 (n8n) tournait sur Claude Sonnet pour les réponses : on reste sur la
 // même gamme de modèle pour conserver le coût par message qui a servi à fixer
@@ -33,6 +34,8 @@ export async function generateText(opts: {
   system: SystemInput
   prompt: string
   maxTokens?: number
+  tools?: ToolDefinition[]
+  runTool?: RunTool
 }) {
   const client = new Anthropic({ apiKey: opts.apiKey })
   const system =
@@ -43,18 +46,20 @@ export async function generateText(opts: {
           text: block.text,
           ...(block.cache ? { cache_control: { type: 'ephemeral' as const, ttl: '1h' as const } } : {}),
         }))
-  const res = await client.messages.create({
-    model: opts.model,
-    max_tokens: opts.maxTokens ?? 2048,
-    system,
-    messages: [{ role: 'user', content: opts.prompt }],
+  const responses = await runToolLoop({
+    create: (params) => client.messages.create(params as any) as unknown as Promise<LoopResponse>,
+    params: { model: opts.model, max_tokens: opts.maxTokens ?? 2048, system },
+    prompt: opts.prompt,
+    tools: opts.tools,
+    runTool: opts.runTool,
   })
-  const text = res.content
-    .filter((b) => b.type === 'text')
-    .map((b) => ('text' in b ? b.text : ''))
-    .join('\n')
-    .trim()
-  return { text, usage: res.usage, stopReason: res.stop_reason }
+  const last = responses[responses.length - 1]
+  return {
+    text: finalText(last),
+    usage: sumUsage(responses.map((r) => r.usage)),
+    stopReason: last.stop_reason,
+    calls: responses.length,
+  }
 }
 
 export async function recordUsage(opts: {
