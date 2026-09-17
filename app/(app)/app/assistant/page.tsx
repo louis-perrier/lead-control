@@ -3,10 +3,10 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { Instagram, Plus, RefreshCw } from 'lucide-react'
+import { CalendarDays, Instagram, Plus, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
-import { isViewAsReadOnly } from '@/lib/view-as/state'
+import { isViewAsReadOnly, useViewAsTargetId } from '@/lib/view-as/state'
 import {
   useAssistants,
   useChannelAccounts,
@@ -28,6 +28,14 @@ import {
   hasNameVariable,
   renderFollowupText,
 } from '@/supabase/functions/_shared/followup-text'
+import {
+  DURATION_OPTIONS,
+  RANGE_OPTIONS,
+  agendaSettingsError,
+  computeOffers,
+  normalizeAgenda,
+  type AgendaSettings,
+} from '@/supabase/functions/_shared/agenda-slots'
 import { formatDuration } from '@/lib/audio'
 import type { AssistedFollowup, Assistant, AssistantSettings, CannedResponse, ContextDocument, FollowupItem } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
@@ -163,23 +171,38 @@ function ChannelSection({ assistant }: { assistant: Assistant }) {
   )
 }
 
-function CalendlySection() {
+function AccountRow({
+  provider,
+  name,
+  emptyText,
+  startPath,
+  startBody,
+  disconnectPath,
+  disconnectMessage,
+}: {
+  provider: 'calendly' | 'google'
+  name: string
+  emptyText: string
+  startPath: string
+  startBody: () => Record<string, unknown>
+  disconnectPath: string
+  disconnectMessage: string
+}) {
   const { data: channels } = useChannelAccounts()
   const toast = useToast()
   const invalidate = useInvalidate()
+  const viewingAs = useViewAsTargetId() !== null
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const channel = channels?.find((c) => c.provider === 'calendly')
+  const channel = channels?.find((c) => c.provider === provider)
 
   async function connect() {
     setBusy(true)
     try {
-      const { auth_url } = await callFunction<{ auth_url: string }>('calendly-oauth/start', {
-        body: { return_to: window.location.href },
-      })
+      const { auth_url } = await callFunction<{ auth_url: string }>(startPath, { body: startBody() })
       window.location.href = auth_url
     } catch {
-      toast('Impossible de démarrer la connexion Calendly.', 'error')
+      toast(`Impossible de démarrer la connexion ${name}.`, 'error')
       setBusy(false)
     }
   }
@@ -188,8 +211,8 @@ function CalendlySection() {
     if (!channel) return
     setBusy(true)
     try {
-      await callFunction('calendly-oauth/disconnect', { body: { channel_account_id: channel.id } })
-      toast('Compte Calendly déconnecté.')
+      await callFunction(disconnectPath, { body: { channel_account_id: channel.id } })
+      toast(`${name} déconnecté.`)
       invalidate('channel-accounts')
     } catch {
       toast('La déconnexion a échoué.', 'error')
@@ -199,20 +222,17 @@ function CalendlySection() {
   }
 
   return (
-    <Card>
-      <CardHeader
-        title="Calendly"
-        description="Reçoit les rendez-vous réservés par vos prospects via le lien envoyé par l'assistant."
-      />
-      <CardBody>
-        {channel ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="font-medium">{channel.handle ?? channel.label ?? 'Compte relié'}</span>
-            {channel.status === 'connected' ? (
-              <Badge tone="success">Connecté</Badge>
-            ) : (
-              <Badge tone="warning">Connexion expirée</Badge>
-            )}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] border border-border px-3 py-2.5">
+      <span className="text-sm font-medium">{name}</span>
+      {channel ? (
+        <>
+          <span className="min-w-0 truncate text-sm text-muted">{channel.handle ?? channel.label ?? 'Compte relié'}</span>
+          {channel.status === 'connected' ? (
+            <Badge tone="success">Connecté</Badge>
+          ) : (
+            <Badge tone="warning">Connexion expirée</Badge>
+          )}
+          {viewingAs ? null : (
             <div className="ml-auto flex gap-2">
               {channel.status !== 'connected' ? (
                 <Button size="sm" onClick={connect} disabled={busy}>
@@ -224,27 +244,29 @@ function CalendlySection() {
                 Déconnecter
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted">Aucun compte Calendly relié pour le moment.</p>
-            <Button onClick={connect} disabled={busy}>
-              {busy ? 'Ouverture…' : 'Relier mon compte Calendly'}
+          )}
+        </>
+      ) : (
+        <>
+          <span className="text-sm text-muted">{emptyText}</span>
+          {viewingAs ? null : (
+            <Button size="sm" className="ml-auto" onClick={connect} disabled={busy}>
+              {busy ? 'Ouverture…' : `Relier ${name}`}
             </Button>
-          </div>
-        )}
-      </CardBody>
+          )}
+        </>
+      )}
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={disconnect}
-        title="Déconnecter Calendly"
-        message="Les rendez-vous déjà réservés restent visibles, mais les nouvelles réservations ne seront plus suivies."
+        title={`Déconnecter ${name}`}
+        message={disconnectMessage}
         confirmLabel="Déconnecter"
         danger
         loading={busy}
       />
-    </Card>
+    </div>
   )
 }
 
@@ -254,30 +276,21 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
   const [productName, setProductName] = useState(s.product?.name ?? '')
   const [context, setContext] = useState(s.context ?? '')
   const [qualification, setQualification] = useState(s.qualification ?? '')
-  const [stopText, setStopText] = useState(s.stop_condition?.text ?? '')
-  const [stopLink, setStopLink] = useState(s.stop_condition?.link ?? '')
-  const [linkError, setLinkError] = useState('')
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    setLinkError('')
-    if (stopLink.trim() && !/^https?:\/\/\S+$/.test(stopLink.trim())) {
-      setLinkError('Le lien doit commencer par http:// ou https://')
-      return
-    }
-    save((fresh) => ({
+    save({
       product: { name: productName.trim() },
       context: context.trim(),
       qualification: qualification.trim(),
-      stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
-    }))
+    })
   }
 
   return (
     <Card>
       <CardHeader
         title="Ce que vous vendez"
-        description="L'assistant s'appuie sur ces informations pour répondre à votre place."
+        description="Ce que l'assistant sait de votre offre."
       />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
@@ -299,9 +312,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
               onChange={(e) => setContext(e.target.value)}
               placeholder="Votre méthode, vos clients types, vos prix, vos arguments, ce que l'assistant doit savoir."
             />
-            <FieldHint>
-              Plus c'est précis, plus les réponses sont justes. Pour des documents longs, utilisez plutôt les documents de contexte juste en dessous.
-            </FieldHint>
+            <FieldHint>Plus c'est précis, plus les réponses sont justes.</FieldHint>
           </div>
           <div>
             <Label htmlFor="qualification">Questions de qualification (optionnel)</Label>
@@ -313,30 +324,6 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
               placeholder="Ce que l'assistant doit chercher à savoir sur le prospect."
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="stopText">Objectif visé (contexte donné à l'assistant)</Label>
-              <Textarea
-                id="stopText"
-                rows={3}
-                value={stopText}
-                onChange={(e) => setStopText(e.target.value)}
-                placeholder="Amener le prospect à réserver un appel découverte."
-              />
-            </div>
-            <div>
-              <Label htmlFor="stopLink">Lien principal</Label>
-              <Input
-                id="stopLink"
-                value={stopLink}
-                onChange={(e) => setStopLink(e.target.value)}
-                placeholder="https://calendly.com/votre-lien"
-              />
-              <FieldError>{linkError}</FieldError>
-              <FieldHint>Envoyé au prospect quand l'objectif est atteint.</FieldHint>
-            </div>
-          </div>
-          <SecondaryLinksField assistant={assistant} />
         </CardBody>
         <div className="flex justify-end border-t border-border px-5 py-3.5">
           <Button type="submit" disabled={saving}>
@@ -392,9 +379,7 @@ function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
     <div className="space-y-3 border-t border-border pt-4">
       <div>
         <Label className="mb-0">Liens secondaires (optionnel)</Label>
-        <FieldHint>
-          Proposés à la place du lien principal quand leur condition correspond mieux, par exemple une offre gratuite pour un prospect pas encore prêt à investir.
-        </FieldHint>
+        <FieldHint>Proposés à la place de l'objectif principal quand leur condition correspond mieux.</FieldHint>
       </div>
       {links.map((l) => (
         <div key={l.id} className="space-y-1.5 rounded-[10px] border border-border p-3">
@@ -442,6 +427,251 @@ function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
   )
 }
 
+const selectClass =
+  'h-10 w-full rounded-[10px] border border-border bg-surface px-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary'
+
+// Lundi 8 h : l'aperçu montre des jours de semaine sans dépendre de l'agenda réel.
+const PREVIEW_NOW = Date.UTC(2026, 0, 5, 7, 0)
+
+function agendaPreview(agenda: AgendaSettings) {
+  if (agenda.first_offer === 0) return ['Demande au prospect le moment qui l’arrange.']
+  const offers = computeOffers({ now: PREVIEW_NOW, tz: 'Europe/Paris', settings: agenda, busy: [], withDate: false })
+  const first = offers.slice(0, agenda.first_offer).map((o) => o.label)
+  if (first.length === 0) return ['Aucune plage possible avec ces réglages.']
+  const steps = [`Propose ${first.join(' ou ')}.`]
+  for (const extra of offers.slice(agenda.first_offer)) steps.push(`Si ça ne va pas : ${extra.label}.`)
+  steps.push('Sinon, demande le moment qui l’arrange.')
+  return steps
+}
+
+function GoalSection({
+  assistant,
+  allowCalendly,
+  allowCalendar,
+}: {
+  assistant: Assistant
+  allowCalendly: boolean
+  allowCalendar: boolean
+}) {
+  const { save, saving } = useSaveSettings(assistant)
+  const s = assistant.settings
+  const [stopText, setStopText] = useState(s.stop_condition?.text ?? '')
+  const [stopLink, setStopLink] = useState(s.stop_condition?.link ?? '')
+  const [mode, setMode] = useState<'link' | 'calendar'>(allowCalendar && s.booking?.mode === 'calendar' ? 'calendar' : 'link')
+  const [agenda, setAgenda] = useState<AgendaSettings>(normalizeAgenda(s.booking?.calendar))
+  const [linkError, setLinkError] = useState('')
+  const agendaError = mode === 'calendar' ? agendaSettingsError(agenda) : null
+  const preview = useMemo(() => agendaPreview(agenda), [agenda])
+
+  function patchAgenda(patch: Partial<AgendaSettings>) {
+    setAgenda((current) => {
+      const next = { ...current, ...patch }
+      // Une plage plus courte que l'appel n'a pas de sens : on l'élargit d'office.
+      if (next.range_hours * 60 < next.duration_min) next.range_hours = Math.ceil(next.duration_min / 60)
+      return next
+    })
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setLinkError('')
+    if (stopLink.trim() && !/^https?:\/\/\S+$/.test(stopLink.trim())) {
+      setLinkError('Le lien doit commencer par http:// ou https://')
+      return
+    }
+    if (agendaError) return
+    save((fresh) => ({
+      stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
+      booking: { ...fresh.booking, mode, calendar: agenda },
+    }))
+  }
+
+  const modes: { value: 'link' | 'calendar'; label: string }[] = [
+    { value: 'link', label: 'Par lien' },
+    ...(allowCalendar ? [{ value: 'calendar' as const, label: 'Dans mon agenda Google' }] : []),
+  ]
+
+  return (
+    <Card>
+      <CardHeader title="Objectif et rendez-vous" description="Ce que l'assistant cherche à obtenir, et comment le prospect réserve." />
+      <form onSubmit={submit}>
+        <CardBody className="space-y-4">
+          <div>
+            <Label htmlFor="stopText">Objectif visé</Label>
+            <Textarea
+              id="stopText"
+              rows={2}
+              value={stopText}
+              onChange={(e) => setStopText(e.target.value)}
+              placeholder="Amener le prospect à réserver un appel découverte."
+            />
+          </div>
+
+          {modes.length > 1 ? (
+            <div>
+              <Label>Le prospect réserve</Label>
+              <div role="radiogroup" className="inline-flex rounded-[10px] border border-border bg-bg p-1">
+                {modes.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={mode === m.value}
+                    onClick={() => setMode(m.value)}
+                    className={
+                      mode === m.value
+                        ? 'rounded-[8px] bg-surface px-3 py-1.5 text-sm font-medium text-ink shadow-soft'
+                        : 'rounded-[8px] px-3 py-1.5 text-sm font-medium text-muted hover:text-ink'
+                    }
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {mode === 'link' ? (
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="stopLink">Lien envoyé au prospect</Label>
+                <Input
+                  id="stopLink"
+                  value={stopLink}
+                  onChange={(e) => setStopLink(e.target.value)}
+                  placeholder="https://calendly.com/votre-lien"
+                />
+                <FieldError>{linkError}</FieldError>
+              </div>
+              {allowCalendly ? (
+                <AccountRow
+                  provider="calendly"
+                  name="Calendly"
+                  emptyText="Pour suivre les réservations dans vos conversations."
+                  startPath="calendly-oauth/start"
+                  startBody={() => ({ return_to: window.location.href })}
+                  disconnectPath="calendly-oauth/disconnect"
+                  disconnectMessage="Les rendez-vous déjà réservés restent visibles, mais les nouvelles réservations ne seront plus suivies."
+                />
+              ) : null}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <AccountRow
+                provider="google"
+                name="Google Agenda"
+                emptyText="À relier pour que l'assistant réserve à votre place."
+                startPath="google-oauth/start"
+                startBody={() => ({ return_path: window.location.pathname })}
+                disconnectPath="google-oauth/disconnect"
+                disconnectMessage="L'assistant ne pourra plus réserver d'appel. Les rendez-vous déjà pris restent dans votre agenda."
+              />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <Label htmlFor="agendaDuration">Durée de l'appel</Label>
+                  <select
+                    id="agendaDuration"
+                    className={selectClass}
+                    value={agenda.duration_min}
+                    onChange={(e) => patchAgenda({ duration_min: Number(e.target.value) })}
+                  >
+                    {DURATION_OPTIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d < 60 ? `${d} min` : d === 60 ? '1 h' : '1 h 30'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="agendaRange">Largeur d'une plage</Label>
+                  <select
+                    id="agendaRange"
+                    className={selectClass}
+                    value={agenda.range_hours}
+                    onChange={(e) => patchAgenda({ range_hours: Number(e.target.value) })}
+                  >
+                    {RANGE_OPTIONS.filter((h) => h * 60 >= agenda.duration_min).map((h) => (
+                      <option key={h} value={h}>
+                        {h} h
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="agendaFirst">Plages proposées d'abord</Label>
+                  <select
+                    id="agendaFirst"
+                    className={selectClass}
+                    value={agenda.first_offer}
+                    onChange={(e) => patchAgenda({ first_offer: Number(e.target.value) })}
+                  >
+                    <option value={0}>Aucune, demander</option>
+                    <option value={1}>1 plage</option>
+                    <option value={2}>2 plages</option>
+                    <option value={3}>3 plages</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="agendaExtra">Si le prospect refuse</Label>
+                  <select
+                    id="agendaExtra"
+                    className={selectClass}
+                    value={agenda.extra_offers}
+                    disabled={agenda.first_offer === 0}
+                    onChange={(e) => patchAgenda({ extra_offers: Number(e.target.value) })}
+                  >
+                    <option value={0}>Demander directement</option>
+                    <option value={1}>1 autre plage</option>
+                    <option value={2}>2 autres plages</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <Label>Quand vous prenez des appels</Label>
+                <DaysHoursField
+                  days={agenda.days}
+                  onDays={(days) => patchAgenda({ days })}
+                  start={agenda.start}
+                  onStart={(start) => patchAgenda({ start })}
+                  end={agenda.end}
+                  onEnd={(end) => patchAgenda({ end })}
+                />
+                <FieldHint>Votre agenda principal est lu. Un événement marqué « Disponible » ne bloque pas.</FieldHint>
+              </div>
+              <div className="rounded-[10px] bg-bg px-3 py-2.5">
+                <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted">
+                  <CalendarDays size={14} />
+                  Ce que fait l'assistant, par exemple
+                </p>
+                <ol className="space-y-1 text-sm">
+                  {preview.map((step, i) => (
+                    <li key={step} className="flex gap-2">
+                      <span className="text-muted">{i + 1}.</span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                  <li className="flex gap-2">
+                    <span className="text-muted">{preview.length + 1}.</span>
+                    <span>Fait préciser l'heure, demande l'e-mail, réserve avec un lien Meet envoyé en message.</span>
+                  </li>
+                </ol>
+              </div>
+              <FieldError>{agendaError ?? ''}</FieldError>
+            </div>
+          )}
+
+          <SecondaryLinksField assistant={assistant} />
+        </CardBody>
+        <div className="flex justify-end border-t border-border px-5 py-3.5">
+          <Button type="submit" disabled={saving || Boolean(agendaError)}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 
@@ -482,6 +712,54 @@ function TimeSelect({ value, onChange, disabled }: { value: string; onChange: (v
   )
 }
 
+function DaysHoursField({
+  days,
+  onDays,
+  start,
+  onStart,
+  end,
+  onEnd,
+}: {
+  days: boolean[]
+  onDays: (days: boolean[]) => void
+  start: string
+  onStart: (value: string) => void
+  end: string
+  onEnd: (value: string) => void
+}) {
+  return (
+    <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+      <div className="flex flex-wrap gap-2">
+        {DAY_LABELS.map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={days[i]}
+            onClick={() => onDays(days.map((v, j) => (j === i ? !v : v)))}
+            className={
+              days[i]
+                ? 'rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white'
+                : 'rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted'
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-end gap-4">
+        <div>
+          <Label>De</Label>
+          <TimeSelect value={start} onChange={onStart} />
+        </div>
+        <div>
+          <Label>À</Label>
+          <TimeSelect value={end} onChange={onEnd} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ScheduleSection({ assistant }: { assistant: Assistant }) {
   const { save, saving } = useSaveSettings(assistant)
   const schedule = assistant.settings.schedule ?? {}
@@ -515,10 +793,7 @@ function ScheduleSection({ assistant }: { assistant: Assistant }) {
 
   return (
     <Card>
-      <CardHeader
-        title="Horaires de réponse"
-        description="En dehors de ces créneaux, l'assistant attend l'ouverture suivante pour répondre."
-      />
+      <CardHeader title="Quand l'assistant répond" description="Hors de ces horaires, il attend l'ouverture suivante." />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
           <div className="flex items-center justify-between gap-3">
@@ -526,34 +801,7 @@ function ScheduleSection({ assistant }: { assistant: Assistant }) {
             <Switch checked={alwaysOn} onChange={setAlwaysOn} label="Toujours actif" />
           </div>
           {!alwaysOn ? (
-            <>
-              <div className="flex flex-wrap gap-2">
-                {DAY_LABELS.map((label, i) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setDays((d) => d.map((v, j) => (j === i ? !v : v)))}
-                    className={
-                      days[i]
-                        ? 'rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white'
-                        : 'rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted'
-                    }
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-end gap-4">
-                <div>
-                  <Label>De</Label>
-                  <TimeSelect value={start} onChange={setStart} />
-                </div>
-                <div>
-                  <Label>À</Label>
-                  <TimeSelect value={end} onChange={setEnd} />
-                </div>
-              </div>
-            </>
+            <DaysHoursField days={days} onDays={setDays} start={start} onStart={setStart} end={end} onEnd={setEnd} />
           ) : null}
           <FieldError>{error}</FieldError>
         </CardBody>
@@ -592,7 +840,7 @@ function AudienceSection({ assistant }: { assistant: Assistant }) {
     <Card>
       <CardHeader
         title="Qui reçoit une réponse"
-        description="Par défaut, l'assistant répond à tout le monde. Vous pouvez le limiter."
+        description="Par défaut, l'assistant répond à tout le monde."
       />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
@@ -790,7 +1038,7 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
         {preset === 'custom' && allowCustom ? (
           <div className="space-y-3 border-t border-border pt-4">
             <p className="text-sm text-muted">
-              Répondez à ces messages comme vous le feriez vraiment, avec vos mots. L'assistant en tire votre façon de vous exprimer, jamais le contenu de vos réponses. 200 caractères minimum par réponse ; tout est enregistré au fil de la saisie.
+              Répondez avec vos mots, 200 caractères minimum. Seul votre style est repris, et tout s'enregistre au fil de la saisie.
             </p>
             {!assistant.custom_tone ? (
               <Badge tone="muted">Pas encore généré</Badge>
@@ -994,7 +1242,7 @@ function ContextDocumentsSection() {
     <Card>
       <CardHeader
         title="Documents de contexte"
-        description="Plutôt que tout écrire dans le contexte, importez un ou plusieurs documents."
+        description="Vos textes longs sur l'offre, lus par l'assistant."
       />
       <CardBody className="space-y-3">
         {quota ? (
@@ -1270,7 +1518,7 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
     <Card>
       <CardHeader
         title="Relances"
-        description="Si le prospect ne répond plus, l'assistant envoie les messages que vous avez écrits ici. Instagram n'autorise ces envois que dans les 24 h qui suivent le dernier message du prospect."
+        description="Vos messages, envoyés si le prospect ne répond plus, dans les 24 h permises par Instagram."
       />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
@@ -1395,9 +1643,7 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
                   <Label className="mb-0">Relancer aussi après un message que j'ai écrit moi même</Label>
                   <Switch checked={afterOwn} onChange={setAfterOwn} label="Relancer après mes propres messages" />
                 </div>
-                <FieldHint>
-                  Sans effet si vous avez pris la main sur la conversation, dans ce cas l'assistant ne relance jamais.
-                </FieldHint>
+                <FieldHint>Jamais après une prise de main de votre part.</FieldHint>
               </div>
             </>
           ) : null}
@@ -1408,9 +1654,7 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
                 <Label className="mb-0">Après 24 h, envoyées par vous</Label>
                 <Badge tone="primary">Human Agent</Badge>
               </div>
-              <FieldHint>
-                Instagram interdit l'envoi automatique passé 24 h. Ces messages vous attendent dans « À relancer » : vous les relisez et les envoyez d'un clic.
-              </FieldHint>
+              <FieldHint>Passé 24 h, ils vous attendent dans « À relancer » et partent d'un clic.</FieldHint>
               {assisted.map((template) => (
                 <div key={template.id} className="space-y-2 rounded-[10px] border border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1535,7 +1779,7 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
     <Card>
       <CardHeader
         title="Réponses préenregistrées"
-        description="Quand le prospect écrit un de ces mots-clés ou se trouve dans une de ces situations, l'assistant envoie votre réponse telle quelle. Chaque réponse ne part qu'une fois par conversation."
+        description="Envoyées telles quelles sur un mot-clé ou une situation, une fois par conversation."
       />
       <form onSubmit={submit}>
         <CardBody className="space-y-3">
@@ -1653,7 +1897,7 @@ const PAUSE_REASONS: Record<string, string> = {
   paused_by_admin: "l'équipe LeadControl l'a mis en pause",
 }
 
-function ActivationSection({ assistant }: { assistant: Assistant }) {
+function ActivationSection({ assistant, allowCalendar }: { assistant: Assistant; allowCalendar: boolean }) {
   const { data: channels } = useChannelAccounts()
   const toast = useToast()
   const invalidate = useInvalidate()
@@ -1665,6 +1909,10 @@ function ActivationSection({ assistant }: { assistant: Assistant }) {
   if (!assistant.settings.product?.name?.trim()) blockers.push('renseigner le produit ou service')
   if (!assistant.settings.context?.trim()) blockers.push('renseigner le contexte de vente')
   if (!assistant.settings.stop_condition?.text?.trim()) blockers.push("définir l'objectif de la conversation")
+  const google = channels?.find((c) => c.provider === 'google')
+  if (allowCalendar && assistant.settings.booking?.mode === 'calendar' && google?.status !== 'connected') {
+    blockers.push('relier Google Agenda pour le mode agenda')
+  }
 
   async function toggle(value: boolean) {
     setBusy(true)
@@ -1733,6 +1981,7 @@ function AssistantContent() {
   const allowFollowups = hasFeature('followups', flags, profile, overrides)
   const allowCannedResponses = hasFeature('canned_responses', flags, profile, overrides)
   const allowHumanAgent = hasFeature('human_agent', flags, profile, overrides)
+  const allowCalendar = hasFeature('google_calendar', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -1748,6 +1997,21 @@ function AssistantContent() {
       window.history.replaceState(null, '', window.location.pathname)
     } else if (searchParams.get('calendly_error')) {
       toast('La connexion Calendly a échoué. Réessayez.', 'error')
+      window.history.replaceState(null, '', window.location.pathname)
+    } else if (searchParams.get('google_connected') === '1') {
+      toast('Google Agenda connecté.')
+      invalidate('channel-accounts')
+      window.history.replaceState(null, '', window.location.pathname)
+    } else if (searchParams.get('google_error')) {
+      const reason = searchParams.get('google_error')
+      toast(
+        reason === 'scope_missing'
+          ? 'Cochez les deux accès à l’agenda demandés par Google, puis réessayez.'
+          : reason === 'denied'
+            ? 'Connexion Google annulée.'
+            : 'La connexion Google a échoué. Réessayez.',
+        'error',
+      )
       window.history.replaceState(null, '', window.location.pathname)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1801,29 +2065,47 @@ function AssistantContent() {
     )
   }
 
+  // Une carte seule sur sa rangée (module masqué) prend toute la largeur.
+  const soloAutomation = allowFollowups !== allowCannedResponses
   return (
-    <div className="space-y-3">
-      <ActivationSection assistant={assistant} />
+    <div className="grid items-start gap-3 xl:grid-cols-2">
+      <div className="xl:col-span-2">
+        <ActivationSection assistant={assistant} allowCalendar={allowCalendar} />
+      </div>
       <ChannelSection assistant={assistant} />
-      {allowCalendly ? <CalendlySection /> : null}
-      <ProfileSection assistant={assistant} />
-      {allowContextDocuments ? <ContextDocumentsSection /> : null}
-      <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       <ScheduleSection assistant={assistant} />
-      {allowFollowups ? <FollowupsSection assistant={assistant} allowAssisted={allowHumanAgent} /> : null}
-      {allowCannedResponses ? <CannedResponsesSection assistant={assistant} /> : null}
+      <div className="xl:col-span-2">
+        <ProfileSection assistant={assistant} />
+      </div>
+      {allowContextDocuments ? (
+        <div className="xl:col-span-2">
+          <ContextDocumentsSection />
+        </div>
+      ) : null}
+      <div className="xl:col-span-2">
+        <GoalSection assistant={assistant} allowCalendly={allowCalendly} allowCalendar={allowCalendar} />
+      </div>
+      <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       <AudienceSection assistant={assistant} />
+      {allowFollowups ? (
+        <div className={soloAutomation ? 'xl:col-span-2' : undefined}>
+          <FollowupsSection assistant={assistant} allowAssisted={allowHumanAgent} />
+        </div>
+      ) : null}
+      {allowCannedResponses ? (
+        <div className={soloAutomation ? 'xl:col-span-2' : undefined}>
+          <CannedResponsesSection assistant={assistant} />
+        </div>
+      ) : null}
     </div>
   )
 }
 
 export default function AssistantPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
+    <div className="mx-auto max-w-6xl px-4 py-6">
       <h1 className="text-xl font-semibold">Assistant</h1>
-      <p className="mb-5 mt-1 text-sm text-muted">
-        Le réglage de votre assistant Instagram, section par section.
-      </p>
+      <p className="mb-5 mt-1 text-sm text-muted">Le réglage de votre assistant Instagram.</p>
       <Suspense>
         <AssistantContent />
       </Suspense>

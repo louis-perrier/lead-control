@@ -1,3 +1,5 @@
+import type { AgendaSettings } from '@/supabase/functions/_shared/agenda-slots'
+
 export type Role = 'user' | 'viewer' | 'admin' | 'owner'
 export type PlanOverride = 'beta_byok' | 'free_unlimited' | null
 export type FlagStage = 'hidden' | 'staff' | 'beta' | 'all'
@@ -25,7 +27,7 @@ export type Profile = {
 export type ChannelAccount = {
   id: string
   user_id: string
-  provider: 'instagram' | 'whatsapp' | 'calendly' | 'gmail'
+  provider: 'instagram' | 'whatsapp' | 'calendly' | 'gmail' | 'google'
   external_id: string
   handle: string | null
   label: string | null
@@ -55,6 +57,10 @@ export type AssistantSettings = {
   deal?: { average_value?: number | null }
   followups?: FollowupSettings
   canned_responses?: CannedResponse[]
+  booking?: {
+    mode?: 'link' | 'calendar'
+    calendar?: Partial<AgendaSettings>
+  }
 }
 
 export type FollowupItem = {
@@ -187,6 +193,8 @@ export type Contact = {
 
 export type Booking = {
   id: string
+  provider: 'calendly' | 'google'
+  meet_link: string | null
   conversation_id: number | null
   event_type_name: string | null
   invitee_email: string | null
