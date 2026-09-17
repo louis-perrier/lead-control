@@ -105,6 +105,9 @@ const sections = [
     paragraphs: [
       "When you authenticate through a third-party social account (e.g., Facebook), we receive profile information such as your name, email, friends list, and profile picture. Depending on the provider, you may grant or deny additional permissions (friends, check-ins, likes, etc.).",
       "We use that information only for the purposes outlined in this Privacy Notice. The third-party’s own privacy practices govern their subsequent use of your data.",
+      "If you connect Google Calendar, LeadControl reads the busy times of your primary calendar to find free slots, and creates the calls your assistant books, with a Google Meet link and, when the person provides it, their email address as a guest. We also store the email address of your Google account and the access tokens needed for these two actions. We do not read the content of your other events, and nothing is used for advertising or to train AI models.",
+      "Disconnecting Google Calendar from the assistant settings revokes our access and deletes the stored tokens. You can also remove access at any time from https://myaccount.google.com/permissions.",
+      "LeadControl's use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements.",
     ],
   },
   {
