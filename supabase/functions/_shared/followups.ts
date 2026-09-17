@@ -33,6 +33,17 @@ export async function planFollowupSlot(params: {
   if (error) throw new Error(`plan_followups: ${error.message}`)
 }
 
+// Un prospect qui a réservé (Calendly ou Google) n'est plus relancé, même si le compte lui répond.
+export async function conversationHasBooking(conversationId: number) {
+  const { data } = await admin
+    .from('bookings')
+    .select('id')
+    .eq('conversation_id', conversationId)
+    .eq('status', 'active')
+    .limit(1)
+  return (data?.length ?? 0) > 0
+}
+
 // Seule la première relance est planifiée : la suivante l'est au moment où celle-ci part
 // vraiment, sinon deux relances reportées hors horaires partaient à la même ouverture.
 // Le filtre d'audience se vérifie ici, un message écrit à la main à un compte exclu en programmait une.
@@ -49,6 +60,7 @@ export async function planFollowups(params: {
   if (isFarewell(params.anchorText)) return
   const [first] = usableFollowupItems((settings as { followups?: FollowupSettings } | null)?.followups)
   if (!first || !params.assistantId || !params.anchorMessageId) return
+  if (await conversationHasBooking(params.conversationId)) return
   await planFollowupSlot({
     conversationId: params.conversationId,
     assistantId: params.assistantId,

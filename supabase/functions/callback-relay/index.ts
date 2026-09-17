@@ -317,6 +317,11 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
     p_preview: preview,
   })
 
+  // L'agent reste arrêté après une réservation dans l'agenda : c'est au compte de répondre.
+  if (conv.automation_state === 'condition_stop' && conv.automation_reason === 'calendar_booked') {
+    await notifyNeedsYou(channel.user_id, conv.id, 'Le prospect a réécrit après avoir réservé son appel')
+  }
+
   if (messageType === 'audio' && attachment?.payload?.url) {
     try {
       await storeAndTranscribeAudio(conv.id, insert.data.id, attachment.payload.url)
@@ -349,11 +354,6 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
       // photo perdue, le texte de la conversation reste exploitable
     }
     return // comme en V1, une image seule ne déclenche pas de réponse automatique
-  }
-
-  // L'agent reste arrêté après une réservation dans l'agenda : c'est au compte de répondre.
-  if (conv.automation_state === 'condition_stop' && conv.automation_reason === 'calendar_booked') {
-    await notifyNeedsYou(channel.user_id, conv.id, 'Le prospect a réécrit après son rendez-vous')
   }
 
   // Planification de la réponse automatique

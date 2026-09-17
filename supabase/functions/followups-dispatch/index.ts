@@ -3,7 +3,14 @@
 // Meta n'accepte un envoi automatisé que dans les 24 h qui suivent le dernier message du prospect.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
 import { getChannelToken, sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
-import { findFollowupItem, nextFollowupItem, pickVariant, planFollowupSlot, usableFollowupItems } from '../_shared/followups.ts'
+import {
+  conversationHasBooking,
+  findFollowupItem,
+  nextFollowupItem,
+  pickVariant,
+  planFollowupSlot,
+  usableFollowupItems,
+} from '../_shared/followups.ts'
 import type { FollowupItem, FollowupSettings } from '../_shared/followups.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { formatFirstName, hasNameVariable, renderFollowupText, usableDisplayName } from '../_shared/followup-text.ts'
@@ -176,6 +183,7 @@ async function handleFollowup(due: DueFollowup) {
     return skip(due.id, `conversation_${conv.automation_state}`)
   }
   if (conv.heat_tag === 'cold') return skip(due.id, 'cold_conversation')
+  if (await conversationHasBooking(conv.id)) return skip(due.id, 'booked')
   if (!conv.channel_account_id || !conv.contact_external_id) return skip(due.id, 'channel_missing')
 
   const assistantId = due.assistant_id ?? conv.assistant_id
