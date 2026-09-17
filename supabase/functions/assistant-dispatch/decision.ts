@@ -144,3 +144,9 @@ export function stopConfirmed(opts: {
   if (!linkBase(opts.stopLink)) return true
   return opts.linkSent || opts.hasBooking
 }
+
+// Mode agenda : seule une réservation Google active fait foi, et la conversation ne se ferme
+// qu'une fois la confirmation partie chez le prospect.
+export function agendaStopReached(opts: { hasBooking: boolean; sentThisTurn: number; confirmedBefore: boolean }) {
+  return opts.hasBooking && (opts.sentThisTurn > 0 || opts.confirmedBefore)
+}

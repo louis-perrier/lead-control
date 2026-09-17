@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HUMAN_ACTIVE_MS, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from '../supabase/functions/assistant-dispatch/decision'
+import { HUMAN_ACTIVE_MS, agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from '../supabase/functions/assistant-dispatch/decision'
 
 describe('parseDecision', () => {
   it('lit un JSON complet', () => {
@@ -95,5 +95,14 @@ describe('humanActiveUntil', () => {
   it('reprend au-delà d’une heure', () => {
     expect(humanActiveUntil(new Date(now - HUMAN_ACTIVE_MS - 1).toISOString(), now)).toBeNull()
     expect(humanActiveUntil(null, now)).toBeNull()
+  })
+})
+
+describe('agendaStopReached', () => {
+  it('ne ferme la conversation qu’avec une réservation confirmée au prospect', () => {
+    expect(agendaStopReached({ hasBooking: true, sentThisTurn: 2, confirmedBefore: false })).toBe(true)
+    expect(agendaStopReached({ hasBooking: true, sentThisTurn: 0, confirmedBefore: true })).toBe(true)
+    expect(agendaStopReached({ hasBooking: true, sentThisTurn: 0, confirmedBefore: false })).toBe(false)
+    expect(agendaStopReached({ hasBooking: false, sentThisTurn: 3, confirmedBefore: false })).toBe(false)
   })
 })

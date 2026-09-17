@@ -9,7 +9,7 @@ import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
 import { tryCannedResponse } from './canned.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { allocateBudget, cutAtBoundary } from '../_shared/context-budget.ts'
-import { alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from './decision.ts'
+import { agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from './decision.ts'
 import { splitReply, typingPauses } from './bubbles.ts'
 import { closingCheck } from './closing.ts'
 import { firstJsonObject } from '../_shared/canned-match.ts'
@@ -17,6 +17,9 @@ import { finalizeConversation } from './finalize.ts'
 import { splitSystemForCache } from './system-blocks.ts'
 import { resolveTone } from './types.ts'
 import type { AgentDecision, WindowMessage } from './types.ts'
+import { FAILURE_MESSAGES, agendaEnabled, meetLinkSent, prepareAgendaTurn, type AgendaTurn } from './agenda.ts'
+import { withAgendaSection } from './agenda-prompt.ts'
+import { momentLabel } from '../_shared/agenda-slots.ts'
 
 // La mémoire n8n d'origine gardait 100 messages par conversation : on aligne
 // la fenêtre pour obtenir le même niveau de contexte.
@@ -223,7 +226,7 @@ async function handleConversation(due: DueConversation) {
   const convId = due.id
   const convRes = await admin
     .from('conversations')
-    .select('id, user_id, summary, contact_external_id, contact_handle, metadata, automation_state')
+    .select('id, user_id, summary, contact_external_id, contact_handle, contact_name, metadata, automation_state')
     .eq('id', convId)
     .single()
   if (convRes.error) return
@@ -304,10 +307,11 @@ async function handleConversation(due: DueConversation) {
 
   const profileRes = await admin
     .from('profiles')
-    .select('plan_override')
+    .select('plan_override, timezone')
     .eq('user_id', due.user_id)
     .single()
   const planOverride = profileRes.data?.plan_override ?? null
+  const timezone = profileRes.data?.timezone || 'Europe/Paris'
 
   const allowedRes = await admin.rpc('assistant_next_allowed_time', {
     p_assistant_id: assistant.id,
@@ -430,6 +434,22 @@ async function handleConversation(due: DueConversation) {
     messages = await fetchWindow(convId, due.pending_cursor_at)
   }
 
+  // Calculé après les réponses préenregistrées : elles remplacent metadata.
+  let agenda: AgendaTurn | null = null
+  if (await agendaEnabled(due.user_id, settings)) {
+    agenda = await prepareAgendaTurn({
+      userId: due.user_id,
+      convId,
+      tz: timezone,
+      settings,
+      metadata,
+      sentTexts: messages.filter((m) => m.author_type === 'agent' && m.send_state !== 'failed').map((m) => m.body_text ?? ''),
+      contactName: conv.contact_name ?? '',
+      contactHandle: conv.contact_handle,
+    })
+    metadata = { ...metadata, agenda_offers: agenda.storedOffers }
+  }
+
   let context = settings.context ?? ''
   const { data: docs } = await admin
     .from('context_documents')
@@ -464,20 +484,21 @@ async function handleConversation(due: DueConversation) {
     }
   }
 
-  const system = buildSystemPrompt({
+  const baseSystem = buildSystemPrompt({
     conversationId: convId,
     productName: settings.product?.name ?? '',
     context,
     qualification: settings.qualification ?? '',
     stopText: settings.stop_condition?.text ?? '',
-    stopLink: settings.stop_condition?.link ?? '',
-    secondaryLinks: (settings.stop_condition?.secondary_links ?? []).map((l) => ({
+    stopLink: agenda ? '' : settings.stop_condition?.link ?? '',
+    secondaryLinks: (settings.stop_condition?.secondary_links ?? []).map((l: { condition?: string; link?: string }) => ({
       condition: l.condition ?? '',
       link: l.link ?? '',
     })),
     tone: resolveTone(settings.tone?.preset, assistant.custom_tone),
     summary,
   })
+  const system = agenda ? withAgendaSection(baseSystem, agenda.prompt) : baseSystem
   const transcriptLines = messages.map((m) => `${speaker(m)} : ${renderMessage(m)}`)
   const prompt = `Conversation (du plus ancien au plus récent) :\n${transcriptLines.join('\n')}\n\nRéponds au dernier message du prospect en respectant le format de sortie JSON.`
 
@@ -492,6 +513,8 @@ async function handleConversation(due: DueConversation) {
       system: systemBlocks,
       prompt,
       maxTokens: REPLY_MAX_TOKENS,
+      tools: agenda?.tools,
+      runTool: agenda?.runTool,
     })
     await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: first.usage, source: resolved.source })
     let parsed = parseDecision(first.text)
@@ -506,6 +529,8 @@ async function handleConversation(due: DueConversation) {
         system: systemBlocks,
         prompt,
         maxTokens: REPLY_RETRY_MAX_TOKENS,
+        tools: agenda?.tools,
+        runTool: agenda?.runTool,
       })
       await recordUsage({ userId: due.user_id, conversationId: convId, model: AI_MODEL_REPLY, usage: retry.usage, source: resolved.source })
       const retried = parseDecision(retry.text)
@@ -558,6 +583,20 @@ async function handleConversation(due: DueConversation) {
     summary: decision.summary?.trim() ? decision.summary : summary || undefined,
   }
 
+  // Un appel vient d'être réservé : le prospect doit l'apprendre, même si le modèle s'est tu.
+  const bookedNow = agenda?.result.bookedThisTurn ? agenda.result.booking : null
+  if (bookedNow && (decision.should_notify_human || !decision.reply_text?.trim())) {
+    await logEvent('warn', 'assistant-dispatch', `réservation faite sans confirmation du modèle conv=${convId}`, {
+      user_id: due.user_id,
+      conversation_id: convId,
+    })
+    decision = {
+      ...decision,
+      should_notify_human: false,
+      reply_text: `C'est noté pour ${momentLabel(Date.parse(bookedNow.event_start_at), timezone)}.`,
+    }
+  }
+
   if (decision.should_notify_human) {
     await finalizeConversation(
       convId,
@@ -598,6 +637,10 @@ async function handleConversation(due: DueConversation) {
     )
     return
   }
+
+  // Le lien Meet part toujours en message, en plus de l'invitation par e-mail.
+  const meetLink = agenda?.result.booking?.meet_link
+  if (meetLink && blocks.length > 0 && !(await meetLinkSent(convId, meetLink))) blocks.push(meetLink)
 
   const pauses = typingPauses(blocks)
   let sentCount = 0
@@ -658,7 +701,15 @@ async function handleConversation(due: DueConversation) {
   }
 
   let stopReached = false
-  if (decision.stop_successful) {
+  let stopReason = 'stop_successful'
+  if (agenda) {
+    stopReached = agendaStopReached({
+      hasBooking: Boolean(agenda.result.booking),
+      sentThisTurn: sentCount,
+      confirmedBefore: agenda.prompt.booked?.confirmed ?? false,
+    })
+    stopReason = 'calendar_booked'
+  } else if (decision.stop_successful) {
     const stopLink = settings.stop_condition?.link ?? ''
     const base = linkBase(stopLink)
     const linkSent = base ? blocks.slice(0, sentCount).some((b) => b.includes(base)) || (await stopLinkAlreadySent(convId, stopLink)) : false
@@ -669,13 +720,17 @@ async function handleConversation(due: DueConversation) {
   const now = new Date().toISOString()
   const replied = sentCount > 0 || canned.sent
   delete metadata.dispatch_retries
+  // Une panne Google pendant la réservation : le prospect a eu une réponse d'attente, le compte prend la main.
+  const agendaFailure = !stopReached && !agenda?.result.booking ? agenda?.result.failure ?? null : null
   await finalizeConversation(
     convId,
     {
-      automation_state: stopReached ? 'condition_stop' : 'idle',
+      automation_state: stopReached ? 'condition_stop' : agendaFailure ? 'error' : 'idle',
       automation_reason: stopReached
-        ? 'stop_successful'
-        : decision.stop_successful
+        ? stopReason
+        : agendaFailure
+          ? agendaFailure
+          : decision.stop_successful
           ? 'stop_unconfirmed'
           : replied
             ? 'replied'
@@ -685,8 +740,8 @@ async function handleConversation(due: DueConversation) {
       pending_cursor_at: null,
       pending_since: null,
       pending_inbound_count: 0,
-      last_error_code: null,
-      last_error_message: null,
+      last_error_code: agendaFailure,
+      last_error_message: agendaFailure ? FAILURE_MESSAGES[agendaFailure] : null,
     },
     {
       last_agent_reply_at: replied ? now : undefined,
@@ -702,7 +757,8 @@ async function handleConversation(due: DueConversation) {
       () => {},
     )
   }
-  if (replied) {
+  // Un prospect qui vient de réserver n'a pas à être relancé.
+  if (replied && !(agenda && (stopReached || agenda.result.booking))) {
     // Échouer ici ne doit pas remettre en cause une réponse déjà partie chez le prospect.
     try {
       await planFollowups({
