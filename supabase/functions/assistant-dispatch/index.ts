@@ -2,7 +2,7 @@
 // appelle Anthropic (clé plateforme ou clé du bêta-testeur), envoie la réponse
 // sur Instagram et consomme le crédit. Déclenché chaque minute par pg_cron.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
-import { getChannelToken, sendInstagramReaction, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
+import { getChannelToken, markSeen, sendInstagramReaction, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
@@ -392,6 +392,10 @@ async function handleConversation(due: DueConversation) {
 
   const settings = (assistant.settings ?? {}) as Record<string, any>
   let metadata = (conv.metadata ?? {}) as Record<string, unknown>
+
+  // Vu au moment où l'agent ouvre la conversation pour y répondre, comme quelqu'un qui
+  // consulte son téléphone puis se met à écrire. Un échec n'empêche pas la réponse.
+  await markSeen(token, igUserId, conv.contact_external_id)
 
   // Aucun crédit ni relance pour un like : ce n'est pas une réponse.
   if (

@@ -212,15 +212,6 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
   const channel = await findChannel(accountId)
   if (!channel) return
 
-  if (!isEcho) {
-    // Vu dès la réception, pas juste avant l'envoi de la réponse : sinon le
-    // badge "Vu" et la réponse apparaissent au même instant, ce qui trahit le bot.
-    // @ts-ignore fourni par le runtime Edge
-    EdgeRuntime.waitUntil(
-      getChannelToken(channel.id).then((token) => (token ? markSeen(token, channel.external_id, contactId) : null)),
-    )
-  }
-
   const assistant = await findAssistant(channel.id)
   const { conv } = await findOrCreateConversation({
     channel,
@@ -352,6 +343,13 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
         .eq('id', insert.data.id)
     } catch (_) {
       // photo perdue, le texte de la conversation reste exploitable
+    }
+    // Une image seule ne déclenche aucune réponse : personne ne la marquerait vue plus tard.
+    if (!isEcho) {
+      // @ts-ignore fourni par le runtime Edge
+      EdgeRuntime.waitUntil(
+        getChannelToken(channel.id).then((token) => (token ? markSeen(token, channel.external_id, contactId) : null)),
+      )
     }
     return // comme en V1, une image seule ne déclenche pas de réponse automatique
   }
