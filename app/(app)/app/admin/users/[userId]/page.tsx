@@ -221,7 +221,7 @@ export default function AdminUserDetailPage() {
             {data.channels.map((c) => (
               <div key={c.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
                 <span className="font-medium">
-                  {c.provider} {c.handle ? `@${c.handle}` : ''}
+                  {c.provider} {c.handle ? (c.provider === 'instagram' ? `@${c.handle}` : c.handle) : ''}
                 </span>
                 <Badge tone={CHANNEL_STATUS[c.status].tone}>{CHANNEL_STATUS[c.status].label}</Badge>
               </div>

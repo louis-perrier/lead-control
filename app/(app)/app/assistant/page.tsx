@@ -179,6 +179,7 @@ function AccountRow({
   startBody,
   disconnectPath,
   disconnectMessage,
+  beforeConnect,
 }: {
   provider: 'calendly' | 'google'
   name: string
@@ -187,6 +188,7 @@ function AccountRow({
   startBody: () => Record<string, unknown>
   disconnectPath: string
   disconnectMessage: string
+  beforeConnect?: () => Promise<void>
 }) {
   const { data: channels } = useChannelAccounts()
   const toast = useToast()
@@ -199,6 +201,7 @@ function AccountRow({
   async function connect() {
     setBusy(true)
     try {
+      await beforeConnect?.()
       const { auth_url } = await callFunction<{ auth_url: string }>(startPath, { body: startBody() })
       window.location.href = auth_url
     } catch {
@@ -235,12 +238,12 @@ function AccountRow({
           {viewingAs ? null : (
             <div className="ml-auto flex gap-2">
               {channel.status !== 'connected' ? (
-                <Button size="sm" onClick={connect} disabled={busy}>
+                <Button type="button" size="sm" onClick={connect} disabled={busy}>
                   <RefreshCw size={14} />
                   Reconnecter
                 </Button>
               ) : null}
-              <Button size="sm" variant="secondary" onClick={() => setConfirmOpen(true)} disabled={busy}>
+              <Button type="button" size="sm" variant="secondary" onClick={() => setConfirmOpen(true)} disabled={busy}>
                 Déconnecter
               </Button>
             </div>
@@ -250,7 +253,7 @@ function AccountRow({
         <>
           <span className="text-sm text-muted">{emptyText}</span>
           {viewingAs ? null : (
-            <Button size="sm" className="ml-auto" onClick={connect} disabled={busy}>
+            <Button type="button" size="sm" className="ml-auto" onClick={connect} disabled={busy}>
               {busy ? 'Ouverture…' : `Relier ${name}`}
             </Button>
           )}
@@ -379,7 +382,7 @@ function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
     <div className="space-y-3 border-t border-border pt-4">
       <div>
         <Label className="mb-0">Liens secondaires (optionnel)</Label>
-        <FieldHint>Proposés à la place de l'objectif principal quand leur condition correspond mieux.</FieldHint>
+        <FieldHint>Proposés à la place du lien ou de l'appel quand leur condition correspond mieux.</FieldHint>
       </div>
       {links.map((l) => (
         <div key={l.id} className="space-y-1.5 rounded-[10px] border border-border p-3">
@@ -433,15 +436,27 @@ const selectClass =
 // Lundi 8 h : l'aperçu montre des jours de semaine sans dépendre de l'agenda réel.
 const PREVIEW_NOW = Date.UTC(2026, 0, 5, 7, 0)
 
-function agendaPreview(agenda: AgendaSettings) {
-  if (agenda.first_offer === 0) return ['Demande au prospect le moment qui l’arrange.']
+// Sans date, deux plages le même jour de semaine se distinguent par « suivant ».
+function previewLabels(offers: { label: string }[]) {
+  const seen = new Map<string, number>()
+  return offers.map(({ label }) => {
+    const day = label.split(' ')[0]
+    const count = seen.get(day) ?? 0
+    seen.set(day, count + 1)
+    return count === 0 ? label : label.replace(day, `${day} suivant`)
+  })
+}
+
+function agendaPreview(agenda: AgendaSettings): { steps: string[]; possible: boolean } {
+  if (agenda.first_offer === 0) return { steps: ['Demande au prospect le moment qui l’arrange.'], possible: true }
   const offers = computeOffers({ now: PREVIEW_NOW, tz: 'Europe/Paris', settings: agenda, busy: [], withDate: false })
-  const first = offers.slice(0, agenda.first_offer).map((o) => o.label)
-  if (first.length === 0) return ['Aucune plage possible avec ces réglages.']
+  const labels = previewLabels(offers)
+  const first = labels.slice(0, agenda.first_offer)
+  if (first.length === 0) return { steps: ['Aucune plage possible avec ces réglages.'], possible: false }
   const steps = [`Propose ${first.join(' ou ')}.`]
-  for (const extra of offers.slice(agenda.first_offer)) steps.push(`Si ça ne va pas : ${extra.label}.`)
+  for (const extra of labels.slice(agenda.first_offer)) steps.push(`Si ça ne va pas : ${extra}.`)
   steps.push('Sinon, demande le moment qui l’arrange.')
-  return steps
+  return { steps, possible: true }
 }
 
 function GoalSection({
@@ -454,10 +469,14 @@ function GoalSection({
   allowCalendar: boolean
 }) {
   const { save, saving } = useSaveSettings(assistant)
+  const { data: channels } = useChannelAccounts()
+  const google = channels?.find((c) => c.provider === 'google')
   const s = assistant.settings
   const [stopText, setStopText] = useState(s.stop_condition?.text ?? '')
   const [stopLink, setStopLink] = useState(s.stop_condition?.link ?? '')
-  const [mode, setMode] = useState<'link' | 'calendar'>(allowCalendar && s.booking?.mode === 'calendar' ? 'calendar' : 'link')
+  // Les drapeaux arrivent après l'assistant : le mode affiché suit le réglage tant que rien n'est choisi.
+  const [modeChoice, setMode] = useState<'link' | 'calendar' | null>(null)
+  const mode = modeChoice ?? (allowCalendar && s.booking?.mode === 'calendar' ? 'calendar' : 'link')
   const [agenda, setAgenda] = useState<AgendaSettings>(normalizeAgenda(s.booking?.calendar))
   const [linkError, setLinkError] = useState('')
   const agendaError = mode === 'calendar' ? agendaSettingsError(agenda) : null
@@ -475,14 +494,22 @@ function GoalSection({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setLinkError('')
-    if (stopLink.trim() && !/^https?:\/\/\S+$/.test(stopLink.trim())) {
+    if (mode === 'link' && stopLink.trim() && !/^https?:\/\/\S+$/.test(stopLink.trim())) {
       setLinkError('Le lien doit commencer par http:// ou https://')
       return
     }
     if (agendaError) return
     save((fresh) => ({
       stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
-      booking: { ...fresh.booking, mode, calendar: agenda },
+      // Module masqué : le mode déjà enregistré n'est pas touché.
+      booking: { ...fresh.booking, mode: allowCalendar ? mode : fresh.booking?.mode ?? 'link', calendar: agenda },
+    }))
+  }
+
+  // La connexion quitte la page : le choix du mode agenda est enregistré avant.
+  async function saveCalendarChoice() {
+    await save((fresh) => ({
+      booking: { ...fresh.booking, mode: 'calendar', ...(agendaError ? {} : { calendar: agenda }) },
     }))
   }
 
@@ -509,8 +536,8 @@ function GoalSection({
 
           {modes.length > 1 ? (
             <div>
-              <Label>Le prospect réserve</Label>
-              <div role="radiogroup" className="inline-flex rounded-[10px] border border-border bg-bg p-1">
+              <Label id="bookingModeLabel">Le prospect réserve</Label>
+              <div role="radiogroup" aria-labelledby="bookingModeLabel" className="inline-flex rounded-[10px] border border-border bg-bg p-1">
                 {modes.map((m) => (
                   <button
                     key={m.value}
@@ -564,8 +591,12 @@ function GoalSection({
                 startPath="google-oauth/start"
                 startBody={() => ({ return_path: window.location.pathname })}
                 disconnectPath="google-oauth/disconnect"
-                disconnectMessage="L'assistant ne pourra plus réserver d'appel. Les rendez-vous déjà pris restent dans votre agenda."
+                disconnectMessage="L'assistant ne réservera plus d'appel et enverra votre lien à la place. Les rendez-vous déjà pris restent dans votre agenda."
+                beforeConnect={saveCalendarChoice}
               />
+              {!google ? (
+                <FieldHint>Tant que Google Agenda n'est pas relié, l'assistant envoie votre lien à la place.</FieldHint>
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <Label htmlFor="agendaDuration">Durée de l'appel</Label>
@@ -627,8 +658,9 @@ function GoalSection({
                 </div>
               </div>
               <div>
-                <Label>Quand vous prenez des appels</Label>
+                <Label id="callHoursLabel">Quand vous prenez des appels</Label>
                 <DaysHoursField
+                  labelledBy="callHoursLabel"
                   days={agenda.days}
                   onDays={(days) => patchAgenda({ days })}
                   start={agenda.start}
@@ -644,16 +676,18 @@ function GoalSection({
                   Ce que fait l'assistant, par exemple
                 </p>
                 <ol className="space-y-1 text-sm">
-                  {preview.map((step, i) => (
-                    <li key={step} className="flex gap-2">
+                  {preview.steps.map((step, i) => (
+                    <li key={i} className="flex gap-2">
                       <span className="text-muted">{i + 1}.</span>
                       <span>{step}</span>
                     </li>
                   ))}
-                  <li className="flex gap-2">
-                    <span className="text-muted">{preview.length + 1}.</span>
-                    <span>Fait préciser l'heure, demande l'e-mail, réserve avec un lien Meet envoyé en message.</span>
-                  </li>
+                  {preview.possible && !agendaError ? (
+                    <li className="flex gap-2">
+                      <span className="text-muted">{preview.steps.length + 1}.</span>
+                      <span>Fait préciser l'heure, demande l'e-mail, réserve avec un lien Meet envoyé en message.</span>
+                    </li>
+                  ) : null}
                 </ol>
               </div>
               <FieldError>{agendaError ?? ''}</FieldError>
@@ -676,7 +710,17 @@ const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 
 // Deux menus plutôt que le champ natif : il s'affiche en 12 h chez un navigateur anglophone.
-function TimeSelect({ value, onChange, disabled }: { value: string; onChange: (value: string) => void; disabled?: boolean }) {
+function TimeSelect({
+  value,
+  onChange,
+  disabled,
+  label = 'Heure',
+}: {
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+  label?: string
+}) {
   const [hour, minute] = value.split(':')
   const selectClass =
     'h-10 rounded-[10px] border border-border bg-surface px-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:opacity-50'
@@ -684,7 +728,7 @@ function TimeSelect({ value, onChange, disabled }: { value: string; onChange: (v
     <div className="flex items-center gap-1">
       <select
         disabled={disabled}
-        aria-label="Heures"
+        aria-label={`${label}, heures`}
         value={hour ?? '09'}
         onChange={(e) => onChange(`${e.target.value}:${minute ?? '00'}`)}
         className={selectClass}
@@ -697,7 +741,7 @@ function TimeSelect({ value, onChange, disabled }: { value: string; onChange: (v
       </select>
       <select
         disabled={disabled}
-        aria-label="Minutes"
+        aria-label={`${label}, minutes`}
         value={minute ?? '00'}
         onChange={(e) => onChange(`${hour ?? '09'}:${e.target.value}`)}
         className={selectClass}
@@ -719,6 +763,7 @@ function DaysHoursField({
   onStart,
   end,
   onEnd,
+  labelledBy,
 }: {
   days: boolean[]
   onDays: (days: boolean[]) => void
@@ -726,9 +771,10 @@ function DaysHoursField({
   onStart: (value: string) => void
   end: string
   onEnd: (value: string) => void
+  labelledBy?: string
 }) {
   return (
-    <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+    <div role="group" aria-labelledby={labelledBy} className="flex flex-wrap items-end gap-x-6 gap-y-3">
       <div className="flex flex-wrap gap-2">
         {DAY_LABELS.map((label, i) => (
           <button
@@ -749,11 +795,11 @@ function DaysHoursField({
       <div className="flex flex-wrap items-end gap-4">
         <div>
           <Label>De</Label>
-          <TimeSelect value={start} onChange={onStart} />
+          <TimeSelect value={start} onChange={onStart} label="Heure de début" />
         </div>
         <div>
           <Label>À</Label>
-          <TimeSelect value={end} onChange={onEnd} />
+          <TimeSelect value={end} onChange={onEnd} label="Heure de fin" />
         </div>
       </div>
     </div>
@@ -1910,8 +1956,9 @@ function ActivationSection({ assistant, allowCalendar }: { assistant: Assistant;
   if (!assistant.settings.context?.trim()) blockers.push('renseigner le contexte de vente')
   if (!assistant.settings.stop_condition?.text?.trim()) blockers.push("définir l'objectif de la conversation")
   const google = channels?.find((c) => c.provider === 'google')
-  if (allowCalendar && assistant.settings.booking?.mode === 'calendar' && google?.status !== 'connected') {
-    blockers.push('relier Google Agenda pour le mode agenda')
+  // Sans compte relié, l'assistant envoie le lien : seul un compte expiré bloque le mode agenda.
+  if (allowCalendar && assistant.settings.booking?.mode === 'calendar' && google && google.status !== 'connected') {
+    blockers.push('reconnecter Google Agenda')
   }
 
   async function toggle(value: boolean) {
@@ -1944,7 +1991,7 @@ function ActivationSection({ assistant, allowCalendar }: { assistant: Assistant;
           ) : null}
           {blockers.length > 0 ? (
             <p className="mt-0.5 text-sm text-muted">
-              Avant d'activer : {blockers.join(', ')}.
+              {assistant.is_active ? 'À régler' : "Avant d'activer"} : {blockers.join(', ')}.
             </p>
           ) : assistant.is_active ? (
             <p className="mt-0.5 text-sm text-muted">
@@ -1998,18 +2045,30 @@ function AssistantContent() {
     } else if (searchParams.get('calendly_error')) {
       toast('La connexion Calendly a échoué. Réessayez.', 'error')
       window.history.replaceState(null, '', window.location.pathname)
-    } else if (searchParams.get('google_connected') === '1') {
-      toast('Google Agenda connecté.')
-      invalidate('channel-accounts')
+    } else if (searchParams.get('google_code') && searchParams.get('google_state')) {
+      const code = searchParams.get('google_code')
+      const state = searchParams.get('google_state')
+      // Le code ne doit pas rester dans l'adresse ni être rejoué au rechargement.
       window.history.replaceState(null, '', window.location.pathname)
+      toast('Connexion de Google Agenda…')
+      callFunction('google-oauth/finish', { body: { code, state } })
+        .then(() => {
+          toast('Google Agenda connecté.')
+          invalidate('channel-accounts', 'assistants')
+        })
+        .catch((e: unknown) =>
+          toast(
+            String(e).includes('scope_missing')
+              ? 'Cochez les deux accès à l’agenda demandés par Google, puis réessayez.'
+              : 'La connexion Google a échoué. Réessayez.',
+            'error',
+          ),
+        )
     } else if (searchParams.get('google_error')) {
-      const reason = searchParams.get('google_error')
       toast(
-        reason === 'scope_missing'
-          ? 'Cochez les deux accès à l’agenda demandés par Google, puis réessayez.'
-          : reason === 'denied'
-            ? 'Connexion Google annulée.'
-            : 'La connexion Google a échoué. Réessayez.',
+        searchParams.get('google_error') === 'denied'
+          ? 'Connexion Google annulée.'
+          : 'La connexion Google a expiré. Réessayez.',
         'error',
       )
       window.history.replaceState(null, '', window.location.pathname)

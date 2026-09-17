@@ -40,13 +40,14 @@ describe('nextAction', () => {
   it('signale ce qui demande le coach', () => {
     expect(nextAction({ ...base, automation_state: 'error' }, opts)).toEqual({ key: 'error', needsCoach: true })
     expect(nextAction({ ...base, automation_state: 'stopped', automation_reason: 'human_takeover' }, opts)?.key).toBe('awaiting_reply')
+    expect(nextAction({ ...base, automation_state: 'condition_stop', automation_reason: 'calendar_booked' }, opts)?.key).toBe('awaiting_reply')
   })
 
   it('montre la relance prévue et l’assistant au travail', () => {
     expect(nextAction(base, { ...opts, followupAt: hoursAgo(-3) })?.key).toBe('followup_planned')
     expect(nextAction({ ...base, automation_state: 'scheduled' }, opts)?.key).toBe('assistant_replying')
     expect(nextAction({ ...base, automation_state: 'scheduled', automation_reason: 'human_active' }, opts)?.key).toBe('awaiting_reply')
-    expect(nextAction({ ...base, automation_state: 'condition_stop' }, opts)?.key).toBe('goal_reached')
+    expect(nextAction({ ...base, automation_state: 'condition_stop', last_message_at: hoursAgo(1) }, opts)?.key).toBe('goal_reached')
   })
 
   it('ne propose la relance à la main qu’avec Human Agent', () => {

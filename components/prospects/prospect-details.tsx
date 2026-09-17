@@ -15,7 +15,8 @@ export function useBooking(conversationId: number) {
         .from('bookings')
         .select('id, provider, meet_link, conversation_id, event_type_name, invitee_email, invitee_name, event_start_at, event_end_at, status')
         .eq('conversation_id', conversationId)
-        .order('event_start_at', { ascending: false })
+        .order('status', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
       return data as Booking | null

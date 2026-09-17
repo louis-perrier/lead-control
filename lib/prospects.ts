@@ -54,7 +54,12 @@ export function nextAction(
   const lastCustomer = conv.last_customer_message_at ? Date.parse(conv.last_customer_message_at) : NaN
   const lastMessage = conv.last_message_at ? Date.parse(conv.last_message_at) : NaN
   const customerWroteLast = Number.isFinite(lastCustomer) && !(lastMessage > lastCustomer)
-  if (conv.automation_state === 'stopped' && conv.automation_reason !== 'imported_history' && customerWroteLast) {
+  // En pause ou objectif atteint, l'agent ne répond plus : le dernier message du prospect attend une personne.
+  if (
+    (conv.automation_state === 'stopped' || conv.automation_state === 'condition_stop') &&
+    conv.automation_reason !== 'imported_history' &&
+    customerWroteLast
+  ) {
     return { key: 'awaiting_reply', needsCoach: true }
   }
   if (opts.followupAt) return { key: 'followup_planned', at: opts.followupAt, needsCoach: false }

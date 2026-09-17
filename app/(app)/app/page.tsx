@@ -12,7 +12,8 @@ export default function HomePage() {
 
   const assistant = assistants?.[0]
   const channel = useMemo(
-    () => channels?.find((c) => c.id === assistant?.channel_account_id) ?? channels?.[0],
+    () =>
+      channels?.find((c) => c.id === assistant?.channel_account_id) ?? channels?.find((c) => c.provider === 'instagram'),
     [channels, assistant],
   )
 
