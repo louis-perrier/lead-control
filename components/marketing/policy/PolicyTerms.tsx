@@ -5,7 +5,7 @@ const summaryPoints = [
   "La politique couvre la propriété intellectuelle, les représentations utilisateurs, les achats, les contributions et les activités interdites.",
   "La page fixe le cadre de responsabilité, les limitations, l’indemnisation et la gestion des données utilisateur.",
   "Elle renvoie vers la privacy policy, précise la loi applicable (France) et la résolution des litiges.",
-  "Le contact reste louis@lautopreneur.com et l’adresse de la société à Nantes.",
+  "Le contact reste louis.perrier.chenoise@gmail.com et l’adresse de la société à Nantes.",
 ];
 
 const tocItems = [
@@ -220,14 +220,14 @@ const sections = [
     id: "contact",
     title: "24. CONTACT US",
     paragraphs: [
-      "Pour toute question ou plainte, contactez-nous par email à louis@lautopreneur.com ou par courrier à l’adresse ci-dessous.",
+      "Pour toute question ou plainte, contactez-nous par email à louis.perrier.chenoise@gmail.com ou par courrier à l’adresse ci-dessous.",
     ],
     contactAddress: [
       "Lead Control",
       "7 All. Jean Baptiste Fourier",
       "Nantes, Pays de la Loire 44300",
       "France",
-      "Email: louis@lautopreneur.com",
+      "Email: louis.perrier.chenoise@gmail.com",
       "Lead Control is the trade name of the sole proprietorship PERRIER LOUIS, registered in France under SIRET 94079625300018.",
     ],
   },

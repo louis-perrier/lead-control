@@ -4,7 +4,7 @@ const summaryPoints = [
   "Visit our website at https://leadcontrol.fr or any of our platforms that link to this Privacy Notice.",
   "Download and use our Facebook application LeadControl (or any linked app).",
   "Engage with us through marketing, events, or any other related interaction.",
-  "Questions or concerns? Reading this Privacy Notice clarifies your rights; contact us at louis@lautopreneur.com if you still need help.",
+  "Questions or concerns? Reading this Privacy Notice clarifies your rights; contact us at louis.perrier.chenoise@gmail.com if you still need help.",
   "This summary lays out the main themes; follow the table of contents below to visit each section.",
   "Use the dedicated data deletion page (https://leadcontrol.fr/policy/data-deletion) to exercise your rights.",
 ];
@@ -131,7 +131,7 @@ const sections = [
     title: "9. DO WE COLLECT INFORMATION FROM MINORS?",
     paragraphs: [
       "We do not knowingly collect data from children under 18 or market to them. If we learn that we have collected such data, we will deactivate the account and delete the information promptly.",
-      "If you become aware of improperly collected data from minors, please contact us at louis@lautopreneur.com so we can act quickly.",
+      "If you become aware of improperly collected data from minors, please contact us at louis.perrier.chenoise@gmail.com so we can act quickly.",
     ],
   },
   {
@@ -163,7 +163,7 @@ const sections = [
     id: "contact",
     title: "13. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?",
     paragraphs: [
-      "If you have questions or comments, email us at louis@lautopreneur.com.",
+      "If you have questions or comments, email us at louis.perrier.chenoise@gmail.com.",
     ],
     contactAddress: [
       "Lead Control",

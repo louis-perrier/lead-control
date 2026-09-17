@@ -92,7 +92,7 @@ const PolicyDataDeletion = () => {
             Si vous ne pouvez plus accéder à votre compte et souhaitez supprimer vos données, contactez-nous :
           </p>
           <ul className={styles.contactList}>
-            <li>Email support : <strong>à compléter</strong> (ex : support@leadcontrol.fr)</li>
+            <li>Email support : <strong>louis.perrier.chenoise@gmail.com</strong></li>
           </ul>
           <p className={styles.sectionText}>
             Dans votre message, indiquez :

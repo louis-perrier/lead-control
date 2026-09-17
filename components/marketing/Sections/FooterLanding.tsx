@@ -16,7 +16,7 @@ const FooterLanding = () => {
       </div>
       <div className={styles.bottomBar}>
         <p className={styles.bottom}>
-          Contact: louis@lautopreneur.com - Copyright {new Date().getFullYear()} LeadControl.
+          Contact: louis.perrier.chenoise@gmail.com - Copyright {new Date().getFullYear()} LeadControl.
         </p>
         <div className={styles.bottomBadges}>
           <span className={styles.bottomBadge}>Instagram disponible</span>
