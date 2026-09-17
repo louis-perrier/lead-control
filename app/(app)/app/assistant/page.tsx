@@ -30,6 +30,8 @@ import {
 } from '@/supabase/functions/_shared/followup-text'
 import {
   DURATION_OPTIONS,
+  HORIZON_OPTIONS,
+  NOTICE_OPTIONS,
   RANGE_OPTIONS,
   agendaSettingsError,
   computeOffers,
@@ -656,6 +658,36 @@ function GoalSection({
                     <option value={2}>2 autres plages</option>
                   </select>
                 </div>
+                <div>
+                  <Label htmlFor="agendaNotice">Jamais avant</Label>
+                  <select
+                    id="agendaNotice"
+                    className={selectClass}
+                    value={agenda.notice_hours}
+                    onChange={(e) => patchAgenda({ notice_hours: Number(e.target.value) })}
+                  >
+                    {NOTICE_OPTIONS.map((h) => (
+                      <option key={h} value={h}>
+                        {h === 24 ? '24 h (le lendemain)' : `${h} h`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="agendaHorizon">Jamais au-delà de</Label>
+                  <select
+                    id="agendaHorizon"
+                    className={selectClass}
+                    value={agenda.horizon_days}
+                    onChange={(e) => patchAgenda({ horizon_days: Number(e.target.value) })}
+                  >
+                    {HORIZON_OPTIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d} jours
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <Label id="callHoursLabel">Quand vous prenez des appels</Label>
@@ -668,7 +700,10 @@ function GoalSection({
                   end={agenda.end}
                   onEnd={(end) => patchAgenda({ end })}
                 />
-                <FieldHint>Votre agenda principal est lu. Un événement marqué « Disponible » ne bloque pas.</FieldHint>
+                <FieldHint>
+                  Votre agenda principal est lu. Un événement marqué « Disponible » ne bloque pas. « Jamais avant » et « jamais
+                  au-delà » encadrent aussi une heure proposée par le prospect.
+                </FieldHint>
               </div>
               <div className="rounded-[10px] bg-bg px-3 py-2.5">
                 <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted">

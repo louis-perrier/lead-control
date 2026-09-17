@@ -2,8 +2,8 @@
 // Les erreurs Google ne remontent jamais : le modèle reçoit une consigne de repli.
 import { admin, logEvent } from '../_shared/core.ts'
 import {
-  AGENDA_HORIZON_MS,
   checkSlot,
+  horizonMs,
   isValidTimezone,
   momentLabel,
   normalizeAgenda,
@@ -13,6 +13,7 @@ import {
   timezoneLabel,
   type Interval,
   type OfferStep,
+  type AgendaSettings,
   type SlotCheck,
   type SlotRefusal,
   type StoredOffers,
@@ -52,13 +53,21 @@ export const FAILURE_MESSAGES: Record<AgendaFailure, string> = {
 export const LAST_ROUND_NOTE =
   'Plus aucun outil n’est disponible pour ce message : ne confirme aucun rendez-vous qui n’a pas été réservé par reserver_appel.'
 
-const REFUSALS: Record<SlotRefusal, string> = {
-  format: 'heure illisible, utilise le format AAAA-MM-JJTHH:MM avec des minutes multiples de 15',
-  nonexistent: 'cette heure n’existe pas ce jour-là (changement d’heure)',
-  too_soon: 'trop proche, il faut au moins 2 h de délai',
-  too_far: 'plus de 14 jours à l’avance',
-  outside_hours: 'en dehors des jours et heures d’appel',
-  busy: 'l’agenda est déjà pris à ce moment',
+function refusalText(reason: SlotRefusal, s: { notice_hours: number; horizon_days: number }) {
+  switch (reason) {
+    case 'format':
+      return 'heure illisible, utilise le format AAAA-MM-JJTHH:MM avec des minutes multiples de 15'
+    case 'nonexistent':
+      return 'cette heure n’existe pas ce jour-là (changement d’heure)'
+    case 'too_soon':
+      return `trop proche, il faut au moins ${s.notice_hours} h de délai`
+    case 'too_far':
+      return `plus de ${s.horizon_days} jours à l’avance`
+    case 'outside_hours':
+      return 'en dehors des jours et heures d’appel'
+    case 'busy':
+      return 'l’agenda est déjà pris à ce moment'
+  }
 }
 
 const BOOKING_FALLBACK =
@@ -99,10 +108,10 @@ export async function meetLinkSent(convId: number, link: string) {
   return (data?.length ?? 0) > 0
 }
 
-function describeCheck(check: SlotCheck) {
+function describeCheck(check: SlotCheck, s: AgendaSettings) {
   if (check.ok) return `Libre : ${check.label}.`
   const alts = check.alternatives.map((a) => `${a.label} (${a.debut})`).join(', ')
-  return `Indisponible : ${REFUSALS[check.reason]}. Moments libres proches : ${alts || 'aucun dans les 14 prochains jours'}.`
+  return `Indisponible : ${refusalText(check.reason, s)}. Moments libres proches : ${alts || `aucun dans les ${s.horizon_days} prochains jours`}.`
 }
 
 // Le nom vient du profil Instagram du prospect : il finit dans l'invitation envoyée par le compte.
@@ -134,7 +143,7 @@ export async function prepareAgendaTurn(opts: {
   if (account) {
     try {
       token = await getGoogleAccessToken(account)
-      busy = await freeBusy(account, token, now, now + AGENDA_HORIZON_MS)
+      busy = await freeBusy(account, token, now, now + horizonMs(s))
     } catch (e) {
       await logEvent('warn', 'assistant-dispatch', `agenda illisible conv=${convId}: ${String(e).slice(0, 200)}`, {
         user_id: userId,
@@ -179,8 +188,8 @@ export async function prepareAgendaTurn(opts: {
     const access = await ensureAccess()
     if ('error' in access) return { content: CHECK_FALLBACK, isError: true }
     try {
-      const current = busy ?? (await freeBusy(access.account, access.token, Date.now(), Date.now() + AGENDA_HORIZON_MS))
-      return { content: describeCheck(checkSlot({ value: debut, now: Date.now(), tz, settings: s, busy: current })) }
+      const current = busy ?? (await freeBusy(access.account, access.token, Date.now(), Date.now() + horizonMs(s)))
+      return { content: describeCheck(checkSlot({ value: debut, now: Date.now(), tz, settings: s, busy: current }), s) }
     } catch (_) {
       return { content: CHECK_FALLBACK, isError: true }
     }
@@ -202,9 +211,9 @@ export async function prepareAgendaTurn(opts: {
     let created: Awaited<ReturnType<typeof createMeetEvent>>
     try {
       // Relecture fraîche de l'agenda : la plage a pu se remplir depuis le début du tour.
-      const current = await freeBusy(access.account, access.token, Date.now(), Date.now() + AGENDA_HORIZON_MS)
+      const current = await freeBusy(access.account, access.token, Date.now(), Date.now() + horizonMs(s))
       check = checkSlot({ value: debut, now: Date.now(), tz, settings: s, busy: current })
-      if (!check.ok) return { content: describeCheck(check) }
+      if (!check.ok) return { content: describeCheck(check, s) }
       const who = safeName(opts.contactName) || (opts.contactHandle ? `@${opts.contactHandle}` : 'prospect Instagram')
       created = await createMeetEvent({
         account: access.account,

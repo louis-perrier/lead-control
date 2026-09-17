@@ -211,6 +211,23 @@ describe('réglages', () => {
     expect(agendaSettingsError(settings)).toBeNull()
   })
 
+  it('respecte le préavis et l’horizon choisis', () => {
+    const strict: AgendaSettings = { ...settings, notice_hours: 24, horizon_days: 7 }
+    // Le lendemain 14 h est à moins de 24 h de maintenant (jeudi 15 h).
+    expect(checkSlot({ now: NOW, tz: TZ, settings: strict, busy: [], value: '2026-09-18T14:00' })).toMatchObject({
+      ok: false,
+      reason: 'too_soon',
+    })
+    expect(checkSlot({ now: NOW, tz: TZ, settings: strict, busy: [], value: '2026-09-21T14:00' })).toMatchObject({ ok: true })
+    expect(checkSlot({ now: NOW, tz: TZ, settings: strict, busy: [], value: '2026-09-28T14:00' })).toMatchObject({
+      ok: false,
+      reason: 'too_far',
+    })
+    // Les plages proposées restent dans l'horizon.
+    const offers = computeOffers({ now: NOW, tz: TZ, settings: strict, busy: [], count: 5 })
+    expect(offers.every((o) => o.start <= NOW + 8 * 86_400_000)).toBe(true)
+  })
+
   it('reconnaît un fuseau invalide', () => {
     expect(isValidTimezone('Europe/Paris')).toBe(true)
     expect(isValidTimezone('Paris')).toBe(false)

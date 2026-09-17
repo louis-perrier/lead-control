@@ -9,6 +9,8 @@ export type AgendaSettings = {
   days: boolean[]
   start: string
   end: string
+  notice_hours: number
+  horizon_days: number
 }
 
 export const AGENDA_DEFAULTS: AgendaSettings = {
@@ -19,14 +21,20 @@ export const AGENDA_DEFAULTS: AgendaSettings = {
   days: [true, true, true, true, true, false, false],
   start: '09:00',
   end: '19:00',
+  notice_hours: 2,
+  horizon_days: 14,
 }
 
 export const DURATION_OPTIONS = [15, 30, 45, 60, 90]
 export const RANGE_OPTIONS = [1, 2, 3, 4]
+export const NOTICE_OPTIONS = [2, 4, 8, 12, 24]
+export const HORIZON_OPTIONS = [7, 14, 21, 30]
 
-const HORIZON_DAYS = 14
-const MIN_NOTICE_MS = 2 * 60 * 60 * 1000
 const STEP_MIN = 15
+
+const noticeMs = (s: AgendaSettings) => s.notice_hours * 3_600_000
+// Un jour de plus que l'horizon des plages : le prospect peut citer une heure du dernier jour.
+export const horizonMs = (s: AgendaSettings) => (s.horizon_days + 1) * 86_400_000
 
 export type Interval = { start: number; end: number }
 export type Offer = { start: number; end: number; label: string }
@@ -48,6 +56,8 @@ export function normalizeAgenda(raw: Partial<AgendaSettings> | null | undefined)
     days,
     start: /^\d{2}:\d{2}$/.test(s.start) ? s.start : AGENDA_DEFAULTS.start,
     end: /^\d{2}:\d{2}$/.test(s.end) ? s.end : AGENDA_DEFAULTS.end,
+    notice_hours: NOTICE_OPTIONS.includes(s.notice_hours) ? s.notice_hours : AGENDA_DEFAULTS.notice_hours,
+    horizon_days: HORIZON_OPTIONS.includes(s.horizon_days) ? s.horizon_days : AGENDA_DEFAULTS.horizon_days,
   }
 }
 
@@ -222,8 +232,8 @@ function pick(cands: Candidate[], preferred: Period, avoid: Period | null) {
   return null
 }
 
-export function offerStillFree(o: Offer, now: number, busy: Interval[]) {
-  return o.start >= now + MIN_NOTICE_MS && !overlaps(o.start, o.end, busy)
+export function offerStillFree(o: Offer, now: number, busy: Interval[], s: AgendaSettings) {
+  return o.start >= now + noticeMs(s) && !overlaps(o.start, o.end, busy)
 }
 
 export function offerCount(s: AgendaSettings) {
@@ -244,13 +254,13 @@ export function computeOffers(opts: {
   const { now, tz, settings: s, busy } = opts
   const count = opts.count ?? offerCount(s)
   const today = zonedParts(now, tz)
-  const notBefore = now + MIN_NOTICE_MS
-  const kept = (opts.keep ?? []).filter((o) => offerStillFree(o, now, busy))
+  const notBefore = now + noticeMs(s)
+  const kept = (opts.keep ?? []).filter((o) => offerStillFree(o, now, busy, s))
   if (kept.length >= count) return kept.slice(0, count)
 
   const keptDays = new Set(kept.map((o) => dayKey(o.start, tz)))
   const perDay: Candidate[][] = []
-  for (let i = 1; i <= HORIZON_DAYS; i++) {
+  for (let i = 1; i <= s.horizon_days; i++) {
     const date = dayOffset(today, i)
     const cands =
       s.days[date.weekday] && !keptDays.has(`${date.year}-${date.month}-${date.day}`)
@@ -336,7 +346,7 @@ export function planOffers(opts: {
   const isSent = (o: Offer) => base.sent.includes(o.start)
   // Les plages déjà envoyées passent devant : ce sont celles qu'on doit garder en priorité.
   const keep = [...base.offers.filter(isSent), ...base.offers.filter((o) => !isSent(o))]
-  const sentStillFree = keep.filter((o) => isSent(o) && offerStillFree(o, opts.now, opts.busy)).length
+  const sentStillFree = keep.filter((o) => isSent(o) && offerStillFree(o, opts.now, opts.busy, s)).length
   const offers = computeOffers({
     now: opts.now,
     tz,
@@ -408,8 +418,8 @@ export function checkSlot(opts: { value: string; now: number; tz: string; settin
   }
   const end = start + s.duration_min * 60_000
   if (parsed.minutes % STEP_MIN !== 0) return refuse('format', start)
-  if (start < now + MIN_NOTICE_MS) return refuse('too_soon', now)
-  if (start > now + (HORIZON_DAYS + 1) * 86_400_000) return refuse('too_far', now)
+  if (start < now + noticeMs(s)) return refuse('too_soon', now)
+  if (start > now + horizonMs(s)) return refuse('too_far', now)
   if (!slotFits(start, s, tz)) return refuse('outside_hours', start)
   if (overlaps(start, end, busy)) return refuse('busy', start)
   return { ok: true, start, end, label: momentLabel(start, tz) }
@@ -418,8 +428,8 @@ export function checkSlot(opts: { value: string; now: number; tz: string; settin
 // Les deux premiers moments libres à partir de l'heure demandée, par pas de 30 minutes.
 function nearbySlots(from: number, now: number, tz: string, s: AgendaSettings, busy: Interval[]) {
   const out: { debut: string; label: string }[] = []
-  const earliest = now + MIN_NOTICE_MS
-  const limit = now + (HORIZON_DAYS + 1) * 86_400_000
+  const earliest = now + noticeMs(s)
+  const limit = now + horizonMs(s)
   let t = Math.ceil(Math.max(from, earliest) / 1_800_000) * 1_800_000
   while (out.length < 2 && t <= limit) {
     const end = t + s.duration_min * 60_000
@@ -433,9 +443,18 @@ function nearbySlots(from: number, now: number, tz: string, s: AgendaSettings, b
   return out
 }
 
-export const AGENDA_HORIZON_MS = (HORIZON_DAYS + 1) * 86_400_000
-
 // Clé des plages mémorisées : un changement de réglage ou de fuseau les recalcule.
 export function offersKey(s: AgendaSettings, tz: string) {
-  return JSON.stringify([tz, s.duration_min, s.range_hours, s.first_offer, s.extra_offers, s.days, s.start, s.end])
+  return JSON.stringify([
+    tz,
+    s.duration_min,
+    s.range_hours,
+    s.first_offer,
+    s.extra_offers,
+    s.days,
+    s.start,
+    s.end,
+    s.notice_hours,
+    s.horizon_days,
+  ])
 }
