@@ -438,6 +438,10 @@ async function handleConversation(due: DueConversation) {
     messages = await fetchWindow(convId, due.pending_cursor_at)
   }
 
+  // « En train d'écrire » avant de solliciter le modèle : sa réflexion et sa rédaction
+  // deviennent du temps de frappe visible, au lieu d'un blanc suivi d'un message instantané.
+  await sendTypingOn(token, igUserId, conv.contact_external_id)
+
   // Calculé après les réponses préenregistrées : elles remplacent metadata.
   let agenda: AgendaTurn | null = null
   if (await agendaEnabled(due.user_id, settings)) {
