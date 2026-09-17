@@ -185,3 +185,11 @@ contexte.md
 *.ZIP
 archive/
 billing-v1-rootowned/
+
+# Texte du prompt de l'agent : gardé hors du dépôt public, présent sur la machine
+supabase/functions/assistant-dispatch/prompt.ts
+supabase/functions/assistant-dispatch/agenda-prompt.ts
+tests/prompt-golden.test.ts
+tests/prompt-silence.test.ts
+tests/agenda-prompt.test.ts
+tests/system-blocks.test.ts

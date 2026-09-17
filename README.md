@@ -16,6 +16,10 @@ Live: **https://leadcontrol.fr**
 
 **Auth.** Supabase email and password. Login, signup, password reset and recovery all return the same generic message whether or not the account exists, so the forms never confirm an address to someone probing them.
 
+## Note on the agent prompt
+
+The sales prompt the agent runs on is not in this repository, and neither are the tests that quote it. Cloning this repo gives you the whole product except that text, so `assistant-dispatch` will not build without it.
+
 ## Stack
 
 | Layer | Choice |
