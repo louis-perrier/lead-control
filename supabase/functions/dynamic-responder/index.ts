@@ -36,6 +36,7 @@ async function revokeByPlatformUserId(platformUserId: string) {
   const { data: accounts } = await admin
     .from('channel_accounts')
     .select('id')
+    .eq('provider', 'instagram')
     .eq('external_id', platformUserId)
   for (const account of accounts ?? []) {
     await admin.schema('secrets').from('channel_tokens').delete().eq('channel_account_id', account.id)
