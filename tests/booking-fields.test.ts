@@ -63,7 +63,7 @@ describe('buildAsks', () => {
       extra_fields: [
         { label: 'Un', kind: 'text' },
         { label: 'Deux', kind: 'phone' },
-        { label: 'Trois', kind: 'email' },
+        { label: 'Trois', kind: 'text' },
         { label: 'Quatre', kind: 'text' },
       ],
     })

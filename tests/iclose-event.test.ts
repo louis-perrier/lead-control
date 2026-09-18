@@ -107,14 +107,15 @@ describe('normalizeIclose', () => {
         { label: 'Un', kind: 'phone' },
         { label: '  ', kind: 'text' },
         { label: 'un', kind: 'text' },
-        { label: 'Deux', kind: 'email' },
+        // Type retiré de l'écran : une valeur enregistrée avant redevient une réponse libre.
+        { label: 'Deux', kind: 'email' as 'text' },
         { label: 'Trois', kind: 'text' },
         { label: 'Quatre', kind: 'text' },
       ],
     })
     expect(s.extra_fields).toEqual([
       { label: 'Un', kind: 'phone' },
-      { label: 'Deux', kind: 'email' },
+      { label: 'Deux', kind: 'text' },
       { label: 'Trois', kind: 'text' },
     ])
   })

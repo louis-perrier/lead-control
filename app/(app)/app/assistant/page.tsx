@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, Instagram, Plus, RefreshCw } from 'lucide-react'
+import { CalendarDays, Copy, Instagram, Plus, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
 import { isViewAsReadOnly, useViewAsTargetId } from '@/lib/view-as/state'
@@ -41,7 +41,10 @@ import {
 import { normalizeCalendly, type CalendlySettings } from '@/supabase/functions/_shared/calendly-settings'
 import { normalizeIclose, type IcloseSettings } from '@/supabase/functions/_shared/iclose-settings'
 import {
+  BOOKING_NOTICE_OPTIONS,
   FIELD_KINDS,
+  KIND_DEFAULT_LABEL,
+  hasUnnamedField,
   MAX_EXTRA_FIELDS,
   OFFER_STYLES,
   RANGE_HOUR_OPTIONS,
@@ -49,7 +52,15 @@ import {
   type OfferStyle,
 } from '@/supabase/functions/_shared/booking-settings'
 import { formatDuration } from '@/lib/audio'
-import type { AssistedFollowup, Assistant, AssistantSettings, CannedResponse, ContextDocument, FollowupItem } from '@/lib/types'
+import type {
+  AssistedFollowup,
+  Assistant,
+  AssistantSettings,
+  CannedResponse,
+  ChannelAccount,
+  ContextDocument,
+  FollowupItem,
+} from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -479,9 +490,21 @@ function StepsPreview({ title, steps }: { title: string; steps: string[] }) {
   )
 }
 
-type OfferShape = { range_hours: number; first_offer: number; extra_offers: number; offer_style: OfferStyle }
+type OfferShape = {
+  range_hours: number
+  first_offer: number
+  extra_offers: number
+  offer_style: OfferStyle
+  notice_hours: number
+}
 
-// Les quatre listes de proposition, identiques d'un outil de réservation à l'autre.
+const NOTICE_LABELS: Record<number, string> = {
+  0: 'Celui de votre page',
+  24: '24 h (le lendemain)',
+  48: '48 h (2 jours)',
+}
+
+// Les listes de proposition, identiques d'un outil de réservation à l'autre.
 function OfferStyleFields({
   prefix,
   settings,
@@ -494,7 +517,7 @@ function OfferStyleFields({
   const exact = settings.offer_style === 'slot'
   return (
     <>
-      <div className={exact ? 'grid items-end gap-3 sm:grid-cols-3' : 'grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4'}>
+      <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <Label htmlFor={`${prefix}Style`}>Ce que l'assistant propose</Label>
           <select
@@ -555,12 +578,31 @@ function OfferStyleFields({
             <option value={2}>{exact ? '2 autres créneaux' : '2 autres plages'}</option>
           </select>
         </div>
+        <div>
+          <Label htmlFor={`${prefix}Notice`}>Jamais avant</Label>
+          <select
+            id={`${prefix}Notice`}
+            className={selectClass}
+            value={settings.notice_hours}
+            onChange={(e) => onPatch({ notice_hours: Number(e.target.value) })}
+          >
+            {BOOKING_NOTICE_OPTIONS.map((h) => (
+              <option key={h} value={h}>
+                {NOTICE_LABELS[h] ?? `${h} h`}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <FieldHint>
         {exact
           ? 'L’assistant propose des heures exactes, deux le même jour quand la journée en offre assez, sinon sur deux jours.'
           : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel."}
+      </FieldHint>
+      <FieldHint>
+        « Jamais avant » s’ajoute au délai déjà réglé sur votre page de réservation, il ne le raccourcit jamais. En
+        dessous de ce délai, l’assistant ne propose rien et refuse aussi une heure que le prospect demanderait.
       </FieldHint>
     </>
   )
@@ -579,6 +621,18 @@ function ExtraFieldsBlock({
   fields: BookingField[]
   onFields: (next: BookingField[]) => void
 }) {
+  // Changer le type remplace le nom tant qu'il est resté celui proposé : sinon un nom choisi à la
+  // main serait écrasé.
+  function changeKind(index: number, kind: BookingField['kind']) {
+    onFields(
+      fields.map((f, k) => {
+        if (k !== index) return f
+        const proposed = !f.label.trim() || f.label === KIND_DEFAULT_LABEL[f.kind]
+        return { kind, label: proposed ? KIND_DEFAULT_LABEL[kind] : f.label }
+      }),
+    )
+  }
+
   return (
     <div className="rounded-[10px] border border-border p-3">
       <Label className="mb-0">Informations à demander avant de réserver</Label>
@@ -594,19 +648,11 @@ function ExtraFieldsBlock({
         ))}
         {fields.map((f, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2">
-            <Input
-              value={f.label}
-              placeholder="Ce que l'assistant demande, par exemple Numéro de téléphone"
-              onChange={(e) => onFields(fields.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))}
-              className="min-w-[12rem] flex-1"
-            />
             <select
               className={`${selectClass} w-auto`}
-              aria-label="Type d'information"
+              aria-label="Information à demander"
               value={f.kind}
-              onChange={(e) =>
-                onFields(fields.map((x, k) => (k === i ? { ...x, kind: e.target.value as BookingField['kind'] } : x)))
-              }
+              onChange={(e) => changeKind(i, e.target.value as BookingField['kind'])}
             >
               {FIELD_KINDS.map((k) => (
                 <option key={k.value} value={k.value}>
@@ -614,19 +660,33 @@ function ExtraFieldsBlock({
                 </option>
               ))}
             </select>
+            <Input
+              value={f.label}
+              aria-label={`Nom du champ chez ${toolName}`}
+              placeholder={`Nom du champ chez ${toolName}`}
+              onChange={(e) => onFields(fields.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))}
+              className="min-w-[12rem] flex-1"
+            />
             <Button type="button" size="sm" variant="ghost" onClick={() => onFields(fields.filter((_, k) => k !== i))}>
               Retirer
             </Button>
           </div>
         ))}
       </div>
+      {fields.length > 0 ? (
+        <FieldHint>
+          Le nom sert à demander l’information, et à la rattacher au bon champ chez {toolName} : écrivez-le comme sur
+          votre page de réservation. Sinon la réponse reste ici, sur la fiche du prospect et dans le message Slack.
+        </FieldHint>
+      ) : null}
+      <FieldError>{hasUnnamedField(fields) ? 'Donnez un nom à chaque information à demander.' : ''}</FieldError>
       {fields.length < MAX_EXTRA_FIELDS ? (
         <Button
           type="button"
           size="sm"
           variant="secondary"
           className="mt-2.5"
-          onClick={() => onFields([...fields, { label: '', kind: 'text' }])}
+          onClick={() => onFields([...fields, { label: KIND_DEFAULT_LABEL.phone, kind: 'phone' }])}
         >
           <Plus size={14} />
           Ajouter une information
@@ -698,6 +758,64 @@ const icloseError = (e: unknown) =>
 
 // iClose ne propose pas de bouton de connexion : le client colle une clé d'API, vérifiée par un
 // vrai appel avant d'être gardée.
+// iClose n'offre aucun moyen d'enregistrer un webhook par l'API : le client le pose à la main.
+// L'encadré reste tant qu'aucun appel n'est arrivé, c'est la seule preuve que l'adresse est bonne.
+function IcloseWebhookStep({ account }: { account: ChannelAccount }) {
+  const toast = useToast()
+  const meta = (account.metadata ?? {}) as Record<string, unknown>
+  const token = typeof meta.webhook_token === 'string' ? meta.webhook_token : ''
+  const seenAt = typeof meta.webhook_seen_at === 'string' ? meta.webhook_seen_at : ''
+  const url = token ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/iclose-webhook/${token}` : ''
+
+  if (seenAt) {
+    return (
+      <FieldHint>
+        Réservations suivies : dernier signal reçu d'iClose le {new Date(seenAt).toLocaleString('fr-FR')}.
+      </FieldHint>
+    )
+  }
+  if (meta.webhook_auto === true || !url) return null
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url)
+      toast('Adresse copiée.')
+    } catch {
+      toast('Copie impossible, sélectionnez l’adresse à la main.', 'error')
+    }
+  }
+
+  return (
+    <div className="mt-2.5 rounded-[10px] border border-border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Label className="mb-0">Une dernière étape, dans iClose</Label>
+        <Badge tone="warning">à faire</Badge>
+      </div>
+      <FieldHint>
+        iClose ne sait pas enregistrer cette adresse tout seul. Sans elle, un rendez-vous que le prospect prend depuis
+        votre lien ne remonte pas ici, et la conversation reste ouverte comme si rien ne s’était passé.
+      </FieldHint>
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        <Input
+          readOnly
+          value={url}
+          aria-label="Adresse à coller dans iClose"
+          onFocus={(e) => e.currentTarget.select()}
+          className="min-w-[14rem] flex-1 font-mono text-xs"
+        />
+        <Button type="button" size="sm" variant="secondary" onClick={copy}>
+          <Copy size={14} />
+          Copier
+        </Button>
+      </div>
+      <FieldHint>
+        Dans iClose : Réglages, Developer, Webhooks, Add webhook. Collez cette adresse et cochez les trois événements
+        Call booked, Call cancelled et Call rescheduled. Cet encadré disparaîtra au premier rendez-vous reçu.
+      </FieldHint>
+    </div>
+  )
+}
+
 function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }) {
   const { data: channels } = useChannelAccounts()
   const toast = useToast()
@@ -705,7 +823,6 @@ function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }
   const viewingAs = useViewAsTargetId() !== null
   const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState('')
-  const [webhookMissing, setWebhookMissing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const channel = channels?.find((c) => c.provider === 'iclose')
@@ -715,8 +832,7 @@ function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }
     setError('')
     try {
       await beforeConnect?.()
-      const res = await callFunction<{ webhook?: boolean }>('iclose-setup/key', { body: { api_key: apiKey.trim() } })
-      setWebhookMissing(res.webhook === false)
+      await callFunction('iclose-setup/key', { body: { api_key: apiKey.trim() } })
       setApiKey('')
       toast('iClose relié.')
       invalidate('channel-accounts')
@@ -785,12 +901,7 @@ function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }
         )
       ) : null}
       <FieldError>{error}</FieldError>
-      {webhookMissing ? (
-        <FieldError>
-          Clé acceptée, mais le suivi des réservations n'a pas pu être activé chez iClose. Les rendez-vous pris depuis
-          votre lien ne remonteront pas ici tant que ce n'est pas réglé : prévenez-nous.
-        </FieldError>
-      ) : null}
+      {channel && channel.status === 'connected' ? <IcloseWebhookStep account={channel} /> : null}
       {!channel ? (
         <FieldHint>
           Dans iClose : Réglages, Developer, API Keys. Si cette section n'apparaît pas, le forfait ne l'ouvre pas.
