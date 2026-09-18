@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
-  calendlyOffersKey,
-  checkCalendlySlot,
-  computeCalendlyOffers,
+  bookingOffersKey,
+  checkBookingSlot,
+  computeBookingOffers,
   offerStillBookable,
-  planCalendlyOffers,
+  planBookingOffers,
   runsOf,
-} from '../supabase/functions/_shared/calendly-slots'
+} from '../supabase/functions/_shared/slot-offers'
 import {
   CALENDLY_DEFAULTS,
   normalizeCalendly,
@@ -50,7 +50,7 @@ describe('runsOf', () => {
   })
 })
 
-describe('computeCalendlyOffers', () => {
+describe('computeBookingOffers', () => {
   const slots = [
     ...day(9, 18, 9, 19),
     ...day(9, 21, 9, 19),
@@ -59,7 +59,7 @@ describe('computeCalendlyOffers', () => {
   ]
 
   it('propose des jours espacés et des moments différents', () => {
-    const offers = computeCalendlyOffers({ now: NOW, tz: TZ, settings, slots, count: 3 })
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings, slots, count: 3 })
     expect(offers.map((o) => o.label)).toEqual([
       'vendredi 18 septembre entre 12 h et 15 h',
       'lundi 21 septembre entre 17 h et 19 h',
@@ -69,13 +69,13 @@ describe('computeCalendlyOffers', () => {
 
   it('ne propose jamais une plage sans créneau réservable', () => {
     const only = day(9, 18, 14, 16)
-    const [offer] = computeCalendlyOffers({ now: NOW, tz: TZ, settings, slots: only, count: 1 })
+    const [offer] = computeBookingOffers({ now: NOW, tz: TZ, settings, slots: only, count: 1 })
     expect(offer.start).toBe(paris(9, 18, 14))
     expect(offer.end).toBe(paris(9, 18, 16))
   })
 
   it('écarte une suite qui ne tient qu’un seul créneau', () => {
-    const offers = computeCalendlyOffers({ now: NOW, tz: TZ, settings, slots: [paris(9, 18, 14)], count: 2 })
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings, slots: [paris(9, 18, 14)], count: 2 })
     expect(offers).toEqual([])
   })
 
@@ -84,21 +84,21 @@ describe('computeCalendlyOffers', () => {
       { start: paris(9, 18, 12), end: paris(9, 18, 15), label: 'vendredi 18 septembre entre 12 h et 15 h' },
       { start: paris(9, 19, 12), end: paris(9, 19, 15), label: 'samedi 19 septembre entre 12 h et 15 h' },
     ]
-    const offers = computeCalendlyOffers({ now: NOW, tz: TZ, settings, slots, count: 2, keep })
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings, slots, count: 2, keep })
     expect(offers[0].label).toBe('vendredi 18 septembre entre 12 h et 15 h')
     expect(offers[1].label).not.toBe('samedi 19 septembre entre 12 h et 15 h')
   })
 
   it('laisse tomber une plage déjà passée', () => {
     const keep = [{ start: paris(9, 16, 12), end: paris(9, 16, 15), label: 'mercredi 16 septembre entre 12 h et 15 h' }]
-    const offers = computeCalendlyOffers({ now: NOW, tz: TZ, settings, slots, count: 1, keep })
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings, slots, count: 1, keep })
     expect(offers[0].start).toBeGreaterThan(NOW)
   })
 
   it('suit le passage à l’heure d’hiver', () => {
     // Dimanche 25 octobre 2026 : 3 h locales redeviennent 2 h.
     const late = [...day(10, 26, 9, 19)]
-    const [offer] = computeCalendlyOffers({
+    const [offer] = computeBookingOffers({
       now: Date.UTC(2026, 9, 24, 13, 0),
       tz: TZ,
       settings,
@@ -126,20 +126,22 @@ describe('offerStillBookable', () => {
   })
 })
 
-describe('planCalendlyOffers', () => {
+describe('planBookingOffers', () => {
+  const PAGE = 'https://api.calendly.com/event_types/aaa'
   const slots = [...day(9, 18, 9, 19), ...day(9, 21, 9, 19), ...day(9, 23, 9, 19), ...day(9, 25, 9, 19)]
 
   it('propose d’abord le nombre réglé', () => {
-    const { step } = planCalendlyOffers({ now: NOW, tz: TZ, settings, slots, stored: null })
+    const { step } = planBookingOffers({ now: NOW, tz: TZ, settings, page: PAGE, slots, stored: null })
     expect(step.kind).toBe('offer')
     if (step.kind === 'offer') expect(step.offers).toHaveLength(2)
   })
 
   it('demande directement quand aucune plage n’est proposée', () => {
-    const { step } = planCalendlyOffers({
+    const { step } = planBookingOffers({
       now: NOW,
       tz: TZ,
       settings: { ...settings, first_offer: 0 },
+      page: PAGE,
       slots,
       stored: null,
     })
@@ -147,24 +149,25 @@ describe('planCalendlyOffers', () => {
   })
 
   it('repropose une seule plage au tour suivant, puis demande', () => {
-    const first = planCalendlyOffers({ now: NOW, tz: TZ, settings, slots, stored: null })
+    const first = planBookingOffers({ now: NOW, tz: TZ, settings, page: PAGE, slots, stored: null })
     const sent = { ...first.stored, sent: first.stored.offers.slice(0, 2).map((o) => o.start), rounds: 1 }
-    const second = planCalendlyOffers({ now: NOW, tz: TZ, settings, slots, stored: sent })
+    const second = planBookingOffers({ now: NOW, tz: TZ, settings, page: PAGE, slots, stored: sent })
     expect(second.step.kind).toBe('offer')
     if (second.step.kind === 'offer') {
       expect(second.step.offers).toHaveLength(1)
       expect(second.step.proposed).toHaveLength(2)
     }
-    const third = planCalendlyOffers({ now: NOW, tz: TZ, settings, slots, stored: { ...second.stored, rounds: 2 } })
+    const third = planBookingOffers({ now: NOW, tz: TZ, settings, page: PAGE, slots, stored: { ...second.stored, rounds: 2 } })
     expect(third.step.kind).toBe('ask')
   })
 
   it('oublie les plages mémorisées quand la page de réservation change', () => {
-    const first = planCalendlyOffers({ now: NOW, tz: TZ, settings, slots, stored: null })
-    const other = planCalendlyOffers({
+    const first = planBookingOffers({ now: NOW, tz: TZ, settings, page: PAGE, slots, stored: null })
+    const other = planBookingOffers({
       now: NOW,
       tz: TZ,
-      settings: { ...settings, event_type_uri: 'https://api.calendly.com/event_types/zzz' },
+      settings,
+      page: 'https://api.calendly.com/event_types/zzz',
       slots,
       stored: first.stored,
     })
@@ -173,11 +176,11 @@ describe('planCalendlyOffers', () => {
   })
 })
 
-describe('checkCalendlySlot', () => {
+describe('checkBookingSlot', () => {
   const slots = day(9, 18, 9, 12)
 
   it('accepte un créneau réservable', () => {
-    const check = checkCalendlySlot({ value: '2026-09-18T10:30', slots, durationMin: 30, tz: TZ })
+    const check = checkBookingSlot({ value: '2026-09-18T10:30', slots, durationMin: 30, tz: TZ })
     expect(check.ok).toBe(true)
     if (check.ok) {
       expect(check.start).toBe(paris(9, 18, 10, 30))
@@ -186,7 +189,7 @@ describe('checkCalendlySlot', () => {
   })
 
   it('refuse une heure illisible sans proposer de repli', () => {
-    const check = checkCalendlySlot({ value: 'demain vers midi', slots, durationMin: 30, tz: TZ })
+    const check = checkBookingSlot({ value: 'demain vers midi', slots, durationMin: 30, tz: TZ })
     expect(check.ok).toBe(false)
     if (!check.ok) {
       expect(check.reason).toBe('format')
@@ -195,7 +198,7 @@ describe('checkCalendlySlot', () => {
   })
 
   it('refuse un créneau absent et propose deux repères espacés', () => {
-    const check = checkCalendlySlot({ value: '2026-09-18T13:00', slots, durationMin: 30, tz: TZ })
+    const check = checkBookingSlot({ value: '2026-09-18T13:00', slots, durationMin: 30, tz: TZ })
     expect(check.ok).toBe(false)
     if (!check.ok) {
       expect(check.reason).toBe('unavailable')
@@ -207,7 +210,7 @@ describe('checkCalendlySlot', () => {
 
   it('refuse une heure locale qui n’existe pas', () => {
     // Dimanche 29 mars 2026 : 2 h 30 locales n'existent pas.
-    const check = checkCalendlySlot({ value: '2026-03-29T02:30', slots, durationMin: 30, tz: TZ })
+    const check = checkBookingSlot({ value: '2026-03-29T02:30', slots, durationMin: 30, tz: TZ })
     expect(check.ok).toBe(false)
     if (!check.ok) expect(check.reason).toBe('nonexistent')
   })
@@ -227,6 +230,7 @@ describe('normalizeCalendly', () => {
   })
 
   it('change de clé quand un réglage bouge', () => {
-    expect(calendlyOffersKey(settings, TZ)).not.toBe(calendlyOffersKey({ ...settings, range_hours: 2 }, TZ))
+    expect(bookingOffersKey(settings, TZ, 'uri')).not.toBe(bookingOffersKey({ ...settings, range_hours: 2 }, TZ, 'uri'))
+    expect(bookingOffersKey(settings, TZ, 'uri')).not.toBe(bookingOffersKey(settings, TZ, 'autre'))
   })
 })

@@ -1,5 +1,5 @@
-// Plages proposées à partir des créneaux réservables renvoyés par Calendly.
-// Calendly applique déjà ses jours, ses heures, son délai minimum, son horizon et ses temps
+// Propositions bâties sur une liste de créneaux réservables fournie par l'outil de réservation.
+// L'outil applique déjà ses jours, ses heures, son délai minimum, son horizon et ses temps
 // tampon : on ne recalcule aucune disponibilité, on regroupe seulement ses créneaux.
 import {
   chooseOffers,
@@ -19,9 +19,16 @@ import {
   type OfferStep,
   type StoredOffers,
 } from './agenda-slots.ts'
-import { type CalendlySettings } from './calendly-settings.ts'
 
 const MINUTE = 60_000
+
+// Ce dont le calcul a besoin, sans rien savoir du fournisseur qui a produit les créneaux.
+export type OfferSettings = {
+  duration_min: number
+  range_hours: number
+  first_offer: number
+  extra_offers: number
+}
 
 export type Run = { start: number; end: number; slots: number[] }
 
@@ -68,10 +75,10 @@ export function offerStillBookable(o: Offer, slots: number[], durationMin: numbe
   return slots.filter((s) => s >= o.start && s <= last).length >= 2
 }
 
-export function computeCalendlyOffers(opts: {
+export function computeBookingOffers(opts: {
   now: number
   tz: string
-  settings: CalendlySettings
+  settings: OfferSettings
   slots: number[]
   count: number
   keep?: Offer[]
@@ -104,24 +111,25 @@ export function computeCalendlyOffers(opts: {
 }
 
 // Clé des plages mémorisées : changer de page de réservation ou de réglage les recalcule.
-export function calendlyOffersKey(s: CalendlySettings, tz: string) {
-  return JSON.stringify([tz, s.event_type_uri, s.duration_min, s.range_hours, s.first_offer, s.extra_offers])
+export function bookingOffersKey(s: OfferSettings, tz: string, page: string) {
+  return JSON.stringify([tz, page, s.duration_min, s.range_hours, s.first_offer, s.extra_offers])
 }
 
-export function planCalendlyOffers(opts: {
+export function planBookingOffers(opts: {
   now: number
   tz: string
-  settings: CalendlySettings
+  settings: OfferSettings
+  page: string
   slots: number[]
   stored: Partial<StoredOffers> | null | undefined
 }): { stored: StoredOffers; step: OfferStep } {
   const { settings: s, tz, slots } = opts
-  const base = storedBase(calendlyOffersKey(s, tz), opts.stored)
+  const base = storedBase(bookingOffersKey(s, tz, opts.page), opts.stored)
   const keep = keepOrder(base)
   const sentStillFree = keep.filter(
     (o) => base.sent.includes(o.start) && o.start > opts.now && offerStillBookable(o, slots, s.duration_min),
   ).length
-  const offers = computeCalendlyOffers({
+  const offers = computeBookingOffers({
     now: opts.now,
     tz,
     settings: s,
@@ -132,11 +140,11 @@ export function planCalendlyOffers(opts: {
   return planFromOffers(base, offers, { firstOffer: s.first_offer, extraOffers: s.extra_offers })
 }
 
-export type CalendlyRefusal = 'format' | 'nonexistent' | 'unavailable'
+export type BookingRefusal = 'format' | 'nonexistent' | 'unavailable'
 
-export type CalendlyCheck =
+export type BookingCheck =
   | { ok: true; start: number; end: number; label: string }
-  | { ok: false; reason: CalendlyRefusal; alternatives: { debut: string; label: string }[] }
+  | { ok: false; reason: BookingRefusal; alternatives: { debut: string; label: string }[] }
 
 // Deux propositions de repli, assez espacées pour ne pas se ressembler.
 function nearbySlots(target: number, slots: number[], tz: string) {
@@ -152,12 +160,12 @@ function nearbySlots(target: number, slots: number[], tz: string) {
     .map((s) => ({ debut: localIso(s, tz), label: momentLabel(s, tz) }))
 }
 
-export function checkCalendlySlot(opts: {
+export function checkBookingSlot(opts: {
   value: string
   slots: number[]
   durationMin: number
   tz: string
-}): CalendlyCheck {
+}): BookingCheck {
   const { slots, tz } = opts
   const parsed = parseLocalIso(opts.value)
   if (!parsed) return { ok: false, reason: 'format', alternatives: [] }

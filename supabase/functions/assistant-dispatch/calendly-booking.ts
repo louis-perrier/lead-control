@@ -2,7 +2,7 @@
 // réservation. Une panne côté Calendly ne met jamais la conversation en erreur tant qu'aucun
 // rendez-vous n'est pris : l'assistant retombe sur l'envoi du lien de réservation.
 import { admin, logEvent } from '../_shared/core.ts'
-import { checkCalendlySlot, planCalendlyOffers, type CalendlyCheck } from '../_shared/calendly-slots.ts'
+import { checkBookingSlot, planBookingOffers, type BookingCheck } from '../_shared/slot-offers.ts'
 import { normalizeCalendly, type CalendlySettings } from '../_shared/calendly-settings.ts'
 import {
   isValidTimezone,
@@ -77,7 +77,7 @@ export async function activeCalendlyBooking(convId: number): Promise<CalendlyBoo
   return data ?? null
 }
 
-function describeCheck(check: CalendlyCheck) {
+function describeCheck(check: BookingCheck) {
   if (check.ok) return `Libre : ${check.label}.`
   const alts = check.alternatives.map((a) => `${a.label} (${a.debut})`).join(', ')
   if (check.reason === 'format') {
@@ -157,7 +157,14 @@ export async function prepareCalendlyTurn(opts: {
 
   const settings: CalendlySettings = { ...stored, duration_min: info?.durationMin ?? stored.duration_min }
   const planned = reachable
-    ? planCalendlyOffers({ now, tz, settings, slots, stored: opts.metadata.agenda_offers as Partial<StoredOffers> | undefined })
+    ? planBookingOffers({
+        now,
+        tz,
+        settings,
+        page: stored.event_type_uri,
+        slots,
+        stored: opts.metadata.agenda_offers as Partial<StoredOffers> | undefined,
+      })
     : null
   const step = planned?.step ?? null
 
@@ -185,7 +192,7 @@ export async function prepareCalendlyTurn(opts: {
 
   async function verify(debut: string): Promise<ToolOutcome> {
     if (!reachable) return { content: CHECK_FALLBACK, isError: true }
-    return { content: describeCheck(checkCalendlySlot({ value: debut, slots, durationMin: settings.duration_min, tz })) }
+    return { content: describeCheck(checkBookingSlot({ value: debut, slots, durationMin: settings.duration_min, tz })) }
   }
 
   async function insertBooking(row: Record<string, unknown>, eventUri: string) {
@@ -219,9 +226,9 @@ export async function prepareCalendlyTurn(opts: {
 
     const who = safeName(opts.contactName) || (opts.contactHandle ? `@${opts.contactHandle}` : 'Prospect Instagram')
     // Relecture fraîche : le créneau a pu partir depuis le début du tour.
-    let check: CalendlyCheck
+    let check: BookingCheck
     try {
-      check = checkCalendlySlot({ value: debut, slots: await freshSlots(), durationMin: settings.duration_min, tz })
+      check = checkBookingSlot({ value: debut, slots: await freshSlots(), durationMin: settings.duration_min, tz })
     } catch (e) {
       await warnAccount(userId, e)
       return bookingFailed(e)
