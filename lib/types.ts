@@ -29,7 +29,7 @@ export type Profile = {
 export type ChannelAccount = {
   id: string
   user_id: string
-  provider: 'instagram' | 'whatsapp' | 'calendly' | 'gmail' | 'google' | 'iclose'
+  provider: 'instagram' | 'whatsapp' | 'calendly' | 'gmail' | 'google' | 'iclose' | 'slack'
   external_id: string
   handle: string | null
   label: string | null

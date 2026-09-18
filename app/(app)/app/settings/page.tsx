@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
-import { useInvalidate, useProfile } from '@/lib/queries'
+import { useChannelAccounts, useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
+import { hasFeature } from '@/lib/features'
 import { Bell, BellOff, BellRing, ChevronRight, Share, Smartphone, SquarePlus } from 'lucide-react'
 import { disablePush, enablePush, useNotificationsEnabled, usePushState } from '@/lib/notifications'
 import type { PushState } from '@/lib/notifications'
@@ -497,6 +498,113 @@ function DangerCard() {
   )
 }
 
+// Un message dans le canal Slack choisi dès qu'un appel est réservé, quel que soit l'outil de
+// réservation. Le canal se choisit dans l'écran de Slack au moment de l'installation.
+function SlackCard() {
+  const { data: flags } = useFlags()
+  const { data: profile } = useProfile()
+  const { data: overrides } = useMyOverrides()
+  const { data: channels } = useChannelAccounts()
+  const invalidate = useInvalidate()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const slack = channels?.find((c) => c.provider === 'slack')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('slack_connected')) {
+      toast('Slack relié.')
+      invalidate('channel-accounts')
+    } else if (params.get('slack_error')) {
+      toast('La connexion Slack a échoué. Réessayez.', 'error')
+    } else {
+      return
+    }
+    params.delete('slack_connected')
+    params.delete('slack_error')
+    const rest = params.toString()
+    window.history.replaceState({}, '', window.location.pathname + (rest ? `?${rest}` : ''))
+    // Une seule lecture au retour de Slack : les paramètres sont retirés juste après.
+  }, [])
+
+  if (!hasFeature('slack_notifications', flags, profile, overrides)) return null
+
+  async function connect() {
+    setBusy(true)
+    try {
+      const { auth_url } = await callFunction<{ auth_url: string }>('slack-oauth/start', {
+        body: { return_to: window.location.href },
+      })
+      window.location.href = auth_url
+    } catch {
+      toast('Impossible de démarrer la connexion Slack.', 'error')
+      setBusy(false)
+    }
+  }
+
+  async function disconnect() {
+    setBusy(true)
+    try {
+      await callFunction('slack-oauth/disconnect', { body: {} })
+      toast('Slack déconnecté.')
+      invalidate('channel-accounts')
+    } catch {
+      toast('La déconnexion a échoué.', 'error')
+    }
+    setBusy(false)
+    setConfirmOpen(false)
+  }
+
+  return (
+    <Card>
+      <CardHeader title="Slack" description="Un message dans votre canal dès qu’un appel est réservé." />
+      <CardBody className="flex flex-wrap items-center gap-3 text-sm">
+        {slack ? (
+          <>
+            <span className="min-w-0 truncate">
+              {slack.handle ?? 'Espace Slack'}
+              {slack.label ? `, canal ${slack.label}` : ''}
+            </span>
+            {slack.status === 'connected' ? (
+              <Badge tone="success">Connecté</Badge>
+            ) : (
+              <Badge tone="warning">À reconnecter</Badge>
+            )}
+            <div className="ml-auto flex gap-2">
+              {slack.status !== 'connected' ? (
+                <Button onClick={connect} disabled={busy}>
+                  Reconnecter
+                </Button>
+              ) : null}
+              <Button variant="secondary" onClick={() => setConfirmOpen(true)} disabled={busy}>
+                Déconnecter
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="flex-1 text-muted">Aucun espace Slack relié. Vous choisirez le canal dans Slack.</span>
+            <Button onClick={connect} disabled={busy}>
+              {busy ? 'Ouverture…' : 'Ajouter à Slack'}
+            </Button>
+          </>
+        )}
+      </CardBody>
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={disconnect}
+        title="Déconnecter Slack"
+        message="Plus aucun message ne partira dans votre canal. Les rendez-vous restent visibles dans LeadControl."
+        confirmLabel="Déconnecter"
+        danger
+        loading={busy}
+      />
+    </Card>
+  )
+}
+
 export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
@@ -506,6 +614,7 @@ export default function SettingsPage() {
       </div>
       <ProfileCard />
       <NotificationsCard />
+      <SlackCard />
       <AboutCard />
       <PasswordCard />
       <ByokCard />

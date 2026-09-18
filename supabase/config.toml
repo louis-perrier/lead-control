@@ -429,3 +429,7 @@ verify_jwt = false
 verify_jwt = true
 [functions.iclose-webhook]
 verify_jwt = false
+[functions.slack-oauth]
+verify_jwt = false
+[functions.slack-notify]
+verify_jwt = false
