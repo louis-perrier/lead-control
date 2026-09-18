@@ -37,6 +37,7 @@ export type ChannelAccount = {
   status: 'connected' | 'expired' | 'error' | 'disconnected'
   token_expires_at: string | null
   last_error: string | null
+  metadata: Record<string, unknown> | null
 }
 
 export type AssistantSettings = {

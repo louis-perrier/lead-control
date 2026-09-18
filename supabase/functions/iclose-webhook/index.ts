@@ -4,20 +4,30 @@
 // n'est traité sans un jeton qui désigne un compte relié.
 import { admin, handleOptions, json, logEvent } from '../_shared/core.ts'
 
-type IcloseAccount = { id: string; user_id: string }
+type IcloseAccount = { id: string; user_id: string; metadata: Record<string, unknown> | null }
 
 async function accountOf(path: string): Promise<IcloseAccount | null> {
   const token = path.split('/').filter(Boolean).pop() ?? ''
   if (!/^[0-9a-f]{32}$/.test(token)) return null
   const { data } = await admin
     .from('channel_accounts')
-    .select('id, user_id')
+    .select('id, user_id, metadata')
     .eq('provider', 'iclose')
     .eq('metadata->>webhook_token', token)
     .neq('status', 'disconnected')
     .limit(1)
     .maybeSingle()
   return (data as IcloseAccount | null) ?? null
+}
+
+// iClose n'a pas d'endpoint d'enregistrement de webhook : le client le pose à la main, et rien ne
+// dit s'il l'a fait. Un premier appel reçu est la seule preuve, l'écran s'appuie dessus.
+async function markSeen(account: IcloseAccount) {
+  const metadata = (account.metadata ?? {}) as Record<string, unknown>
+  await admin
+    .from('channel_accounts')
+    .update({ metadata: { ...metadata, webhook_seen_at: new Date().toISOString() } })
+    .eq('id', account.id)
 }
 
 function read(source: unknown, ...keys: string[]) {
@@ -174,6 +184,7 @@ Deno.serve(async (req) => {
   }
 
   const hook = read(payload, 'hookType', 'event_type_id', 'trigger')
+  await markSeen(account)
   try {
     if (hook === 'newCallScheduled' || hook === 'callRescheduled') await handleBooked(payload, account)
     else if (hook === 'callCancelled') await handleCancelled(payload, account)

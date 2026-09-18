@@ -3,7 +3,7 @@
 // il échoue explicitement si le forfait ou la clé ne permettent pas de réserver.
 import { admin, getUser, handleOptions, json, logEvent, SUPABASE_URL } from '../_shared/core.ts'
 import { IcloseError, availableTimes, listEvents, registerWebhook } from '../_shared/iclose.ts'
-import { computeBookingOffers } from '../_shared/slot-offers.ts'
+import { bookableSlots, computeBookingOffers } from '../_shared/slot-offers.ts'
 import { normalizeIclose } from '../_shared/iclose-settings.ts'
 import { isValidTimezone } from '../_shared/agenda-slots.ts'
 
@@ -132,7 +132,12 @@ async function saveKey(req: Request) {
   // Sans webhook, une réservation faite par le prospect depuis le lien ne remonte jamais. Le
   // silence serait pire que l'échec : il est remonté au compte et au journal de santé.
   const webhook = await registerWebhook(key, `${SUPABASE_URL}/functions/v1/iclose-webhook/${token}`)
-  if (!webhook) {
+  if (webhook) {
+    await admin
+      .from('channel_accounts')
+      .update({ metadata: { ...metadata, webhook_token: token, webhook_auto: true } })
+      .eq('id', inserted.data.id)
+  } else {
     await logEvent('error', 'iclose-setup', 'webhook iClose à poser à la main : iClose a refusé l’enregistrement', {
       user_id: user.id,
     })
@@ -206,7 +211,13 @@ async function preview(req: Request) {
 
     const now = Date.now()
     const tz = await timezoneOf(user.id)
-    const slots = await availableTimes(found.key, event.linkPrefix, tz, now, now + HORIZON_MS, found.row)
+    // Le délai minimum du client s'applique à l'aperçu comme à la conversation, sinon l'écran
+    // annoncerait des créneaux que l'assistant ne proposera jamais.
+    const slots = bookableSlots(
+      await availableTimes(found.key, event.linkPrefix, tz, now, now + HORIZON_MS, found.row),
+      now,
+      settings.notice_hours,
+    )
     const offers = computeBookingOffers({
       now,
       tz,
@@ -229,6 +240,9 @@ async function preview(req: Request) {
             last,
           ]
         : ['Demande au prospect le moment qui l’arrange.', last]
+    await logEvent('info', 'iclose-setup', `aperçu iClose : ${slots.length} créneaux lus sur ${event.linkPrefix}`, {
+      user_id: user.id,
+    })
     return json(req, { ...shared, steps, slot_count: slots.length })
   } catch (e) {
     await logEvent('warn', 'iclose-setup', `aperçu iClose en échec: ${String(e).slice(0, 200)}`, { user_id: user.id })
