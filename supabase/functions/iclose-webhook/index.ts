@@ -24,6 +24,11 @@ function read(source: unknown, ...keys: string[]) {
   return ''
 }
 
+function isoOf(value: string) {
+  const ms = Date.parse(value)
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null
+}
+
 function callIdOf(payload: Record<string, unknown>) {
   const event = payload.event as Record<string, unknown> | undefined
   return read(event, 'id', 'callId', 'eventCallId') || read(payload, 'id', 'callId', 'eventCallId')
@@ -37,6 +42,16 @@ async function handleBooked(payload: Record<string, unknown>) {
 
   const callId = callIdOf(payload)
   if (!callId) return
+
+  // L'assistant a déjà écrit sa ligne quand c'est lui qui a réservé : on sort avant tout le
+  // reste, sinon chaque réservation faite par l'agent laisserait un avertissement inutile.
+  const { data: known } = await admin
+    .from('bookings')
+    .select('id')
+    .eq('provider', 'iclose')
+    .eq('external_event_id', callId)
+    .maybeSingle()
+  if (known) return
 
   const utmContent = read(tracking, 'utm_content')
   const conversationId = utmContent && /^\d+$/.test(utmContent) ? Number(utmContent) : null
@@ -52,14 +67,6 @@ async function handleBooked(payload: Record<string, unknown>) {
     })
     return
   }
-
-  const { data: known } = await admin
-    .from('bookings')
-    .select('id')
-    .eq('provider', 'iclose')
-    .eq('external_event_id', callId)
-    .maybeSingle()
-  if (known) return
 
   // Un rendez-vous déplacé arrive comme une nouvelle réservation : l'ancienne de cette
   // conversation est close d'abord, sinon l'index d'un seul appel actif la refuse.
@@ -83,8 +90,8 @@ async function handleBooked(payload: Record<string, unknown>) {
     invitee_email: read(invitee, 'email'),
     invitee_name: read(invitee, 'name', 'fullName'),
     external_event_id: callId,
-    event_start_at: start ? new Date(start).toISOString() : null,
-    event_end_at: end ? new Date(end).toISOString() : null,
+    event_start_at: isoOf(start),
+    event_end_at: isoOf(end),
     meet_link: join.startsWith('http') ? join : null,
     status: 'active',
     raw_payload: payload,

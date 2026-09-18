@@ -3,7 +3,6 @@
 // est valable ou révoquée. L'API iClose demande un forfait Business ou Enterprise.
 import { admin, logEvent } from './core.ts'
 import { describeIcloseEvent, listOf, parseAvailabilities, type IcloseEvent } from './iclose-event.ts'
-import type { QuestionAnswer } from './booking-fields.ts'
 
 const API = 'https://public.api.iclosed.io'
 const TIMEOUT_MS = 8000
@@ -158,10 +157,18 @@ export async function upsertContact(
 }
 
 // Les réponses passent le filtre de qualification d'iClose : un prospect écarté ne doit pas être
-// réservé, c'est le client qui a posé la règle.
+// réservé, c'est le client qui a posé la règle. `identifier` est le libellé du champ tel qu'il
+// est réglé dans LeadControl : s'il ne correspond à aucun champ iClose, l'appel est refusé et
+// l'appelant poursuit sans routage plutôt que de perdre le rendez-vous.
 export async function sendInviteeAnswers(
   key: string,
-  opts: { contactId: string; eventId: string; email: string; name: string; answers: QuestionAnswer[] },
+  opts: {
+    contactId: string
+    eventId: string
+    email: string
+    name: string
+    answers: { identifier: string; answer: string }[]
+  },
   account?: IcloseAccount,
 ): Promise<{ disqualified: boolean; conditionalUsers: string }> {
   const body = {
@@ -171,7 +178,9 @@ export async function sendInviteeAnswers(
       { type: 'EMAIL', answer: opts.email },
       { type: 'NAME', answer: opts.name },
     ],
-    secondaryQuestionsAnswer: opts.answers.map((a) => ({ identifier: a.question, answer: [a.answer] })),
+    ...(opts.answers.length > 0
+      ? { secondaryQuestionsAnswer: opts.answers.map((a) => ({ identifier: a.identifier, answer: [a.answer] })) }
+      : {}),
   }
   const payload = await call(key, '/v1/fields/inviteeAnswers', { method: 'POST', body: JSON.stringify(body) }, account)
   const root = (payload.data ?? payload) as Record<string, unknown>
@@ -193,17 +202,17 @@ export async function createEventCall(
     start: number
     timezone: string
     conditionalUsers: string
-    conversationId: number
   },
   account?: IcloseAccount,
 ): Promise<CreatedCall> {
+  // Rien d'inventé ici : la réservation faite par l'assistant est déjà rattachée à sa
+  // conversation par la ligne `bookings` qu'il écrit juste après.
   const body: Record<string, unknown> = {
     eventId: opts.eventId,
     linkPrefix: opts.linkPrefix,
     contactId: opts.contactId,
     dateTime: new Date(opts.start).toISOString(),
     timeZone: opts.timezone,
-    tracking: { utm_source: 'leadcontrol', utm_content: String(opts.conversationId) },
   }
   if (opts.conditionalUsers) body.conditionalUsers = opts.conditionalUsers
 

@@ -1,7 +1,6 @@
 // Réglages du mode iClose. Durée, jours, heures, délai minimum, horizon et règles de
 // disqualification restent chez iClose, pas ici.
 import {
-  RANGE_HOUR_OPTIONS,
   clampInt,
   normalizeFields,
   offerStyle,
@@ -36,7 +35,6 @@ export const ICLOSE_DEFAULTS: IcloseSettings = {
   extra_fields: [],
 }
 
-export const ICLOSE_RANGE_OPTIONS = RANGE_HOUR_OPTIONS
 
 export function normalizeIclose(raw: Partial<IcloseSettings> | null | undefined): IcloseSettings {
   const r = raw ?? {}

@@ -1,5 +1,6 @@
 import type { Conversation } from './types'
 import { needsManualFollowup } from '@/supabase/functions/_shared/messaging-window'
+import { BOOKED_REASONS } from '@/supabase/functions/_shared/booking-settings'
 
 export type ProspectStage = 'new' | 'talking' | 'qualified' | 'unqualified' | 'booked' | 'won' | 'lost'
 
@@ -18,8 +19,6 @@ type StageInput = Pick<
   Conversation,
   'outcome' | 'automation_reason' | 'heat_tag' | 'inbound_count' | 'agent_sent_count' | 'human_sent_count'
 >
-
-const BOOKED_REASONS = ['calendly_booked', 'calendar_booked', 'iclose_booked']
 
 // Calculée à chaque affichage depuis la conversation : rien à synchroniser, rien de périmé.
 export function prospectStage(conv: StageInput, hasActiveBooking: boolean): ProspectStage {

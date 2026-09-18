@@ -11,6 +11,9 @@ export type BookingField = { label: string; kind: BookingFieldKind }
 
 export const MAX_EXTRA_FIELDS = 3
 
+// Motifs d'arrêt qui veulent dire « un appel est réservé », quel que soit l'outil.
+export const BOOKED_REASONS = ['calendly_booked', 'calendar_booked', 'iclose_booked']
+
 export const RANGE_HOUR_OPTIONS = [1, 2, 3, 4]
 
 export const OFFER_STYLES: { value: OfferStyle; label: string }[] = [

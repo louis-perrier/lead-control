@@ -255,11 +255,28 @@ export async function prepareIcloseTurn(opts: {
         { firstName, lastName, email, ...(collected.phone ? { phoneNumber: collected.phone } : {}) },
         account,
       )
-      const answered = await sendInviteeAnswers(
-        key,
-        { contactId, eventId: event.id, email, name: who, answers: collected.answers },
-        account,
-      )
+      let answered = { disqualified: false, conditionalUsers: '' }
+      try {
+        answered = await sendInviteeAnswers(
+          key,
+          {
+            contactId,
+            eventId: event.id,
+            email,
+            name: who,
+            answers: collected.saved.map((a) => ({ identifier: a.label, answer: a.value })),
+          },
+          account,
+        )
+      } catch (e) {
+        // Forme de cet appel non confirmée chez iClose : un refus de forme fait perdre le
+        // routage conditionnel, pas le rendez-vous. Toute autre panne remonte normalement.
+        if (!(e instanceof IcloseError) || e.code !== 'bad_request') throw e
+        await logEvent('warn', 'assistant-dispatch', `réponses iClose refusées conv=${convId}, réservation poursuivie: ${String(e).slice(0, 200)}`, {
+          user_id: userId,
+          conversation_id: convId,
+        })
+      }
       // Le filtre de qualification du client a écarté ce prospect : rien à réserver.
       if (answered.disqualified) {
         await notifyNeedsYou(userId, convId, 'Prospect écarté par les règles de votre page iClose : aucun appel réservé.', {
@@ -278,7 +295,6 @@ export async function prepareIcloseTurn(opts: {
           start: check.start,
           timezone: tz,
           conditionalUsers: answered.conditionalUsers,
-          conversationId: convId,
         },
         account,
       )
@@ -329,9 +345,6 @@ export async function prepareIcloseTurn(opts: {
     }
     result.bookedThisTurn = true
     if (collected.phone) await saveContactPhone(convId, collected.phone)
-    if (!created.joinUrl) {
-      await notifyNeedsYou(userId, convId, 'Appel réservé sans lien de visio : envoyez-le au prospect.', { renew: true })
-    }
     const where = created.joinUrl ? 'Le lien de la visio part aussi en message.' : 'Les détails sont dans l’invitation.'
     return { content: `Réservé : ${check.label}. Invitation envoyée à ${email}. ${where}` }
   }
@@ -357,7 +370,7 @@ export async function prepareIcloseTurn(opts: {
         step,
         booked,
         emailRequired: true,
-        venue: booking?.meet_link || reachable ? 'video' : 'none',
+        venue: booking?.meet_link ? 'video' : 'none',
         offerStyle: settings.offer_style,
         asks: asks.map((a) => ({ key: a.key, label: a.label })),
       },

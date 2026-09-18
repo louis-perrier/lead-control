@@ -1,7 +1,6 @@
 // Réglages du mode Calendly. Durée, jours, heures, délai minimum et horizon restent chez
 // Calendly, pas ici. Le vocabulaire commun aux deux outils vit dans booking-settings.ts.
 import {
-  RANGE_HOUR_OPTIONS,
   clampInt,
   normalizeFields,
   offerStyle,
@@ -34,7 +33,6 @@ export const CALENDLY_DEFAULTS: CalendlySettings = {
   extra_fields: [],
 }
 
-export const CALENDLY_RANGE_OPTIONS = RANGE_HOUR_OPTIONS
 
 export function normalizeCalendly(raw: Partial<CalendlySettings> | null | undefined): CalendlySettings {
   const r = raw ?? {}

@@ -7,6 +7,7 @@ import { planFollowups } from '../_shared/followups.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { avatarIsStale, refreshContactAvatar } from '../_shared/avatars.ts'
 import { notifyNeedsYou } from '../_shared/notify.ts'
+import { BOOKED_REASONS } from '../_shared/booking-settings.ts'
 import type { FollowupSettings } from '../_shared/followups.ts'
 
 const IG_APP_SECRET = Deno.env.get('IG_APP_SECRET')!
@@ -309,9 +310,10 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
   })
 
   // L'agent reste arrêté après une réservation : c'est au compte de répondre.
+  // BOOKED_REASONS couvre les trois outils de réservation.
   if (
     conv.automation_state === 'condition_stop' &&
-    (conv.automation_reason === 'calendar_booked' || conv.automation_reason === 'calendly_booked')
+    BOOKED_REASONS.includes(conv.automation_reason ?? '')
   ) {
     await notifyNeedsYou(channel.user_id, conv.id, 'Le prospect a réécrit après avoir réservé son appel')
   }
