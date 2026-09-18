@@ -218,15 +218,19 @@ export async function prepareCalendlyTurn(opts: {
     if (!reachable || !account || !token || !info) return bookingFailed(new CalendlyError('unavailable', 'Calendly illisible'))
 
     const who = safeName(opts.contactName) || (opts.contactHandle ? `@${opts.contactHandle}` : 'Prospect Instagram')
+    // Relecture fraîche : le créneau a pu partir depuis le début du tour.
     let check: CalendlyCheck
-    let eventUri: string
-    let inviteeUri: string
-    let join: string | null = null
     try {
-      // Relecture fraîche : le créneau a pu partir depuis le début du tour.
       check = checkCalendlySlot({ value: debut, slots: await freshSlots(), durationMin: settings.duration_min, tz })
-      if (!check.ok) return { content: describeCheck(check) }
-      const created = await createInvitee({
+    } catch (e) {
+      await warnAccount(userId, e)
+      return bookingFailed(e)
+    }
+    if (!check.ok) return { content: describeCheck(check) }
+
+    let created: Awaited<ReturnType<typeof createInvitee>>
+    try {
+      created = await createInvitee({
         account,
         token,
         eventTypeUri: stored.event_type_uri,
@@ -237,12 +241,14 @@ export async function prepareCalendlyTurn(opts: {
         location: info.location,
         conversationId: convId,
       })
-      eventUri = created.eventUri
-      inviteeUri = created.inviteeUri
-      if (info.isVideo) join = await joinUrlOf(account, token, eventUri)
     } catch (e) {
-      if (e instanceof CalendlyError && e.code === 'slot_taken') {
-        return { content: 'Ce moment vient d’être pris : propose-lui une autre heure.' }
+      // Créneau parti entre la relecture et la réservation : ce n'est pas une panne, l'agent
+      // en propose un autre. Le motif du refus se lit dans l'agenda, pas dans le texte d'erreur.
+      if (e instanceof CalendlyError && e.code === 'bad_request') {
+        const again = await freshSlots().catch(() => null)
+        if (again && !again.includes(check.start)) {
+          return { content: 'Ce moment vient d’être pris : propose-lui une autre heure.' }
+        }
       }
       await logEvent('error', 'assistant-dispatch', `réservation Calendly impossible conv=${convId}: ${String(e).slice(0, 300)}`, {
         user_id: userId,
@@ -251,6 +257,10 @@ export async function prepareCalendlyTurn(opts: {
       await warnAccount(userId, e)
       return bookingFailed(e)
     }
+
+    // Le rendez-vous existe désormais chez Calendly : plus rien ici ne doit annoncer un échec.
+    const eventUri = created.eventUri
+    const join = info.isVideo ? await joinUrlOf(account, token, eventUri) : null
 
     const saved = await insertBooking(
       {
@@ -266,7 +276,7 @@ export async function prepareCalendlyTurn(opts: {
         event_end_at: new Date(check.end).toISOString(),
         meet_link: join,
         status: 'active',
-        raw_payload: { invitee_uri: inviteeUri, account_id: account.id, source: 'assistant' },
+        raw_payload: { invitee_uri: created.inviteeUri, account_id: account.id, source: 'assistant' },
       },
       eventUri,
     )

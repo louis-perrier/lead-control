@@ -12,7 +12,7 @@ const TIMEOUT_MS = 8000
 const REFRESH_MARGIN_MS = 10 * 60_000
 const MAX_WINDOW_MS = 31 * 86_400_000 - 60_000
 
-export type CalendlyErrorCode = 'token_expired' | 'plan_required' | 'slot_taken' | 'bad_request' | 'unavailable'
+export type CalendlyErrorCode = 'token_expired' | 'plan_required' | 'bad_request' | 'unavailable'
 
 export class CalendlyError extends Error {
   code: CalendlyErrorCode
@@ -135,7 +135,11 @@ async function call(account: CalendlyAccount, token: string, path: string, init:
   const payload = (await res.json().catch(() => ({}))) as Record<string, unknown>
   if (res.ok) return payload
 
-  const message = `${String(payload.title ?? '')} ${String(payload.message ?? '')}`.trim().slice(0, 200)
+  // Le motif exact vit dans details, pas dans message : sans lui les journaux ne disent rien.
+  const details = Array.isArray(payload.details)
+    ? payload.details.map((d) => (d as Record<string, unknown>)?.message).filter(Boolean).join(' ; ')
+    : ''
+  const message = `${String(payload.title ?? '')} ${String(payload.message ?? '')} ${details}`.trim().slice(0, 300)
   if (res.status === 401) {
     await markExpired(account, `401 sur ${path}`)
     throw new CalendlyError('token_expired', `401 ${path}`)
@@ -209,16 +213,7 @@ export async function createInvitee(opts: {
   }
   if (opts.location) body.location = opts.location
 
-  let payload: Record<string, unknown>
-  try {
-    payload = await call(opts.account, opts.token, '/invitees', { method: 'POST', body: JSON.stringify(body) })
-  } catch (e) {
-    // Un créneau parti entre la lecture et la réservation n'est pas une panne : l'agent en propose un autre.
-    if (e instanceof CalendlyError && e.code === 'bad_request' && /time|slot|available|booked/i.test(e.message)) {
-      throw new CalendlyError('slot_taken', e.message)
-    }
-    throw e
-  }
+  const payload = await call(opts.account, opts.token, '/invitees', { method: 'POST', body: JSON.stringify(body) })
   const resource = (payload.resource ?? {}) as Record<string, unknown>
   const eventUri = typeof resource.event === 'string' ? resource.event : ''
   if (!eventUri) throw new CalendlyError('unavailable', 'réservation sans référence d’événement')
