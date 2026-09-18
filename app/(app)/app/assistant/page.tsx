@@ -668,7 +668,9 @@ function CalendlyBookingFields({
         Durée, jours, heures, délai minimum et horizon viennent de votre Calendly. Le nom du profil Instagram du prospect
         sert de nom d'invité, et l'assistant lui demande son e-mail, que Calendly exige.
       </FieldHint>
-      <FieldHint>La réservation par l'assistant demande un forfait Calendly payant.</FieldHint>
+      <FieldHint>
+        <strong className="font-semibold">La réservation par l'assistant demande un forfait Calendly payant.</strong>
+      </FieldHint>
 
       {preview && preview.bookable ? (
         <div className="rounded-[10px] bg-bg px-3 py-2.5">
