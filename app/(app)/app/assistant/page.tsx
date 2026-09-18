@@ -59,10 +59,9 @@ import { ConfirmDialog } from '@/components/ui/dialog'
 import { InfoTip, Skeleton, Switch } from '@/components/ui/misc'
 import { EmptyState } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/toast'
+import { bookingChoice, TOOL_NAMES, type BookingMode } from '@/lib/booking-mode'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-
-type BookingMode = 'link' | 'calendly' | 'iclose' | 'calendar'
 
 function useSaveSettings(assistant: Assistant | undefined) {
   const toast = useToast()
@@ -1088,7 +1087,7 @@ function CalendlyBookingFields({
         {!error && !missing && info && !info.bookable ? (
           <FieldError>
             L'assistant ne peut pas remplir cette page ({info.blockers.join(' ; ')}). Il se contentera d'envoyer votre
-            lien de réservation, comme en mode Par lien.
+            lien de réservation.
           </FieldError>
         ) : null}
         {!error && preview?.bookable && preview.slot_count === 0 ? (
@@ -1124,8 +1123,6 @@ function CalendlyBookingFields({
   )
 }
 
-const TOOL_NAMES: Record<string, string> = { calendly: 'Calendly', iclose: 'iClose', calendar: 'Google Agenda' }
-
 const MODE_CHOICES = [
   { value: false, label: 'Avec le lien que j’envoie' },
   { value: true, label: 'Avec l’assistant' },
@@ -1155,39 +1152,25 @@ function GoalSection({
   // Les drapeaux arrivent après l'assistant : le mode affiché suit le réglage tant que rien n'est choisi.
   const [byAgentChoice, setByAgent] = useState<boolean | null>(null)
   const [providerChoice, setProvider] = useState<BookingMode | null>(null)
-  const savedMode = s.booking?.mode
-  const savedProvider: BookingMode | null =
-    allowCalendlyBooking && savedMode === 'calendly'
-      ? 'calendly'
-      : allowIclose && savedMode === 'iclose'
-        ? 'iclose'
-        : allowCalendar && savedMode === 'calendar'
-          ? 'calendar'
-          : null
   const allowedProviders: BookingMode[] = [
     ...(allowCalendlyBooking ? ['calendly' as const] : []),
     ...(allowIclose ? ['iclose' as const] : []),
     ...(allowCalendar ? ['calendar' as const] : []),
   ]
-  // Un seul outil à la fois : dès qu'un compte est relié, les autres boutons de connexion
-  // disparaissent. Un compte relié avant cette règle peut en laisser deux, d'où le choix affiché.
-  // Le temps que les comptes arrivent, on suit le réglage enregistré : sans ça, la carte propose
-  // une connexion pendant une seconde à quelqu'un qui en a déjà une.
-  const linked = channels
-    ? allowedProviders.filter(
-        (p) => (p === 'calendly' && calendly) || (p === 'iclose' && iclose) || (p === 'calendar' && google),
-      )
-    : savedProvider
-      ? [savedProvider]
-      : []
-  const byAgent = allowedProviders.length > 0 && (byAgentChoice ?? savedProvider !== null)
-  const provider: BookingMode =
-    providerChoice && linked.includes(providerChoice)
-      ? providerChoice
-      : savedProvider && linked.includes(savedProvider)
-        ? savedProvider
-        : linked[0] ?? savedProvider ?? allowedProviders[0] ?? 'calendly'
-  const mode: BookingMode = byAgent ? provider : 'link'
+  const connectedProviders = channels
+    ? ([
+        ...(calendly ? ['calendly' as const] : []),
+        ...(iclose ? ['iclose' as const] : []),
+        ...(google ? ['calendar' as const] : []),
+      ] as BookingMode[])
+    : null
+  const { linked, byAgent, provider, mode } = bookingChoice(
+    s.booking?.mode,
+    allowedProviders,
+    connectedProviders,
+    byAgentChoice,
+    providerChoice,
+  )
   const [agenda, setAgenda] = useState<AgendaSettings>(normalizeAgenda(s.booking?.calendar))
   const [calendlySettings, setCalendly] = useState<CalendlySettings>(normalizeCalendly(s.booking?.calendly))
   const [icloseSettings, setIclose] = useState<IcloseSettings>(normalizeIclose(s.booking?.iclose))
