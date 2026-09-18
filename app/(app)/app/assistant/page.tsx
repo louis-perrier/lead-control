@@ -618,9 +618,9 @@ function CalendlyBookingFields({
         ) : null}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid items-end gap-3 sm:grid-cols-3">
         <div>
-          <Label htmlFor="calendlyRange">Largeur d'une plage</Label>
+          <Label htmlFor="calendlyRange">Largeur maximale d'une plage</Label>
           <select
             id="calendlyRange"
             className={selectClass}
@@ -663,6 +663,11 @@ function CalendlyBookingFields({
           </select>
         </div>
       </div>
+
+      <FieldHint>
+        Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la
+        durée de l'appel.
+      </FieldHint>
 
       <FieldHint>
         Durée, jours, heures, délai minimum et horizon viennent de votre Calendly. Le nom du profil Instagram du prospect
