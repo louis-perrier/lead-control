@@ -1,6 +1,9 @@
 // Réglages du mode Calendly. Aucun import : la page Assistant lit ce fichier directement.
 // Durée, jours, heures, délai minimum et horizon restent chez Calendly, pas ici.
 
+// offer_style : 'range' propose une fourchette d'heures, 'slot' propose des heures exactes.
+export type OfferStyle = 'range' | 'slot'
+
 export type CalendlySettings = {
   event_type_uri: string
   event_type_name: string
@@ -9,6 +12,7 @@ export type CalendlySettings = {
   range_hours: number
   first_offer: number
   extra_offers: number
+  offer_style: OfferStyle
 }
 
 export const CALENDLY_DEFAULTS: CalendlySettings = {
@@ -19,9 +23,15 @@ export const CALENDLY_DEFAULTS: CalendlySettings = {
   range_hours: 3,
   first_offer: 2,
   extra_offers: 1,
+  offer_style: 'range',
 }
 
 export const CALENDLY_RANGE_OPTIONS = [1, 2, 3, 4]
+
+export const OFFER_STYLES: { value: OfferStyle; label: string }[] = [
+  { value: 'range', label: 'Des plages horaires' },
+  { value: 'slot', label: 'Des créneaux précis' },
+]
 
 function clampInt(value: unknown, min: number, max: number, fallback: number) {
   const n = Math.round(Number(value))
@@ -43,5 +53,6 @@ export function normalizeCalendly(raw: Partial<CalendlySettings> | null | undefi
     range_hours: clampInt(r.range_hours, 1, 4, CALENDLY_DEFAULTS.range_hours),
     first_offer: clampInt(r.first_offer, 0, 3, CALENDLY_DEFAULTS.first_offer),
     extra_offers: clampInt(r.extra_offers, 0, 2, CALENDLY_DEFAULTS.extra_offers),
+    offer_style: r.offer_style === 'slot' ? 'slot' : 'range',
   }
 }

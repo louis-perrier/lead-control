@@ -28,7 +28,11 @@ export type OfferSettings = {
   range_hours: number
   first_offer: number
   extra_offers: number
+  offer_style: 'range' | 'slot'
 }
+
+// Deux créneaux précis d'une même journée se ressemblent s'ils se touchent : on les écarte.
+const SPREAD_MS = 2 * 3_600_000
 
 export type Run = { start: number; end: number; slots: number[] }
 
@@ -70,9 +74,61 @@ function runCandidates(run: Run, rangeMs: number, durationMs: number, tz: string
   return out
 }
 
-export function offerStillBookable(o: Offer, slots: number[], durationMin: number) {
+// Un créneau précis tient tant qu'il est réservable ; une plage, tant qu'elle laisse le choix.
+export function offerStillBookable(o: Offer, slots: number[], durationMin: number, style: 'range' | 'slot' = 'range') {
+  if (style === 'slot') return slots.includes(o.start)
   const last = o.end - durationMin * MINUTE
   return slots.filter((s) => s >= o.start && s <= last).length >= 2
+}
+
+function slotCandidates(slots: number[], durationMs: number, tz: string, todayNumber: number): Candidate[] {
+  return [...slots]
+    .sort((a, b) => a - b)
+    .map((start) => {
+      const p = zonedParts(start, tz)
+      return {
+        start,
+        end: start + durationMs,
+        period: periodOf(p.hour * 60 + p.minute),
+        dayIndex: dayNumber(start, tz) - todayNumber,
+      }
+    })
+}
+
+function spaceOut(day: Candidate[], count: number, minGap: number): Candidate[] {
+  const out: Candidate[] = []
+  for (const c of day) {
+    const last = out[out.length - 1]
+    if (last && c.start - last.start < minGap) continue
+    out.push(c)
+    if (out.length >= count) break
+  }
+  return out
+}
+
+// Les créneaux d'une même proposition tombent le même jour dès qu'une journée en offre assez,
+// sinon un par jour comme pour les plages. Ceux que l'on garde pour un refus viennent d'autres
+// jours : le prospect qui écarte une journée ne se voit pas reproposer la même.
+export function chooseSlotOffers(
+  perDay: Candidate[][],
+  count: number,
+  offset: number,
+  durationMs: number,
+  groupSize: number,
+): Candidate[] {
+  const wanted = count - offset
+  const group = Math.min(groupSize, wanted)
+  if (group > 1) {
+    const minGap = Math.max(SPREAD_MS, durationMs)
+    for (let i = 0; i < perDay.length; i++) {
+      const sameDay = spaceOut(perDay[i], group, minGap)
+      if (sameDay.length < group) continue
+      const rest = wanted - group
+      if (rest === 0) return sameDay
+      return [...sameDay, ...chooseOffers(perDay.filter((_, k) => k !== i), rest, 0)]
+    }
+  }
+  return chooseOffers(perDay, count, offset)
 }
 
 export function computeBookingOffers(opts: {
@@ -86,33 +142,40 @@ export function computeBookingOffers(opts: {
 }): Offer[] {
   const { now, tz, settings: s, slots, count } = opts
   const durationMs = s.duration_min * MINUTE
-  const kept = (opts.keep ?? []).filter((o) => o.start > now && offerStillBookable(o, slots, s.duration_min))
+  const exact = s.offer_style === 'slot'
+  const kept = (opts.keep ?? []).filter((o) => o.start > now && offerStillBookable(o, slots, s.duration_min, s.offer_style))
   if (kept.length >= count) return kept.slice(0, count)
 
   const todayNumber = dayNumber(now, tz)
   const keptDays = new Set(kept.map((o) => dayNumber(o.start, tz)))
+  const all = exact
+    ? slotCandidates(slots, durationMs, tz, todayNumber)
+    : runsOf(slots, s.duration_min).flatMap((run) =>
+        runCandidates(run, s.range_hours * 3_600_000, durationMs, tz, todayNumber),
+      )
   const byDay = new Map<number, Candidate[]>()
-  for (const run of runsOf(slots, s.duration_min)) {
-    for (const c of runCandidates(run, s.range_hours * 3_600_000, durationMs, tz, todayNumber)) {
-      if (keptDays.has(todayNumber + c.dayIndex)) continue
-      const list = byDay.get(c.dayIndex)
-      if (list) list.push(c)
-      else byDay.set(c.dayIndex, [c])
-    }
+  for (const c of all) {
+    if (keptDays.has(todayNumber + c.dayIndex)) continue
+    const list = byDay.get(c.dayIndex)
+    if (list) list.push(c)
+    else byDay.set(c.dayIndex, [c])
   }
 
   const perDay = [...byDay.entries()].sort((a, b) => a[0] - b[0]).map(([, list]) => list)
-  const fresh = chooseOffers(perDay, count, kept.length).map((c) => ({
+  const picked = exact
+    ? chooseSlotOffers(perDay, count, kept.length, durationMs, s.first_offer)
+    : chooseOffers(perDay, count, kept.length)
+  const fresh = picked.map((c) => ({
     start: c.start,
     end: c.end,
-    label: rangeLabel(c.start, c.end, tz, opts.withDate ?? true),
+    label: exact ? momentLabel(c.start, tz) : rangeLabel(c.start, c.end, tz, opts.withDate ?? true),
   }))
   return [...kept, ...fresh].slice(0, count)
 }
 
 // Clé des plages mémorisées : changer de page de réservation ou de réglage les recalcule.
 export function bookingOffersKey(s: OfferSettings, tz: string, page: string) {
-  return JSON.stringify([tz, page, s.duration_min, s.range_hours, s.first_offer, s.extra_offers])
+  return JSON.stringify([tz, page, s.duration_min, s.range_hours, s.first_offer, s.extra_offers, s.offer_style])
 }
 
 export function planBookingOffers(opts: {
@@ -127,7 +190,7 @@ export function planBookingOffers(opts: {
   const base = storedBase(bookingOffersKey(s, tz, opts.page), opts.stored)
   const keep = keepOrder(base)
   const sentStillFree = keep.filter(
-    (o) => base.sent.includes(o.start) && o.start > opts.now && offerStillBookable(o, slots, s.duration_min),
+    (o) => base.sent.includes(o.start) && o.start > opts.now && offerStillBookable(o, slots, s.duration_min, s.offer_style),
   ).length
   const offers = computeBookingOffers({
     now: opts.now,

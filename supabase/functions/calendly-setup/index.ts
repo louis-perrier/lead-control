@@ -102,14 +102,19 @@ async function preview(req: Request) {
     })
     const labels = offers.map((o) => o.label)
     const first = labels.slice(0, settings.first_offer)
+    const last =
+      settings.offer_style === 'slot'
+        ? 'Demande l’e-mail, puis réserve dans Calendly.'
+        : 'Fait préciser l’heure, demande l’e-mail, puis réserve dans Calendly.'
     const steps =
       first.length > 0
         ? [
             `Propose ${first.join(' ou ')}.`,
             ...labels.slice(settings.first_offer).map((l) => `Si ça ne va pas : ${l}.`),
             'Sinon, demande le moment qui l’arrange.',
+            last,
           ]
-        : ['Demande au prospect le moment qui l’arrange.']
+        : ['Demande au prospect le moment qui l’arrange.', last]
     return json(req, { ...shared, steps, slot_count: slots.length })
   } catch (e) {
     await logEvent('warn', 'calendly-setup', `aperçu en échec: ${String(e).slice(0, 200)}`, { user_id: user.id })

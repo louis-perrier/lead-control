@@ -126,8 +126,9 @@ describe('offerStillBookable', () => {
   })
 })
 
+const PAGE = 'https://api.calendly.com/event_types/aaa'
+
 describe('planBookingOffers', () => {
-  const PAGE = 'https://api.calendly.com/event_types/aaa'
   const slots = [...day(9, 18, 9, 19), ...day(9, 21, 9, 19), ...day(9, 23, 9, 19), ...day(9, 25, 9, 19)]
 
   it('propose d’abord le nombre réglé', () => {
@@ -232,5 +233,58 @@ describe('normalizeCalendly', () => {
   it('change de clé quand un réglage bouge', () => {
     expect(bookingOffersKey(settings, TZ, 'uri')).not.toBe(bookingOffersKey({ ...settings, range_hours: 2 }, TZ, 'uri'))
     expect(bookingOffersKey(settings, TZ, 'uri')).not.toBe(bookingOffersKey(settings, TZ, 'autre'))
+  })
+})
+
+describe('mode créneaux précis', () => {
+  const exact: CalendlySettings = { ...settings, offer_style: 'slot' }
+
+  it('propose deux heures exactes du même jour', () => {
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings: exact, slots: day(9, 18, 9, 18), count: 2 })
+    expect(offers).toHaveLength(2)
+    expect(offers[0].end - offers[0].start).toBe(30 * 60_000)
+    expect(new Date(offers[0].start).toISOString().slice(0, 10)).toBe(new Date(offers[1].start).toISOString().slice(0, 10))
+    expect(offers[1].start - offers[0].start).toBeGreaterThanOrEqual(2 * 3_600_000)
+    expect(offers[0].label).toContain('à')
+    expect(offers[0].label).not.toContain('entre')
+  })
+
+  it('retombe sur deux jours quand la journée n’offre qu’un créneau', () => {
+    const slots = [paris(9, 18, 14), paris(9, 21, 10), paris(9, 23, 16)]
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings: exact, slots, count: 2 })
+    expect(offers).toHaveLength(2)
+    expect(offers[0].start).not.toBe(offers[1].start)
+    expect(new Date(offers[0].start).toISOString().slice(0, 10)).not.toBe(
+      new Date(offers[1].start).toISOString().slice(0, 10),
+    )
+  })
+
+  it('propose un créneau posé hors de l’heure pleine, que le mode plage écarte', () => {
+    const slots = [paris(9, 18, 9, 30), paris(9, 18, 14, 30), paris(9, 18, 17, 30)]
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings: exact, slots, count: 2 })
+    expect(offers.map((o) => o.start)).toContain(paris(9, 18, 9, 30))
+  })
+
+  it('oublie une proposition dès que son créneau est pris', () => {
+    const offer = { start: paris(9, 18, 14), end: paris(9, 18, 14, 30), label: 'x' }
+    expect(offerStillBookable(offer, [paris(9, 18, 14)], 30, 'slot')).toBe(true)
+    expect(offerStillBookable(offer, [paris(9, 18, 14, 30)], 30, 'slot')).toBe(false)
+  })
+
+  it('part sur un autre jour au tour de refus', () => {
+    const slots = [...day(9, 18, 9, 18), ...day(9, 21, 9, 18)]
+    const first = planBookingOffers({ now: NOW, tz: TZ, settings: exact, page: PAGE, slots, stored: null })
+    expect(first.step.kind).toBe('offer')
+    if (first.step.kind !== 'offer') return
+    const sent = { ...first.stored, sent: first.step.offers.map((o) => o.start), rounds: 1 }
+    const second = planBookingOffers({ now: NOW, tz: TZ, settings: exact, page: PAGE, slots, stored: sent })
+    if (second.step.kind !== 'offer') throw new Error('attendu: une nouvelle proposition')
+    const days = second.step.offers.map((o) => new Date(o.start).toISOString().slice(0, 10))
+    const before = first.step.offers.map((o) => new Date(o.start).toISOString().slice(0, 10))
+    expect(days.some((d) => before.includes(d))).toBe(false)
+  })
+
+  it('change de clé quand le style change', () => {
+    expect(bookingOffersKey(settings, TZ, 'uri')).not.toBe(bookingOffersKey(exact, TZ, 'uri'))
   })
 })

@@ -146,6 +146,17 @@ describe('planOffers et recordSentOffers', () => {
     expect(offerMentioned(tuesday, ['mardi 22 septembre entre 15 h et 18 h'], TZ)).toBe(false)
     expect(offerMentioned(tuesday, ['mardi 22 à 14h30, et le 15 ?'], TZ)).toBe(false)
   })
+
+  it('compte un créneau précis sur son heure exacte, pas sur son heure de fin', () => {
+    const slot = { start: paris(10, 1, 14), end: paris(10, 1, 15), label: '' }
+    expect(offerMentioned(slot, ['Jeudi 1er octobre à 14 h ?'], TZ, true)).toBe(true)
+    expect(offerMentioned(slot, ['Jeudi 1er octobre à 14h30 ?'], TZ, true)).toBe(false)
+    // Sans le mode exact, la même bulle ne compterait pas : elle ne cite pas 15 h.
+    expect(offerMentioned(slot, ['Jeudi 1er octobre à 14 h ?'], TZ)).toBe(false)
+    const half = { start: paris(10, 1, 14, 30), end: paris(10, 1, 15), label: '' }
+    expect(offerMentioned(half, ['Jeudi 1er octobre à 14h30 ?'], TZ, true)).toBe(true)
+    expect(offerMentioned(half, ['Jeudi 1er octobre à 14 h ?'], TZ, true)).toBe(false)
+  })
 })
 
 describe('checkSlot', () => {

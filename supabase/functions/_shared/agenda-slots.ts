@@ -312,16 +312,24 @@ function normalize(text: string) {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-// Une plage compte comme citée si une bulle donne son jour, sa date et ses heures de début et de fin.
-export function offerMentioned(offer: Offer, texts: string[], tz: string) {
+// Une plage compte comme citée si une bulle donne son jour, sa date et ses heures de début et de
+// fin. Un créneau précis n'a pas d'heure de fin visible : on exige alors l'heure exacte, minutes
+// comprises, sinon « mardi 14 h » validerait la proposition de 14 h 30.
+export function offerMentioned(offer: Offer, texts: string[], tz: string, exact = false) {
   const p = zonedParts(offer.start, tz)
   const end = zonedParts(offer.end, tz)
   const weekday = new RegExp(`\\b${normalize(WEEKDAYS[p.weekday])}\\b`)
   const date = new RegExp(`(?<![\\d:h])${p.day}(er)?(?![\\d:]|\\s?h)`)
   const hour = (h: number) => new RegExp(`(?<![\\d:])${h}\\s?h`)
+  const moment = new RegExp(
+    p.minute === 0
+      ? `(?<![\\d:])${p.hour}\\s?h(\\s?00)?(?!\\s?[0-5]\\d)`
+      : `(?<![\\d:])${p.hour}\\s?h\\s?${String(p.minute).padStart(2, '0')}`,
+  )
   return texts.some((t) => {
     const n = normalize(t)
-    return weekday.test(n) && date.test(n) && hour(p.hour).test(n) && hour(end.hour).test(n)
+    if (!weekday.test(n) || !date.test(n)) return false
+    return exact ? moment.test(n) : hour(p.hour).test(n) && hour(end.hour).test(n)
   })
 }
 
@@ -386,9 +394,15 @@ export function planOffers(opts: {
 }
 
 // Après l'envoi : seules les plages de l'étape vraiment citées comptent comme proposées.
-export function recordSentOffers(stored: StoredOffers, step: OfferStep | null, sentTexts: string[], tz: string): StoredOffers {
+export function recordSentOffers(
+  stored: StoredOffers,
+  step: OfferStep | null,
+  sentTexts: string[],
+  tz: string,
+  exact = false,
+): StoredOffers {
   if (!step || step.kind !== 'offer') return stored
-  const cited = step.offers.filter((o) => offerMentioned(o, sentTexts, tz))
+  const cited = step.offers.filter((o) => offerMentioned(o, sentTexts, tz, exact))
   if (cited.length === 0) return stored
   return { ...stored, sent: [...stored.sent, ...cited.map((o) => o.start)], rounds: stored.rounds + 1 }
 }

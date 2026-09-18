@@ -320,12 +320,14 @@ export async function prepareCalendlyTurn(opts: {
         emailRequired: true,
         venue,
         venueText,
+        offerStyle: settings.offer_style,
       },
       tools: CALENDLY_TOOLS,
       runTool,
       storedOffers: planned?.stored ?? null,
       step,
-      recordSent: (texts) => (planned ? recordSentOffers(planned.stored, step, texts, tz) : null),
+      recordSent: (texts) =>
+        planned ? recordSentOffers(planned.stored, step, texts, tz, settings.offer_style === 'slot') : null,
       result,
     },
   }

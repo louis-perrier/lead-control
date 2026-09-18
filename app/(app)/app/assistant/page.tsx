@@ -40,6 +40,7 @@ import {
 } from '@/supabase/functions/_shared/agenda-slots'
 import {
   CALENDLY_RANGE_OPTIONS,
+  OFFER_STYLES,
   normalizeCalendly,
   type CalendlySettings,
 } from '@/supabase/functions/_shared/calendly-settings'
@@ -456,6 +457,25 @@ function previewLabels(offers: { label: string }[]) {
   })
 }
 
+function StepsPreview({ title, steps }: { title: string; steps: string[] }) {
+  return (
+    <div className="rounded-[10px] bg-bg px-3 py-2.5">
+      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted">
+        <CalendarDays size={14} />
+        {title}
+      </p>
+      <ol className="space-y-1 text-sm">
+        {steps.map((step, i) => (
+          <li key={i} className="flex gap-2">
+            <span className="text-muted">{i + 1}.</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
 function agendaPreview(agenda: AgendaSettings): { steps: string[]; possible: boolean } {
   if (agenda.first_offer === 0) return { steps: ['Demande au prospect le moment qui l’arrange.'], possible: true }
   const offers = computeOffers({ now: PREVIEW_NOW, tz: 'Europe/Paris', settings: agenda, busy: [], withDate: false })
@@ -516,6 +536,7 @@ function CalendlyBookingFields({
     queryFn: () => callFunction<{ event_types: CalendlyPage[] }>('calendly-setup/event-types').then((r) => r.event_types),
   })
 
+  const exact = settings.offer_style === 'slot'
   const chosen = pages.data?.find((p) => p.uri === settings.event_type_uri) ?? null
   const info = preview ?? chosen
   // Page supprimée dans Calendly depuis le réglage : la liste ne la contient plus.
@@ -538,6 +559,7 @@ function CalendlyBookingFields({
         range_hours: settings.range_hours,
         first_offer: settings.first_offer,
         extra_offers: settings.extra_offers,
+        offer_style: settings.offer_style,
       },
     })
       .then((data) => {
@@ -554,7 +576,14 @@ function CalendlyBookingFields({
     return () => {
       alive = false
     }
-  }, [connected, settings.event_type_uri, settings.range_hours, settings.first_offer, settings.extra_offers])
+  }, [
+    connected,
+    settings.event_type_uri,
+    settings.range_hours,
+    settings.first_offer,
+    settings.extra_offers,
+    settings.offer_style,
+  ])
 
   function choose(uri: string) {
     const page = pages.data?.find((p) => p.uri === uri)
@@ -618,34 +647,55 @@ function CalendlyBookingFields({
         ) : null}
       </div>
 
-      <div className="grid items-end gap-3 sm:grid-cols-3">
+      <div
+        className={
+          exact ? 'grid items-end gap-3 sm:grid-cols-3' : 'grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4'
+        }
+      >
         <div>
-          <Label htmlFor="calendlyRange">Largeur maximale d'une plage</Label>
+          <Label htmlFor="calendlyStyle">Ce que l'assistant propose</Label>
           <select
-            id="calendlyRange"
+            id="calendlyStyle"
             className={selectClass}
-            value={settings.range_hours}
-            onChange={(e) => onPatch({ range_hours: Number(e.target.value) })}
+            value={settings.offer_style}
+            onChange={(e) => onPatch({ offer_style: e.target.value === 'slot' ? 'slot' : 'range' })}
           >
-            {CALENDLY_RANGE_OPTIONS.map((h) => (
-              <option key={h} value={h}>
-                {h} h
+            {OFFER_STYLES.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
               </option>
             ))}
           </select>
         </div>
+        {exact ? null : (
+          <div>
+            <Label htmlFor="calendlyRange">Largeur maximale d'une plage</Label>
+            <select
+              id="calendlyRange"
+              className={selectClass}
+              value={settings.range_hours}
+              onChange={(e) => onPatch({ range_hours: Number(e.target.value) })}
+            >
+              {CALENDLY_RANGE_OPTIONS.map((h) => (
+                <option key={h} value={h}>
+                  {h} h
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
-          <Label htmlFor="calendlyFirst">Plages proposées d'abord</Label>
+          <Label htmlFor="calendlyFirst">{exact ? 'Créneaux proposés d’abord' : "Plages proposées d'abord"}</Label>
           <select
             id="calendlyFirst"
             className={selectClass}
             value={settings.first_offer}
             onChange={(e) => onPatch({ first_offer: Number(e.target.value) })}
           >
-            <option value={0}>Aucune, demander</option>
-            <option value={1}>1 plage</option>
-            <option value={2}>2 plages</option>
-            <option value={3}>3 plages</option>
+            <option value={0}>Aucun, demander</option>
+            <option value={1}>{exact ? '1 créneau' : '1 plage'}</option>
+            <option value={2}>{exact ? '2 créneaux' : '2 plages'}</option>
+            <option value={3}>{exact ? '3 créneaux' : '3 plages'}</option>
           </select>
         </div>
         <div>
@@ -658,15 +708,16 @@ function CalendlyBookingFields({
             onChange={(e) => onPatch({ extra_offers: Number(e.target.value) })}
           >
             <option value={0}>Demander directement</option>
-            <option value={1}>1 autre plage</option>
-            <option value={2}>2 autres plages</option>
+            <option value={1}>{exact ? '1 autre créneau' : '1 autre plage'}</option>
+            <option value={2}>{exact ? '2 autres créneaux' : '2 autres plages'}</option>
           </select>
         </div>
       </div>
 
       <FieldHint>
-        Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la
-        durée de l'appel.
+        {exact
+          ? 'L’assistant propose des heures exactes, deux le même jour quand la journée en offre assez, sinon sur deux jours.'
+          : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel."}
       </FieldHint>
 
       <FieldHint>
@@ -678,24 +729,7 @@ function CalendlyBookingFields({
       </FieldHint>
 
       {preview && preview.bookable ? (
-        <div className="rounded-[10px] bg-bg px-3 py-2.5">
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted">
-            <CalendarDays size={14} />
-            Ce que fait l'assistant, d'après vos vraies disponibilités
-          </p>
-          <ol className="space-y-1 text-sm">
-            {preview.steps.map((step, i) => (
-              <li key={i} className="flex gap-2">
-                <span className="text-muted">{i + 1}.</span>
-                <span>{step}</span>
-              </li>
-            ))}
-            <li className="flex gap-2">
-              <span className="text-muted">{preview.steps.length + 1}.</span>
-              <span>Fait préciser l'heure, demande l'e-mail, puis réserve dans Calendly.</span>
-            </li>
-          </ol>
-        </div>
+        <StepsPreview title="Ce que fait l'assistant, d'après vos vraies disponibilités" steps={preview.steps} />
       ) : null}
       {loadingPreview && !preview ? <Skeleton className="h-20 w-full" /> : null}
     </div>
@@ -994,26 +1028,14 @@ function GoalSection({
                   au-delà » encadrent aussi une heure proposée par le prospect.
                 </FieldHint>
               </div>
-              <div className="rounded-[10px] bg-bg px-3 py-2.5">
-                <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted">
-                  <CalendarDays size={14} />
-                  Ce que fait l'assistant, par exemple
-                </p>
-                <ol className="space-y-1 text-sm">
-                  {preview.steps.map((step, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="text-muted">{i + 1}.</span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                  {preview.possible && !agendaError ? (
-                    <li className="flex gap-2">
-                      <span className="text-muted">{preview.steps.length + 1}.</span>
-                      <span>Fait préciser l'heure, demande l'e-mail, réserve avec un lien Meet envoyé en message.</span>
-                    </li>
-                  ) : null}
-                </ol>
-              </div>
+              <StepsPreview
+                title="Ce que fait l'assistant, par exemple"
+                steps={
+                  preview.possible && !agendaError
+                    ? [...preview.steps, 'Fait préciser l’heure, demande l’e-mail, réserve avec un lien Meet envoyé en message.']
+                    : preview.steps
+                }
+              />
               <FieldError>{agendaError ?? ''}</FieldError>
             </div>
           )}
