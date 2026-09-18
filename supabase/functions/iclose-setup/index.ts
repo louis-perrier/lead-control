@@ -51,6 +51,17 @@ async function account(userId: string) {
   return data
 }
 
+async function storedToken(userId: string) {
+  const { data } = await admin
+    .from('channel_accounts')
+    .select('metadata')
+    .eq('user_id', userId)
+    .eq('provider', 'iclose')
+    .eq('external_id', 'api-key')
+    .maybeSingle()
+  return ((data?.metadata ?? {}) as Record<string, unknown>)
+}
+
 async function keyOf(userId: string) {
   const row = await account(userId)
   if (!row) return null
@@ -78,8 +89,7 @@ async function saveKey(req: Request) {
   // iClose ne signe pas ses envois : l'adresse du webhook porte un jeton propre à ce compte,
   // qui la rend impossible à deviner et dit tout de suite de quel client vient l'appel. Un jeton
   // déjà posé est conservé, sinon l'ancien webhook enregistré chez iClose pointerait dans le vide.
-  const existing = await account(user.id)
-  const metadata = (existing?.metadata ?? {}) as Record<string, unknown>
+  const metadata = await storedToken(user.id)
   const token =
     typeof metadata.webhook_token === 'string' && /^[0-9a-f]{32}$/.test(metadata.webhook_token)
       ? metadata.webhook_token
