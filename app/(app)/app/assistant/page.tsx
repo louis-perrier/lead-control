@@ -579,7 +579,7 @@ function OfferStyleFields({
           </select>
         </div>
         <div>
-          <Label htmlFor={`${prefix}Notice`}>Jamais avant</Label>
+          <Label htmlFor={`${prefix}Notice`}>Délai minimum</Label>
           <select
             id={`${prefix}Notice`}
             className={selectClass}
@@ -601,8 +601,8 @@ function OfferStyleFields({
           : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel."}
       </FieldHint>
       <FieldHint>
-        « Jamais avant » s’ajoute au délai déjà réglé sur votre page de réservation, il ne le raccourcit jamais. En
-        dessous de ce délai, l’assistant ne propose rien et refuse aussi une heure que le prospect demanderait.
+        Le délai minimum s’ajoute à celui déjà réglé sur votre page de réservation, il ne le raccourcit jamais. En
+        dessous, l’assistant ne propose rien et refuse aussi une heure que le prospect demanderait.
       </FieldHint>
     </>
   )
@@ -1039,7 +1039,11 @@ function IcloseBookingFields({
         ) : null}
         {info && !info.bookable ? <FieldError>{info.blockers.join(' ; ')}</FieldError> : null}
         {preview?.bookable && preview.slot_count === 0 ? (
-          <FieldError>Aucun créneau disponible sur les 30 prochains jours.</FieldError>
+          <FieldError>
+            Aucun créneau libre dans les 30 prochains jours
+            {settings.notice_hours ? `, passé le délai minimum de ${settings.notice_hours} h` : ''}. L'assistant
+            demandera au prospect le moment qui l'arrange, sans rien proposer.
+          </FieldError>
         ) : null}
       </div>
 
@@ -1203,8 +1207,9 @@ function CalendlyBookingFields({
         ) : null}
         {!error && preview?.bookable && preview.slot_count === 0 ? (
           <FieldError>
-            Aucun créneau libre dans les 30 prochains jours sur cette page. L'assistant demandera au prospect le moment
-            qui l'arrange, sans rien proposer.
+            Aucun créneau libre dans les 30 prochains jours
+            {settings.notice_hours ? `, passé le délai minimum de ${settings.notice_hours} h` : ''}. L'assistant
+            demandera au prospect le moment qui l'arrange, sans rien proposer.
           </FieldError>
         ) : null}
       </div>
@@ -1298,6 +1303,11 @@ function GoalSection({
   const iclosePageError =
     mode === 'iclose' && icloseConnected && !icloseSettings.link_prefix ? 'Choisissez une page de réservation.' : null
   const icloseBlocked = Boolean(iclosePageError) || (mode === 'iclose' && icloseConnected && pageMissing)
+  // Un champ sans nom est écarté à la lecture : le laisser enregistrer, c'est promettre une
+  // question que l'assistant ne posera jamais.
+  const fieldsBlocked =
+    (mode === 'calendly' && hasUnnamedField(calendlySettings.extra_fields)) ||
+    (mode === 'iclose' && hasUnnamedField(icloseSettings.extra_fields))
   const preview = useMemo(() => agendaPreview(agenda), [agenda])
 
   const modeVisible = (m: string) =>
@@ -1322,7 +1332,7 @@ function GoalSection({
       setLinkError('Le lien doit commencer par http:// ou https://')
       return
     }
-    if (agendaError || calendlyBlocked || icloseBlocked) return
+    if (agendaError || calendlyBlocked || icloseBlocked || fieldsBlocked) return
     save((fresh) => ({
       stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
       // Un mode enregistré dont le module est masqué n'est pas écrasé par le formulaire.
@@ -1573,7 +1583,7 @@ function GoalSection({
                   </select>
                 </div>
                 <div>
-                  <Label htmlFor="agendaNotice">Jamais avant</Label>
+                  <Label htmlFor="agendaNotice">Délai minimum</Label>
                   <select
                     id="agendaNotice"
                     className={selectClass}
@@ -1615,8 +1625,8 @@ function GoalSection({
                   onEnd={(end) => patchAgenda({ end })}
                 />
                 <FieldHint>
-                  Votre agenda principal est lu. Un événement marqué « Disponible » ne bloque pas. « Jamais avant » et « jamais
-                  au-delà » encadrent aussi une heure proposée par le prospect.
+                  Votre agenda principal est lu. Un événement marqué « Disponible » ne bloque pas. Le délai minimum et
+                  « jamais au-delà » encadrent aussi une heure proposée par le prospect.
                 </FieldHint>
               </div>
               <StepsPreview
@@ -1634,7 +1644,7 @@ function GoalSection({
           <SecondaryLinksField assistant={assistant} />
         </CardBody>
         <div className="flex justify-end border-t border-border px-5 py-3.5">
-          <Button type="submit" disabled={saving || Boolean(agendaError) || calendlyBlocked || icloseBlocked}>
+          <Button type="submit" disabled={saving || Boolean(agendaError) || calendlyBlocked || icloseBlocked || fieldsBlocked}>
             {saving ? 'Enregistrement…' : 'Enregistrer'}
           </Button>
         </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildAsks, collectAnswers } from '../supabase/functions/_shared/booking-fields'
 import { normalizeCalendly } from '../supabase/functions/_shared/calendly-settings'
+import { hasUnnamedField, KIND_DEFAULT_LABEL } from '../supabase/functions/_shared/booking-settings'
 import type { EventQuestion } from '../supabase/functions/_shared/calendly-event-type'
 
 const question = (over: Partial<EventQuestion>): EventQuestion => ({
@@ -106,5 +107,18 @@ describe('collectAnswers', () => {
   it('ne casse pas sur une charge utile inattendue', () => {
     expect(collectAnswers(asks, undefined).missing).toEqual(['Ton numéro'])
     expect(collectAnswers([], { champ1: 'x' })).toEqual({ answers: [], saved: [], phone: null, missing: [] })
+  })
+})
+
+describe('hasUnnamedField', () => {
+  it('repère un champ sans nom, que la lecture écarterait en silence', () => {
+    expect(hasUnnamedField([{ label: 'Numéro de téléphone', kind: 'phone' }])).toBe(false)
+    expect(hasUnnamedField([{ label: '   ', kind: 'phone' }])).toBe(true)
+    expect(hasUnnamedField([])).toBe(false)
+  })
+
+  it('propose un nom pour le type téléphone, aucun pour la réponse libre', () => {
+    expect(KIND_DEFAULT_LABEL.phone).toBe('Numéro de téléphone')
+    expect(KIND_DEFAULT_LABEL.text).toBe('')
   })
 })
