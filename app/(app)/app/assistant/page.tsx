@@ -478,7 +478,7 @@ type CalendlyPage = {
   blockers: string[]
 }
 
-type CalendlyPreview = CalendlyPage & { steps: string[] }
+type CalendlyPreview = CalendlyPage & { steps: string[]; slot_count?: number }
 
 const CALENDLY_ERRORS: Record<string, string> = {
   plan_required: 'Votre forfait Calendly ne permet pas à l’assistant de réserver. Il faut un forfait payant.',
@@ -497,10 +497,12 @@ function CalendlyBookingFields({
   connected,
   settings,
   onPatch,
+  onMissing,
 }: {
   connected: boolean
   settings: CalendlySettings
   onPatch: (patch: Partial<CalendlySettings>) => void
+  onMissing: (missing: boolean) => void
 }) {
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<CalendlyPreview | null>(null)
@@ -516,6 +518,12 @@ function CalendlyBookingFields({
 
   const chosen = pages.data?.find((p) => p.uri === settings.event_type_uri) ?? null
   const info = preview ?? chosen
+  // Page supprimée dans Calendly depuis le réglage : la liste ne la contient plus.
+  const missing = Boolean(settings.event_type_uri) && Boolean(pages.data) && !chosen
+
+  useEffect(() => {
+    onMissing(missing)
+  }, [missing, onMissing])
 
   useEffect(() => {
     if (!connected || !settings.event_type_uri) {
@@ -584,18 +592,30 @@ function CalendlyBookingFields({
         {!pages.error && pages.data?.length === 0 ? (
           <FieldError>Aucune page de réservation active dans ce compte Calendly.</FieldError>
         ) : null}
-        {info && info.bookable ? (
+        {missing ? (
+          <FieldError>
+            La page enregistrée n'existe plus dans Calendly. Choisissez-en une autre, sinon l'assistant se contentera
+            d'envoyer votre lien.
+          </FieldError>
+        ) : null}
+        {error && !pages.error ? <FieldError>{error}</FieldError> : null}
+        {!error && !missing && info?.bookable ? (
           <FieldHint>
             L'assistant réserve lui-même : {info.duration_min} min, {info.location_label}.
           </FieldHint>
         ) : null}
-        {info && !info.bookable ? (
+        {!error && !missing && info && !info.bookable ? (
           <FieldError>
-            L'assistant ne peut pas remplir cette page ({info.blockers.join(' ; ')}). Il proposera des créneaux puis enverra
-            votre lien.
+            L'assistant ne peut pas remplir cette page ({info.blockers.join(' ; ')}). Il se contentera d'envoyer votre
+            lien de réservation, comme en mode Par lien.
           </FieldError>
         ) : null}
-        {error && !pages.error ? <FieldError>{error}</FieldError> : null}
+        {!error && preview?.bookable && preview.slot_count === 0 ? (
+          <FieldError>
+            Aucun créneau libre dans les 30 prochains jours sur cette page. L'assistant demandera au prospect le moment
+            qui l'arrange, sans rien proposer.
+          </FieldError>
+        ) : null}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -702,8 +722,14 @@ function GoalSection({
   const [agenda, setAgenda] = useState<AgendaSettings>(normalizeAgenda(s.booking?.calendar))
   const [calendlySettings, setCalendly] = useState<CalendlySettings>(normalizeCalendly(s.booking?.calendly))
   const [linkError, setLinkError] = useState('')
+  const [pageMissing, setPageMissing] = useState(false)
   const agendaError = mode === 'calendar' ? agendaSettingsError(agenda) : null
-  const calendlyPageError = mode === 'calendly' && !calendlySettings.event_type_uri ? 'Choisissez une page de réservation.' : null
+  const calendlyConnected = calendly?.status === 'connected'
+  // Sans compte relié, la carte explique déjà que l'assistant enverra le lien : rien à bloquer.
+  const calendlyPageError =
+    mode === 'calendly' && calendlyConnected && !calendlySettings.event_type_uri ? 'Choisissez une page de réservation.' : null
+  // La page disparue affiche déjà son message sous la liste, elle ne bloque que l'enregistrement.
+  const calendlyBlocked = Boolean(calendlyPageError) || (mode === 'calendly' && calendlyConnected && pageMissing)
   const preview = useMemo(() => agendaPreview(agenda), [agenda])
 
   const modeVisible = (m: string) =>
@@ -725,7 +751,7 @@ function GoalSection({
       setLinkError('Le lien doit commencer par http:// ou https://')
       return
     }
-    if (agendaError || calendlyPageError) return
+    if (agendaError || calendlyBlocked) return
     save((fresh) => ({
       stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
       // Un mode enregistré dont le module est masqué n'est pas écrasé par le formulaire.
@@ -833,9 +859,10 @@ function GoalSection({
                 beforeConnect={() => saveModeBeforeConnect('calendly')}
               />
               <CalendlyBookingFields
-                connected={calendly?.status === 'connected'}
+                connected={calendlyConnected}
                 settings={calendlySettings}
                 onPatch={(patch) => setCalendly((current) => ({ ...current, ...patch }))}
+                onMissing={setPageMissing}
               />
               <FieldError>{calendlyPageError ?? ''}</FieldError>
             </div>
@@ -987,7 +1014,7 @@ function GoalSection({
           <SecondaryLinksField assistant={assistant} />
         </CardBody>
         <div className="flex justify-end border-t border-border px-5 py-3.5">
-          <Button type="submit" disabled={saving || Boolean(agendaError || calendlyPageError)}>
+          <Button type="submit" disabled={saving || Boolean(agendaError) || calendlyBlocked}>
             {saving ? 'Enregistrement…' : 'Enregistrer'}
           </Button>
         </div>

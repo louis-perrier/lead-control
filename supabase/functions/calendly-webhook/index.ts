@@ -56,9 +56,20 @@ async function handleInviteeCreated(payload: Record<string, unknown>) {
     : { data: null }
   if (eventRes.data) return
 
+  // Un rendez-vous déplacé arrive comme une nouvelle réservation : l'ancienne de cette
+  // conversation est close d'abord, sinon l'index d'un seul appel actif la refuse.
+  if (conversationId) {
+    await admin
+      .from('bookings')
+      .update({ status: 'canceled' })
+      .eq('conversation_id', conversationId)
+      .eq('provider', 'calendly')
+      .eq('status', 'active')
+  }
+
   // payload.name est le nom de l'invité ; le nom et les horaires du rendez-vous sont dans scheduled_event.
   const scheduled = p.scheduled_event as Record<string, unknown> | undefined
-  await admin.from('bookings').insert({
+  const inserted = await admin.from('bookings').insert({
     user_id: userId,
     conversation_id: conversationId,
     event_type_uri: (scheduled?.event_type as string) ?? (p.event_type as string) ?? null,
@@ -71,6 +82,12 @@ async function handleInviteeCreated(payload: Record<string, unknown>) {
     status: 'active',
     raw_payload: payload,
   })
+  if (inserted.error) {
+    await logEvent('error', 'calendly-webhook', `réservation non enregistrée event=${eventUri}: ${inserted.error.message}`, {
+      user_id: userId,
+      conversation_id: conversationId ?? undefined,
+    })
+  }
 
   if (conversationId) {
     await admin
@@ -99,6 +116,16 @@ async function handleInviteeCanceled(payload: Record<string, unknown>) {
   await admin.from('bookings').update({ status: 'canceled', raw_payload: payload }).eq('id', booking.id)
 
   if (booking.conversation_id) {
+    // Un rendez-vous déplacé annule l'ancien après avoir créé le nouveau : la conversation
+    // ne se rouvre que s'il ne reste vraiment plus de rendez-vous.
+    const { data: others } = await admin
+      .from('bookings')
+      .select('id')
+      .eq('conversation_id', booking.conversation_id)
+      .eq('status', 'active')
+      .limit(1)
+    if ((others?.length ?? 0) > 0) return
+
     await admin
       .from('conversations')
       .update({ automation_state: 'idle', automation_reason: 'calendly_canceled', updated_at: new Date().toISOString() })

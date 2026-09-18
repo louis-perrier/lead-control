@@ -458,8 +458,9 @@ async function handleConversation(due: DueConversation) {
   const agendaTools = agenda
     ? { tools: agenda.tools, runTool: agenda.runTool, maxToolRounds: 3, lastRoundNote: LAST_ROUND_NOTE }
     : {}
-  // Repli d'un mode de réservation indisponible : la page Calendly choisie sert de lien.
-  const goalLink = agenda ? '' : settings.stop_condition?.link || prepared.link
+  // Repli d'un mode de réservation indisponible : la page de réservation choisie passe devant
+  // le lien du formulaire, qui peut encore pointer vers une ancienne page.
+  const goalLink = agenda ? '' : prepared.link || settings.stop_condition?.link || ''
 
   let context = settings.context ?? ''
   const { data: docs } = await admin
@@ -662,7 +663,7 @@ async function handleConversation(due: DueConversation) {
     return
   }
 
-  // Le lien Meet part toujours en message, en plus de l'invitation par e-mail.
+  // Le lien de la visio part toujours en message, en plus de l'invitation par e-mail.
   const meetLink = agenda?.result.booking?.meet_link
   if (meetLink && blocks.length > 0 && !(await meetLinkSent(convId, meetLink))) blocks.push(meetLink)
 

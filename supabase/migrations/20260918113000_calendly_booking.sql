@@ -2,7 +2,23 @@
 -- Les réservations partagent la table bookings avec le mode Google et le webhook Calendly.
 
 -- Un seul appel Calendly actif par conversation, comme pour Google : une réservation rejouée
--- retombe sur celle qui existe au lieu d'en créer une seconde.
+-- retombe sur celle qui existe au lieu d'en créer une seconde. Le contrôle préalable évite
+-- une erreur d'index illisible sur une base qui porterait déjà des doublons.
+do $$
+declare v_dup bigint;
+begin
+  select count(*) into v_dup from (
+    select conversation_id
+    from public.bookings
+    where provider = 'calendly' and status = 'active' and conversation_id is not null
+    group by conversation_id
+    having count(*) > 1
+  ) d;
+  if v_dup > 0 then
+    raise exception 'Migration arretee : % conversation(s) portent plusieurs reservations Calendly actives. Les clore avant de rejouer.', v_dup;
+  end if;
+end $$;
+
 create unique index if not exists bookings_calendly_active_conversation_key
   on public.bookings (conversation_id) where provider = 'calendly' and status = 'active';
 
