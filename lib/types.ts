@@ -1,5 +1,6 @@
 import type { AgendaSettings } from '@/supabase/functions/_shared/agenda-slots'
 import type { CalendlySettings } from '@/supabase/functions/_shared/calendly-settings'
+import type { IcloseSettings } from '@/supabase/functions/_shared/iclose-settings'
 
 export type Role = 'user' | 'viewer' | 'admin' | 'owner'
 export type PlanOverride = 'beta_byok' | 'free_unlimited' | null
@@ -28,7 +29,7 @@ export type Profile = {
 export type ChannelAccount = {
   id: string
   user_id: string
-  provider: 'instagram' | 'whatsapp' | 'calendly' | 'gmail' | 'google'
+  provider: 'instagram' | 'whatsapp' | 'calendly' | 'gmail' | 'google' | 'iclose'
   external_id: string
   handle: string | null
   label: string | null
@@ -59,9 +60,10 @@ export type AssistantSettings = {
   followups?: FollowupSettings
   canned_responses?: CannedResponse[]
   booking?: {
-    mode?: 'link' | 'calendly' | 'calendar'
+    mode?: 'link' | 'calendly' | 'iclose' | 'calendar'
     calendar?: Partial<AgendaSettings>
     calendly?: Partial<CalendlySettings>
+    iclose?: Partial<IcloseSettings>
   }
 }
 
@@ -195,7 +197,7 @@ export type Contact = {
 
 export type Booking = {
   id: string
-  provider: 'calendly' | 'google'
+  provider: 'calendly' | 'google' | 'iclose'
   meet_link: string | null
   conversation_id: number | null
   event_type_name: string | null

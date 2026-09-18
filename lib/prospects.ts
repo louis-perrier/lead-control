@@ -19,11 +19,13 @@ type StageInput = Pick<
   'outcome' | 'automation_reason' | 'heat_tag' | 'inbound_count' | 'agent_sent_count' | 'human_sent_count'
 >
 
+const BOOKED_REASONS = ['calendly_booked', 'calendar_booked', 'iclose_booked']
+
 // Calculée à chaque affichage depuis la conversation : rien à synchroniser, rien de périmé.
 export function prospectStage(conv: StageInput, hasActiveBooking: boolean): ProspectStage {
   if (conv.outcome === 'won') return 'won'
   if (conv.outcome === 'lost') return 'lost'
-  if (hasActiveBooking || conv.automation_reason === 'calendly_booked' || conv.automation_reason === 'calendar_booked') return 'booked'
+  if (hasActiveBooking || BOOKED_REASONS.includes(conv.automation_reason ?? '')) return 'booked'
   if (conv.heat_tag === 'hot' || conv.heat_tag === 'warm') return 'qualified'
   if (conv.heat_tag === 'cold') return 'unqualified'
   if (conv.inbound_count >= 2 || conv.agent_sent_count + conv.human_sent_count > 0) return 'talking'

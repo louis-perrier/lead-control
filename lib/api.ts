@@ -7,6 +7,8 @@ const VIEW_AS_ALLOWED_PATHS = [
   'billing/info',
   'calendly-setup/event-types',
   'calendly-setup/preview',
+  'iclose-setup/events',
+  'iclose-setup/preview',
 ]
 
 export async function callFunction<T>(

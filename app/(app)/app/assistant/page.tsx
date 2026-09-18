@@ -38,15 +38,16 @@ import {
   normalizeAgenda,
   type AgendaSettings,
 } from '@/supabase/functions/_shared/agenda-slots'
+import { normalizeCalendly, type CalendlySettings } from '@/supabase/functions/_shared/calendly-settings'
+import { normalizeIclose, type IcloseSettings } from '@/supabase/functions/_shared/iclose-settings'
 import {
-  CALENDLY_RANGE_OPTIONS,
   FIELD_KINDS,
   MAX_EXTRA_FIELDS,
   OFFER_STYLES,
-  normalizeCalendly,
+  RANGE_HOUR_OPTIONS,
   type BookingField,
-  type CalendlySettings,
-} from '@/supabase/functions/_shared/calendly-settings'
+  type OfferStyle,
+} from '@/supabase/functions/_shared/booking-settings'
 import { formatDuration } from '@/lib/audio'
 import type { AssistedFollowup, Assistant, AssistantSettings, CannedResponse, ContextDocument, FollowupItem } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
@@ -61,7 +62,7 @@ import { useToast } from '@/components/ui/toast'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
-type BookingMode = 'link' | 'calendly' | 'calendar'
+type BookingMode = 'link' | 'calendly' | 'iclose' | 'calendar'
 
 function useSaveSettings(assistant: Assistant | undefined) {
   const toast = useToast()
@@ -479,6 +480,163 @@ function StepsPreview({ title, steps }: { title: string; steps: string[] }) {
   )
 }
 
+type OfferShape = { range_hours: number; first_offer: number; extra_offers: number; offer_style: OfferStyle }
+
+// Les quatre listes de proposition, identiques d'un outil de réservation à l'autre.
+function OfferStyleFields({
+  prefix,
+  settings,
+  onPatch,
+}: {
+  prefix: string
+  settings: OfferShape
+  onPatch: (patch: Partial<OfferShape>) => void
+}) {
+  const exact = settings.offer_style === 'slot'
+  return (
+    <>
+      <div className={exact ? 'grid items-end gap-3 sm:grid-cols-3' : 'grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4'}>
+        <div>
+          <Label htmlFor={`${prefix}Style`}>Ce que l'assistant propose</Label>
+          <select
+            id={`${prefix}Style`}
+            className={selectClass}
+            value={settings.offer_style}
+            onChange={(e) => onPatch({ offer_style: e.target.value === 'slot' ? 'slot' : 'range' })}
+          >
+            {OFFER_STYLES.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {exact ? null : (
+          <div>
+            <Label htmlFor={`${prefix}Range`}>Largeur maximale d'une plage</Label>
+            <select
+              id={`${prefix}Range`}
+              className={selectClass}
+              value={settings.range_hours}
+              onChange={(e) => onPatch({ range_hours: Number(e.target.value) })}
+            >
+              {RANGE_HOUR_OPTIONS.map((h) => (
+                <option key={h} value={h}>
+                  {h} h
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div>
+          <Label htmlFor={`${prefix}First`}>{exact ? 'Créneaux proposés d’abord' : "Plages proposées d'abord"}</Label>
+          <select
+            id={`${prefix}First`}
+            className={selectClass}
+            value={settings.first_offer}
+            onChange={(e) => onPatch({ first_offer: Number(e.target.value) })}
+          >
+            <option value={0}>Aucun, demander</option>
+            <option value={1}>{exact ? '1 créneau' : '1 plage'}</option>
+            <option value={2}>{exact ? '2 créneaux' : '2 plages'}</option>
+            <option value={3}>{exact ? '3 créneaux' : '3 plages'}</option>
+          </select>
+        </div>
+        <div>
+          <Label htmlFor={`${prefix}Extra`}>Si le prospect refuse</Label>
+          <select
+            id={`${prefix}Extra`}
+            className={selectClass}
+            value={settings.extra_offers}
+            disabled={settings.first_offer === 0}
+            onChange={(e) => onPatch({ extra_offers: Number(e.target.value) })}
+          >
+            <option value={0}>Demander directement</option>
+            <option value={1}>{exact ? '1 autre créneau' : '1 autre plage'}</option>
+            <option value={2}>{exact ? '2 autres créneaux' : '2 autres plages'}</option>
+          </select>
+        </div>
+      </div>
+
+      <FieldHint>
+        {exact
+          ? 'L’assistant propose des heures exactes, deux le même jour quand la journée en offre assez, sinon sur deux jours.'
+          : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel."}
+      </FieldHint>
+    </>
+  )
+}
+
+// Ce que l'assistant demande au prospect avant de réserver. `imposed` vient de la page de
+// réservation elle-même : ces lignes se lisent, elles ne se règlent pas ici.
+function ExtraFieldsBlock({
+  toolName,
+  imposed,
+  fields,
+  onFields,
+}: {
+  toolName: string
+  imposed: string[]
+  fields: BookingField[]
+  onFields: (next: BookingField[]) => void
+}) {
+  return (
+    <div className="rounded-[10px] border border-border p-3">
+      <Label className="mb-0">Informations à demander avant de réserver</Label>
+      <FieldHint>
+        L'e-mail est toujours demandé, {toolName} l'exige. Chaque information en plus rallonge la conversation.
+      </FieldHint>
+      <div className="mt-2.5 space-y-2">
+        {imposed.map((q) => (
+          <div key={q} className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-ink">{q}</span>
+            <Badge tone="muted">imposé par cette page {toolName}</Badge>
+          </div>
+        ))}
+        {fields.map((f, i) => (
+          <div key={i} className="flex flex-wrap items-center gap-2">
+            <Input
+              value={f.label}
+              placeholder="Ce que l'assistant demande, par exemple Numéro de téléphone"
+              onChange={(e) => onFields(fields.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))}
+              className="min-w-[12rem] flex-1"
+            />
+            <select
+              className={`${selectClass} w-auto`}
+              aria-label="Type d'information"
+              value={f.kind}
+              onChange={(e) =>
+                onFields(fields.map((x, k) => (k === i ? { ...x, kind: e.target.value as BookingField['kind'] } : x)))
+              }
+            >
+              {FIELD_KINDS.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+            <Button type="button" size="sm" variant="ghost" onClick={() => onFields(fields.filter((_, k) => k !== i))}>
+              Retirer
+            </Button>
+          </div>
+        ))}
+      </div>
+      {fields.length < MAX_EXTRA_FIELDS ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="mt-2.5"
+          onClick={() => onFields([...fields, { label: '', kind: 'text' }])}
+        >
+          <Plus size={14} />
+          Ajouter une information
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
 function agendaPreview(agenda: AgendaSettings): { steps: string[]; possible: boolean } {
   if (agenda.first_offer === 0) return { steps: ['Demande au prospect le moment qui l’arrange.'], possible: true }
   const offers = computeOffers({ now: PREVIEW_NOW, tz: 'Europe/Paris', settings: agenda, busy: [], withDate: false })
@@ -515,6 +673,283 @@ const CALENDLY_ERRORS: Record<string, string> = {
 const calendlyError = (e: unknown) =>
   CALENDLY_ERRORS[(e as Error)?.message] ?? 'Calendly ne répond pas. Réessayez dans un instant.'
 
+type IclosePage = {
+  id: string
+  link_prefix: string
+  name: string
+  duration_min: number
+  booking_url: string
+  bookable: boolean
+  blockers: string[]
+}
+
+type IclosePreview = IclosePage & { steps: string[]; slot_count?: number }
+
+const ICLOSE_ERRORS: Record<string, string> = {
+  plan_required: 'L’API iClose demande un forfait Business ou Enterprise. Le forfait actuel ne l’ouvre pas.',
+  token_invalid: 'Cette clé iClose est refusée. Refaites-en une dans iClose, Réglages puis Developer.',
+  rate_limited: 'iClose a reçu trop d’appels d’un coup. Réessayez dans quelques secondes.',
+  not_connected: 'Collez d’abord votre clé d’API iClose.',
+  event_missing: 'Cette page de réservation n’existe plus dans iClose.',
+  view_as_readonly: 'Lecture seule pendant la consultation d’un compte.',
+}
+
+const icloseError = (e: unknown) =>
+  ICLOSE_ERRORS[(e as Error)?.message] ?? 'iClose ne répond pas. Réessayez dans un instant.'
+
+// iClose ne propose pas de bouton de connexion : le client colle une clé d'API, vérifiée par un
+// vrai appel avant d'être gardée.
+function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }) {
+  const { data: channels } = useChannelAccounts()
+  const toast = useToast()
+  const invalidate = useInvalidate()
+  const viewingAs = useViewAsTargetId() !== null
+  const [apiKey, setApiKey] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const channel = channels?.find((c) => c.provider === 'iclose')
+
+  async function save() {
+    setBusy(true)
+    setError('')
+    try {
+      await beforeConnect?.()
+      await callFunction('iclose-setup/key', { body: { api_key: apiKey.trim() } })
+      setApiKey('')
+      toast('iClose relié.')
+      invalidate('channel-accounts')
+    } catch (e) {
+      setError(icloseError(e))
+    }
+    setBusy(false)
+  }
+
+  async function disconnect() {
+    setBusy(true)
+    try {
+      await callFunction('iclose-setup/disconnect', { body: {} })
+      toast('iClose déconnecté.')
+      invalidate('channel-accounts')
+    } catch {
+      toast('La déconnexion a échoué.', 'error')
+    }
+    setBusy(false)
+    setConfirmOpen(false)
+  }
+
+  return (
+    <div className="rounded-[10px] border border-border px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="text-sm font-medium">iClose</span>
+        {channel ? (
+          <>
+            <span className="min-w-0 truncate text-sm text-muted">{channel.label ?? 'Clé enregistrée'}</span>
+            {channel.status === 'connected' ? (
+              <Badge tone="success">Connecté</Badge>
+            ) : (
+              <Badge tone="warning">Clé refusée</Badge>
+            )}
+            {viewingAs ? null : (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="ml-auto"
+                onClick={() => setConfirmOpen(true)}
+                disabled={busy}
+              >
+                Déconnecter
+              </Button>
+            )}
+          </>
+        ) : (
+          <span className="text-sm text-muted">Aucune clé enregistrée</span>
+        )}
+      </div>
+      {!channel || channel.status !== 'connected' ? (
+        viewingAs ? null : (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <Input
+              value={apiKey}
+              placeholder="iclosed_..."
+              autoComplete="off"
+              onChange={(e) => setApiKey(e.target.value)}
+              className="min-w-[14rem] flex-1"
+            />
+            <Button type="button" size="sm" onClick={save} disabled={busy || apiKey.trim().length < 8}>
+              {busy ? 'Vérification…' : 'Relier iClose'}
+            </Button>
+          </div>
+        )
+      ) : null}
+      <FieldError>{error}</FieldError>
+      {!channel ? (
+        <FieldHint>
+          Dans iClose : Réglages, Developer, API Keys. La clé demande un forfait Business ou Enterprise.
+        </FieldHint>
+      ) : null}
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={disconnect}
+        title="Déconnecter iClose"
+        message="La clé sera effacée et l’assistant reviendra à l’envoi de votre lien."
+        confirmLabel="Déconnecter"
+        danger
+        loading={busy}
+      />
+    </div>
+  )
+}
+
+// Même forme que le mode Calendly : la durée, les jours, les heures et les règles de
+// qualification restent dans iClose.
+function IcloseBookingFields({
+  connected,
+  settings,
+  onPatch,
+  onMissing,
+}: {
+  connected: boolean
+  settings: IcloseSettings
+  onPatch: (patch: Partial<IcloseSettings>) => void
+  onMissing: (missing: boolean) => void
+}) {
+  const [error, setError] = useState('')
+  const [preview, setPreview] = useState<IclosePreview | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+
+  const pages = useQuery({
+    queryKey: ['iclose-events', connected],
+    enabled: connected,
+    staleTime: 60_000,
+    retry: false,
+    queryFn: () => callFunction<{ events: IclosePage[] }>('iclose-setup/events').then((r) => r.events),
+  })
+
+  const chosen = pages.data?.find((p) => p.link_prefix === settings.link_prefix) ?? null
+  const info = preview ?? chosen
+  const missing = Boolean(settings.link_prefix) && Boolean(pages.data) && !chosen
+
+  useEffect(() => {
+    onMissing(missing)
+  }, [missing, onMissing])
+
+  useEffect(() => {
+    if (!connected || !settings.link_prefix) {
+      setPreview(null)
+      return
+    }
+    let alive = true
+    setLoadingPreview(true)
+    callFunction<IclosePreview>('iclose-setup/preview', {
+      body: {
+        event_id: settings.event_id,
+        link_prefix: settings.link_prefix,
+        range_hours: settings.range_hours,
+        first_offer: settings.first_offer,
+        extra_offers: settings.extra_offers,
+        offer_style: settings.offer_style,
+      },
+    })
+      .then((data) => {
+        if (!alive) return
+        setPreview(data)
+        setError('')
+      })
+      .catch((e) => {
+        if (!alive) return
+        setPreview(null)
+        setError(icloseError(e))
+      })
+      .finally(() => alive && setLoadingPreview(false))
+    return () => {
+      alive = false
+    }
+  }, [
+    connected,
+    settings.event_id,
+    settings.link_prefix,
+    settings.range_hours,
+    settings.first_offer,
+    settings.extra_offers,
+    settings.offer_style,
+  ])
+
+  function choose(prefix: string) {
+    const page = pages.data?.find((p) => p.link_prefix === prefix)
+    onPatch({
+      link_prefix: prefix,
+      event_id: page?.id ?? '',
+      event_name: page?.name ?? '',
+      booking_url: page?.booking_url ?? '',
+      duration_min: page?.duration_min ?? settings.duration_min,
+    })
+  }
+
+  if (!connected) {
+    return <FieldHint>Tant qu'iClose n'est pas relié, l'assistant envoie votre lien à la place.</FieldHint>
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="iclosePage">Page de réservation</Label>
+        <select
+          id="iclosePage"
+          className={selectClass}
+          value={settings.link_prefix}
+          disabled={pages.isLoading || Boolean(pages.error)}
+          onChange={(e) => choose(e.target.value)}
+        >
+          <option value="">{pages.isLoading ? 'Chargement…' : 'Choisissez une page'}</option>
+          {(pages.data ?? []).map((p) => (
+            <option key={p.link_prefix} value={p.link_prefix}>
+              {p.name} ({p.duration_min} min)
+            </option>
+          ))}
+        </select>
+        {pages.error ? <FieldError>{icloseError(pages.error)}</FieldError> : null}
+        {!pages.error && pages.data?.length === 0 ? (
+          <FieldError>Aucune page de réservation active dans ce compte iClose.</FieldError>
+        ) : null}
+        {missing ? <FieldError>Cette page n'existe plus dans iClose. Choisissez-en une autre.</FieldError> : null}
+        {error ? <FieldError>{error}</FieldError> : null}
+        {info?.bookable ? (
+          <FieldHint>L'assistant réserve lui-même : {info.duration_min} min.</FieldHint>
+        ) : null}
+        {info && !info.bookable ? <FieldError>{info.blockers.join(' ; ')}</FieldError> : null}
+        {preview?.bookable && preview.slot_count === 0 ? (
+          <FieldError>Aucun créneau disponible sur les 30 prochains jours.</FieldError>
+        ) : null}
+      </div>
+
+      <OfferStyleFields prefix="iclose" settings={settings} onPatch={onPatch} />
+
+      <ExtraFieldsBlock
+        toolName="iClose"
+        imposed={[]}
+        fields={settings.extra_fields}
+        onFields={(extra_fields) => onPatch({ extra_fields })}
+      />
+
+      <FieldHint>
+        Durée, jours, heures, délai minimum, horizon et règles de qualification viennent de votre iClose. Le nom du
+        profil Instagram du prospect sert de nom de contact, et l'assistant lui demande son e-mail.
+      </FieldHint>
+      <FieldHint>
+        <strong className="font-semibold">L'API iClose demande un forfait Business ou Enterprise.</strong>
+      </FieldHint>
+
+      {preview && preview.bookable ? (
+        <StepsPreview title="Ce que fait l'assistant, d'après vos vraies disponibilités" steps={preview.steps} />
+      ) : null}
+      {loadingPreview && !preview ? <Skeleton className="h-20 w-full" /> : null}
+    </div>
+  )
+}
+
 // Les réglages de durée, de jours, d'heures, de délai et d'horizon vivent dans Calendly :
 // on n'affiche ici que ce qui relève de la conversation.
 function CalendlyBookingFields({
@@ -540,7 +975,6 @@ function CalendlyBookingFields({
     queryFn: () => callFunction<{ event_types: CalendlyPage[] }>('calendly-setup/event-types').then((r) => r.event_types),
   })
 
-  const exact = settings.offer_style === 'slot'
   const chosen = pages.data?.find((p) => p.uri === settings.event_type_uri) ?? null
   const info = preview ?? chosen
   // Page supprimée dans Calendly depuis le réglage : la liste ne la contient plus.
@@ -593,19 +1027,6 @@ function CalendlyBookingFields({
   const imposed = (info?.required_questions ?? []).filter(
     (q) => !settings.extra_fields.some((f) => f.label.trim().toLowerCase() === q.trim().toLowerCase()),
   )
-
-  function editField(index: number, patch: Partial<BookingField>) {
-    onPatch({ extra_fields: settings.extra_fields.map((f, i) => (i === index ? { ...f, ...patch } : f)) })
-  }
-
-  function removeField(index: number) {
-    onPatch({ extra_fields: settings.extra_fields.filter((_, i) => i !== index) })
-  }
-
-  function addField() {
-    if (settings.extra_fields.length >= MAX_EXTRA_FIELDS) return
-    onPatch({ extra_fields: [...settings.extra_fields, { label: '', kind: 'text' }] })
-  }
 
   function choose(uri: string) {
     const page = pages.data?.find((p) => p.uri === uri)
@@ -669,124 +1090,14 @@ function CalendlyBookingFields({
         ) : null}
       </div>
 
-      <div
-        className={
-          exact ? 'grid items-end gap-3 sm:grid-cols-3' : 'grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4'
-        }
-      >
-        <div>
-          <Label htmlFor="calendlyStyle">Ce que l'assistant propose</Label>
-          <select
-            id="calendlyStyle"
-            className={selectClass}
-            value={settings.offer_style}
-            onChange={(e) => onPatch({ offer_style: e.target.value === 'slot' ? 'slot' : 'range' })}
-          >
-            {OFFER_STYLES.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        {exact ? null : (
-          <div>
-            <Label htmlFor="calendlyRange">Largeur maximale d'une plage</Label>
-            <select
-              id="calendlyRange"
-              className={selectClass}
-              value={settings.range_hours}
-              onChange={(e) => onPatch({ range_hours: Number(e.target.value) })}
-            >
-              {CALENDLY_RANGE_OPTIONS.map((h) => (
-                <option key={h} value={h}>
-                  {h} h
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        <div>
-          <Label htmlFor="calendlyFirst">{exact ? 'Créneaux proposés d’abord' : "Plages proposées d'abord"}</Label>
-          <select
-            id="calendlyFirst"
-            className={selectClass}
-            value={settings.first_offer}
-            onChange={(e) => onPatch({ first_offer: Number(e.target.value) })}
-          >
-            <option value={0}>Aucun, demander</option>
-            <option value={1}>{exact ? '1 créneau' : '1 plage'}</option>
-            <option value={2}>{exact ? '2 créneaux' : '2 plages'}</option>
-            <option value={3}>{exact ? '3 créneaux' : '3 plages'}</option>
-          </select>
-        </div>
-        <div>
-          <Label htmlFor="calendlyExtra">Si le prospect refuse</Label>
-          <select
-            id="calendlyExtra"
-            className={selectClass}
-            value={settings.extra_offers}
-            disabled={settings.first_offer === 0}
-            onChange={(e) => onPatch({ extra_offers: Number(e.target.value) })}
-          >
-            <option value={0}>Demander directement</option>
-            <option value={1}>{exact ? '1 autre créneau' : '1 autre plage'}</option>
-            <option value={2}>{exact ? '2 autres créneaux' : '2 autres plages'}</option>
-          </select>
-        </div>
-      </div>
+      <OfferStyleFields prefix="calendly" settings={settings} onPatch={onPatch} />
 
-      <FieldHint>
-        {exact
-          ? 'L’assistant propose des heures exactes, deux le même jour quand la journée en offre assez, sinon sur deux jours.'
-          : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel."}
-      </FieldHint>
-
-      <div className="rounded-[10px] border border-border p-3">
-        <Label className="mb-0">Informations à demander avant de réserver</Label>
-        <FieldHint>
-          L'e-mail est toujours demandé, Calendly l'exige. Chaque information en plus rallonge la conversation.
-        </FieldHint>
-        <div className="mt-2.5 space-y-2">
-          {imposed.map((q) => (
-            <div key={q} className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-ink">{q}</span>
-              <Badge tone="muted">imposé par cette page Calendly</Badge>
-            </div>
-          ))}
-          {settings.extra_fields.map((f, i) => (
-            <div key={i} className="flex flex-wrap items-center gap-2">
-              <Input
-                value={f.label}
-                placeholder="Ce que l'assistant demande, par exemple Numéro de téléphone"
-                onChange={(e) => editField(i, { label: e.target.value })}
-                className="min-w-[12rem] flex-1"
-              />
-              <select
-                className={`${selectClass} w-auto`}
-                aria-label="Type d'information"
-                value={f.kind}
-                onChange={(e) => editField(i, { kind: e.target.value as BookingField['kind'] })}
-              >
-                {FIELD_KINDS.map((k) => (
-                  <option key={k.value} value={k.value}>
-                    {k.label}
-                  </option>
-                ))}
-              </select>
-              <Button type="button" size="sm" variant="ghost" onClick={() => removeField(i)}>
-                Retirer
-              </Button>
-            </div>
-          ))}
-        </div>
-        {settings.extra_fields.length < MAX_EXTRA_FIELDS ? (
-          <Button type="button" size="sm" variant="secondary" className="mt-2.5" onClick={addField}>
-            <Plus size={14} />
-            Ajouter une information
-          </Button>
-        ) : null}
-      </div>
+      <ExtraFieldsBlock
+        toolName="Calendly"
+        imposed={imposed}
+        fields={settings.extra_fields}
+        onFields={(extra_fields) => onPatch({ extra_fields })}
+      />
 
       <FieldHint>
         Durée, jours, heures, délai minimum et horizon viennent de votre Calendly. Le nom du profil Instagram du prospect
@@ -808,17 +1119,20 @@ function GoalSection({
   assistant,
   allowCalendly,
   allowCalendlyBooking,
+  allowIclose,
   allowCalendar,
 }: {
   assistant: Assistant
   allowCalendly: boolean
   allowCalendlyBooking: boolean
+  allowIclose: boolean
   allowCalendar: boolean
 }) {
   const { save, saving } = useSaveSettings(assistant)
   const { data: channels } = useChannelAccounts()
   const google = channels?.find((c) => c.provider === 'google')
   const calendly = channels?.find((c) => c.provider === 'calendly')
+  const iclose = channels?.find((c) => c.provider === 'iclose')
   const s = assistant.settings
   const [stopText, setStopText] = useState(s.stop_condition?.text ?? '')
   const [stopLink, setStopLink] = useState(s.stop_condition?.link ?? '')
@@ -827,9 +1141,16 @@ function GoalSection({
   const savedMode = s.booking?.mode
   const mode =
     modeChoice ??
-    (allowCalendlyBooking && savedMode === 'calendly' ? 'calendly' : allowCalendar && savedMode === 'calendar' ? 'calendar' : 'link')
+    (allowCalendlyBooking && savedMode === 'calendly'
+      ? 'calendly'
+      : allowIclose && savedMode === 'iclose'
+        ? 'iclose'
+        : allowCalendar && savedMode === 'calendar'
+          ? 'calendar'
+          : 'link')
   const [agenda, setAgenda] = useState<AgendaSettings>(normalizeAgenda(s.booking?.calendar))
   const [calendlySettings, setCalendly] = useState<CalendlySettings>(normalizeCalendly(s.booking?.calendly))
+  const [icloseSettings, setIclose] = useState<IcloseSettings>(normalizeIclose(s.booking?.iclose))
   const [linkError, setLinkError] = useState('')
   const [pageMissing, setPageMissing] = useState(false)
   const agendaError = mode === 'calendar' ? agendaSettingsError(agenda) : null
@@ -839,10 +1160,17 @@ function GoalSection({
     mode === 'calendly' && calendlyConnected && !calendlySettings.event_type_uri ? 'Choisissez une page de réservation.' : null
   // La page disparue affiche déjà son message sous la liste, elle ne bloque que l'enregistrement.
   const calendlyBlocked = Boolean(calendlyPageError) || (mode === 'calendly' && calendlyConnected && pageMissing)
+  const icloseConnected = iclose?.status === 'connected'
+  const iclosePageError =
+    mode === 'iclose' && icloseConnected && !icloseSettings.link_prefix ? 'Choisissez une page de réservation.' : null
+  const icloseBlocked = Boolean(iclosePageError) || (mode === 'iclose' && icloseConnected && pageMissing)
   const preview = useMemo(() => agendaPreview(agenda), [agenda])
 
   const modeVisible = (m: string) =>
-    m === 'link' || (m === 'calendly' && allowCalendlyBooking) || (m === 'calendar' && allowCalendar)
+    m === 'link' ||
+    (m === 'calendly' && allowCalendlyBooking) ||
+    (m === 'iclose' && allowIclose) ||
+    (m === 'calendar' && allowCalendar)
 
   function patchAgenda(patch: Partial<AgendaSettings>) {
     setAgenda((current) => {
@@ -860,7 +1188,7 @@ function GoalSection({
       setLinkError('Le lien doit commencer par http:// ou https://')
       return
     }
-    if (agendaError || calendlyBlocked) return
+    if (agendaError || calendlyBlocked || icloseBlocked) return
     save((fresh) => ({
       stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
       // Un mode enregistré dont le module est masqué n'est pas écrasé par le formulaire.
@@ -869,6 +1197,7 @@ function GoalSection({
         mode: modeVisible(fresh.booking?.mode ?? 'link') ? mode : fresh.booking?.mode ?? 'link',
         calendar: agenda,
         calendly: calendlySettings,
+        iclose: icloseSettings,
       },
     }))
   }
@@ -881,6 +1210,7 @@ function GoalSection({
         mode: target,
         ...(target === 'calendar' && !agendaError ? { calendar: agenda } : {}),
         ...(target === 'calendly' ? { calendly: calendlySettings } : {}),
+        ...(target === 'iclose' ? { iclose: icloseSettings } : {}),
       },
     }))
   }
@@ -888,6 +1218,7 @@ function GoalSection({
   const modes: { value: BookingMode; label: string }[] = [
     { value: 'link', label: 'Par lien' },
     ...(allowCalendlyBooking ? [{ value: 'calendly' as const, label: 'Dans mon Calendly' }] : []),
+    ...(allowIclose ? [{ value: 'iclose' as const, label: 'Dans mon iClose' }] : []),
     ...(allowCalendar ? [{ value: 'calendar' as const, label: 'Dans mon agenda Google' }] : []),
   ]
 
@@ -974,6 +1305,17 @@ function GoalSection({
                 onMissing={setPageMissing}
               />
               <FieldError>{calendlyPageError ?? ''}</FieldError>
+            </div>
+          ) : mode === 'iclose' ? (
+            <div className="space-y-4">
+              <IcloseKeyRow beforeConnect={() => saveModeBeforeConnect('iclose')} />
+              <IcloseBookingFields
+                connected={icloseConnected}
+                settings={icloseSettings}
+                onPatch={(patch) => setIclose((current) => ({ ...current, ...patch }))}
+                onMissing={setPageMissing}
+              />
+              <FieldError>{iclosePageError ?? ''}</FieldError>
             </div>
           ) : (
             <div className="space-y-4">
@@ -1111,7 +1453,7 @@ function GoalSection({
           <SecondaryLinksField assistant={assistant} />
         </CardBody>
         <div className="flex justify-end border-t border-border px-5 py-3.5">
-          <Button type="submit" disabled={saving || Boolean(agendaError) || calendlyBlocked}>
+          <Button type="submit" disabled={saving || Boolean(agendaError) || calendlyBlocked || icloseBlocked}>
             {saving ? 'Enregistrement…' : 'Enregistrer'}
           </Button>
         </div>
@@ -2361,10 +2703,12 @@ function ActivationSection({
   assistant,
   allowCalendar,
   allowCalendlyBooking,
+  allowIclose,
 }: {
   assistant: Assistant
   allowCalendar: boolean
   allowCalendlyBooking: boolean
+  allowIclose: boolean
 }) {
   const { data: channels } = useChannelAccounts()
   const toast = useToast()
@@ -2383,10 +2727,17 @@ function ActivationSection({
     blockers.push('reconnecter Google Agenda')
   }
   const calendly = channels?.find((c) => c.provider === 'calendly')
+  const iclose = channels?.find((c) => c.provider === 'iclose')
   if (allowCalendlyBooking && assistant.settings.booking?.mode === 'calendly') {
     if (calendly && calendly.status !== 'connected') blockers.push('reconnecter Calendly')
     else if (calendly && !assistant.settings.booking?.calendly?.event_type_uri) {
       blockers.push('choisir une page de réservation Calendly')
+    }
+  }
+  if (allowIclose && assistant.settings.booking?.mode === 'iclose') {
+    if (iclose && iclose.status !== 'connected') blockers.push('refaire la clé iClose')
+    else if (iclose && !assistant.settings.booking?.iclose?.link_prefix) {
+      blockers.push('choisir une page de réservation iClose')
     }
   }
 
@@ -2459,6 +2810,7 @@ function AssistantContent() {
   const allowHumanAgent = hasFeature('human_agent', flags, profile, overrides)
   const allowCalendar = hasFeature('google_calendar', flags, profile, overrides)
   const allowCalendlyBooking = hasFeature('calendly_booking', flags, profile, overrides)
+  const allowIclose = hasFeature('iclose_booking', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -2559,7 +2911,12 @@ function AssistantContent() {
   return (
     <div className="grid items-start gap-3 xl:grid-cols-2">
       <div className="xl:col-span-2">
-        <ActivationSection assistant={assistant} allowCalendar={allowCalendar} allowCalendlyBooking={allowCalendlyBooking} />
+        <ActivationSection
+          assistant={assistant}
+          allowCalendar={allowCalendar}
+          allowCalendlyBooking={allowCalendlyBooking}
+          allowIclose={allowIclose}
+        />
       </div>
       <ChannelSection assistant={assistant} />
       <ScheduleSection assistant={assistant} />
@@ -2576,6 +2933,7 @@ function AssistantContent() {
           assistant={assistant}
           allowCalendly={allowCalendly}
           allowCalendlyBooking={allowCalendlyBooking}
+          allowIclose={allowIclose}
           allowCalendar={allowCalendar}
         />
       </div>

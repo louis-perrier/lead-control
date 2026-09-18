@@ -1,7 +1,7 @@
 // Informations demandées au prospect avant la réservation : celles ajoutées dans LeadControl,
 // plus les questions obligatoires de la page de réservation qu'aucune ne couvre déjà. Module pur,
 // testé sous Vitest. Calendly repère ses questions par leur position, pas par leur nom.
-import { fieldKey, type BookingField, type BookingFieldKind } from './calendly-settings.ts'
+import { fieldKey, type BookingField, type BookingFieldKind } from './booking-settings.ts'
 import type { EventQuestion } from './calendly-event-type.ts'
 
 // Réponses au formulaire de la page : Calendly les repère par leur position.

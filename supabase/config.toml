@@ -425,3 +425,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.notifications-push]
 verify_jwt = false
+[functions.iclose-setup]
+verify_jwt = true
+[functions.iclose-webhook]
+verify_jwt = false
