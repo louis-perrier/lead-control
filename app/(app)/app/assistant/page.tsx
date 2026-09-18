@@ -1124,6 +1124,13 @@ function CalendlyBookingFields({
   )
 }
 
+const TOOL_NAMES: Record<string, string> = { calendly: 'Calendly', iclose: 'iClose', calendar: 'Google Agenda' }
+
+const MODE_CHOICES = [
+  { value: false, label: 'Avec le lien que j’envoie' },
+  { value: true, label: 'Avec l’assistant' },
+]
+
 function GoalSection({
   assistant,
   allowCalendly,
@@ -1146,17 +1153,41 @@ function GoalSection({
   const [stopText, setStopText] = useState(s.stop_condition?.text ?? '')
   const [stopLink, setStopLink] = useState(s.stop_condition?.link ?? '')
   // Les drapeaux arrivent après l'assistant : le mode affiché suit le réglage tant que rien n'est choisi.
-  const [modeChoice, setMode] = useState<BookingMode | null>(null)
+  const [byAgentChoice, setByAgent] = useState<boolean | null>(null)
+  const [providerChoice, setProvider] = useState<BookingMode | null>(null)
   const savedMode = s.booking?.mode
-  const mode =
-    modeChoice ??
-    (allowCalendlyBooking && savedMode === 'calendly'
+  const savedProvider: BookingMode | null =
+    allowCalendlyBooking && savedMode === 'calendly'
       ? 'calendly'
       : allowIclose && savedMode === 'iclose'
         ? 'iclose'
         : allowCalendar && savedMode === 'calendar'
           ? 'calendar'
-          : 'link')
+          : null
+  const allowedProviders: BookingMode[] = [
+    ...(allowCalendlyBooking ? ['calendly' as const] : []),
+    ...(allowIclose ? ['iclose' as const] : []),
+    ...(allowCalendar ? ['calendar' as const] : []),
+  ]
+  // Un seul outil à la fois : dès qu'un compte est relié, les autres boutons de connexion
+  // disparaissent. Un compte relié avant cette règle peut en laisser deux, d'où le choix affiché.
+  // Le temps que les comptes arrivent, on suit le réglage enregistré : sans ça, la carte propose
+  // une connexion pendant une seconde à quelqu'un qui en a déjà une.
+  const linked = channels
+    ? allowedProviders.filter(
+        (p) => (p === 'calendly' && calendly) || (p === 'iclose' && iclose) || (p === 'calendar' && google),
+      )
+    : savedProvider
+      ? [savedProvider]
+      : []
+  const byAgent = allowedProviders.length > 0 && (byAgentChoice ?? savedProvider !== null)
+  const provider: BookingMode =
+    providerChoice && linked.includes(providerChoice)
+      ? providerChoice
+      : savedProvider && linked.includes(savedProvider)
+        ? savedProvider
+        : linked[0] ?? savedProvider ?? allowedProviders[0] ?? 'calendly'
+  const mode: BookingMode = byAgent ? provider : 'link'
   const [agenda, setAgenda] = useState<AgendaSettings>(normalizeAgenda(s.booking?.calendar))
   const [calendlySettings, setCalendly] = useState<CalendlySettings>(normalizeCalendly(s.booking?.calendly))
   const [icloseSettings, setIclose] = useState<IcloseSettings>(normalizeIclose(s.booking?.iclose))
@@ -1224,13 +1255,6 @@ function GoalSection({
     }))
   }
 
-  const modes: { value: BookingMode; label: string }[] = [
-    { value: 'link', label: 'Par lien' },
-    ...(allowCalendlyBooking ? [{ value: 'calendly' as const, label: 'Dans mon Calendly' }] : []),
-    ...(allowIclose ? [{ value: 'iclose' as const, label: 'Dans mon iClose' }] : []),
-    ...(allowCalendar ? [{ value: 'calendar' as const, label: 'Dans mon agenda Google' }] : []),
-  ]
-
   return (
     <Card>
       <CardHeader title="Objectif et rendez-vous" description="Ce que l'assistant cherche à obtenir, et comment le prospect réserve." />
@@ -1247,19 +1271,19 @@ function GoalSection({
             />
           </div>
 
-          {modes.length > 1 ? (
+          {allowedProviders.length > 0 ? (
             <div>
               <Label id="bookingModeLabel">Le prospect réserve</Label>
               <div role="radiogroup" aria-labelledby="bookingModeLabel" className="inline-flex rounded-[10px] border border-border bg-bg p-1">
-                {modes.map((m) => (
+                {MODE_CHOICES.map((m) => (
                   <button
-                    key={m.value}
+                    key={String(m.value)}
                     type="button"
                     role="radio"
-                    aria-checked={mode === m.value}
-                    onClick={() => setMode(m.value)}
+                    aria-checked={byAgent === m.value}
+                    onClick={() => setByAgent(m.value)}
                     className={
-                      mode === m.value
+                      byAgent === m.value
                         ? 'rounded-[8px] bg-surface px-3 py-1.5 text-sm font-medium text-ink shadow-soft'
                         : 'rounded-[8px] px-3 py-1.5 text-sm font-medium text-muted hover:text-ink'
                     }
@@ -1268,6 +1292,31 @@ function GoalSection({
                   </button>
                 ))}
               </div>
+            </div>
+          ) : null}
+
+          {byAgent && linked.length > 1 ? (
+            <div>
+              <Label id="bookingToolLabel">Outil utilisé</Label>
+              <div role="radiogroup" aria-labelledby="bookingToolLabel" className="inline-flex rounded-[10px] border border-border bg-bg p-1">
+                {linked.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    role="radio"
+                    aria-checked={provider === p}
+                    onClick={() => setProvider(p)}
+                    className={
+                      provider === p
+                        ? 'rounded-[8px] bg-surface px-3 py-1.5 text-sm font-medium text-ink shadow-soft'
+                        : 'rounded-[8px] px-3 py-1.5 text-sm font-medium text-muted hover:text-ink'
+                    }
+                  >
+                    {TOOL_NAMES[p]}
+                  </button>
+                ))}
+              </div>
+              <FieldHint>Plusieurs outils sont reliés. Déconnectez celui dont vous ne vous servez plus.</FieldHint>
             </div>
           ) : null}
 
@@ -1292,6 +1341,38 @@ function GoalSection({
                   startBody={() => ({ return_to: window.location.href })}
                   disconnectPath="calendly-oauth/disconnect"
                   disconnectMessage="Les rendez-vous déjà réservés restent visibles, mais les nouvelles réservations ne seront plus suivies."
+                />
+              ) : null}
+            </div>
+          ) : linked.length === 0 ? (
+            <div className="space-y-3">
+              <FieldHint>
+                Reliez l’outil où vous prenez vos rendez-vous : l’assistant y réservera à votre place. Un seul outil à
+                la fois, il faudra le déconnecter pour en brancher un autre.
+              </FieldHint>
+              {allowCalendlyBooking ? (
+                <AccountRow
+                  provider="calendly"
+                  name="Calendly"
+                  emptyText="À relier pour que l'assistant réserve à votre place."
+                  startPath="calendly-oauth/start"
+                  startBody={() => ({ return_to: window.location.href })}
+                  disconnectPath="calendly-oauth/disconnect"
+                  disconnectMessage="L'assistant ne réservera plus d'appel et enverra votre lien à la place. Les rendez-vous déjà pris restent dans Calendly."
+                  beforeConnect={() => saveModeBeforeConnect('calendly')}
+                />
+              ) : null}
+              {allowIclose ? <IcloseKeyRow beforeConnect={() => saveModeBeforeConnect('iclose')} /> : null}
+              {allowCalendar ? (
+                <AccountRow
+                  provider="google"
+                  name="Google Agenda"
+                  emptyText="À relier pour que l'assistant réserve à votre place."
+                  startPath="google-oauth/start"
+                  startBody={() => ({ return_path: window.location.pathname })}
+                  disconnectPath="google-oauth/disconnect"
+                  disconnectMessage="L'assistant ne réservera plus d'appel et enverra votre lien à la place. Les rendez-vous déjà pris restent dans votre agenda."
+                  beforeConnect={() => saveModeBeforeConnect('calendar')}
                 />
               ) : null}
             </div>
@@ -1338,9 +1419,6 @@ function GoalSection({
                 disconnectMessage="L'assistant ne réservera plus d'appel et enverra votre lien à la place. Les rendez-vous déjà pris restent dans votre agenda."
                 beforeConnect={() => saveModeBeforeConnect('calendar')}
               />
-              {!google ? (
-                <FieldHint>Tant que Google Agenda n'est pas relié, l'assistant envoie votre lien à la place.</FieldHint>
-              ) : null}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <Label htmlFor="agendaDuration">Durée de l'appel</Label>
