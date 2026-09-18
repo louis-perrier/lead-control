@@ -808,9 +808,30 @@ function IcloseWebhookStep({ account }: { account: ChannelAccount }) {
           Copier
         </Button>
       </div>
+      <ol className="mt-2.5 space-y-1 text-sm text-muted">
+        {[
+          <>
+            Dans iClose, ouvrez <span className="text-ink">Réglages</span> puis la section{' '}
+            <span className="text-ink">Developer</span>, là où vous avez pris votre clé d’API, et ajoutez un webhook.
+          </>,
+          <>Collez l’adresse ci-dessus dans le champ de l’URL.</>,
+          <>
+            Activez les trois événements : rendez-vous <span className="text-ink">pris</span>,{' '}
+            <span className="text-ink">annulé</span> et <span className="text-ink">déplacé</span>. Selon la langue de
+            votre compte ils s’appellent <span className="text-ink">newCallScheduled</span>,{' '}
+            <span className="text-ink">callCancelled</span> et <span className="text-ink">callRescheduled</span>.
+          </>,
+          <>Enregistrez. Cet encadré disparaîtra tout seul au premier rendez-vous reçu.</>,
+        ].map((step, i) => (
+          <li key={i} className="flex gap-2">
+            <span>{i + 1}.</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
       <FieldHint>
-        Dans iClose : Réglages, Developer, Webhooks, Add webhook. Collez cette adresse et cochez les trois événements
-        Call booked, Call cancelled et Call rescheduled. Cet encadré disparaîtra au premier rendez-vous reçu.
+        Si vous ne trouvez pas la section des webhooks dans votre compte, dites-le-nous plutôt que de chercher : elle
+        n’est pas au même endroit selon les forfaits.
       </FieldHint>
     </div>
   )
