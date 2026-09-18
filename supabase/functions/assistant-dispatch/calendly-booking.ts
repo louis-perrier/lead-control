@@ -202,7 +202,14 @@ export async function prepareCalendlyTurn(opts: {
 
   async function verify(debut: string): Promise<ToolOutcome> {
     if (!reachable) return { content: CHECK_FALLBACK, isError: true }
-    return { content: describeCheck(checkBookingSlot({ value: debut, slots, durationMin: settings.duration_min, tz })) }
+    return { content: describeCheck(checkBookingSlot({
+        value: debut,
+        slots,
+        durationMin: settings.duration_min,
+        tz,
+        now: Date.now(),
+        noticeHours: settings.notice_hours,
+      })) }
   }
 
   async function insertBooking(row: Record<string, unknown>, eventUri: string) {
@@ -246,7 +253,14 @@ export async function prepareCalendlyTurn(opts: {
     // Relecture fraîche : le créneau a pu partir depuis le début du tour.
     let check: BookingCheck
     try {
-      check = checkBookingSlot({ value: debut, slots: await freshSlots(), durationMin: settings.duration_min, tz })
+      check = checkBookingSlot({
+        value: debut,
+        slots: await freshSlots(),
+        durationMin: settings.duration_min,
+        tz,
+        now: Date.now(),
+        noticeHours: settings.notice_hours,
+      })
     } catch (e) {
       await warnAccount(userId, e)
       return bookingFailed(e)

@@ -10,7 +10,7 @@ import {
   getEventType,
   listEventTypes,
 } from '../_shared/calendly.ts'
-import { computeBookingOffers } from '../_shared/slot-offers.ts'
+import { bookableSlots, computeBookingOffers } from '../_shared/slot-offers.ts'
 import { normalizeCalendly } from '../_shared/calendly-settings.ts'
 import { isValidTimezone } from '../_shared/agenda-slots.ts'
 
@@ -94,7 +94,13 @@ async function preview(req: Request) {
 
     const now = Date.now()
     const tz = await timezoneOf(user.id)
-    const slots = await availableTimes(account, token, settings.event_type_uri, now, now + HORIZON_MS)
+    // Le délai minimum du client s'applique à l'aperçu comme à la conversation, sinon l'écran
+    // annoncerait des créneaux que l'assistant ne proposera jamais.
+    const slots = bookableSlots(
+      await availableTimes(account, token, settings.event_type_uri, now, now + HORIZON_MS),
+      now,
+      settings.notice_hours,
+    )
     const offers = computeBookingOffers({
       now,
       tz,

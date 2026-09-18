@@ -6,7 +6,7 @@ export type OfferStyle = 'range' | 'slot'
 
 // Informations que l'assistant demande avant de réserver, en plus de l'e-mail que les deux outils
 // exigent. Chacune coûte un tour de conversation, d'où le plafond.
-export type BookingFieldKind = 'phone' | 'email' | 'text'
+export type BookingFieldKind = 'phone' | 'text'
 export type BookingField = { label: string; kind: BookingFieldKind }
 
 export const MAX_EXTRA_FIELDS = 3
@@ -16,16 +16,35 @@ export const BOOKED_REASONS = ['calendly_booked', 'calendar_booked', 'iclose_boo
 
 export const RANGE_HOUR_OPTIONS = [1, 2, 3, 4]
 
+// Délai minimum avant un rendez-vous, en heures. L'outil de réservation a déjà le sien : celui-ci
+// s'y ajoute et ne peut que l'allonger, d'où le 0 qui veut dire « celui de l'outil suffit ».
+export const BOOKING_NOTICE_OPTIONS = [0, 2, 4, 12, 24, 36, 48]
+
+export function noticeHours(value: unknown) {
+  const n = Math.round(Number(value))
+  return BOOKING_NOTICE_OPTIONS.includes(n) ? n : 0
+}
+
 export const OFFER_STYLES: { value: OfferStyle; label: string }[] = [
   { value: 'range', label: 'Des plages horaires' },
   { value: 'slot', label: 'Des créneaux précis' },
 ]
 
 export const FIELD_KINDS: { value: BookingFieldKind; label: string }[] = [
-  { value: 'text', label: 'Texte libre' },
   { value: 'phone', label: 'Numéro de téléphone' },
-  { value: 'email', label: 'Adresse e-mail' },
+  { value: 'text', label: 'Réponse libre' },
 ]
+
+// Nom proposé quand on choisit le type : sans lui, un champ enregistré sans nom était accepté par
+// l'écran puis écarté à la lecture, et l'assistant ne demandait rien.
+export const KIND_DEFAULT_LABEL: Record<BookingFieldKind, string> = {
+  phone: 'Numéro de téléphone',
+  text: '',
+}
+
+export function hasUnnamedField(fields: BookingField[]) {
+  return fields.some((f) => !f.label.trim())
+}
 
 export function clampInt(value: unknown, min: number, max: number, fallback: number) {
   const n = Math.round(Number(value))
@@ -48,7 +67,7 @@ export function normalizeFields(value: unknown): BookingField[] {
     const f = raw as Partial<BookingField>
     const label = text(f?.label).slice(0, 60)
     if (!label) continue
-    const kind: BookingFieldKind = f?.kind === 'phone' || f?.kind === 'email' ? f.kind : 'text'
+    const kind: BookingFieldKind = f?.kind === 'phone' ? 'phone' : 'text'
     if (out.some((o) => o.label.toLowerCase() === label.toLowerCase())) continue
     out.push({ label, kind })
     if (out.length >= MAX_EXTRA_FIELDS) break

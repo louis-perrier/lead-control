@@ -12,7 +12,7 @@ import {
   normalizeCalendly,
   type CalendlySettings,
 } from '../supabase/functions/_shared/calendly-settings'
-import { zonedToUtc } from '../supabase/functions/_shared/agenda-slots'
+import { zonedParts, zonedToUtc } from '../supabase/functions/_shared/agenda-slots'
 
 const TZ = 'Europe/Paris'
 // Jeudi 17 septembre 2026, 15 h à Paris.
@@ -177,11 +177,46 @@ describe('planBookingOffers', () => {
   })
 })
 
+describe('délai minimum', () => {
+  it('écarte les créneaux trop proches des propositions', () => {
+    const patient: CalendlySettings = { ...settings, notice_hours: 48 }
+    const slots = [...day(9, 18, 9, 12), ...day(9, 21, 9, 12)]
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings: patient, slots, count: 2 })
+    for (const o of offers) expect(o.start).toBeGreaterThanOrEqual(NOW + 48 * 3_600_000)
+  })
+
+  it('refuse une heure demandée par le prospect sous le délai', () => {
+    const slots = day(9, 18, 9, 12)
+    const check = checkBookingSlot({
+      value: '2026-09-18T10:30',
+      slots,
+      durationMin: 30,
+      tz: TZ,
+      now: NOW,
+      noticeHours: 48,
+    })
+    expect(check.ok).toBe(false)
+  })
+
+  it('ne change rien quand le délai vaut zéro', () => {
+    const slots = day(9, 18, 9, 12)
+    const libre = computeBookingOffers({ now: NOW, tz: TZ, settings, slots, count: 1 })
+    expect(libre).toHaveLength(1)
+  })
+
+  it('recalcule les propositions mémorisées quand le délai change', () => {
+    expect(bookingOffersKey(settings, TZ, 'page')).not.toBe(
+      bookingOffersKey({ ...settings, notice_hours: 24 }, TZ, 'page'),
+    )
+  })
+})
+
 describe('checkBookingSlot', () => {
   const slots = day(9, 18, 9, 12)
+  const NOW = paris(9, 18, 8)
 
   it('accepte un créneau réservable', () => {
-    const check = checkBookingSlot({ value: '2026-09-18T10:30', slots, durationMin: 30, tz: TZ })
+    const check = checkBookingSlot({ value: '2026-09-18T10:30', slots, durationMin: 30, tz: TZ, now: NOW, noticeHours: 0 })
     expect(check.ok).toBe(true)
     if (check.ok) {
       expect(check.start).toBe(paris(9, 18, 10, 30))
@@ -190,7 +225,7 @@ describe('checkBookingSlot', () => {
   })
 
   it('refuse une heure illisible sans proposer de repli', () => {
-    const check = checkBookingSlot({ value: 'demain vers midi', slots, durationMin: 30, tz: TZ })
+    const check = checkBookingSlot({ value: 'demain vers midi', slots, durationMin: 30, tz: TZ, now: NOW, noticeHours: 0 })
     expect(check.ok).toBe(false)
     if (!check.ok) {
       expect(check.reason).toBe('format')
@@ -199,7 +234,7 @@ describe('checkBookingSlot', () => {
   })
 
   it('refuse un créneau absent et propose deux repères espacés', () => {
-    const check = checkBookingSlot({ value: '2026-09-18T13:00', slots, durationMin: 30, tz: TZ })
+    const check = checkBookingSlot({ value: '2026-09-18T13:00', slots, durationMin: 30, tz: TZ, now: NOW, noticeHours: 0 })
     expect(check.ok).toBe(false)
     if (!check.ok) {
       expect(check.reason).toBe('unavailable')
@@ -211,7 +246,7 @@ describe('checkBookingSlot', () => {
 
   it('refuse une heure locale qui n’existe pas', () => {
     // Dimanche 29 mars 2026 : 2 h 30 locales n'existent pas.
-    const check = checkBookingSlot({ value: '2026-03-29T02:30', slots, durationMin: 30, tz: TZ })
+    const check = checkBookingSlot({ value: '2026-03-29T02:30', slots, durationMin: 30, tz: TZ, now: NOW, noticeHours: 0 })
     expect(check.ok).toBe(false)
     if (!check.ok) expect(check.reason).toBe('nonexistent')
   })
@@ -247,6 +282,22 @@ describe('mode créneaux précis', () => {
     expect(offers[1].start - offers[0].start).toBeGreaterThanOrEqual(2 * 3_600_000)
     expect(offers[0].label).toContain('à')
     expect(offers[0].label).not.toContain('entre')
+  })
+
+  it('pose les deux heures du même jour sur deux moments différents', () => {
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings: exact, slots: day(9, 18, 9, 18), count: 2 })
+    const heures = offers.map((o) => zonedParts(o.start, TZ).hour)
+    expect(heures[0]).toBeLessThan(12)
+    expect(heures[1]).toBeGreaterThanOrEqual(12)
+  })
+
+  it('repart sur deux jours quand la journée n’a qu’un seul moment', () => {
+    const slots = [...day(9, 18, 9, 11, 30), ...day(9, 21, 9, 11, 30)]
+    const offers = computeBookingOffers({ now: NOW, tz: TZ, settings: exact, slots, count: 2 })
+    expect(offers).toHaveLength(2)
+    expect(new Date(offers[0].start).toISOString().slice(0, 10)).not.toBe(
+      new Date(offers[1].start).toISOString().slice(0, 10),
+    )
   })
 
   it('retombe sur deux jours quand la journée n’offre qu’un créneau', () => {

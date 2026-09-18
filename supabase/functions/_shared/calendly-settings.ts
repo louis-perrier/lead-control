@@ -3,6 +3,7 @@
 import {
   clampInt,
   normalizeFields,
+  noticeHours,
   offerStyle,
   text,
   type BookingField,
@@ -18,6 +19,7 @@ export type CalendlySettings = {
   first_offer: number
   extra_offers: number
   offer_style: OfferStyle
+  notice_hours: number
   extra_fields: BookingField[]
 }
 
@@ -30,6 +32,7 @@ export const CALENDLY_DEFAULTS: CalendlySettings = {
   first_offer: 2,
   extra_offers: 1,
   offer_style: 'range',
+  notice_hours: 0,
   extra_fields: [],
 }
 
@@ -45,6 +48,7 @@ export function normalizeCalendly(raw: Partial<CalendlySettings> | null | undefi
     first_offer: clampInt(r.first_offer, 0, 3, CALENDLY_DEFAULTS.first_offer),
     extra_offers: clampInt(r.extra_offers, 0, 2, CALENDLY_DEFAULTS.extra_offers),
     offer_style: offerStyle(r.offer_style),
+    notice_hours: noticeHours(r.notice_hours),
     extra_fields: normalizeFields(r.extra_fields),
   }
 }

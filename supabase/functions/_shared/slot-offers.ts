@@ -29,6 +29,16 @@ export type OfferSettings = {
   first_offer: number
   extra_offers: number
   offer_style: 'range' | 'slot'
+  notice_hours: number
+}
+
+// L'outil applique son propre délai minimum. Celui du client s'y ajoute et ne peut que
+// l'allonger : un créneau trop proche disparaît avant tout calcul, donc il n'est ni proposé,
+// ni accepté si le prospect le demande de lui-même.
+export function bookableSlots(slots: number[], now: number, hours: number) {
+  if (!hours) return slots
+  const floor = now + hours * 3_600_000
+  return slots.filter((s) => s >= floor)
 }
 
 // Deux créneaux précis d'une même journée se ressemblent s'ils se touchent : on les écarte.
@@ -95,11 +105,15 @@ function slotCandidates(slots: number[], durationMs: number, tz: string, todayNu
     })
 }
 
+// Deux créneaux du même jour doivent tomber sur deux moments différents : 9 h et 11 h se
+// ressemblent, matin et après-midi laissent un vrai choix. Une journée qui n'offre qu'un seul
+// moment ne sert donc pas deux créneaux, on repart sur deux jours.
 function spaceOut(day: Candidate[], count: number, minGap: number): Candidate[] {
   const out: Candidate[] = []
   for (const c of day) {
     const last = out[out.length - 1]
     if (last && c.start - last.start < minGap) continue
+    if (out.some((o) => o.period === c.period)) continue
     out.push(c)
     if (out.length >= count) break
   }
@@ -140,7 +154,8 @@ export function computeBookingOffers(opts: {
   keep?: Offer[]
   withDate?: boolean
 }): Offer[] {
-  const { now, tz, settings: s, slots, count } = opts
+  const { now, tz, settings: s, count } = opts
+  const slots = bookableSlots(opts.slots, now, s.notice_hours)
   const durationMs = s.duration_min * MINUTE
   const exact = s.offer_style === 'slot'
   const kept = (opts.keep ?? []).filter((o) => o.start > now && offerStillBookable(o, slots, s.duration_min, s.offer_style))
@@ -175,7 +190,16 @@ export function computeBookingOffers(opts: {
 
 // Clé des plages mémorisées : changer de page de réservation ou de réglage les recalcule.
 export function bookingOffersKey(s: OfferSettings, tz: string, page: string) {
-  return JSON.stringify([tz, page, s.duration_min, s.range_hours, s.first_offer, s.extra_offers, s.offer_style])
+  return JSON.stringify([
+    tz,
+    page,
+    s.duration_min,
+    s.range_hours,
+    s.first_offer,
+    s.extra_offers,
+    s.offer_style,
+    s.notice_hours,
+  ])
 }
 
 export function planBookingOffers(opts: {
@@ -186,7 +210,8 @@ export function planBookingOffers(opts: {
   slots: number[]
   stored: Partial<StoredOffers> | null | undefined
 }): { stored: StoredOffers; step: OfferStep } {
-  const { settings: s, tz, slots } = opts
+  const { settings: s, tz } = opts
+  const slots = bookableSlots(opts.slots, opts.now, s.notice_hours)
   const base = storedBase(bookingOffersKey(s, tz, opts.page), opts.stored)
   const keep = keepOrder(base)
   const sentStillFree = keep.filter(
@@ -228,8 +253,11 @@ export function checkBookingSlot(opts: {
   slots: number[]
   durationMin: number
   tz: string
+  now: number
+  noticeHours: number
 }): BookingCheck {
-  const { slots, tz } = opts
+  const { tz } = opts
+  const slots = bookableSlots(opts.slots, opts.now, opts.noticeHours)
   const parsed = parseLocalIso(opts.value)
   if (!parsed) return { ok: false, reason: 'format', alternatives: [] }
   const start = zonedToUtc(parsed.year, parsed.month, parsed.day, parsed.minutes, tz)
