@@ -1,7 +1,13 @@
 import { createClient } from '@/lib/supabase/client'
 import { isViewAsReadOnly } from '@/lib/view-as/state'
 
-const VIEW_AS_ALLOWED_PATHS = ['media-signed-url', 'context-documents/quota', 'billing/info']
+const VIEW_AS_ALLOWED_PATHS = [
+  'media-signed-url',
+  'context-documents/quota',
+  'billing/info',
+  'calendly-setup/event-types',
+  'calendly-setup/preview',
+]
 
 export async function callFunction<T>(
   path: string,

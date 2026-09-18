@@ -64,7 +64,7 @@ export function ProspectDetails({ conversation }: { conversation: Conversation }
           {booking.event_start_at ? <p className="mt-1 text-muted">{formatDateTime(booking.event_start_at)}</p> : null}
           {booking.meet_link && booking.status === 'active' ? (
             <a href={booking.meet_link} target="_blank" rel="noreferrer" className="mt-1 inline-block text-primary hover:underline">
-              Rejoindre l’appel Meet
+              {booking.provider === 'google' ? 'Rejoindre l’appel Meet' : 'Rejoindre la visio'}
             </a>
           ) : null}
         </div>

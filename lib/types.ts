@@ -1,4 +1,5 @@
 import type { AgendaSettings } from '@/supabase/functions/_shared/agenda-slots'
+import type { CalendlySettings } from '@/supabase/functions/_shared/calendly-settings'
 
 export type Role = 'user' | 'viewer' | 'admin' | 'owner'
 export type PlanOverride = 'beta_byok' | 'free_unlimited' | null
@@ -58,8 +59,9 @@ export type AssistantSettings = {
   followups?: FollowupSettings
   canned_responses?: CannedResponse[]
   booking?: {
-    mode?: 'link' | 'calendar'
+    mode?: 'link' | 'calendly' | 'calendar'
     calendar?: Partial<AgendaSettings>
+    calendly?: Partial<CalendlySettings>
   }
 }
 

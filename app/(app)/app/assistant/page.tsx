@@ -38,6 +38,11 @@ import {
   normalizeAgenda,
   type AgendaSettings,
 } from '@/supabase/functions/_shared/agenda-slots'
+import {
+  CALENDLY_RANGE_OPTIONS,
+  normalizeCalendly,
+  type CalendlySettings,
+} from '@/supabase/functions/_shared/calendly-settings'
 import { formatDuration } from '@/lib/audio'
 import type { AssistedFollowup, Assistant, AssistantSettings, CannedResponse, ContextDocument, FollowupItem } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
@@ -51,6 +56,8 @@ import { EmptyState } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/toast'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+
+type BookingMode = 'link' | 'calendly' | 'calendar'
 
 function useSaveSettings(assistant: Assistant | undefined) {
   const toast = useToast()
@@ -461,27 +468,242 @@ function agendaPreview(agenda: AgendaSettings): { steps: string[]; possible: boo
   return { steps, possible: true }
 }
 
+type CalendlyPage = {
+  uri: string
+  name: string
+  duration_min: number
+  scheduling_url: string
+  location_label: string
+  bookable: boolean
+  blockers: string[]
+}
+
+type CalendlyPreview = CalendlyPage & { steps: string[] }
+
+const CALENDLY_ERRORS: Record<string, string> = {
+  plan_required: 'Votre forfait Calendly ne permet pas à l’assistant de réserver. Il faut un forfait payant.',
+  token_expired: 'La connexion Calendly a expiré. Reconnectez le compte ci-dessus.',
+  not_connected: 'Reliez d’abord votre compte Calendly.',
+  event_type_missing: 'Cette page de réservation n’existe plus dans Calendly.',
+  view_as_readonly: 'Lecture seule pendant la consultation d’un compte.',
+}
+
+const calendlyError = (e: unknown) =>
+  CALENDLY_ERRORS[(e as Error)?.message] ?? 'Calendly ne répond pas. Réessayez dans un instant.'
+
+// Les réglages de durée, de jours, d'heures, de délai et d'horizon vivent dans Calendly :
+// on n'affiche ici que ce qui relève de la conversation.
+function CalendlyBookingFields({
+  connected,
+  settings,
+  onPatch,
+}: {
+  connected: boolean
+  settings: CalendlySettings
+  onPatch: (patch: Partial<CalendlySettings>) => void
+}) {
+  const [error, setError] = useState('')
+  const [preview, setPreview] = useState<CalendlyPreview | null>(null)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+
+  const pages = useQuery({
+    queryKey: ['calendly-event-types', connected],
+    enabled: connected,
+    staleTime: 60_000,
+    retry: false,
+    queryFn: () => callFunction<{ event_types: CalendlyPage[] }>('calendly-setup/event-types').then((r) => r.event_types),
+  })
+
+  const chosen = pages.data?.find((p) => p.uri === settings.event_type_uri) ?? null
+  const info = preview ?? chosen
+
+  useEffect(() => {
+    if (!connected || !settings.event_type_uri) {
+      setPreview(null)
+      return
+    }
+    let alive = true
+    setLoadingPreview(true)
+    callFunction<CalendlyPreview>('calendly-setup/preview', {
+      body: {
+        event_type_uri: settings.event_type_uri,
+        range_hours: settings.range_hours,
+        first_offer: settings.first_offer,
+        extra_offers: settings.extra_offers,
+      },
+    })
+      .then((data) => {
+        if (!alive) return
+        setPreview(data)
+        setError('')
+      })
+      .catch((e) => {
+        if (!alive) return
+        setPreview(null)
+        setError(calendlyError(e))
+      })
+      .finally(() => alive && setLoadingPreview(false))
+    return () => {
+      alive = false
+    }
+  }, [connected, settings.event_type_uri, settings.range_hours, settings.first_offer, settings.extra_offers])
+
+  function choose(uri: string) {
+    const page = pages.data?.find((p) => p.uri === uri)
+    onPatch({
+      event_type_uri: uri,
+      event_type_name: page?.name ?? '',
+      scheduling_url: page?.scheduling_url ?? '',
+      duration_min: page?.duration_min ?? settings.duration_min,
+    })
+  }
+
+  if (!connected) {
+    return <FieldHint>Tant que Calendly n'est pas relié, l'assistant envoie votre lien à la place.</FieldHint>
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="calendlyPage">Page de réservation</Label>
+        <select
+          id="calendlyPage"
+          className={selectClass}
+          value={settings.event_type_uri}
+          disabled={pages.isLoading || Boolean(pages.error)}
+          onChange={(e) => choose(e.target.value)}
+        >
+          <option value="">{pages.isLoading ? 'Chargement…' : 'Choisissez une page'}</option>
+          {(pages.data ?? []).map((p) => (
+            <option key={p.uri} value={p.uri}>
+              {p.name} ({p.duration_min} min)
+            </option>
+          ))}
+        </select>
+        {pages.error ? <FieldError>{calendlyError(pages.error)}</FieldError> : null}
+        {!pages.error && pages.data?.length === 0 ? (
+          <FieldError>Aucune page de réservation active dans ce compte Calendly.</FieldError>
+        ) : null}
+        {info && info.bookable ? (
+          <FieldHint>
+            L'assistant réserve lui-même : {info.duration_min} min, {info.location_label}.
+          </FieldHint>
+        ) : null}
+        {info && !info.bookable ? (
+          <FieldError>
+            L'assistant ne peut pas remplir cette page ({info.blockers.join(' ; ')}). Il proposera des créneaux puis enverra
+            votre lien.
+          </FieldError>
+        ) : null}
+        {error && !pages.error ? <FieldError>{error}</FieldError> : null}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <Label htmlFor="calendlyRange">Largeur d'une plage</Label>
+          <select
+            id="calendlyRange"
+            className={selectClass}
+            value={settings.range_hours}
+            onChange={(e) => onPatch({ range_hours: Number(e.target.value) })}
+          >
+            {CALENDLY_RANGE_OPTIONS.map((h) => (
+              <option key={h} value={h}>
+                {h} h
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="calendlyFirst">Plages proposées d'abord</Label>
+          <select
+            id="calendlyFirst"
+            className={selectClass}
+            value={settings.first_offer}
+            onChange={(e) => onPatch({ first_offer: Number(e.target.value) })}
+          >
+            <option value={0}>Aucune, demander</option>
+            <option value={1}>1 plage</option>
+            <option value={2}>2 plages</option>
+            <option value={3}>3 plages</option>
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="calendlyExtra">Si le prospect refuse</Label>
+          <select
+            id="calendlyExtra"
+            className={selectClass}
+            value={settings.extra_offers}
+            disabled={settings.first_offer === 0}
+            onChange={(e) => onPatch({ extra_offers: Number(e.target.value) })}
+          >
+            <option value={0}>Demander directement</option>
+            <option value={1}>1 autre plage</option>
+            <option value={2}>2 autres plages</option>
+          </select>
+        </div>
+      </div>
+
+      <FieldHint>
+        Durée, jours, heures, délai minimum et horizon viennent de votre Calendly. Le nom du profil Instagram du prospect
+        sert de nom d'invité, et l'assistant lui demande son e-mail, que Calendly exige.
+      </FieldHint>
+      <FieldHint>La réservation par l'assistant demande un forfait Calendly payant.</FieldHint>
+
+      {preview && preview.bookable ? (
+        <div className="rounded-[10px] bg-bg px-3 py-2.5">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted">
+            <CalendarDays size={14} />
+            Ce que fait l'assistant, d'après vos vraies disponibilités
+          </p>
+          <ol className="space-y-1 text-sm">
+            {preview.steps.map((step, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="text-muted">{i + 1}.</span>
+                <span>{step}</span>
+              </li>
+            ))}
+            <li className="flex gap-2">
+              <span className="text-muted">{preview.steps.length + 1}.</span>
+              <span>Fait préciser l'heure, demande l'e-mail, puis réserve dans Calendly.</span>
+            </li>
+          </ol>
+        </div>
+      ) : null}
+      {loadingPreview && !preview ? <Skeleton className="h-20 w-full" /> : null}
+    </div>
+  )
+}
+
 function GoalSection({
   assistant,
   allowCalendly,
+  allowCalendlyBooking,
   allowCalendar,
 }: {
   assistant: Assistant
   allowCalendly: boolean
+  allowCalendlyBooking: boolean
   allowCalendar: boolean
 }) {
   const { save, saving } = useSaveSettings(assistant)
   const { data: channels } = useChannelAccounts()
   const google = channels?.find((c) => c.provider === 'google')
+  const calendly = channels?.find((c) => c.provider === 'calendly')
   const s = assistant.settings
   const [stopText, setStopText] = useState(s.stop_condition?.text ?? '')
   const [stopLink, setStopLink] = useState(s.stop_condition?.link ?? '')
   // Les drapeaux arrivent après l'assistant : le mode affiché suit le réglage tant que rien n'est choisi.
-  const [modeChoice, setMode] = useState<'link' | 'calendar' | null>(null)
-  const mode = modeChoice ?? (allowCalendar && s.booking?.mode === 'calendar' ? 'calendar' : 'link')
+  const [modeChoice, setMode] = useState<BookingMode | null>(null)
+  const savedMode = s.booking?.mode
+  const mode =
+    modeChoice ??
+    (allowCalendlyBooking && savedMode === 'calendly' ? 'calendly' : allowCalendar && savedMode === 'calendar' ? 'calendar' : 'link')
   const [agenda, setAgenda] = useState<AgendaSettings>(normalizeAgenda(s.booking?.calendar))
+  const [calendlySettings, setCalendly] = useState<CalendlySettings>(normalizeCalendly(s.booking?.calendly))
   const [linkError, setLinkError] = useState('')
   const agendaError = mode === 'calendar' ? agendaSettingsError(agenda) : null
+  const calendlyPageError = mode === 'calendly' && !calendlySettings.event_type_uri ? 'Choisissez une page de réservation.' : null
   const preview = useMemo(() => agendaPreview(agenda), [agenda])
 
   function patchAgenda(patch: Partial<AgendaSettings>) {
@@ -500,23 +722,34 @@ function GoalSection({
       setLinkError('Le lien doit commencer par http:// ou https://')
       return
     }
-    if (agendaError) return
+    if (agendaError || calendlyPageError) return
     save((fresh) => ({
       stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
       // Module masqué : le mode déjà enregistré n'est pas touché.
-      booking: { ...fresh.booking, mode: allowCalendar ? mode : fresh.booking?.mode ?? 'link', calendar: agenda },
+      booking: {
+        ...fresh.booking,
+        mode: modes.length > 1 ? mode : fresh.booking?.mode ?? 'link',
+        calendar: agenda,
+        calendly: calendlySettings,
+      },
     }))
   }
 
-  // La connexion quitte la page : le choix du mode agenda est enregistré avant.
-  async function saveCalendarChoice() {
+  // La connexion quitte la page : le mode choisi est enregistré avant.
+  async function saveModeBeforeConnect(target: BookingMode) {
     await save((fresh) => ({
-      booking: { ...fresh.booking, mode: 'calendar', ...(agendaError ? {} : { calendar: agenda }) },
+      booking: {
+        ...fresh.booking,
+        mode: target,
+        ...(target === 'calendar' && !agendaError ? { calendar: agenda } : {}),
+        ...(target === 'calendly' ? { calendly: calendlySettings } : {}),
+      },
     }))
   }
 
-  const modes: { value: 'link' | 'calendar'; label: string }[] = [
+  const modes: { value: BookingMode; label: string }[] = [
     { value: 'link', label: 'Par lien' },
+    ...(allowCalendlyBooking ? [{ value: 'calendly' as const, label: 'Dans mon Calendly' }] : []),
     ...(allowCalendar ? [{ value: 'calendar' as const, label: 'Dans mon agenda Google' }] : []),
   ]
 
@@ -584,6 +817,25 @@ function GoalSection({
                 />
               ) : null}
             </div>
+          ) : mode === 'calendly' ? (
+            <div className="space-y-4">
+              <AccountRow
+                provider="calendly"
+                name="Calendly"
+                emptyText="À relier pour que l'assistant réserve à votre place."
+                startPath="calendly-oauth/start"
+                startBody={() => ({ return_to: window.location.href })}
+                disconnectPath="calendly-oauth/disconnect"
+                disconnectMessage="L'assistant ne réservera plus d'appel et enverra votre lien à la place. Les rendez-vous déjà pris restent dans Calendly."
+                beforeConnect={() => saveModeBeforeConnect('calendly')}
+              />
+              <CalendlyBookingFields
+                connected={calendly?.status === 'connected'}
+                settings={calendlySettings}
+                onPatch={(patch) => setCalendly((current) => ({ ...current, ...patch }))}
+              />
+              <FieldError>{calendlyPageError ?? ''}</FieldError>
+            </div>
           ) : (
             <div className="space-y-4">
               <AccountRow
@@ -594,7 +846,7 @@ function GoalSection({
                 startBody={() => ({ return_path: window.location.pathname })}
                 disconnectPath="google-oauth/disconnect"
                 disconnectMessage="L'assistant ne réservera plus d'appel et enverra votre lien à la place. Les rendez-vous déjà pris restent dans votre agenda."
-                beforeConnect={saveCalendarChoice}
+                beforeConnect={() => saveModeBeforeConnect('calendar')}
               />
               {!google ? (
                 <FieldHint>Tant que Google Agenda n'est pas relié, l'assistant envoie votre lien à la place.</FieldHint>
@@ -732,7 +984,7 @@ function GoalSection({
           <SecondaryLinksField assistant={assistant} />
         </CardBody>
         <div className="flex justify-end border-t border-border px-5 py-3.5">
-          <Button type="submit" disabled={saving || Boolean(agendaError)}>
+          <Button type="submit" disabled={saving || Boolean(agendaError || calendlyPageError)}>
             {saving ? 'Enregistrement…' : 'Enregistrer'}
           </Button>
         </div>
@@ -1978,7 +2230,15 @@ const PAUSE_REASONS: Record<string, string> = {
   paused_by_admin: "l'équipe LeadControl l'a mis en pause",
 }
 
-function ActivationSection({ assistant, allowCalendar }: { assistant: Assistant; allowCalendar: boolean }) {
+function ActivationSection({
+  assistant,
+  allowCalendar,
+  allowCalendlyBooking,
+}: {
+  assistant: Assistant
+  allowCalendar: boolean
+  allowCalendlyBooking: boolean
+}) {
   const { data: channels } = useChannelAccounts()
   const toast = useToast()
   const invalidate = useInvalidate()
@@ -1994,6 +2254,13 @@ function ActivationSection({ assistant, allowCalendar }: { assistant: Assistant;
   // Sans compte relié, l'assistant envoie le lien : seul un compte expiré bloque le mode agenda.
   if (allowCalendar && assistant.settings.booking?.mode === 'calendar' && google && google.status !== 'connected') {
     blockers.push('reconnecter Google Agenda')
+  }
+  const calendly = channels?.find((c) => c.provider === 'calendly')
+  if (allowCalendlyBooking && assistant.settings.booking?.mode === 'calendly') {
+    if (calendly && calendly.status !== 'connected') blockers.push('reconnecter Calendly')
+    else if (calendly && !assistant.settings.booking?.calendly?.event_type_uri) {
+      blockers.push('choisir une page de réservation Calendly')
+    }
   }
 
   async function toggle(value: boolean) {
@@ -2064,6 +2331,7 @@ function AssistantContent() {
   const allowCannedResponses = hasFeature('canned_responses', flags, profile, overrides)
   const allowHumanAgent = hasFeature('human_agent', flags, profile, overrides)
   const allowCalendar = hasFeature('google_calendar', flags, profile, overrides)
+  const allowCalendlyBooking = hasFeature('calendly_booking', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -2164,7 +2432,7 @@ function AssistantContent() {
   return (
     <div className="grid items-start gap-3 xl:grid-cols-2">
       <div className="xl:col-span-2">
-        <ActivationSection assistant={assistant} allowCalendar={allowCalendar} />
+        <ActivationSection assistant={assistant} allowCalendar={allowCalendar} allowCalendlyBooking={allowCalendlyBooking} />
       </div>
       <ChannelSection assistant={assistant} />
       <ScheduleSection assistant={assistant} />
@@ -2177,7 +2445,12 @@ function AssistantContent() {
         </div>
       ) : null}
       <div className="xl:col-span-2">
-        <GoalSection assistant={assistant} allowCalendly={allowCalendly} allowCalendar={allowCalendar} />
+        <GoalSection
+          assistant={assistant}
+          allowCalendly={allowCalendly}
+          allowCalendlyBooking={allowCalendlyBooking}
+          allowCalendar={allowCalendar}
+        />
       </div>
       <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       <AudienceSection assistant={assistant} />
