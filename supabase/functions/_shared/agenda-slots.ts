@@ -184,9 +184,9 @@ function overlaps(start: number, end: number, busy: Interval[]) {
   return busy.some((b) => b.start < end && b.end > start)
 }
 
-type Period = 'morning' | 'afternoon' | 'evening'
+export type Period = 'morning' | 'afternoon' | 'evening'
 
-function periodOf(minutes: number): Period {
+export function periodOf(minutes: number): Period {
   if (minutes < 12 * 60) return 'morning'
   if (minutes < 17 * 60) return 'afternoon'
   return 'evening'
@@ -194,7 +194,7 @@ function periodOf(minutes: number): Period {
 
 const PREFERRED: Period[] = ['afternoon', 'evening', 'morning']
 
-type Candidate = { start: number; end: number; period: Period; dayIndex: number }
+export type Candidate = { start: number; end: number; period: Period; dayIndex: number }
 
 function dayCandidates(
   dayIndex: number,
@@ -230,6 +230,27 @@ function pick(cands: Candidate[], preferred: Period, avoid: Period | null) {
     if (found) return found
   }
   return null
+}
+
+// Une plage par jour, deux jours d'écart quand c'est possible, et une autre partie de journée
+// que la précédente. offset compte les plages déjà retenues ailleurs.
+export function chooseOffers(perDay: Candidate[][], count: number, offset = 0): Candidate[] {
+  const chosen: Candidate[] = []
+  const usedDays = new Set<number>()
+  for (const gap of [2, 1]) {
+    for (const cands of perDay) {
+      if (offset + chosen.length >= count) break
+      if (cands.length === 0 || usedDays.has(cands[0].dayIndex)) continue
+      const last = chosen[chosen.length - 1]
+      if (gap === 2 && last && cands[0].dayIndex - last.dayIndex < 2) continue
+      const found = pick(cands, PREFERRED[(offset + chosen.length) % PREFERRED.length], last?.period ?? null)
+      if (!found) continue
+      chosen.push(found)
+      usedDays.add(found.dayIndex)
+    }
+    chosen.sort((a, b) => a.dayIndex - b.dayIndex)
+  }
+  return chosen
 }
 
 export function offerStillFree(o: Offer, now: number, busy: Interval[], s: AgendaSettings) {
@@ -269,22 +290,7 @@ export function computeOffers(opts: {
     perDay.push(cands)
   }
 
-  const chosen: Candidate[] = []
-  const usedDays = new Set<number>()
-  for (const gap of [2, 1]) {
-    for (const cands of perDay) {
-      if (kept.length + chosen.length >= count) break
-      if (cands.length === 0 || usedDays.has(cands[0].dayIndex)) continue
-      const last = chosen[chosen.length - 1]
-      if (gap === 2 && last && cands[0].dayIndex - last.dayIndex < 2) continue
-      const found = pick(cands, PREFERRED[(kept.length + chosen.length) % PREFERRED.length], last?.period ?? null)
-      if (!found) continue
-      chosen.push(found)
-      usedDays.add(found.dayIndex)
-    }
-    chosen.sort((a, b) => a.dayIndex - b.dayIndex)
-  }
-
+  const chosen = chooseOffers(perDay, count, kept.length)
   const fresh = chosen.map((c) => ({ start: c.start, end: c.end, label: rangeLabel(c.start, c.end, tz, opts.withDate ?? true) }))
   return [...kept, ...fresh].slice(0, count)
 }
@@ -319,10 +325,42 @@ export function offerMentioned(offer: Offer, texts: string[], tz: string) {
   })
 }
 
-function unsentNeeded(s: AgendaSettings, rounds: number) {
-  if (s.first_offer <= 0) return 0
-  if (rounds === 0) return s.first_offer + s.extra_offers
-  return Math.max(0, s.extra_offers - (rounds - 1))
+export function unsentNeeded(firstOffer: number, extraOffers: number, rounds: number) {
+  if (firstOffer <= 0) return 0
+  if (rounds === 0) return firstOffer + extraOffers
+  return Math.max(0, extraOffers - (rounds - 1))
+}
+
+export function storedBase(key: string, stored: Partial<StoredOffers> | null | undefined): StoredOffers {
+  if (stored?.key !== key) return { key, offers: [], sent: [], rounds: 0 }
+  return {
+    key,
+    offers: Array.isArray(stored.offers) ? stored.offers : [],
+    sent: Array.isArray(stored.sent) ? stored.sent : [],
+    rounds: Number(stored.rounds) || 0,
+  }
+}
+
+// Les plages déjà envoyées passent devant : ce sont celles qu'on doit garder en priorité.
+export function keepOrder(base: StoredOffers) {
+  const isSent = (o: Offer) => base.sent.includes(o.start)
+  return [...base.offers.filter(isSent), ...base.offers.filter((o) => !isSent(o))]
+}
+
+export function planFromOffers(
+  base: StoredOffers,
+  offers: Offer[],
+  counts: { firstOffer: number; extraOffers: number },
+): { stored: StoredOffers; step: OfferStep } {
+  const isSent = (o: Offer) => base.sent.includes(o.start)
+  const proposed = offers.filter(isSent)
+  const unsent = offers.filter((o) => !isSent(o))
+  const stored = { ...base, offers }
+  if (counts.firstOffer <= 0 || unsent.length === 0 || base.rounds > counts.extraOffers) {
+    return { stored, step: { kind: 'ask', proposed } }
+  }
+  const next = base.rounds === 0 ? unsent.slice(0, counts.firstOffer) : unsent.slice(0, 1)
+  return { stored, step: { kind: 'offer', round: base.rounds + 1, offers: next, proposed } }
 }
 
 export function planOffers(opts: {
@@ -333,36 +371,18 @@ export function planOffers(opts: {
   stored: Partial<StoredOffers> | null | undefined
 }): { stored: StoredOffers; step: OfferStep } {
   const { settings: s, tz } = opts
-  const key = offersKey(s, tz)
-  const base: StoredOffers =
-    opts.stored?.key === key
-      ? {
-          key,
-          offers: Array.isArray(opts.stored.offers) ? opts.stored.offers : [],
-          sent: Array.isArray(opts.stored.sent) ? opts.stored.sent : [],
-          rounds: Number(opts.stored.rounds) || 0,
-        }
-      : { key, offers: [], sent: [], rounds: 0 }
-  const isSent = (o: Offer) => base.sent.includes(o.start)
-  // Les plages déjà envoyées passent devant : ce sont celles qu'on doit garder en priorité.
-  const keep = [...base.offers.filter(isSent), ...base.offers.filter((o) => !isSent(o))]
-  const sentStillFree = keep.filter((o) => isSent(o) && offerStillFree(o, opts.now, opts.busy, s)).length
+  const base = storedBase(offersKey(s, tz), opts.stored)
+  const keep = keepOrder(base)
+  const sentStillFree = keep.filter((o) => base.sent.includes(o.start) && offerStillFree(o, opts.now, opts.busy, s)).length
   const offers = computeOffers({
     now: opts.now,
     tz,
     settings: s,
     busy: opts.busy,
     keep,
-    count: sentStillFree + unsentNeeded(s, base.rounds),
+    count: sentStillFree + unsentNeeded(s.first_offer, s.extra_offers, base.rounds),
   })
-  const proposed = offers.filter(isSent)
-  const unsent = offers.filter((o) => !isSent(o))
-  const stored = { ...base, offers }
-  if (s.first_offer <= 0 || unsent.length === 0 || base.rounds > s.extra_offers) {
-    return { stored, step: { kind: 'ask', proposed } }
-  }
-  const next = base.rounds === 0 ? unsent.slice(0, s.first_offer) : unsent.slice(0, 1)
-  return { stored, step: { kind: 'offer', round: base.rounds + 1, offers: next, proposed } }
+  return planFromOffers(base, offers, { firstOffer: s.first_offer, extraOffers: s.extra_offers })
 }
 
 // Après l'envoi : seules les plages de l'étape vraiment citées comptent comme proposées.

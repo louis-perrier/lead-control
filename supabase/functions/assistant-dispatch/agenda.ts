@@ -34,6 +34,7 @@ export type AgendaBooking = { id: string; event_start_at: string; meet_link: str
 export type AgendaFailure = 'calendar_token_expired' | 'calendar_unavailable'
 
 export type AgendaTurn = {
+  stopReason: 'calendar_booked'
   timezone: string
   prompt: AgendaPromptContext
   tools: typeof AGENDA_TOOLS
@@ -288,6 +289,7 @@ export async function prepareAgendaTurn(opts: {
   }
 
   return {
+    stopReason: 'calendar_booked',
     timezone: tz,
     prompt: { durationMin: s.duration_min, now: nowLabel(now, tz), timezone: timezoneLabel(tz), step, booked },
     tools: AGENDA_TOOLS,
