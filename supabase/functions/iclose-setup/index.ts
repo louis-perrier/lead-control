@@ -8,7 +8,6 @@ import { normalizeIclose } from '../_shared/iclose-settings.ts'
 import { isValidTimezone } from '../_shared/agenda-slots.ts'
 
 const HORIZON_MS = 30 * 86_400_000
-const WEBHOOK_SECRET = Deno.env.get('ICLOSE_WEBHOOK_SECRET') ?? ''
 
 function failure(req: Request, e: unknown) {
   if (e instanceof IcloseError) {
@@ -42,7 +41,7 @@ async function body(req: Request) {
 async function account(userId: string) {
   const { data } = await admin
     .from('channel_accounts')
-    .select('id, user_id, external_id, handle')
+    .select('id, user_id, external_id, handle, metadata')
     .eq('user_id', userId)
     .eq('provider', 'iclose')
     .in('status', ['connected', 'expired'])
@@ -76,6 +75,16 @@ async function saveKey(req: Request) {
   const key = typeof payload.api_key === 'string' ? payload.api_key.trim() : ''
   if (!key) return json(req, { error: 'key_missing' }, 400)
 
+  // iClose ne signe pas ses envois : l'adresse du webhook porte un jeton propre à ce compte,
+  // qui la rend impossible à deviner et dit tout de suite de quel client vient l'appel. Un jeton
+  // déjà posé est conservé, sinon l'ancien webhook enregistré chez iClose pointerait dans le vide.
+  const existing = await account(user.id)
+  const metadata = (existing?.metadata ?? {}) as Record<string, unknown>
+  const token =
+    typeof metadata.webhook_token === 'string' && /^[0-9a-f]{32}$/.test(metadata.webhook_token)
+      ? metadata.webhook_token
+      : crypto.randomUUID().replace(/-/g, '')
+
   let events
   try {
     events = await listEvents(key)
@@ -96,6 +105,7 @@ async function saveKey(req: Request) {
         connected_at: new Date().toISOString(),
         disconnected_at: null,
         last_error: null,
+        metadata: { ...metadata, webhook_token: token },
       },
       { onConflict: 'user_id,provider,external_id' },
     )
@@ -111,12 +121,11 @@ async function saveKey(req: Request) {
 
   // Sans webhook, une réservation faite par le prospect depuis le lien ne remonte jamais. Le
   // silence serait pire que l'échec : il est remonté au compte et au journal de santé.
-  const webhook = WEBHOOK_SECRET
-    ? await registerWebhook(key, `${SUPABASE_URL}/functions/v1/iclose-webhook/${WEBHOOK_SECRET}`)
-    : false
+  const webhook = await registerWebhook(key, `${SUPABASE_URL}/functions/v1/iclose-webhook/${token}`)
   if (!webhook) {
-    const why = WEBHOOK_SECRET ? 'iClose a refusé l’enregistrement' : 'ICLOSE_WEBHOOK_SECRET absent'
-    await logEvent('error', 'iclose-setup', `webhook iClose à poser à la main (${why})`, { user_id: user.id })
+    await logEvent('error', 'iclose-setup', 'webhook iClose à poser à la main : iClose a refusé l’enregistrement', {
+      user_id: user.id,
+    })
   }
   return json(req, { ok: true, events: events.length, webhook })
 }

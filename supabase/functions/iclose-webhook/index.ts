@@ -1,17 +1,23 @@
 // Réception des réservations iClose, y compris celles que le prospect fait lui-même depuis le
-// lien envoyé. iClose ne signe pas ses envois : le secret voyage dans le chemin de l'URL
-// enregistrée chez iClose, et rien n'est traité sans lui.
+// lien envoyé. iClose ne signe pas ses envois : l'adresse enregistrée chez lui porte un jeton
+// propre au compte, impossible à deviner, qui sert à la fois de mot de passe et d'identité. Rien
+// n'est traité sans un jeton qui désigne un compte relié.
 import { admin, handleOptions, json, logEvent } from '../_shared/core.ts'
 
-const WEBHOOK_SECRET = Deno.env.get('ICLOSE_WEBHOOK_SECRET') ?? ''
+type IcloseAccount = { id: string; user_id: string }
 
-function secretMatches(path: string) {
-  if (!WEBHOOK_SECRET) return false
-  const given = path.split('/').filter(Boolean).pop() ?? ''
-  if (given.length !== WEBHOOK_SECRET.length) return false
-  let diff = 0
-  for (let i = 0; i < given.length; i++) diff |= given.charCodeAt(i) ^ WEBHOOK_SECRET.charCodeAt(i)
-  return diff === 0
+async function accountOf(path: string): Promise<IcloseAccount | null> {
+  const token = path.split('/').filter(Boolean).pop() ?? ''
+  if (!/^[0-9a-f]{32}$/.test(token)) return null
+  const { data } = await admin
+    .from('channel_accounts')
+    .select('id, user_id')
+    .eq('provider', 'iclose')
+    .eq('metadata->>webhook_token', token)
+    .neq('status', 'disconnected')
+    .limit(1)
+    .maybeSingle()
+  return (data as IcloseAccount | null) ?? null
 }
 
 function read(source: unknown, ...keys: string[]) {
@@ -34,7 +40,7 @@ function callIdOf(payload: Record<string, unknown>) {
   return read(event, 'id', 'callId', 'eventCallId') || read(payload, 'id', 'callId', 'eventCallId')
 }
 
-async function handleBooked(payload: Record<string, unknown>) {
+async function handleBooked(payload: Record<string, unknown>, account: IcloseAccount) {
   const event = (payload.event ?? {}) as Record<string, unknown>
   const eventType = (payload.event_type ?? {}) as Record<string, unknown>
   const invitee = (payload.invitee ?? {}) as Record<string, unknown>
@@ -50,23 +56,32 @@ async function handleBooked(payload: Record<string, unknown>) {
     .select('id')
     .eq('provider', 'iclose')
     .eq('external_event_id', callId)
+    .eq('user_id', account.user_id)
     .maybeSingle()
   if (known) return
 
+  // Le jeton dit déjà de quel compte vient l'appel : la conversation citée par le lien n'est
+  // retenue que si elle appartient bien à ce compte.
   const utmContent = read(tracking, 'utm_content')
-  const conversationId = utmContent && /^\d+$/.test(utmContent) ? Number(utmContent) : null
-
-  let userId: string | null = null
-  if (conversationId) {
-    const { data: conv } = await admin.from('conversations').select('user_id').eq('id', conversationId).maybeSingle()
-    userId = conv?.user_id ?? null
+  const wanted = utmContent && /^\d+$/.test(utmContent) ? Number(utmContent) : null
+  let conversationId: number | null = null
+  if (wanted) {
+    const { data: conv } = await admin
+      .from('conversations')
+      .select('id')
+      .eq('id', wanted)
+      .eq('user_id', account.user_id)
+      .maybeSingle()
+    conversationId = conv?.id ?? null
   }
-  if (!userId) {
-    await logEvent('warn', 'iclose-webhook', 'réservation sans conversation identifiable (utm_content absent ou invalide)', {
+  if (!conversationId) {
+    await logEvent('warn', 'iclose-webhook', 'réservation sans conversation identifiable (lien non marqué ou conversation d’un autre compte)', {
+      user_id: account.user_id,
       payload,
     })
     return
   }
+  const userId = account.user_id
 
   // Un rendez-vous déplacé arrive comme une nouvelle réservation : l'ancienne de cette
   // conversation est close d'abord, sinon l'index d'un seul appel actif la refuse.
@@ -113,7 +128,7 @@ async function handleBooked(payload: Record<string, unknown>) {
     .eq('id', conversationId)
 }
 
-async function handleCancelled(payload: Record<string, unknown>) {
+async function handleCancelled(payload: Record<string, unknown>, account: IcloseAccount) {
   const callId = callIdOf(payload)
   if (!callId) return
 
@@ -122,6 +137,7 @@ async function handleCancelled(payload: Record<string, unknown>) {
     .select('id, conversation_id')
     .eq('provider', 'iclose')
     .eq('external_event_id', callId)
+    .eq('user_id', account.user_id)
     .maybeSingle()
   if (!booking) return
 
@@ -147,7 +163,8 @@ Deno.serve(async (req) => {
   const opt = handleOptions(req)
   if (opt) return opt
   if (req.method !== 'POST') return json(req, { error: 'Not found' }, 404)
-  if (!secretMatches(new URL(req.url).pathname)) return json(req, { error: 'invalid_secret' }, 401)
+  const account = await accountOf(new URL(req.url).pathname)
+  if (!account) return json(req, { error: 'invalid_secret' }, 401)
 
   let payload: Record<string, unknown> = {}
   try {
@@ -158,8 +175,8 @@ Deno.serve(async (req) => {
 
   const hook = read(payload, 'hookType', 'event_type_id', 'trigger')
   try {
-    if (hook === 'newCallScheduled' || hook === 'callRescheduled') await handleBooked(payload)
-    else if (hook === 'callCancelled') await handleCancelled(payload)
+    if (hook === 'newCallScheduled' || hook === 'callRescheduled') await handleBooked(payload, account)
+    else if (hook === 'callCancelled') await handleCancelled(payload, account)
     else return json(req, { ok: true, handled: false })
     return json(req, { ok: true, handled: true })
   } catch (e) {
