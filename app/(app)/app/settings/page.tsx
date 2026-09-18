@@ -517,7 +517,12 @@ function SlackCard() {
       toast('Slack relié.')
       invalidate('channel-accounts')
     } else if (params.get('slack_error')) {
-      toast('La connexion Slack a échoué. Réessayez.', 'error')
+      toast(
+        params.get('slack_error') === 'no_channel'
+          ? 'Slack n’a renvoyé aucun canal. Dans la configuration de l’application Slack, activez Incoming Webhooks.'
+          : 'La connexion Slack a échoué. Réessayez.',
+        'error',
+      )
     } else {
       return
     }
