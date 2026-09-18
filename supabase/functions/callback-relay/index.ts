@@ -308,8 +308,11 @@ async function handleEvent(accountId: string, event: IgMessagingEvent) {
     p_preview: preview,
   })
 
-  // L'agent reste arrêté après une réservation dans l'agenda : c'est au compte de répondre.
-  if (conv.automation_state === 'condition_stop' && conv.automation_reason === 'calendar_booked') {
+  // L'agent reste arrêté après une réservation : c'est au compte de répondre.
+  if (
+    conv.automation_state === 'condition_stop' &&
+    (conv.automation_reason === 'calendar_booked' || conv.automation_reason === 'calendly_booked')
+  ) {
     await notifyNeedsYou(channel.user_id, conv.id, 'Le prospect a réécrit après avoir réservé son appel')
   }
 

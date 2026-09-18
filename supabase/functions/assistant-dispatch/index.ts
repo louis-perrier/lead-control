@@ -17,7 +17,8 @@ import { finalizeConversation } from './finalize.ts'
 import { splitSystemForCache } from './system-blocks.ts'
 import { resolveTone } from './types.ts'
 import type { AgentDecision, WindowMessage } from './types.ts'
-import { FAILURE_MESSAGES, LAST_ROUND_NOTE, agendaEnabled, meetLinkSent, prepareAgendaTurn, type AgendaTurn } from './agenda.ts'
+import { LAST_ROUND_NOTE, meetLinkSent } from './agenda.ts'
+import { FAILURE_MESSAGES, prepareBooking, type BookingTurn } from './booking.ts'
 import { withAgendaSection } from './agenda-prompt.ts'
 import { momentLabel } from '../_shared/agenda-slots.ts'
 
@@ -443,22 +444,22 @@ async function handleConversation(due: DueConversation) {
   await sendTypingOn(token, igUserId, conv.contact_external_id)
 
   // Calculé après les réponses préenregistrées : elles remplacent metadata.
-  let agenda: AgendaTurn | null = null
-  if (await agendaEnabled(due.user_id, settings)) {
-    agenda = await prepareAgendaTurn({
-      userId: due.user_id,
-      convId,
-      tz: timezone,
-      settings,
-      metadata,
-      contactName: conv.contact_name ?? '',
-      contactHandle: conv.contact_handle,
-    })
-    if (agenda.storedOffers) metadata = { ...metadata, agenda_offers: agenda.storedOffers }
-  }
+  const prepared = await prepareBooking({
+    userId: due.user_id,
+    convId,
+    tz: timezone,
+    settings,
+    metadata,
+    contactName: conv.contact_name ?? '',
+    contactHandle: conv.contact_handle,
+  })
+  const agenda: BookingTurn | null = prepared.turn
+  if (agenda?.storedOffers) metadata = { ...metadata, agenda_offers: agenda.storedOffers }
   const agendaTools = agenda
     ? { tools: agenda.tools, runTool: agenda.runTool, maxToolRounds: 3, lastRoundNote: LAST_ROUND_NOTE }
     : {}
+  // Repli d'un mode de réservation indisponible : la page Calendly choisie sert de lien.
+  const goalLink = agenda ? '' : settings.stop_condition?.link || prepared.link
 
   let context = settings.context ?? ''
   const { data: docs } = await admin
@@ -500,7 +501,7 @@ async function handleConversation(due: DueConversation) {
     context,
     qualification: settings.qualification ?? '',
     stopText: settings.stop_condition?.text ?? '',
-    stopLink: agenda ? '' : settings.stop_condition?.link ?? '',
+    stopLink: goalLink,
     secondaryLinks: (settings.stop_condition?.secondary_links ?? []).map((l: { condition?: string; link?: string }) => ({
       condition: l.condition ?? '',
       link: l.link ?? '',
@@ -731,9 +732,9 @@ async function handleConversation(due: DueConversation) {
       sentThisTurn: sentCount,
       confirmedBefore: agenda.prompt.booked?.confirmed ?? false,
     })
-    stopReason = 'calendar_booked'
+    stopReason = agenda.stopReason
   } else if (decision.stop_successful) {
-    const stopLink = settings.stop_condition?.link ?? ''
+    const stopLink = goalLink
     const base = linkBase(stopLink)
     const linkSent = base ? blocks.slice(0, sentCount).some((b) => b.includes(base)) || (await stopLinkAlreadySent(convId, stopLink)) : false
     const hasBooking = base && !linkSent ? await hasActiveBooking(convId) : false

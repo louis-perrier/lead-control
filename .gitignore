@@ -193,3 +193,4 @@ tests/prompt-golden.test.ts
 tests/prompt-silence.test.ts
 tests/agenda-prompt.test.ts
 tests/system-blocks.test.ts
+tests/calendly-prompt.test.ts

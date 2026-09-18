@@ -24,3 +24,19 @@ export async function notifyNeedsYou(userId: string, conversationId: number, bod
     // une notification perdue ne doit pas bloquer le traitement du message
   }
 }
+
+// Panne qui touche tout le compte et non une conversation : même clé que le trigger d'erreur,
+// donc une seule notification non lue quel que soit le nombre de conversations concernées.
+export async function notifyAccount(userId: string, dedupeKey: string, body: string) {
+  try {
+    await admin.from('notifications').insert({
+      user_id: userId,
+      conversation_id: null,
+      kind: 'needs_you',
+      body: body.slice(0, 120),
+      dedupe_key: dedupeKey,
+    })
+  } catch (_) {
+    // idem : une notification perdue ne bloque rien
+  }
+}
