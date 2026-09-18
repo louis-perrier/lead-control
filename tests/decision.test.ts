@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HUMAN_ACTIVE_MS, agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from '../supabase/functions/assistant-dispatch/decision'
+import { HUMAN_ACTIVE_MS, agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed, taggedLink } from '../supabase/functions/assistant-dispatch/decision'
 
 describe('parseDecision', () => {
   it('lit un JSON complet', () => {
@@ -104,5 +104,31 @@ describe('agendaStopReached', () => {
     expect(agendaStopReached({ hasBooking: true, sentThisTurn: 0, confirmedBefore: true })).toBe(true)
     expect(agendaStopReached({ hasBooking: true, sentThisTurn: 0, confirmedBefore: false })).toBe(false)
     expect(agendaStopReached({ hasBooking: false, sentThisTurn: 3, confirmedBefore: false })).toBe(false)
+  })
+})
+
+describe('taggedLink', () => {
+  it('marque un lien Calendly ou iClose avec la conversation', () => {
+    expect(taggedLink('https://calendly.com/coach/appel', 42)).toBe(
+      'https://calendly.com/coach/appel?utm_source=leadcontrol&utm_content=42',
+    )
+    expect(taggedLink('https://iclosed.io/louis/appel', 7)).toContain('utm_content=7')
+  })
+
+  it('garde les paramètres déjà posés par le client', () => {
+    expect(taggedLink('https://calendly.com/coach/appel?month=2026-10', 42)).toBe(
+      'https://calendly.com/coach/appel?month=2026-10&utm_source=leadcontrol&utm_content=42',
+    )
+  })
+
+  it('laisse intact un lien qui n’est pas une page de réservation suivie', () => {
+    expect(taggedLink('https://skool.com/groupe', 42)).toBe('https://skool.com/groupe')
+    expect(taggedLink('pas une url', 42)).toBe('pas une url')
+    expect(taggedLink('', 42)).toBe('')
+  })
+
+  it('ne casse pas la détection du lien déjà envoyé', () => {
+    const tagged = taggedLink('https://calendly.com/coach/appel', 42)
+    expect(linkBase(tagged)).toBe('https://calendly.com/coach/appel')
   })
 })

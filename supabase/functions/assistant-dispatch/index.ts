@@ -9,7 +9,7 @@ import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
 import { tryCannedResponse } from './canned.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { allocateBudget, cutAtBoundary } from '../_shared/context-budget.ts'
-import { agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed } from './decision.ts'
+import { agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed, taggedLink } from './decision.ts'
 import { splitReply, typingPauses } from './bubbles.ts'
 import { closingCheck } from './closing.ts'
 import { firstJsonObject } from '../_shared/canned-match.ts'
@@ -460,7 +460,7 @@ async function handleConversation(due: DueConversation) {
     : {}
   // Repli d'un mode de réservation indisponible : la page de réservation choisie passe devant
   // le lien du formulaire, qui peut encore pointer vers une ancienne page.
-  const goalLink = agenda ? '' : prepared.link || settings.stop_condition?.link || ''
+  const goalLink = agenda ? '' : taggedLink(prepared.link || settings.stop_condition?.link || '', convId)
 
   let context = settings.context ?? ''
   const { data: docs } = await admin

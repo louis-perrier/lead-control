@@ -132,6 +132,28 @@ export function linkBase(link: string | null | undefined) {
   return (link ?? '').trim().split('?')[0].split('#')[0].replace(/\/+$/, '')
 }
 
+// Outils dont le webhook nous renvoie les UTM de la page de réservation.
+const TRACKED_HOSTS = ['calendly.com', 'iclosed.io']
+
+// Un lien marqué permet au webhook de rattacher au bon prospect la réservation qu'il fait
+// lui-même depuis le lien. `linkBase` coupe la requête, la détection « lien déjà envoyé » ne
+// change donc pas. Les paramètres déjà posés par le client sont conservés.
+export function taggedLink(link: string | null | undefined, conversationId: number) {
+  const raw = (link ?? '').trim()
+  if (!raw) return ''
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return raw
+  }
+  const host = url.hostname.toLowerCase()
+  if (!TRACKED_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return raw
+  url.searchParams.set('utm_source', 'leadcontrol')
+  url.searchParams.set('utm_content', String(conversationId))
+  return url.toString()
+}
+
 // « Objectif atteint » ferme la conversation à l'agent : on ne le croit que sur une
 // preuve, sinon une condition d'arrêt à plusieurs branches coupe des prospects en cours.
 export function stopConfirmed(opts: {
