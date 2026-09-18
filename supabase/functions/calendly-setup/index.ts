@@ -54,6 +54,7 @@ async function eventTypes(req: Request) {
         location_label: e.locationLabel,
         bookable: e.bookable,
         blockers: e.blockers,
+        required_questions: e.requiredQuestions,
       })),
     })
   } catch (e) {
@@ -87,6 +88,7 @@ async function preview(req: Request) {
       location_label: info.locationLabel,
       bookable: info.bookable,
       blockers: info.blockers,
+      required_questions: info.requiredQuestions,
     }
     if (!info.bookable) return json(req, { ...shared, steps: [] })
 

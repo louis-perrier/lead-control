@@ -14,6 +14,10 @@ const READY_KINDS = new Set([
 // Lieux qui ont besoin d'une valeur reprise du type d'événement.
 const FIXED_KINDS = new Set(['physical', 'custom'])
 
+// Questions auxquelles l'assistant peut répondre en reprenant les mots du prospect. Une question
+// à choix ne se devine pas : elle continue de renvoyer au lien.
+const ASKABLE_QUESTIONS = new Set(['string', 'text', 'phone_number'])
+
 const KIND_LABELS: Record<string, string> = {
   google_conference: 'visio Google Meet',
   zoom_conference: 'visio Zoom',
@@ -29,6 +33,9 @@ const KIND_LABELS: Record<string, string> = {
 
 export type InviteeLocation = { kind: string; location?: string }
 
+// Question du formulaire Calendly. `position` est ce que la réservation attend en retour.
+export type EventQuestion = { name: string; type: string; position: number; required: boolean; askable: boolean }
+
 export type EventTypeInfo = {
   uri: string
   name: string
@@ -39,13 +46,14 @@ export type EventTypeInfo = {
   locationLabel: string
   isVideo: boolean
   location: InviteeLocation | null
+  questions: EventQuestion[]
   requiredQuestions: string[]
   bookable: boolean
   blockers: string[]
 }
 
 type RawLocation = { kind?: unknown; location?: unknown }
-type RawQuestion = { name?: unknown; enabled?: unknown; required?: unknown }
+type RawQuestion = { name?: unknown; type?: unknown; position?: unknown; enabled?: unknown; required?: unknown }
 
 export type RawEventType = {
   uri?: unknown
@@ -75,11 +83,18 @@ export function describeEventType(raw: RawEventType): EventTypeInfo {
   const kind = kinds.length === 1 ? kinds[0] : null
   const first = locations[0]
 
-  const questions = Array.isArray(raw.custom_questions) ? (raw.custom_questions as RawQuestion[]) : []
-  const requiredQuestions = questions
-    .filter((q) => q.enabled !== false && q.required === true)
-    .map((q) => str(q.name).trim())
-    .filter(Boolean)
+  const rawQuestions = Array.isArray(raw.custom_questions) ? (raw.custom_questions as RawQuestion[]) : []
+  const questions: EventQuestion[] = rawQuestions
+    .filter((q) => q.enabled !== false && str(q.name).trim())
+    .map((q, i) => ({
+      name: str(q.name).trim(),
+      type: str(q.type),
+      position: Number.isFinite(Number(q.position)) ? Number(q.position) : i,
+      required: q.required === true,
+      askable: ASKABLE_QUESTIONS.has(str(q.type)),
+    }))
+  const requiredQuestions = questions.filter((q) => q.required).map((q) => q.name)
+  const unanswerable = questions.filter((q) => q.required && !q.askable).map((q) => q.name)
 
   const blockers: string[] = []
   if (raw.active === false) blockers.push('cette page de réservation est désactivée dans Calendly')
@@ -88,7 +103,7 @@ export function describeEventType(raw: RawEventType): EventTypeInfo {
   if (kind && !READY_KINDS.has(kind) && !FIXED_KINDS.has(kind)) blockers.push(locationLabel(kind))
   if (!kind && kinds.length <= 1) blockers.push('aucun lieu défini sur cette page')
   if (kind && FIXED_KINDS.has(kind) && !str(first?.location).trim()) blockers.push('le lieu de cette page est vide')
-  if (requiredQuestions.length > 0) blockers.push(`question obligatoire : ${requiredQuestions.join(', ')}`)
+  if (unanswerable.length > 0) blockers.push(`question à choix obligatoire : ${unanswerable.join(', ')}`)
 
   let location: InviteeLocation | null = null
   if (kind && READY_KINDS.has(kind)) location = { kind }
@@ -104,6 +119,7 @@ export function describeEventType(raw: RawEventType): EventTypeInfo {
     locationLabel: locationLabel(kind),
     isVideo: Boolean(kind && kind.endsWith('_conference')),
     location,
+    questions,
     requiredQuestions,
     bookable: blockers.length === 0,
     blockers,

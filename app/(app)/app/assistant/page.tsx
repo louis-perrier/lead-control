@@ -40,8 +40,11 @@ import {
 } from '@/supabase/functions/_shared/agenda-slots'
 import {
   CALENDLY_RANGE_OPTIONS,
+  FIELD_KINDS,
+  MAX_EXTRA_FIELDS,
   OFFER_STYLES,
   normalizeCalendly,
+  type BookingField,
   type CalendlySettings,
 } from '@/supabase/functions/_shared/calendly-settings'
 import { formatDuration } from '@/lib/audio'
@@ -496,6 +499,7 @@ type CalendlyPage = {
   location_label: string
   bookable: boolean
   blockers: string[]
+  required_questions?: string[]
 }
 
 type CalendlyPreview = CalendlyPage & { steps: string[]; slot_count?: number }
@@ -584,6 +588,24 @@ function CalendlyBookingFields({
     settings.extra_offers,
     settings.offer_style,
   ])
+
+  // Une question imposée par Calendly que l'utilisateur a déjà reprise ne s'affiche qu'une fois.
+  const imposed = (info?.required_questions ?? []).filter(
+    (q) => !settings.extra_fields.some((f) => f.label.trim().toLowerCase() === q.trim().toLowerCase()),
+  )
+
+  function editField(index: number, patch: Partial<BookingField>) {
+    onPatch({ extra_fields: settings.extra_fields.map((f, i) => (i === index ? { ...f, ...patch } : f)) })
+  }
+
+  function removeField(index: number) {
+    onPatch({ extra_fields: settings.extra_fields.filter((_, i) => i !== index) })
+  }
+
+  function addField() {
+    if (settings.extra_fields.length >= MAX_EXTRA_FIELDS) return
+    onPatch({ extra_fields: [...settings.extra_fields, { label: '', kind: 'text' }] })
+  }
 
   function choose(uri: string) {
     const page = pages.data?.find((p) => p.uri === uri)
@@ -719,6 +741,52 @@ function CalendlyBookingFields({
           ? 'L’assistant propose des heures exactes, deux le même jour quand la journée en offre assez, sinon sur deux jours.'
           : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel."}
       </FieldHint>
+
+      <div className="rounded-[10px] border border-border p-3">
+        <Label className="mb-0">Informations à demander avant de réserver</Label>
+        <FieldHint>
+          L'e-mail est toujours demandé, Calendly l'exige. Chaque information en plus rallonge la conversation.
+        </FieldHint>
+        <div className="mt-2.5 space-y-2">
+          {imposed.map((q) => (
+            <div key={q} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-ink">{q}</span>
+              <Badge tone="muted">imposé par cette page Calendly</Badge>
+            </div>
+          ))}
+          {settings.extra_fields.map((f, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <Input
+                value={f.label}
+                placeholder="Ce que l'assistant demande, par exemple Numéro de téléphone"
+                onChange={(e) => editField(i, { label: e.target.value })}
+                className="min-w-[12rem] flex-1"
+              />
+              <select
+                className={`${selectClass} w-auto`}
+                aria-label="Type d'information"
+                value={f.kind}
+                onChange={(e) => editField(i, { kind: e.target.value as BookingField['kind'] })}
+              >
+                {FIELD_KINDS.map((k) => (
+                  <option key={k.value} value={k.value}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+              <Button type="button" size="sm" variant="ghost" onClick={() => removeField(i)}>
+                Retirer
+              </Button>
+            </div>
+          ))}
+        </div>
+        {settings.extra_fields.length < MAX_EXTRA_FIELDS ? (
+          <Button type="button" size="sm" variant="secondary" className="mt-2.5" onClick={addField}>
+            <Plus size={14} />
+            Ajouter une information
+          </Button>
+        ) : null}
+      </div>
 
       <FieldHint>
         Durée, jours, heures, délai minimum et horizon viennent de votre Calendly. Le nom du profil Instagram du prospect

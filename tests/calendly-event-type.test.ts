@@ -34,14 +34,38 @@ describe('describeEventType', () => {
     expect(info.bookable).toBe(true)
   })
 
-  it('bloque sur une question obligatoire active', () => {
+  it('garde réservable une question obligatoire que l’assistant peut poser', () => {
     const info = describeEventType({
       ...base,
       custom_questions: [{ name: 'Votre numéro', type: 'phone_number', enabled: true, required: true, position: 1 }],
     })
-    expect(info.bookable).toBe(false)
+    expect(info.bookable).toBe(true)
     expect(info.requiredQuestions).toEqual(['Votre numéro'])
-    expect(info.blockers.join(' ')).toContain('Votre numéro')
+    expect(info.questions).toEqual([
+      { name: 'Votre numéro', type: 'phone_number', position: 1, required: true, askable: true },
+    ])
+  })
+
+  it('bloque sur une question à choix obligatoire, qui ne se devine pas', () => {
+    const info = describeEventType({
+      ...base,
+      custom_questions: [{ name: 'Votre budget', type: 'single_select', enabled: true, required: true, position: 0 }],
+    })
+    expect(info.bookable).toBe(false)
+    expect(info.blockers.join(' ')).toContain('Votre budget')
+  })
+
+  it('oublie une question désactivée et garde les questions facultatives', () => {
+    const info = describeEventType({
+      ...base,
+      custom_questions: [
+        { name: 'Caché', type: 'string', enabled: false, required: true, position: 0 },
+        { name: 'Votre site', type: 'string', enabled: true, required: false, position: 1 },
+      ],
+    })
+    expect(info.bookable).toBe(true)
+    expect(info.questions.map((q) => q.name)).toEqual(['Votre site'])
+    expect(info.requiredQuestions).toEqual([])
   })
 
   it('bloque un appel sortant, qui réclame le numéro du prospect', () => {

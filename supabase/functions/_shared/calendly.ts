@@ -3,6 +3,7 @@
 // réécrit sous condition, et un invalid_grant peut venir d'une invocation concurrente.
 import { admin, logEvent } from './core.ts'
 import { describeEventType, type EventTypeInfo, type InviteeLocation } from './calendly-event-type.ts'
+import type { QuestionAnswer } from './booking-fields.ts'
 
 const CLIENT_ID = Deno.env.get('CALENDLY_CLIENT_ID') ?? ''
 const CLIENT_SECRET = Deno.env.get('CALENDLY_CLIENT_SECRET') ?? ''
@@ -203,6 +204,7 @@ export async function createInvitee(opts: {
   email: string
   timezone: string
   location: InviteeLocation | null
+  answers: QuestionAnswer[]
   conversationId: number
 }): Promise<CreatedInvitee> {
   const body: Record<string, unknown> = {
@@ -212,6 +214,7 @@ export async function createInvitee(opts: {
     tracking: { utm_source: 'leadcontrol', utm_content: String(opts.conversationId) },
   }
   if (opts.location) body.location = opts.location
+  if (opts.answers.length > 0) body.questions_and_answers = opts.answers
 
   const payload = await call(opts.account, opts.token, '/invitees', { method: 'POST', body: JSON.stringify(body) })
   const resource = (payload.resource ?? {}) as Record<string, unknown>

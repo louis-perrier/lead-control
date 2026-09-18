@@ -4,6 +4,7 @@
 import { admin, logEvent } from '../_shared/core.ts'
 import { checkBookingSlot, planBookingOffers, type BookingCheck } from '../_shared/slot-offers.ts'
 import { normalizeCalendly, type CalendlySettings } from '../_shared/calendly-settings.ts'
+import { buildAsks, collectAnswers, type Ask } from '../_shared/booking-fields.ts'
 import {
   isValidTimezone,
   momentLabel,
@@ -25,8 +26,8 @@ import {
 } from '../_shared/calendly.ts'
 import type { EventTypeInfo } from '../_shared/calendly-event-type.ts'
 import { notifyAccount, notifyNeedsYou } from '../_shared/notify.ts'
-import type { RunTool, ToolOutcome } from '../_shared/tool-loop.ts'
-import { CALENDLY_TOOLS, type AgendaPromptContext } from './agenda-prompt.ts'
+import type { RunTool, ToolDefinition, ToolOutcome } from '../_shared/tool-loop.ts'
+import { calendlyTools, type AgendaPromptContext } from './agenda-prompt.ts'
 import { meetLinkSent } from './agenda.ts'
 
 const HORIZON_MS = 30 * 86_400_000
@@ -45,7 +46,7 @@ export type CalendlyTurn = {
   stopReason: 'calendly_booked'
   timezone: string
   prompt: AgendaPromptContext
-  tools: typeof CALENDLY_TOOLS
+  tools: ToolDefinition[]
   runTool: RunTool
   storedOffers: StoredOffers | null
   step: OfferStep | null
@@ -107,6 +108,14 @@ async function warnAccount(userId: string, e: unknown) {
   else if (e.code === 'plan_required') await notifyAccount(userId, 'code:calendly', 'Forfait Calendly trop limité pour réserver')
 }
 
+// Le numéro donné pendant la conversation vaut pour toute la fiche, pas seulement pour l'appel.
+async function saveContactPhone(convId: number, phone: string) {
+  const { data } = await admin.from('conversations').select('contact_id').eq('id', convId).maybeSingle()
+  const contactId = (data as { contact_id: string | null } | null)?.contact_id
+  if (!contactId) return
+  await admin.from('contacts').update({ phone_e164: phone }).eq('id', contactId).is('phone_e164', null)
+}
+
 export async function prepareCalendlyTurn(opts: {
   userId: string
   convId: number
@@ -156,6 +165,7 @@ export async function prepareCalendlyTurn(opts: {
   if (!reachable && !booking) return { ok: false, link: info?.schedulingUrl || stored.scheduling_url }
 
   const settings: CalendlySettings = { ...stored, duration_min: info?.durationMin ?? stored.duration_min }
+  const asks: Ask[] = buildAsks(stored.extra_fields, info?.questions ?? [])
   const planned = reachable
     ? planBookingOffers({
         now,
@@ -213,7 +223,7 @@ export async function prepareCalendlyTurn(opts: {
     return (data as CalendlyBooking | null) ?? null
   }
 
-  async function reserve(debut: string, email: string): Promise<ToolOutcome> {
+  async function reserve(debut: string, email: string, infos: unknown): Promise<ToolOutcome> {
     if (result.booking) {
       return {
         content: `Déjà réservé : ${momentLabel(Date.parse(result.booking.event_start_at), tz)}. Confirme-le au prospect sans rien proposer d’autre.`,
@@ -223,6 +233,14 @@ export async function prepareCalendlyTurn(opts: {
       return { content: 'E-mail invalide : redemande-le, la réservation ne peut pas se faire sans lui.', isError: true }
     }
     if (!reachable || !account || !token || !info) return bookingFailed(new CalendlyError('unavailable', 'Calendly illisible'))
+
+    const collected = collectAnswers(asks, infos)
+    if (collected.missing.length > 0) {
+      return {
+        content: `Il manque ${collected.missing.join(' et ')} : la page de réservation l’exige. Demande-le, puis rappelle reserver_appel.`,
+        isError: true,
+      }
+    }
 
     const who = safeName(opts.contactName) || (opts.contactHandle ? `@${opts.contactHandle}` : 'Prospect Instagram')
     // Relecture fraîche : le créneau a pu partir depuis le début du tour.
@@ -246,6 +264,7 @@ export async function prepareCalendlyTurn(opts: {
         email,
         timezone: tz,
         location: info.location,
+        answers: collected.answers,
         conversationId: convId,
       })
     } catch (e) {
@@ -283,7 +302,12 @@ export async function prepareCalendlyTurn(opts: {
         event_end_at: new Date(check.end).toISOString(),
         meet_link: join,
         status: 'active',
-        raw_payload: { invitee_uri: created.inviteeUri, account_id: account.id, source: 'assistant' },
+        raw_payload: {
+          invitee_uri: created.inviteeUri,
+          account_id: account.id,
+          source: 'assistant',
+          answers: collected.saved,
+        },
       },
       eventUri,
     )
@@ -291,6 +315,7 @@ export async function prepareCalendlyTurn(opts: {
     // Le rendez-vous existe chez Calendly même si la ligne n'a pas pu être écrite : on confirme.
     result.booking = saved ?? { id: '', event_start_at: new Date(check.start).toISOString(), meet_link: join }
     result.bookedThisTurn = true
+    if (collected.phone) await saveContactPhone(convId, collected.phone)
     if (info.isVideo && !join) {
       await notifyNeedsYou(userId, convId, 'Appel réservé sans lien de visio : envoyez-le au prospect.', { renew: true })
     }
@@ -301,7 +326,9 @@ export async function prepareCalendlyTurn(opts: {
   const runTool: RunTool = async (name, input) => {
     const debut = typeof input.debut === 'string' ? input.debut : ''
     if (name === 'verifier_creneau') return await verify(debut)
-    if (name === 'reserver_appel') return await reserve(debut, typeof input.email === 'string' ? input.email.trim() : '')
+    if (name === 'reserver_appel') {
+      return await reserve(debut, typeof input.email === 'string' ? input.email.trim() : '', input.infos)
+    }
     return { content: 'Outil inconnu.', isError: true }
   }
 
@@ -321,8 +348,9 @@ export async function prepareCalendlyTurn(opts: {
         venue,
         venueText,
         offerStyle: settings.offer_style,
+        asks: asks.map((a) => ({ key: a.key, label: a.label })),
       },
-      tools: CALENDLY_TOOLS,
+      tools: calendlyTools(asks.map((a) => ({ key: a.key, label: a.label }))),
       runTool,
       storedOffers: planned?.stored ?? null,
       step,
