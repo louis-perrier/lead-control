@@ -597,12 +597,10 @@ function OfferStyleFields({
 
       <FieldHint>
         {exact
-          ? 'L’assistant propose des heures exactes, deux le même jour quand la journée en offre assez, sinon sur deux jours.'
-          : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel."}
-      </FieldHint>
-      <FieldHint>
-        Le délai minimum s’ajoute à celui déjà réglé sur votre page de réservation, il ne le raccourcit jamais. En
-        dessous, l’assistant ne propose rien et refuse aussi une heure que le prospect demanderait.
+          ? 'L’assistant propose des heures exactes, deux le même jour quand la journée offre deux moments différents, sinon sur deux jours. '
+          : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel. "}
+        Le délai minimum s’ajoute à celui de votre page : en dessous, l’assistant ne propose rien et refuse aussi une
+        heure demandée par le prospect.
       </FieldHint>
     </>
   )
@@ -792,8 +790,8 @@ function IcloseWebhookStep({ account }: { account: ChannelAccount }) {
         <Badge tone="warning">à faire</Badge>
       </div>
       <FieldHint>
-        iClose ne sait pas enregistrer cette adresse tout seul. Sans elle, un rendez-vous que le prospect prend depuis
-        votre lien ne remonte pas ici, et la conversation reste ouverte comme si rien ne s’était passé.
+        iClose ne sait pas enregistrer cette adresse tout seul. Sans elle, un rendez-vous pris depuis votre lien ne
+        remonte pas ici et la conversation reste ouverte pour rien.
       </FieldHint>
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <Input
@@ -1078,12 +1076,8 @@ function IcloseBookingFields({
       />
 
       <FieldHint>
-        Durée, jours, heures, délai minimum, horizon et règles de qualification viennent de votre iClose. Le nom du
+        Durée, jours, heures, horizon et règles de qualification viennent de votre iClose. Le nom du
         profil Instagram du prospect sert de nom de contact, et l'assistant lui demande son e-mail.
-      </FieldHint>
-      <FieldHint>
-        <strong className="font-semibold">L'accès à l'API dépend du forfait iClose.</strong> Sans la section Developer
-        dans iClose, aucune clé ne peut être créée.
       </FieldHint>
 
       {preview && preview.bookable ? (
@@ -1245,7 +1239,7 @@ function CalendlyBookingFields({
       />
 
       <FieldHint>
-        Durée, jours, heures, délai minimum et horizon viennent de votre Calendly. Le nom du profil Instagram du prospect
+        Durée, jours, heures et horizon viennent de votre Calendly. Le nom du profil Instagram du prospect
         sert de nom d'invité, et l'assistant lui demande son e-mail, que Calendly exige.
       </FieldHint>
       <FieldHint>
@@ -1261,8 +1255,8 @@ function CalendlyBookingFields({
 }
 
 const MODE_CHOICES = [
-  { value: false, label: 'Avec le lien que j’envoie' },
-  { value: true, label: 'Avec l’assistant' },
+  { value: false, label: 'Par mon lien' },
+  { value: true, label: 'Par l’assistant' },
 ]
 
 function GoalSection({
