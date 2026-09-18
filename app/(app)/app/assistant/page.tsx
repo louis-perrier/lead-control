@@ -686,7 +686,7 @@ type IclosePage = {
 type IclosePreview = IclosePage & { steps: string[]; slot_count?: number }
 
 const ICLOSE_ERRORS: Record<string, string> = {
-  plan_required: 'L’API iClose demande un forfait Business ou Enterprise. Le forfait actuel ne l’ouvre pas.',
+  plan_required: 'Votre forfait iClose n’ouvre pas l’accès à l’API. Vérifiez dans iClose, Réglages puis Developer.',
   token_invalid: 'Cette clé iClose est refusée. Refaites-en une dans iClose, Réglages puis Developer.',
   rate_limited: 'iClose a reçu trop d’appels d’un coup. Réessayez dans quelques secondes.',
   not_connected: 'Collez d’abord votre clé d’API iClose.',
@@ -786,7 +786,7 @@ function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }
       <FieldError>{error}</FieldError>
       {!channel ? (
         <FieldHint>
-          Dans iClose : Réglages, Developer, API Keys. La clé demande un forfait Business ou Enterprise.
+          Dans iClose : Réglages, Developer, API Keys. Si cette section n'apparaît pas, le forfait ne l'ouvre pas.
         </FieldHint>
       ) : null}
       <ConfirmDialog
@@ -939,7 +939,8 @@ function IcloseBookingFields({
         profil Instagram du prospect sert de nom de contact, et l'assistant lui demande son e-mail.
       </FieldHint>
       <FieldHint>
-        <strong className="font-semibold">L'API iClose demande un forfait Business ou Enterprise.</strong>
+        <strong className="font-semibold">L'accès à l'API dépend du forfait iClose.</strong> Sans la section Developer
+        dans iClose, aucune clé ne peut être créée.
       </FieldHint>
 
       {preview && preview.bookable ? (
