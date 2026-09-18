@@ -226,7 +226,7 @@ export async function createEventCall(
 
 // Enregistrement du webhook au moment de la connexion. iClose ne documente pas cet appel
 // publiquement : un échec n'empêche rien, le webhook se pose alors à la main dans iClose.
-export async function registerWebhook(key: string, url: string) {
+export async function registerWebhook(key: string, url: string): Promise<boolean> {
   const body = JSON.stringify({
     url,
     isActive: true,
@@ -238,7 +238,9 @@ export async function registerWebhook(key: string, url: string) {
   })
   try {
     await call(key, '/v1/webhooks', { method: 'POST', body })
+    return true
   } catch (e) {
-    await logEvent('warn', 'iclose', `webhook iClose non enregistré, à poser à la main : ${String(e).slice(0, 200)}`)
+    await logEvent('warn', 'iclose', `webhook iClose non enregistré : ${String(e).slice(0, 200)}`)
+    return false
   }
 }

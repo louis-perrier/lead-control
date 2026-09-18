@@ -706,6 +706,7 @@ function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }
   const viewingAs = useViewAsTargetId() !== null
   const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState('')
+  const [webhookMissing, setWebhookMissing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const channel = channels?.find((c) => c.provider === 'iclose')
@@ -715,7 +716,8 @@ function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }
     setError('')
     try {
       await beforeConnect?.()
-      await callFunction('iclose-setup/key', { body: { api_key: apiKey.trim() } })
+      const res = await callFunction<{ webhook?: boolean }>('iclose-setup/key', { body: { api_key: apiKey.trim() } })
+      setWebhookMissing(res.webhook === false)
       setApiKey('')
       toast('iClose relié.')
       invalidate('channel-accounts')
@@ -784,6 +786,12 @@ function IcloseKeyRow({ beforeConnect }: { beforeConnect?: () => Promise<void> }
         )
       ) : null}
       <FieldError>{error}</FieldError>
+      {webhookMissing ? (
+        <FieldError>
+          Clé acceptée, mais le suivi des réservations n'a pas pu être activé chez iClose. Les rendez-vous pris depuis
+          votre lien ne remonteront pas ici tant que ce n'est pas réglé : prévenez-nous.
+        </FieldError>
+      ) : null}
       {!channel ? (
         <FieldHint>
           Dans iClose : Réglages, Developer, API Keys. Si cette section n'apparaît pas, le forfait ne l'ouvre pas.

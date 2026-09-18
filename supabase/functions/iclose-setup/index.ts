@@ -109,8 +109,16 @@ async function saveKey(req: Request) {
     .upsert({ channel_account_id: inserted.data.id, access_token: key }, { onConflict: 'channel_account_id' })
   if (stored.error) return json(req, { error: 'unavailable' }, 503)
 
-  if (WEBHOOK_SECRET) await registerWebhook(key, `${SUPABASE_URL}/functions/v1/iclose-webhook/${WEBHOOK_SECRET}`)
-  return json(req, { ok: true, events: events.length })
+  // Sans webhook, une réservation faite par le prospect depuis le lien ne remonte jamais. Le
+  // silence serait pire que l'échec : il est remonté au compte et au journal de santé.
+  const webhook = WEBHOOK_SECRET
+    ? await registerWebhook(key, `${SUPABASE_URL}/functions/v1/iclose-webhook/${WEBHOOK_SECRET}`)
+    : false
+  if (!webhook) {
+    const why = WEBHOOK_SECRET ? 'iClose a refusé l’enregistrement' : 'ICLOSE_WEBHOOK_SECRET absent'
+    await logEvent('error', 'iclose-setup', `webhook iClose à poser à la main (${why})`, { user_id: user.id })
+  }
+  return json(req, { ok: true, events: events.length, webhook })
 }
 
 async function disconnect(req: Request) {
