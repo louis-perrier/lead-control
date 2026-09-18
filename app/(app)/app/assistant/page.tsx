@@ -706,6 +706,9 @@ function GoalSection({
   const calendlyPageError = mode === 'calendly' && !calendlySettings.event_type_uri ? 'Choisissez une page de réservation.' : null
   const preview = useMemo(() => agendaPreview(agenda), [agenda])
 
+  const modeVisible = (m: string) =>
+    m === 'link' || (m === 'calendly' && allowCalendlyBooking) || (m === 'calendar' && allowCalendar)
+
   function patchAgenda(patch: Partial<AgendaSettings>) {
     setAgenda((current) => {
       const next = { ...current, ...patch }
@@ -725,10 +728,10 @@ function GoalSection({
     if (agendaError || calendlyPageError) return
     save((fresh) => ({
       stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
-      // Module masqué : le mode déjà enregistré n'est pas touché.
+      // Un mode enregistré dont le module est masqué n'est pas écrasé par le formulaire.
       booking: {
         ...fresh.booking,
-        mode: modes.length > 1 ? mode : fresh.booking?.mode ?? 'link',
+        mode: modeVisible(fresh.booking?.mode ?? 'link') ? mode : fresh.booking?.mode ?? 'link',
         calendar: agenda,
         calendly: calendlySettings,
       },
