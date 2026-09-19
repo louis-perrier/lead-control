@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasFeature, isStaff, canAdminister } from '@/lib/features'
+import { groupFlags, hasFeature, isStaff, canAdminister } from '@/lib/features'
 import type { FeatureFlag, Profile } from '@/lib/types'
 
 const flags: FeatureFlag[] = [
@@ -64,5 +64,20 @@ describe('rôles', () => {
     expect(canAdminister(profile({ role: 'viewer' }))).toBe(false)
     expect(canAdminister(profile({ role: 'admin' }))).toBe(true)
     expect(isStaff(profile())).toBe(false)
+  })
+})
+
+describe('groupFlags', () => {
+  const flag = (key: string, stage: FeatureFlag['stage']): FeatureFlag => ({ key, label: key, description: null, stage, notes: null })
+
+  it('sépare ce qui se prépare, ce qui est ouvert et les idées sans code', () => {
+    const groups = groupFlags([flag('followups', 'all'), flag('sales_method', 'hidden'), flag('human_agent', 'staff'), flag('whatsapp', 'hidden')])
+    expect(groups.building.map((f) => f.key)).toEqual(['sales_method', 'human_agent'])
+    expect(groups.open.map((f) => f.key)).toEqual(['followups'])
+    expect(groups.ideas.map((f) => f.key)).toEqual(['whatsapp'])
+  })
+
+  it('ressort une idée dès qu’on l’ouvre à quelqu’un', () => {
+    expect(groupFlags([flag('whatsapp', 'staff')]).building.map((f) => f.key)).toEqual(['whatsapp'])
   })
 })

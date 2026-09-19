@@ -29,3 +29,14 @@ export function hasFeature(
       return false
   }
 }
+
+// Drapeaux posés à l'avance, qu'aucun écran ni aucune fonction ne lit encore. En retirer un
+// d'ici le jour où son module est écrit, sinon il reste rangé avec les idées dans Admin.
+const UNWIRED_FLAGS = ['crm', 'gmail', 'instagram_comments', 'scraping', 'voice_calls', 'voice_messages', 'whatsapp']
+
+export function groupFlags(flags: FeatureFlag[]) {
+  const ideas = flags.filter((f) => UNWIRED_FLAGS.includes(f.key) && f.stage === 'hidden')
+  const open = flags.filter((f) => f.stage === 'all' && !ideas.includes(f))
+  const building = flags.filter((f) => !ideas.includes(f) && !open.includes(f))
+  return { building, open, ideas }
+}
