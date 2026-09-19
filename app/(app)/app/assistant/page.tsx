@@ -21,7 +21,13 @@ import { formatDateTime, storageSafeName } from '@/lib/utils'
 import { readShares } from '@/supabase/functions/_shared/context-budget'
 import { ACCEPTED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_BYTES, documentKind } from '@/supabase/functions/_shared/document-text'
 import { triggerKind } from '@/supabase/functions/_shared/canned-match'
-import { MESSAGING_WINDOW_MINUTES, cumulativeOffsets } from '@/supabase/functions/_shared/followup-plan'
+import {
+  MAX_POOL,
+  MESSAGING_WINDOW_MINUTES,
+  PICK_RANDOM,
+  cumulativeOffsets,
+  poolFromVariants,
+} from '@/supabase/functions/_shared/followup-plan'
 import {
   NAME_VARIABLE_TEMPLATE,
   hasMissingFallback,
@@ -60,6 +66,7 @@ import type {
   ChannelAccount,
   ContextDocument,
   FollowupItem,
+  FollowupMessage,
 } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -2325,7 +2332,6 @@ function ContextDocumentsSection() {
 }
 
 const MAX_FOLLOWUPS = 3
-const MAX_VARIANTS = 3
 const MIN_DELAY_MINUTES = 15
 const MAX_DELAY_MINUTES = 23 * 60 + 45
 const pillClass = (active: boolean) =>
@@ -2368,7 +2374,7 @@ function DelaySelect({ value, onChange }: { value: number; onChange: (minutes: n
 }
 
 function newFollowup(): FollowupItem {
-  return { id: crypto.randomUUID(), delay_minutes: 120, kind: 'text', variants: [''] }
+  return { id: crypto.randomUUID(), delay_minutes: 120, kind: 'text', pick: PICK_RANDOM }
 }
 
 function formatDelay(minutes: number) {
@@ -2452,12 +2458,26 @@ function VariantField({
   )
 }
 
-function followupPreview(item: FollowupItem) {
+function followupPreview(item: FollowupItem, messages: FollowupMessage[]) {
   if (item.kind === 'audio') {
     return item.media_path ? `Vocal${item.media_duration_ms ? ` · ${formatDuration(item.media_duration_ms)}` : ''}` : 'Vocal à enregistrer'
   }
-  const first = (item.variants ?? []).find((v) => v.trim())
-  return first ? renderFollowupText(first, null) : 'Message à écrire'
+  const index = messages.findIndex((m) => m.id === item.pick)
+  if (index < 0) return 'Un de vos messages, au hasard'
+  const text = messages[index].text.trim()
+  return `Message ${index + 1}${text ? ` · ${renderFollowupText(text, null)}` : ''}`
+}
+
+function initialFollowups(initial: Assistant['settings']['followups']) {
+  const items = initial?.items?.length ? initial.items : [newFollowup()]
+  if (Array.isArray(initial?.messages)) {
+    return { items, messages: initial.messages.length ? initial.messages : [{ id: crypto.randomUUID(), text: '' }] }
+  }
+  const { messages, picks } = poolFromVariants(items)
+  return {
+    items: items.map((it, i) => ({ ...it, variants: undefined, pick: picks[i] })),
+    messages: messages.length ? messages : [{ id: crypto.randomUUID(), text: '' }],
+  }
 }
 
 const MAX_ASSISTED = 3
@@ -2470,9 +2490,10 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
   const [assistedDeleteTarget, setAssistedDeleteTarget] = useState<string | null>(null)
   const [enabled, setEnabled] = useState(initial?.enabled ?? false)
   const [afterOwn, setAfterOwn] = useState(initial?.after_own_message ?? false)
-  const [items, setItems] = useState<FollowupItem[]>(
-    initial?.items?.length ? initial.items : [newFollowup()],
-  )
+  const [start] = useState(() => initialFollowups(initial))
+  const [items, setItems] = useState<FollowupItem[]>(start.items)
+  const [messages, setMessages] = useState<FollowupMessage[]>(start.messages)
+  const [messageDeleteTarget, setMessageDeleteTarget] = useState<string | null>(null)
   const [openId, setOpenId] = useState<string | null>(items[0]?.id ?? null)
   const [error, setError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
@@ -2481,21 +2502,29 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
     setItems((list) => list.map((it) => (it.id === id ? { ...it, ...patch } : it)))
   }
 
-  function editVariant(id: string, index: number, text: string) {
-    setItems((list) =>
-      list.map((it) =>
-        it.id === id ? { ...it, variants: (it.variants ?? ['']).map((v, i) => (i === index ? text : v)) } : it,
-      ),
-    )
+  function removeMessage(id: string) {
+    setMessages((list) => list.filter((m) => m.id !== id))
+    setItems((list) => list.map((it) => (it.pick === id ? { ...it, pick: PICK_RANDOM } : it)))
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    const cleanedMessages = messages.map((m) => ({ ...m, text: m.text.trim() })).filter((m) => m.text)
     const cleaned = items.map((it) => ({
       ...it,
-      variants: it.kind === 'text' ? (it.variants ?? []).map((v) => v.trim()).filter(Boolean) : undefined,
+      variants: undefined,
+      pick: it.kind === 'text' && cleanedMessages.some((m) => m.id === it.pick) ? it.pick : PICK_RANDOM,
     }))
     if (enabled) {
+      if (cleaned.some((it) => it.kind === 'text') && cleanedMessages.length === 0) {
+        setError('Écrivez au moins un message de relance.')
+        return
+      }
+      const withoutFallback = cleanedMessages.findIndex((m) => hasMissingFallback(m.text))
+      if (withoutFallback >= 0) {
+        setError(`Message ${withoutFallback + 1} : ajoutez un texte de secours au prénom, par exemple {prénom|toi}.`)
+        return
+      }
       for (const [index, it] of cleaned.entries()) {
         const delay = Number(it.delay_minutes)
         const fail = (message: string) => {
@@ -2506,10 +2535,6 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
           return fail('le délai doit être compris entre 15 minutes et 23 h 45.')
         }
         if (it.kind === 'audio' && !it.media_path) return fail('enregistrez ou importez un vocal.')
-        if (it.kind === 'text' && (it.variants ?? []).length === 0) return fail('écrivez le message à envoyer.')
-        if (it.kind === 'text' && (it.variants ?? []).some(hasMissingFallback)) {
-          return fail('ajoutez un texte de secours au prénom, par exemple {prénom|toi}.')
-        }
       }
     }
     const cleanedAssisted = assisted.map((t) => ({ ...t, text: t.text.trim() })).filter((t) => t.text)
@@ -2519,7 +2544,9 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
       return
     }
     setError('')
-    await save({ followups: { enabled, after_own_message: afterOwn, items: cleaned, assisted: cleanedAssisted } })
+    await save({
+      followups: { enabled, after_own_message: afterOwn, messages: cleanedMessages, items: cleaned, assisted: cleanedAssisted },
+    })
   }
 
   return (
@@ -2537,6 +2564,48 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
 
           {enabled ? (
             <>
+              <div className="space-y-2">
+                <Label className="mb-0">Vos messages de relance</Label>
+                <FieldHint>Tiré au hasard, un message n’est jamais envoyé deux fois au même prospect.</FieldHint>
+                {messages.map((message, mIndex) => {
+                  const fixedOn = items.findIndex((it) => it.kind !== 'audio' && it.pick === message.id)
+                  return (
+                    <div key={message.id} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-muted">
+                          Message {mIndex + 1}
+                          {fixedOn >= 0 ? ` · réservé à la relance ${fixedOn + 1}` : ''}
+                        </span>
+                        {messages.length > 1 ? (
+                          <button
+                            type="button"
+                            className="text-xs text-muted hover:text-ink hover:underline"
+                            onClick={() => (message.text.trim() ? setMessageDeleteTarget(message.id) : removeMessage(message.id))}
+                          >
+                            Supprimer
+                          </button>
+                        ) : null}
+                      </div>
+                      <VariantField
+                        value={message.text}
+                        placeholder="Votre message de relance"
+                        onChange={(text) => setMessages((list) => list.map((m) => (m.id === message.id ? { ...m, text } : m)))}
+                      />
+                    </div>
+                  )
+                })}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={messages.length >= MAX_POOL}
+                  onClick={() => setMessages((list) => [...list, { id: crypto.randomUUID(), text: '' }])}
+                >
+                  <Plus size={14} className="mr-1" />
+                  {messages.length >= MAX_POOL ? 'Maximum atteint' : 'Ajouter un message'}
+                </Button>
+              </div>
+
               <FollowupTimeline delays={items.map((it) => Number(it.delay_minutes) || 0)} />
 
               {items.map((item, index) => {
@@ -2554,7 +2623,7 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
                           <span className="font-medium">Relance {index + 1}</span>
                           <span className="text-muted"> · {formatDelay(Number(item.delay_minutes) || 0)} {after}</span>
                         </span>
-                        <span className="block truncate text-sm text-muted">{followupPreview(item)}</span>
+                        <span className="block truncate text-sm text-muted">{followupPreview(item, messages)}</span>
                       </span>
                       <span className="shrink-0 text-sm text-primary">Modifier</span>
                     </button>
@@ -2601,28 +2670,24 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
                         folder={`${assistant.user_id}/${assistant.id}/followup-${item.id}`}
                       />
                     ) : (
-                      <div className="space-y-2">
-                        {(item.variants ?? ['']).map((variant, vIndex) => (
-                          <VariantField
-                            key={vIndex}
-                            value={variant}
-                            placeholder={vIndex === 0 ? 'Votre message de relance' : `Variante ${vIndex + 1}`}
-                            onChange={(text) => editVariant(item.id, vIndex, text)}
-                          />
-                        ))}
-                        {(item.variants ?? []).length > 1 ? (
-                          <FieldHint>Une variante est tirée au hasard à chaque envoi.</FieldHint>
-                        ) : null}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          disabled={(item.variants ?? []).length >= MAX_VARIANTS}
-                          onClick={() => edit(item.id, { variants: [...(item.variants ?? []), ''] })}
+                      <div>
+                        <Label htmlFor={`pick-${item.id}`}>Message envoyé</Label>
+                        <select
+                          id={`pick-${item.id}`}
+                          className={selectClass}
+                          value={messages.some((m) => m.id === item.pick) ? item.pick : PICK_RANDOM}
+                          onChange={(e) => edit(item.id, { pick: e.target.value })}
                         >
-                          <Plus size={14} className="mr-1" />
-                          {(item.variants ?? []).length >= MAX_VARIANTS ? 'Maximum atteint' : 'Ajouter une variante'}
-                        </Button>
+                          <option value={PICK_RANDOM}>Au hasard parmi vos messages</option>
+                          {messages.map((m, mIndex) => (
+                            <option key={m.id} value={m.id}>
+                              Toujours le message {mIndex + 1}
+                            </option>
+                          ))}
+                        </select>
+                        {messages.some((m) => m.id === item.pick) ? (
+                          <FieldHint>Ce message ne sera plus tiré au hasard sur les autres relances.</FieldHint>
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -2736,6 +2801,18 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
         }}
         title="Supprimer cette relance"
         message="Elle ne sera plus envoyée. Pensez à enregistrer ensuite."
+        confirmLabel="Supprimer"
+        danger
+      />
+      <ConfirmDialog
+        open={messageDeleteTarget != null}
+        onClose={() => setMessageDeleteTarget(null)}
+        onConfirm={() => {
+          if (messageDeleteTarget) removeMessage(messageDeleteTarget)
+          setMessageDeleteTarget(null)
+        }}
+        title="Supprimer ce message"
+        message="Une relance qui l’envoyait toujours repassera au hasard. Pensez à enregistrer ensuite."
         confirmLabel="Supprimer"
         danger
       />

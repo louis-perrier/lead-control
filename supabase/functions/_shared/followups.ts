@@ -10,7 +10,7 @@ export {
   MIN_DELAY_MINUTES,
   findFollowupItem,
   nextFollowupItem,
-  pickVariant,
+  pickMessage,
   usableFollowupItems,
 } from './followup-plan.ts'
 export type { FollowupItem, FollowupSettings } from './followup-plan.ts'

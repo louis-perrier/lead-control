@@ -7,7 +7,7 @@ import {
   conversationHasBooking,
   findFollowupItem,
   nextFollowupItem,
-  pickVariant,
+  pickMessage,
   planFollowupSlot,
   usableFollowupItems,
 } from '../_shared/followups.ts'
@@ -116,6 +116,19 @@ async function postpone(due: DueFollowup, at: number) {
 async function followupItemId(id: string) {
   const { data } = await admin.from('followups').select('item_id').eq('id', id).maybeSingle()
   return (data?.item_id as string | null) ?? null
+}
+
+// Ce que ce prospect a déjà reçu en relance, pour ne pas lui resservir le même texte quand la
+// chaîne repart après une réponse.
+async function sentFollowupTexts(conversationId: number) {
+  const { data } = await admin
+    .from('followups')
+    .select('message_body')
+    .eq('conversation_id', conversationId)
+    .eq('status', 'sent')
+    .not('message_body', 'is', null)
+    .order('scheduled_at', { ascending: true })
+  return (data ?? []).map((row) => row.message_body as string)
 }
 
 // La relance suivante ne naît qu'une fois celle-ci partie, avec son propre délai.
@@ -233,9 +246,15 @@ async function handleFollowup(due: DueFollowup) {
   if (!token || !channel.data?.external_id) return skip(due.id, 'channel_token_missing')
 
   const isAudio = item.kind === 'audio'
-  const variant = isAudio ? null : pickVariant(item)
-  if (!isAudio && !variant) return skip(due.id, 'followup_removed')
-  const text = variant && hasNameVariable(variant) ? renderFollowupText(variant, await resolveFirstName(conv)) : variant
+  let text: string | null = null
+  if (!isAudio) {
+    const texts = [...(settings.followups?.messages ?? []).map((m) => m?.text ?? ''), ...(item.variants ?? [])]
+    const firstName = texts.some((t) => hasNameVariable(t)) ? await resolveFirstName(conv) : null
+    const render = (t: string) => (hasNameVariable(t) ? renderFollowupText(t, firstName) : t)
+    const variant = pickMessage(settings.followups, item, await sentFollowupTexts(due.conversation_id), render)
+    if (!variant) return skip(due.id, 'followup_removed')
+    text = render(variant)
+  }
 
   let audioUrl: string | null = null
   if (isAudio) {

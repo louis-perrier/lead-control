@@ -73,7 +73,10 @@ export type FollowupItem = {
   id: string
   delay_minutes: number
   kind: 'text' | 'audio'
+  /** Réglages d'avant la réserve commune, relus une dernière fois par l'écran. */
   variants?: string[]
+  /** 'random' ou l'id d'un message de la réserve. */
+  pick?: string
   media_path?: string
   media_mime?: string
   media_duration_ms?: number
@@ -87,9 +90,12 @@ export type AssistedFollowup = {
   text: string
 }
 
+export type FollowupMessage = { id: string; text: string }
+
 export type FollowupSettings = {
   enabled?: boolean
   after_own_message?: boolean
+  messages?: FollowupMessage[]
   items?: FollowupItem[]
   assisted?: AssistedFollowup[]
 }
