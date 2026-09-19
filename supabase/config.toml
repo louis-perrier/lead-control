@@ -413,6 +413,8 @@ verify_jwt = true
 verify_jwt = true
 [functions.generate-custom-tone]
 verify_jwt = true
+[functions.method-distill]
+verify_jwt = true
 [functions.calendly-oauth]
 verify_jwt = false
 [functions.calendly-setup]

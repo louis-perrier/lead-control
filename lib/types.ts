@@ -60,6 +60,8 @@ export type AssistantSettings = {
   audience?: { mode?: 'all' | 'allowlist' | 'blocklist'; handles?: string[] }
   deal?: { average_value?: number | null }
   followups?: FollowupSettings
+  method?: import('@/supabase/functions/assistant-dispatch/method-prompt').MethodSettings
+  ignore_solicitors?: boolean
   canned_responses?: CannedResponse[]
   booking?: {
     mode?: BookingMode

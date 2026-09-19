@@ -78,6 +78,12 @@ import { InfoTip, Skeleton, Switch } from '@/components/ui/misc'
 import { EmptyState } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/toast'
 import { bookingChoice, TOOL_NAMES, type BookingMode } from '@/lib/booking-mode'
+import {
+  MAX_METHOD_CHARS,
+  METHOD_RUBRICS,
+  methodLength,
+  type MethodSheet,
+} from '@/supabase/functions/assistant-dispatch/method-prompt'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
@@ -2331,6 +2337,188 @@ function ContextDocumentsSection() {
   )
 }
 
+const METHOD_ERRORS: Record<string, string> = {
+  no_documents: 'Aucun des documents cochés n’a pu être lu.',
+  no_api_key: 'Ajoutez d’abord votre clé Anthropic dans Réglages.',
+  nothing_found: 'Aucune consigne de vente n’a été trouvée dans ces documents.',
+  not_available: 'Ce module n’est pas encore ouvert sur votre compte.',
+}
+
+function MethodSection({ assistant }: { assistant: Assistant }) {
+  const { save, saving } = useSaveSettings(assistant)
+  const effectiveUserId = useEffectiveUserId()
+  const stored = assistant.settings.method
+  const [picked, setPicked] = useState<number[]>(stored?.draft_document_ids ?? stored?.document_ids ?? [])
+  const [sheet, setSheet] = useState<MethodSheet | null>(stored?.draft ?? stored?.applied ?? null)
+  const [refused, setRefused] = useState<string[]>(stored?.refused ?? [])
+  const [pending, setPending] = useState(Boolean(stored?.draft))
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const [reading, setReading] = useState(false)
+  const [error, setError] = useState('')
+  const [confirmRemove, setConfirmRemove] = useState(false)
+
+  const { data: docs } = useQuery({
+    queryKey: ['context-documents', effectiveUserId],
+    enabled: effectiveUserId !== null,
+    queryFn: async (): Promise<ContextDocument[]> => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('context_documents')
+        .select('id, title, status, char_count, source_char_count, error_message, created_at')
+        .eq('user_id', effectiveUserId!)
+        .order('created_at', { ascending: true })
+      return (data ?? []) as ContextDocument[]
+    },
+  })
+  const ready = (docs ?? []).filter((d) => d.status === 'ready')
+  const chosen = picked.filter((id) => ready.some((d) => d.id === id))
+  const length = methodLength(sheet)
+
+  async function read() {
+    setError('')
+    setReading(true)
+    try {
+      const res = await callFunction<{ sheet: MethodSheet; refused: string[] }>('method-distill', { body: { document_ids: chosen } })
+      setSheet(res.sheet)
+      setRefused(res.refused)
+      setPending(true)
+      setOpenKey(null)
+      await save((base) => ({ method: { ...base.method, draft: res.sheet, draft_document_ids: chosen, refused: res.refused } }))
+    } catch (e) {
+      setError(METHOD_ERRORS[(e as Error).message] ?? 'La lecture a échoué. Réessayez dans un instant.')
+    }
+    setReading(false)
+  }
+
+  async function apply() {
+    if (length > MAX_METHOD_CHARS) {
+      setError(`La fiche est trop longue : ${length} caractères pour ${MAX_METHOD_CHARS} au plus.`)
+      return
+    }
+    setError('')
+    await save({
+      method: { document_ids: chosen, applied: sheet, draft: null, refused, applied_at: new Date().toISOString() },
+    })
+    setPending(false)
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Votre méthode de vente"
+        description="Vos documents de méthode, résumés en une fiche courte. L’assistant la suit avant ses propres habitudes."
+      />
+      <CardBody className="space-y-4">
+        {ready.length === 0 ? (
+          <FieldHint>Ajoutez d’abord vos documents dans la carte ci-dessus.</FieldHint>
+        ) : (
+          <div className="space-y-2">
+            <Label className="mb-0">Documents qui décrivent votre méthode</Label>
+            {ready.map((doc) => (
+              <label key={doc.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={picked.includes(doc.id)}
+                  onChange={(e) => setPicked((list) => (e.target.checked ? [...list, doc.id] : list.filter((id) => id !== doc.id)))}
+                />
+                <span className="truncate">{doc.title}</span>
+              </label>
+            ))}
+            <Button type="button" size="sm" variant="secondary" disabled={reading || chosen.length === 0} onClick={read}>
+              {reading ? 'Lecture en cours, environ une minute…' : sheet ? 'Relire mes documents' : 'Lire mes documents'}
+            </Button>
+          </div>
+        )}
+
+        {sheet ? (
+          <div className="space-y-2 border-t border-border pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label className="mb-0">Ce que l’assistant retient</Label>
+              {pending ? (
+                <Badge tone="warning">À relire, pas encore appliquée</Badge>
+              ) : (
+                <Badge tone="success">Appliquée{stored?.applied_at ? ` le ${formatDateTime(stored.applied_at)}` : ''}</Badge>
+              )}
+            </div>
+            {METHOD_RUBRICS.map((rubric) => {
+              const text = sheet[rubric.key] ?? ''
+              if (openKey !== rubric.key) {
+                return (
+                  <button
+                    key={rubric.key}
+                    type="button"
+                    onClick={() => setOpenKey(rubric.key)}
+                    className="flex w-full items-center justify-between gap-3 rounded-[10px] border border-border px-3 py-2.5 text-left hover:bg-bg/60"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{rubric.title}</span>
+                      <span className="block truncate text-sm text-muted">{text.trim() || 'Rien dans vos documents'}</span>
+                    </span>
+                    <span className="shrink-0 text-sm text-primary">Modifier</span>
+                  </button>
+                )
+              }
+              return (
+                <div key={rubric.key} className="space-y-1 rounded-[10px] border border-border p-3">
+                  <Label htmlFor={`method-${rubric.key}`}>{rubric.title}</Label>
+                  <Textarea
+                    id={`method-${rubric.key}`}
+                    rows={8}
+                    value={text}
+                    onChange={(e) => {
+                      setSheet({ ...sheet, [rubric.key]: e.target.value })
+                      setPending(true)
+                    }}
+                  />
+                </div>
+              )
+            })}
+            <p className={`text-xs tabular-nums ${length > MAX_METHOD_CHARS ? 'text-amber-700' : 'text-muted'}`}>
+              {length} / {MAX_METHOD_CHARS} caractères
+            </p>
+            {refused.length > 0 ? (
+              <details className="text-sm">
+                <summary className="cursor-pointer text-muted">Non repris de vos documents ({refused.length})</summary>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-muted">
+                  {refused.map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
+        <FieldError>{error}</FieldError>
+      </CardBody>
+      {sheet ? (
+        <div className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3.5">
+          {stored?.applied ? (
+            <Button type="button" variant="ghost" disabled={saving} onClick={() => setConfirmRemove(true)}>
+              Retirer la méthode
+            </Button>
+          ) : null}
+          <Button type="button" disabled={saving || !pending} onClick={apply}>
+            {saving ? 'Enregistrement…' : pending ? 'Appliquer à mon assistant' : 'Appliquée'}
+          </Button>
+        </div>
+      ) : null}
+      <ConfirmDialog
+        open={confirmRemove}
+        onClose={() => setConfirmRemove(false)}
+        onConfirm={async () => {
+          setConfirmRemove(false)
+          await save({ method: { document_ids: [], applied: null, draft: sheet, draft_document_ids: chosen, refused } })
+          setPending(true)
+        }}
+        title="Retirer votre méthode"
+        message="L’assistant reprend ses règles habituelles dès le prochain message. La fiche reste ici, à réappliquer quand vous voulez."
+        confirmLabel="Retirer"
+        danger
+      />
+    </Card>
+  )
+}
+
 const MAX_FOLLOWUPS = 3
 const MIN_DELAY_MINUTES = 15
 const MAX_DELAY_MINUTES = 23 * 60 + 45
@@ -3089,6 +3277,7 @@ function AssistantContent() {
   const allowContextDocuments = hasFeature('context_documents', flags, profile, overrides)
   const allowCalendly = hasFeature('calendly', flags, profile, overrides)
   const allowFollowups = hasFeature('followups', flags, profile, overrides)
+  const allowMethod = allowContextDocuments && hasFeature('sales_method', flags, profile, overrides)
   const allowCannedResponses = hasFeature('canned_responses', flags, profile, overrides)
   const allowHumanAgent = hasFeature('human_agent', flags, profile, overrides)
   const allowCalendar = hasFeature('google_calendar', flags, profile, overrides)
@@ -3209,6 +3398,11 @@ function AssistantContent() {
       {allowContextDocuments ? (
         <div className="xl:col-span-2">
           <ContextDocumentsSection />
+        </div>
+      ) : null}
+      {allowMethod ? (
+        <div className="xl:col-span-2">
+          <MethodSection assistant={assistant} />
         </div>
       ) : null}
       <div className="xl:col-span-2">

@@ -21,6 +21,7 @@ import { LAST_ROUND_NOTE, meetLinkSent } from './agenda.ts'
 import { FAILURE_MESSAGES, prepareBooking, type BookingTurn } from './booking.ts'
 import { withAgendaSection } from './agenda-prompt.ts'
 import { momentLabel } from '../_shared/agenda-slots.ts'
+import { methodText, withMethodSection, type MethodSettings } from './method-prompt.ts'
 
 // La mémoire n8n d'origine gardait 100 messages par conversation : on aligne
 // la fenêtre pour obtenir le même niveau de contexte.
@@ -144,6 +145,15 @@ async function stopLinkAlreadySent(convId: number, stopLink: string) {
     .ilike('body_text', `%${base}%`)
     .limit(1)
   return (data?.length ?? 0) > 0
+}
+
+// La fiche validée par le client, tant que le module lui est ouvert.
+async function activeMethod(userId: string, method: MethodSettings | undefined) {
+  const text = methodText(method?.applied)
+  if (!text) return { text: '', documentIds: [] as number[] }
+  const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: 'sales_method' })
+  if (data !== true) return { text: '', documentIds: [] as number[] }
+  return { text, documentIds: method?.document_ids ?? [] }
 }
 
 async function hasActiveBooking(convId: number) {
@@ -462,14 +472,17 @@ async function handleConversation(due: DueConversation) {
   // le lien du formulaire, qui peut encore pointer vers une ancienne page.
   const goalLink = agenda ? '' : taggedLink(prepared.link || settings.stop_condition?.link || '', convId)
 
+  // Les documents résumés dans la fiche de méthode ne sont pas recollés en entier : la fiche suffit.
+  const method = await activeMethod(due.user_id, settings.method)
   let context = settings.context ?? ''
-  const { data: docs } = await admin
+  const { data: allDocs } = await admin
     .from('context_documents')
-    .select('title, extracted_text')
+    .select('id, title, extracted_text')
     .eq('user_id', due.user_id)
     .eq('status', 'ready')
     .order('created_at', { ascending: true })
-  if (docs && docs.length > 0) {
+  const docs = (allDocs ?? []).filter((d) => !method.documentIds.includes(d.id))
+  if (docs.length > 0) {
     const texts = docs.map((d) => d.extracted_text ?? '')
     const caps = allocateBudget(texts.map((t) => t.length))
     const parts = docs
@@ -496,7 +509,7 @@ async function handleConversation(due: DueConversation) {
     }
   }
 
-  const baseSystem = buildSystemPrompt({
+  const fixedPrompt = buildSystemPrompt({
     conversationId: convId,
     productName: settings.product?.name ?? '',
     context,
@@ -510,6 +523,7 @@ async function handleConversation(due: DueConversation) {
     tone: resolveTone(settings.tone?.preset, assistant.custom_tone),
     summary,
   })
+  const baseSystem = withMethodSection(fixedPrompt, method.text)
   const system = agenda ? withAgendaSection(baseSystem, agenda.prompt) : baseSystem
   const transcriptLines = messages.map((m) => `${speaker(m)} : ${renderMessage(m)}`)
   const prompt = `Conversation (du plus ancien au plus récent) :\n${transcriptLines.join('\n')}\n\nRéponds au dernier message du prospect en respectant le format de sortie JSON.`
