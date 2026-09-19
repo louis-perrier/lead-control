@@ -61,9 +61,9 @@ describe('computeBookingOffers', () => {
   it('propose des jours espacés et des moments différents', () => {
     const offers = computeBookingOffers({ now: NOW, tz: TZ, settings, slots, count: 3 })
     expect(offers.map((o) => o.label)).toEqual([
-      'vendredi 18 septembre entre 12 h et 15 h',
-      'lundi 21 septembre entre 17 h et 19 h',
-      'mercredi 23 septembre entre 9 h et 12 h',
+      'vendredi 18 entre 12 h et 15 h',
+      'lundi 21 entre 17 h et 19 h',
+      'mercredi 23 entre 9 h et 12 h',
     ])
   })
 
@@ -81,16 +81,16 @@ describe('computeBookingOffers', () => {
 
   it('garde les plages encore réservables et remplace les autres', () => {
     const keep = [
-      { start: paris(9, 18, 12), end: paris(9, 18, 15), label: 'vendredi 18 septembre entre 12 h et 15 h' },
-      { start: paris(9, 19, 12), end: paris(9, 19, 15), label: 'samedi 19 septembre entre 12 h et 15 h' },
+      { start: paris(9, 18, 12), end: paris(9, 18, 15), label: 'vendredi 18 entre 12 h et 15 h' },
+      { start: paris(9, 19, 12), end: paris(9, 19, 15), label: 'samedi 19 entre 12 h et 15 h' },
     ]
     const offers = computeBookingOffers({ now: NOW, tz: TZ, settings, slots, count: 2, keep })
-    expect(offers[0].label).toBe('vendredi 18 septembre entre 12 h et 15 h')
-    expect(offers[1].label).not.toBe('samedi 19 septembre entre 12 h et 15 h')
+    expect(offers[0].label).toBe('vendredi 18 entre 12 h et 15 h')
+    expect(offers[1].label).not.toBe('samedi 19 entre 12 h et 15 h')
   })
 
   it('laisse tomber une plage déjà passée', () => {
-    const keep = [{ start: paris(9, 16, 12), end: paris(9, 16, 15), label: 'mercredi 16 septembre entre 12 h et 15 h' }]
+    const keep = [{ start: paris(9, 16, 12), end: paris(9, 16, 15), label: 'mercredi 16 entre 12 h et 15 h' }]
     const offers = computeBookingOffers({ now: NOW, tz: TZ, settings, slots, count: 1, keep })
     expect(offers[0].start).toBeGreaterThan(NOW)
   })
@@ -105,7 +105,7 @@ describe('computeBookingOffers', () => {
       slots: late,
       count: 1,
     })
-    expect(offer.label).toBe('lundi 26 octobre entre 12 h et 15 h')
+    expect(offer.label).toBe('lundi 26 entre 12 h et 15 h')
     expect(offer.end - offer.start).toBe(3 * 3_600_000)
   })
 })
@@ -220,7 +220,7 @@ describe('checkBookingSlot', () => {
     expect(check.ok).toBe(true)
     if (check.ok) {
       expect(check.start).toBe(paris(9, 18, 10, 30))
-      expect(check.label).toBe('vendredi 18 septembre à 10 h 30')
+      expect(check.label).toBe('vendredi 18 à 10 h 30')
     }
   })
 

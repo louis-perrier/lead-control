@@ -183,7 +183,7 @@ export function computeBookingOffers(opts: {
   const fresh = picked.map((c) => ({
     start: c.start,
     end: c.end,
-    label: exact ? momentLabel(c.start, tz) : rangeLabel(c.start, c.end, tz, opts.withDate ?? true),
+    label: exact ? momentLabel(c.start, tz, now) : rangeLabel(c.start, c.end, tz, opts.withDate ?? true, now),
   }))
   return [...kept, ...fresh].slice(0, count)
 }
@@ -235,7 +235,7 @@ export type BookingCheck =
   | { ok: false; reason: BookingRefusal; alternatives: { debut: string; label: string }[] }
 
 // Deux propositions de repli, assez espacées pour ne pas se ressembler.
-function nearbySlots(target: number, slots: number[], tz: string) {
+function nearbySlots(target: number, slots: number[], tz: string, now: number) {
   const sorted = [...slots].sort((a, b) => Math.abs(a - target) - Math.abs(b - target))
   const out: number[] = []
   for (const s of sorted) {
@@ -245,7 +245,7 @@ function nearbySlots(target: number, slots: number[], tz: string) {
   }
   return out
     .sort((a, b) => a - b)
-    .map((s) => ({ debut: localIso(s, tz), label: momentLabel(s, tz) }))
+    .map((s) => ({ debut: localIso(s, tz), label: momentLabel(s, tz, now) }))
 }
 
 export function checkBookingSlot(opts: {
@@ -263,8 +263,8 @@ export function checkBookingSlot(opts: {
   const start = zonedToUtc(parsed.year, parsed.month, parsed.day, parsed.minutes, tz)
   if (start == null) {
     const approx = Date.UTC(parsed.year, parsed.month - 1, parsed.day, Math.floor(parsed.minutes / 60), parsed.minutes % 60)
-    return { ok: false, reason: 'nonexistent', alternatives: nearbySlots(approx, slots, tz) }
+    return { ok: false, reason: 'nonexistent', alternatives: nearbySlots(approx, slots, tz, opts.now) }
   }
-  if (!slots.includes(start)) return { ok: false, reason: 'unavailable', alternatives: nearbySlots(start, slots, tz) }
-  return { ok: true, start, end: start + opts.durationMin * MINUTE, label: momentLabel(start, tz) }
+  if (!slots.includes(start)) return { ok: false, reason: 'unavailable', alternatives: nearbySlots(start, slots, tz, opts.now) }
+  return { ok: true, start, end: start + opts.durationMin * MINUTE, label: momentLabel(start, tz, opts.now) }
 }

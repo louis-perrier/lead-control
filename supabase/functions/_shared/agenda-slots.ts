@@ -147,25 +147,27 @@ function hourLabel(minutes: number) {
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`
 }
 
-function dayLabel(weekday: number, day: number, month: number, withDate: boolean) {
-  if (!withDate) return WEEKDAYS[weekday]
-  return `${WEEKDAYS[weekday]} ${day === 1 ? '1er' : day} ${MONTHS[month - 1]}`
+// Dans le mois en cours on dit « samedi 20 », comme à l'oral. Le mois revient dès qu'on en change.
+function dayLabel(a: { weekday: number; day: number; month: number; year: number }, withDate: boolean, ref?: { month: number; year: number }) {
+  if (!withDate) return WEEKDAYS[a.weekday]
+  const date = `${WEEKDAYS[a.weekday]} ${a.day === 1 ? '1er' : a.day}`
+  return ref && ref.month === a.month && ref.year === a.year ? date : `${date} ${MONTHS[a.month - 1]}`
 }
 
-export function rangeLabel(start: number, end: number, tz: string, withDate = true) {
+export function rangeLabel(start: number, end: number, tz: string, withDate = true, now = Date.now()) {
   const a = zonedParts(start, tz)
   const b = zonedParts(end, tz)
-  return `${dayLabel(a.weekday, a.day, a.month, withDate)} entre ${hourLabel(a.hour * 60 + a.minute)} et ${hourLabel(b.hour * 60 + b.minute)}`
+  return `${dayLabel(a, withDate, zonedParts(now, tz))} entre ${hourLabel(a.hour * 60 + a.minute)} et ${hourLabel(b.hour * 60 + b.minute)}`
 }
 
-export function momentLabel(start: number, tz: string) {
+export function momentLabel(start: number, tz: string, now = Date.now()) {
   const a = zonedParts(start, tz)
-  return `${dayLabel(a.weekday, a.day, a.month, true)} à ${hourLabel(a.hour * 60 + a.minute)}`
+  return `${dayLabel(a, true, zonedParts(now, tz))} à ${hourLabel(a.hour * 60 + a.minute)}`
 }
 
 export function nowLabel(now: number, tz: string) {
   const a = zonedParts(now, tz)
-  return `${dayLabel(a.weekday, a.day, a.month, true)} ${a.year}, ${hourLabel(a.hour * 60 + a.minute)}`
+  return `${dayLabel(a, true)} ${a.year}, ${hourLabel(a.hour * 60 + a.minute)}`
 }
 
 export function timezoneLabel(tz: string) {
@@ -291,7 +293,7 @@ export function computeOffers(opts: {
   }
 
   const chosen = chooseOffers(perDay, count, kept.length)
-  const fresh = chosen.map((c) => ({ start: c.start, end: c.end, label: rangeLabel(c.start, c.end, tz, opts.withDate ?? true) }))
+  const fresh = chosen.map((c) => ({ start: c.start, end: c.end, label: rangeLabel(c.start, c.end, tz, opts.withDate ?? true, now) }))
   return [...kept, ...fresh].slice(0, count)
 }
 
@@ -456,7 +458,7 @@ export function checkSlot(opts: { value: string; now: number; tz: string; settin
   if (start > now + horizonMs(s)) return refuse('too_far', now)
   if (!slotFits(start, s, tz)) return refuse('outside_hours', start)
   if (overlaps(start, end, busy)) return refuse('busy', start)
-  return { ok: true, start, end, label: momentLabel(start, tz) }
+  return { ok: true, start, end, label: momentLabel(start, tz, now) }
 }
 
 // Les deux premiers moments libres à partir de l'heure demandée, par pas de 30 minutes.
@@ -468,7 +470,7 @@ function nearbySlots(from: number, now: number, tz: string, s: AgendaSettings, b
   while (out.length < 2 && t <= limit) {
     const end = t + s.duration_min * 60_000
     if (slotFits(t, s, tz) && !overlaps(t, end, busy)) {
-      out.push({ debut: localIso(t, tz), label: momentLabel(t, tz) })
+      out.push({ debut: localIso(t, tz), label: momentLabel(t, tz, now) })
       t += 3 * 3_600_000
     } else {
       t += 1_800_000

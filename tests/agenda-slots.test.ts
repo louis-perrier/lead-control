@@ -7,6 +7,7 @@ import {
   isValidTimezone,
   localIso,
   normalizeAgenda,
+  momentLabel,
   offerMentioned,
   planOffers,
   rangeLabel,
@@ -25,16 +26,16 @@ describe('computeOffers', () => {
   it('propose des plages libres sur des jours espacés et des moments différents', () => {
     const offers = computeOffers({ now: NOW, tz: TZ, settings, busy: [] })
     expect(offers.map((o) => o.label)).toEqual([
-      'vendredi 18 septembre entre 12 h et 15 h',
-      'lundi 21 septembre entre 9 h et 12 h',
-      'mercredi 23 septembre entre 12 h et 15 h',
+      'vendredi 18 entre 12 h et 15 h',
+      'lundi 21 entre 9 h et 12 h',
+      'mercredi 23 entre 12 h et 15 h',
     ])
   })
 
   it('écarte une plage où l’agenda est pris', () => {
     const busy = [{ start: paris(9, 18, 12), end: paris(9, 18, 13) }]
     const [first] = computeOffers({ now: NOW, tz: TZ, settings, busy })
-    expect(first.label).toBe('vendredi 18 septembre entre 13 h et 16 h')
+    expect(first.label).toBe('vendredi 18 entre 13 h et 16 h')
   })
 
   it('garde les plages encore valides et remplace les autres', () => {
@@ -55,7 +56,7 @@ describe('computeOffers', () => {
   it('suit le passage à l’heure d’hiver', () => {
     const now = Date.UTC(2026, 9, 23, 8, 0)
     const offers = computeOffers({ now, tz: TZ, settings, busy: [], count: 1 })
-    expect(offers[0].label).toBe('lundi 26 octobre entre 12 h et 15 h')
+    expect(offers[0].label).toBe('lundi 26 entre 12 h et 15 h')
     expect(offers[0].start).toBe(Date.UTC(2026, 9, 26, 11, 0))
   })
 
@@ -88,8 +89,8 @@ describe('planOffers et recordSentOffers', () => {
     const { step, stored } = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: null })
     expect(step).toMatchObject({ kind: 'offer', round: 1, proposed: [] })
     expect(step.kind === 'offer' && step.offers.map((o) => o.label)).toEqual([
-      'vendredi 18 septembre entre 12 h et 15 h',
-      'lundi 21 septembre entre 9 h et 12 h',
+      'vendredi 18 entre 12 h et 15 h',
+      'lundi 21 entre 9 h et 12 h',
     ])
     expect(stored.offers).toHaveLength(3)
   })
@@ -99,7 +100,7 @@ describe('planOffers et recordSentOffers', () => {
     const after1 = recordSentOffers(t1.stored, t1.step, [first], TZ)
     expect(after1).toMatchObject({ rounds: 1 })
     const t2 = planOffers({ now: NOW, tz: TZ, settings, busy: [], stored: after1 })
-    expect(t2.step.kind === 'offer' && t2.step.offers.map((o) => o.label)).toEqual(['mercredi 23 septembre entre 12 h et 15 h'])
+    expect(t2.step.kind === 'offer' && t2.step.offers.map((o) => o.label)).toEqual(['mercredi 23 entre 12 h et 15 h'])
     expect(t2.step.proposed).toHaveLength(2)
 
     const after2 = recordSentOffers(t2.stored, t2.step, [second], TZ)
@@ -119,7 +120,7 @@ describe('planOffers et recordSentOffers', () => {
     // Le vendredi proposé se remplit : il sort des plages proposées, une nouvelle plage est calculée.
     const busy = [{ start: paris(9, 18, 12), end: paris(9, 18, 15) }]
     const t2 = planOffers({ now: NOW, tz: TZ, settings, busy, stored: after1 })
-    expect(t2.step.proposed.map((o) => o.label)).toEqual(['lundi 21 septembre entre 9 h et 12 h'])
+    expect(t2.step.proposed.map((o) => o.label)).toEqual(['lundi 21 entre 9 h et 12 h'])
     expect(t2.step).toMatchObject({ kind: 'offer', round: 2 })
     expect(t2.step.kind === 'offer' && t2.step.offers[0].label).not.toContain('lundi 21')
   })
@@ -138,7 +139,8 @@ describe('planOffers et recordSentOffers', () => {
 
   it('reconnaît le premier du mois sans confondre les heures et les dates', () => {
     const offer = { start: paris(10, 1, 12), end: paris(10, 1, 15), label: '' }
-    expect(rangeLabel(offer.start, offer.end, TZ)).toBe('jeudi 1er octobre entre 12 h et 15 h')
+    expect(rangeLabel(offer.start, offer.end, TZ, true, NOW)).toBe('jeudi 1er octobre entre 12 h et 15 h')
+    expect(offerMentioned(offer, ['Jeudi 1er de 12h à 15h, ça te va ?'], TZ)).toBe(true)
     expect(offerMentioned(offer, ['Jeudi 1er octobre de 12h à 15h, ça te va ?'], TZ)).toBe(true)
     expect(offerMentioned(offer, ['Jeudi 11 octobre de 12h à 15h ?'], TZ)).toBe(false)
     expect(offerMentioned(offer, ['Jeudi 1er octobre de 9 h à 12 h ?'], TZ)).toBe(false)
@@ -167,7 +169,7 @@ describe('checkSlot', () => {
       ok: true,
       start: paris(9, 18, 14),
       end: paris(9, 18, 15),
-      label: 'vendredi 18 septembre à 14 h',
+      label: 'vendredi 18 à 14 h',
     })
   })
 
@@ -179,7 +181,7 @@ describe('checkSlot', () => {
   it('refuse un moment trop proche et propose la suite', () => {
     const res = checkSlot({ ...base, value: '2026-09-17T16:00' })
     expect(res).toMatchObject({ ok: false, reason: 'too_soon' })
-    expect(!res.ok && res.alternatives[0]).toEqual({ debut: '2026-09-17T17:00', label: 'jeudi 17 septembre à 17 h' })
+    expect(!res.ok && res.alternatives[0]).toEqual({ debut: '2026-09-17T17:00', label: 'jeudi 17 à 17 h' })
   })
 
   it('refuse un week-end et propose le jour ouvré suivant', () => {
@@ -246,5 +248,25 @@ describe('réglages', () => {
 
   it('écrit une heure locale lisible par les outils', () => {
     expect(localIso(paris(9, 18, 9, 45), TZ)).toBe('2026-09-18T09:45')
+  })
+})
+
+describe('mois dans les libellés', () => {
+  it('se tait dans le mois en cours et revient dès le mois suivant', () => {
+    expect(momentLabel(paris(9, 30, 14), TZ, NOW)).toBe('mercredi 30 à 14 h')
+    expect(momentLabel(paris(10, 2, 14), TZ, NOW)).toBe('vendredi 2 octobre à 14 h')
+    expect(momentLabel(paris(10, 1, 14), TZ, paris(10, 1, 8))).toBe('jeudi 1er à 14 h')
+  })
+
+  it('ne confond pas septembre et septembre de l’année suivante', () => {
+    const nextYear = zonedToUtc(2027, 9, 20, 14 * 60, TZ)!
+    expect(momentLabel(nextYear, TZ, NOW)).toBe('lundi 20 septembre à 14 h')
+  })
+
+  it('lit le mois dans le fuseau de l’agenda, pas en UTC', () => {
+    // 30 septembre 23 h 30 à Paris : déjà octobre à Auckland.
+    const now = paris(9, 30, 23, 30)
+    expect(momentLabel(paris(10, 1, 10), TZ, now)).toBe('jeudi 1er octobre à 10 h')
+    expect(momentLabel(paris(10, 1, 10), 'Pacific/Auckland', now)).toBe('jeudi 1er à 21 h')
   })
 })
