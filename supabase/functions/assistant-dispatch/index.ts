@@ -22,6 +22,7 @@ import { FAILURE_MESSAGES, prepareBooking, type BookingTurn } from './booking.ts
 import { withAgendaSection } from './agenda-prompt.ts'
 import { momentLabel } from '../_shared/agenda-slots.ts'
 import { methodText, withMethodSection, type MethodSettings } from './method-prompt.ts'
+import { SOLICITOR_SYSTEM, readSolicitorVerdict, shouldCheckSolicitor, solicitorInput } from './solicitor.ts'
 
 // La mémoire n8n d'origine gardait 100 messages par conversation : on aligne
 // la fenêtre pour obtenir le même niveau de contexte.
@@ -147,6 +148,21 @@ async function stopLinkAlreadySent(convId: number, stopLink: string) {
   return (data?.length ?? 0) > 0
 }
 
+// null : module fermé ou tri impossible, on répond comme d'habitude et on réessaiera.
+async function isSolicitor(userId: string, convId: number, messages: WindowMessage[], resolved: { key: string; source: 'platform' | 'byok' }) {
+  const input = solicitorInput(messages)
+  if (!input) return null
+  const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: 'ignore_solicitors' })
+  if (data !== true) return null
+  try {
+    const res = await generateText({ apiKey: resolved.key, model: AI_MODEL_SUMMARY, system: SOLICITOR_SYSTEM, prompt: input, maxTokens: 20 })
+    await recordUsage({ userId, conversationId: convId, model: AI_MODEL_SUMMARY, usage: res.usage, source: resolved.source })
+    return readSolicitorVerdict(res.text)
+  } catch (_) {
+    return null
+  }
+}
+
 // La fiche validée par le client, tant que le module lui est ouvert.
 async function activeMethod(userId: string, method: MethodSettings | undefined) {
   const text = methodText(method?.applied)
@@ -237,7 +253,7 @@ async function handleConversation(due: DueConversation) {
   const convId = due.id
   const convRes = await admin
     .from('conversations')
-    .select('id, user_id, summary, contact_external_id, contact_handle, contact_name, metadata, automation_state')
+    .select('id, user_id, summary, contact_external_id, contact_handle, contact_name, metadata, automation_state, agent_sent_count, human_sent_count')
     .eq('id', convId)
     .single()
   if (convRes.error) return
@@ -403,6 +419,20 @@ async function handleConversation(due: DueConversation) {
 
   const settings = (assistant.settings ?? {}) as Record<string, any>
   let metadata = (conv.metadata ?? {}) as Record<string, unknown>
+
+  // Avant le « vu » : un démarcheur ne doit même pas voir son message lu.
+  const neverWrote = !conv.agent_sent_count && !conv.human_sent_count
+  if (neverWrote && shouldCheckSolicitor(settings.ignore_solicitors, metadata, messages)) {
+    const verdict = await isSolicitor(due.user_id, convId, messages, resolved)
+    if (verdict !== null) {
+      metadata = { ...metadata, solicitor_checked: true }
+      if (verdict) {
+        await releaseLock(convId, { automation_state: 'stopped', automation_reason: 'solicitor', next_reply_at: null, debounce_until: null, metadata })
+        return
+      }
+      await admin.from('conversations').update({ metadata }).eq('id', convId)
+    }
+  }
 
   // Vu au moment où l'agent ouvre la conversation pour y répondre, comme quelqu'un qui
   // consulte son téléphone puis se met à écrire. Un échec n'empêche pas la réponse.

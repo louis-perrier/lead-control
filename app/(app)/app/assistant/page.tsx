@@ -1836,9 +1836,10 @@ function ScheduleSection({ assistant }: { assistant: Assistant }) {
   )
 }
 
-function AudienceSection({ assistant }: { assistant: Assistant }) {
+function AudienceSection({ assistant, allowSolicitors }: { assistant: Assistant; allowSolicitors: boolean }) {
   const { save, saving } = useSaveSettings(assistant)
   const audience = assistant.settings.audience ?? {}
+  const [ignoreSolicitors, setIgnoreSolicitors] = useState(assistant.settings.ignore_solicitors ?? false)
   const [mode, setMode] = useState<'all' | 'allowlist' | 'blocklist'>(audience.mode ?? 'all')
   const [handlesText, setHandlesText] = useState((audience.handles ?? []).join('\n'))
   const [error, setError] = useState('')
@@ -1854,7 +1855,7 @@ function AudienceSection({ assistant }: { assistant: Assistant }) {
       setError('Ajoutez au moins un compte, ou repassez en Tout le monde.')
       return
     }
-    save({ audience: { mode, handles } })
+    save({ audience: { mode, handles }, ignore_solicitors: ignoreSolicitors })
   }
 
   return (
@@ -1898,6 +1899,17 @@ function AudienceSection({ assistant }: { assistant: Assistant }) {
                 placeholder={'un compte par ligne, par exemple\nmon_compte_test'}
               />
               <FieldHint>Sans le @, un compte par ligne.</FieldHint>
+            </div>
+          ) : null}
+          {allowSolicitors ? (
+            <div className="border-t border-border pt-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label className="mb-0">Ne pas répondre aux personnes qui me démarchent</Label>
+                <Switch checked={ignoreSolicitors} onChange={setIgnoreSolicitors} label="Ne pas répondre aux démarcheurs" />
+              </div>
+              <FieldHint>
+                Quelqu’un qui écrit pour vous vendre son offre ne reçoit rien. La conversation reste dans votre boîte, à reprendre si vous le voulez.
+              </FieldHint>
             </div>
           ) : null}
           <FieldError>{error}</FieldError>
@@ -3415,7 +3427,7 @@ function AssistantContent() {
         />
       </div>
       <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
-      <AudienceSection assistant={assistant} />
+      <AudienceSection assistant={assistant} allowSolicitors={hasFeature('ignore_solicitors', flags, profile, overrides)} />
       {allowFollowups ? (
         <div className={soloAutomation ? 'xl:col-span-2' : undefined}>
           <FollowupsSection assistant={assistant} allowAssisted={allowHumanAgent} />
