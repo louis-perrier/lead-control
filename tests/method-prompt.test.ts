@@ -1,7 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { buildSystemPrompt } from '../supabase/functions/assistant-dispatch/prompt'
-import { splitSystemForCache } from '../supabase/functions/assistant-dispatch/system-blocks'
-import { withAgendaSection } from '../supabase/functions/assistant-dispatch/agenda-prompt'
 import {
   MAX_METHOD_CHARS,
   methodLength,
@@ -10,20 +7,15 @@ import {
   withMethodSection,
 } from '../supabase/functions/assistant-dispatch/method-prompt'
 
-function prompt(overrides: Partial<Parameters<typeof buildSystemPrompt>[0]> = {}) {
-  return buildSystemPrompt({
-    conversationId: 987654,
-    productName: 'Coaching',
-    context: 'Contexte.',
-    qualification: 'Budget et motivation',
-    stopText: 'Réserver un appel',
-    stopLink: 'https://calendly.com/coach/appel',
-    secondaryLinks: [],
-    tone: 'normal',
-    summary: '',
-    ...overrides,
-  })
-}
+// Les cas qui chargent le vrai prompt sont dans method-prompt-golden, hors du dépôt.
+const system = [
+  'Entrées :',
+  '- **produit** : Coaching',
+  '- **qualification** : Budget et motivation',
+  '- **stop_condition.text** : Réserver un appel',
+  '',
+  'Priorité 1 : ...',
+].join('\n')
 
 const sheet = { budget: 'Ne jamais donner de prix en message.', discovery: 'Demander ce qui bloque le plus.' }
 
@@ -50,43 +42,23 @@ describe('methodText', () => {
 
 describe('withMethodSection', () => {
   it('ne change rien sans fiche', () => {
-    expect(withMethodSection(prompt(), '')).toBe(prompt())
+    expect(withMethodSection(system, '')).toBe(system)
+    expect(withMethodSection(system, '   ')).toBe(system)
   })
 
-  it('ajoute la fiche sans toucher au reste du prompt', () => {
-    for (const system of [prompt(), prompt({ stopLink: '', qualification: '' })]) {
-      const out = withMethodSection(system, methodText(sheet))
-      const at = out.indexOf('\n- **méthode du représentant**')
-      const added = out.length - system.length
-      expect(at).toBeGreaterThan(0)
-      expect(out.slice(0, at)).toBe(system.slice(0, at))
-      expect(out.slice(at + added)).toBe(system.slice(at))
-    }
-  })
-
-  it('reste dans la partie mise en cache, identique d’une conversation à l’autre', () => {
-    const blocks = (id: number) => splitSystemForCache(withMethodSection(prompt({ conversationId: id }), methodText(sheet)))
-    const [cached, rest] = blocks(987654)
-    expect(cached.cache).toBe(true)
-    expect(cached.text).toContain('Ne jamais donner de prix en message.')
-    expect(rest.text).not.toContain('méthode du représentant')
-    expect(blocks(111)[0].text).toBe(cached.text)
-  })
-
-  it('cohabite avec la section rendez-vous', () => {
-    const linkless = withMethodSection(prompt({ stopLink: '' }), methodText(sheet))
-    const out = withAgendaSection(linkless, {
-      durationMin: 30,
-      now: 'jeudi 17 septembre 2026, 15 h',
-      timezone: 'heure de Paris',
-      step: null,
-      booked: null,
-    } as Parameters<typeof withAgendaSection>[1])
-    expect(out).toContain('méthode du représentant')
+  it('ajoute la fiche sans toucher au reste', () => {
+    const out = withMethodSection(system, methodText(sheet))
+    const at = out.indexOf('\n- **méthode du représentant**')
+    const added = out.length - system.length
+    expect(at).toBeGreaterThan(0)
+    expect(out.slice(0, at)).toBe(system.slice(0, at))
+    expect(out.slice(at + added)).toBe(system.slice(at))
+    expect(out).toContain('Ne jamais donner de prix en message.')
   })
 
   it('refuse un prompt dont le repère a bougé', () => {
     expect(() => withMethodSection('sans repère', 'fiche')).toThrow('method_prompt_marker')
+    expect(() => withMethodSection(`${system}\n${system}`, 'fiche')).toThrow('method_prompt_marker')
   })
 })
 
