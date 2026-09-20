@@ -28,12 +28,7 @@ import {
   cumulativeOffsets,
   poolFromVariants,
 } from '@/supabase/functions/_shared/followup-plan'
-import {
-  NAME_VARIABLE_TEMPLATE,
-  hasMissingFallback,
-  hasNameVariable,
-  renderFollowupText,
-} from '@/supabase/functions/_shared/followup-text'
+import { NAME_VARIABLE_TEMPLATE, hasNameVariable, renderFollowupText } from '@/supabase/functions/_shared/followup-text'
 import {
   DURATION_OPTIONS,
   HORIZON_OPTIONS,
@@ -2829,11 +2824,6 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
         setError('Écrivez au moins un message de relance.')
         return
       }
-      const withoutFallback = cleanedMessages.findIndex((m) => hasMissingFallback(m.text))
-      if (withoutFallback >= 0) {
-        setError(`Message ${withoutFallback + 1} : ajoutez un texte de secours au prénom, par exemple {prénom|toi}.`)
-        return
-      }
       for (const [index, it] of cleaned.entries()) {
         const delay = Number(it.delay_minutes)
         const fail = (message: string) => {
@@ -2847,11 +2837,6 @@ function FollowupsSection({ assistant, allowAssisted }: { assistant: Assistant; 
       }
     }
     const cleanedAssisted = assisted.map((t) => ({ ...t, text: t.text.trim() })).filter((t) => t.text)
-    const assistedWithoutFallback = cleanedAssisted.findIndex((t) => hasMissingFallback(t.text))
-    if (assistedWithoutFallback >= 0) {
-      setError(`Message proposé du jour ${cleanedAssisted[assistedWithoutFallback].days} : ajoutez un texte de secours au prénom, par exemple {prénom|toi}.`)
-      return
-    }
     setError('')
     await save({
       followups: { enabled, after_own_message: afterOwn, messages: cleanedMessages, items: cleaned, assisted: cleanedAssisted },

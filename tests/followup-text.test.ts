@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  hasMissingFallback,
-  hasNameVariable,
-  renderFollowupText,
-  usableDisplayName,
-} from '../supabase/functions/_shared/followup-text'
+import { hasNameVariable, renderFollowupText, usableDisplayName } from '../supabase/functions/_shared/followup-text'
 
 describe('renderFollowupText', () => {
   it('écrit le prénom quand il est connu', () => {
@@ -21,6 +16,7 @@ describe('renderFollowupText', () => {
 
   it('ne laisse pas d’espace orphelin quand le secours est vide', () => {
     expect(renderFollowupText('Salut {prénom}, ça va ?', null)).toBe('Salut, ça va ?')
+    expect(renderFollowupText('{prénom} t’as vu mon message ?', null)).toBe('t’as vu mon message ?')
   })
 })
 
@@ -28,12 +24,6 @@ describe('contrôles de l’écran', () => {
   it('repère la variable', () => {
     expect(hasNameVariable('Hey {prénom|toi}')).toBe(true)
     expect(hasNameVariable('Hey toi')).toBe(false)
-  })
-
-  it('refuse une variable sans texte de secours', () => {
-    expect(hasMissingFallback('Hey {prénom}')).toBe(true)
-    expect(hasMissingFallback('Hey {prénom| }')).toBe(true)
-    expect(hasMissingFallback('Hey {prénom|toi}')).toBe(false)
   })
 })
 
