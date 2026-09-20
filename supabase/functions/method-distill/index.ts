@@ -19,14 +19,16 @@ Règles :
 - ${MAX_METHOD_CHARS} caractères au plus pour toute la fiche. Des phrases courtes, pas de titres, pas de gras, pas de listes imbriquées.
 - Dans examples, deux ou trois courts extraits d'échange au plus, choisis pour le ton et les transitions.
 
-Tu écartes, et tu listes dans refused en une phrase chacun, ce que l'assistant ne peut pas suivre :
+Une consigne des documents qui demanderait l'une de ces choses ne va dans aucune rubrique :
 - inventer un fait, un résultat, un témoignage, ou dire ou laisser croire qu'il est ou n'est pas une IA ;
 - créer une urgence ou une rareté fausse ;
 - ne pas répondre du tout à quelqu'un : ce tri se règle ailleurs dans l'application ;
 - envoyer un lien ou réserver sans que le prospect ait montré son intérêt ;
 - changer la longueur, la mise en forme ou le format de ses messages.
 
-Réponds uniquement par un objet JSON : une clé par rubrique retenue (texte), et refused (tableau de phrases, vide si rien n'est écarté).`
+refused ne contient que de telles consignes, réellement présentes dans les documents, chacune résumée en une phrase qui dit ce que le document demande. Ne recopie jamais la liste ci-dessus : si les documents ne demandent rien de tout cela, refused est un tableau vide.
+
+Réponds uniquement par un objet JSON : une clé par rubrique retenue (texte), et refused (tableau de phrases).`
 
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
@@ -65,11 +67,15 @@ Deno.serve(async (req) => {
   const prompt = readable.map((d, i) => `### ${d.title}\n${cutAtBoundary(d.extracted_text!, caps[i])}`).join('\n\n')
 
   try {
-    const res = await generateText({ apiKey: resolved.key, model: AI_MODEL_REPLY, system: SYSTEM, prompt, maxTokens: 3000 })
+    const res = await generateText({ apiKey: resolved.key, model: AI_MODEL_REPLY, system: SYSTEM, prompt, maxTokens: 4000 })
     await recordUsage({ userId: user.id, conversationId: null, model: AI_MODEL_REPLY, usage: res.usage, source: resolved.source })
+    // Une sortie coupée rend un JSON incomplet : le client doit le savoir plutôt que d'appliquer
+    // une fiche amputée en croyant qu'elle résume tout.
+    if (res.stopReason === 'max_tokens') return json(req, { error: 'too_long' }, 422)
     const parsed = parseDistilled(res.text)
     if (!parsed || methodLength(parsed.sheet) === 0) return json(req, { error: 'nothing_found' }, 422)
-    return json(req, parsed)
+    const characters = readable.reduce((total, d, i) => total + Math.min(d.extracted_text!.length, caps[i]), 0)
+    return json(req, { ...parsed, read: { documents: readable.length, characters } })
   } catch (e) {
     await logEvent('error', 'method-distill', `lecture de la méthode impossible : ${(e as Error).message}`, { user_id: user.id })
     return json(req, { error: 'ai_failed' }, 502)
