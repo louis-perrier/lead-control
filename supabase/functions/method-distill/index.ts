@@ -64,7 +64,8 @@ Deno.serve(async (req) => {
   if (!resolved) return json(req, { error: 'no_api_key' }, 409)
 
   const caps = allocateBudget(readable.map((d) => d.extracted_text!.length))
-  const prompt = readable.map((d, i) => `### ${d.title}\n${cutAtBoundary(d.extracted_text!, caps[i])}`).join('\n\n')
+  const pieces = readable.map((d, i) => cutAtBoundary(d.extracted_text!, caps[i]))
+  const prompt = readable.map((d, i) => `### ${d.title}\n${pieces[i]}`).join('\n\n')
 
   try {
     const res = await generateText({ apiKey: resolved.key, model: AI_MODEL_REPLY, system: SYSTEM, prompt, maxTokens: 4000 })
@@ -74,8 +75,9 @@ Deno.serve(async (req) => {
     if (res.stopReason === 'max_tokens') return json(req, { error: 'too_long' }, 422)
     const parsed = parseDistilled(res.text)
     if (!parsed || methodLength(parsed.sheet) === 0) return json(req, { error: 'nothing_found' }, 422)
-    const characters = readable.reduce((total, d, i) => total + Math.min(d.extracted_text!.length, caps[i]), 0)
-    return json(req, { ...parsed, read: { documents: readable.length, characters } })
+    const characters = pieces.reduce((total, piece) => total + piece.length, 0)
+    const source = readable.reduce((total, d) => total + d.extracted_text!.length, 0)
+    return json(req, { ...parsed, read: { documents: readable.length, characters, source } })
   } catch (e) {
     await logEvent('error', 'method-distill', `lecture de la méthode impossible : ${(e as Error).message}`, { user_id: user.id })
     return json(req, { error: 'ai_failed' }, 502)

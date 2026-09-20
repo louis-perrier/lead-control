@@ -2241,8 +2241,10 @@ function useContextDocuments() {
       await callFunction(`context-documents/${id}`, { method: 'DELETE' })
       toast('Document supprimé.')
       invalidate('context-documents', 'context-documents-quota')
+      return true
     } catch {
       toast('La suppression a échoué.', 'error')
+      return false
     }
   }
 
@@ -2255,6 +2257,18 @@ function useContextDocuments() {
     upload,
     remove,
   }
+}
+
+// L'agent partage la place entre tous les documents qu'il colle en entier, donc tous sauf ceux
+// que la fiche de méthode a déjà résumés. L'écran doit compter sur le même ensemble que lui.
+function useDocumentShares(docs: ContextDocument[], summarised: number[]) {
+  const key = summarised.join(',')
+  return useMemo(() => {
+    const read = docs.filter((d) => d.status === 'ready' && !summarised.includes(d.id))
+    const computed = readShares(read.map((d) => ({ length: d.char_count ?? 0, sourceLength: d.source_char_count })))
+    return new Map(read.map((d, i) => [d.id, computed[i]]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docs, key])
 }
 
 function DocumentQuota({ quota }: { quota?: { max: number; used: number } }) {
@@ -2270,12 +2284,14 @@ function DocumentQuota({ quota }: { quota?: { max: number; used: number } }) {
 function DocumentRow({
   doc,
   share,
+  summarised,
   moveLabel,
   onMove,
   onRemove,
 }: {
   doc: ContextDocument
   share?: DocReadShare
+  summarised?: boolean
   moveLabel?: string
   onMove?: () => void
   onRemove: () => void
@@ -2286,7 +2302,9 @@ function DocumentRow({
       <span className="truncate">{doc.title}</span>
       <div className="flex items-center gap-2">
         {doc.status === 'ready' ? (
-          share && !share.complete ? (
+          summarised ? (
+            <Badge tone="muted">Résumé dans la fiche</Badge>
+          ) : share && !share.complete ? (
             <Badge tone="warning">Lu en partie · {share.percent} %</Badge>
           ) : (
             <Badge tone="success">Lu en entier</Badge>
@@ -2353,17 +2371,12 @@ function DocumentUploadButton({
 function ContextDocumentsSection({ assistant, allowMethod }: { assistant: Assistant; allowMethod: boolean }) {
   const { save } = useSaveSettings(assistant)
   const { docs, isLoading, quota, atQuota, uploading, upload, remove } = useContextDocuments()
-  const methodIds = assistant.settings.method?.document_ids ?? []
+  // Module fermé : l'agent lit tout, l'écran montre donc tout, sans quoi un document rangé dans
+  // la méthode avant la fermeture deviendrait introuvable.
+  const methodIds = allowMethod ? assistant.settings.method?.document_ids ?? [] : []
   const mine = docs.filter((d) => !methodIds.includes(d.id))
-
-  // Même partage que l'assistant : seuls les documents prêts de cette liste se répartissent la place.
-  const shares = useMemo(() => {
-    const ready = mine.filter((d) => d.status === 'ready')
-    const computed = readShares(ready.map((d) => ({ length: d.char_count ?? 0, sourceLength: d.source_char_count })))
-    return new Map(ready.map((d, i) => [d.id, computed[i]]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docs, methodIds.join(',')])
-  const somePartial = [...shares.values()].some((share) => !share.complete)
+  const shares = useDocumentShares(docs, allowMethod ? assistant.settings.method?.applied_document_ids ?? [] : [])
+  const somePartial = mine.some((d) => shares.get(d.id)?.complete === false)
 
   return (
     <Card>
@@ -2414,7 +2427,7 @@ const METHOD_ERRORS: Record<string, string> = {
   too_long: 'Vos documents sont trop longs pour une seule lecture. Retirez-en un et réessayez.',
 }
 
-type DistillResponse = { sheet: MethodSheet; refused: string[]; read: { documents: number; characters: number } }
+type DistillResponse = { sheet: MethodSheet; refused: string[]; read: { documents: number; characters: number; source: number } }
 
 function MethodSection({ assistant }: { assistant: Assistant }) {
   const { save, saving } = useSaveSettings(assistant)
@@ -2427,11 +2440,13 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
   const [reading, setReading] = useState(false)
   const [error, setError] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
-  const [lastReadInfo, setLastReadInfo] = useState<{ documents: number; characters: number } | null>(null)
+  const [lastReadInfo, setLastReadInfo] = useState<DistillResponse['read'] | null>(null)
 
   const methodIds = stored?.document_ids ?? []
+  const appliedIds = stored?.applied_document_ids ?? []
   const mine = docs.filter((d) => methodIds.includes(d.id))
   const chosen = mine.filter((d) => d.status === 'ready').map((d) => d.id)
+  const shares = useDocumentShares(docs, appliedIds)
   const lastRead = pending ? stored?.draft_document_ids : stored?.applied_document_ids
   // Un document ajouté ou retiré depuis la dernière lecture ne se voit nulle part dans la fiche :
   // c'est ce silence qui a fait croire à un client que tous ses documents étaient lus.
@@ -2460,6 +2475,12 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
       setError(`La fiche est trop longue : ${length} caractères pour ${MAX_METHOD_CHARS} au plus.`)
       return
     }
+    // Une fiche vide n'est pas lue par l'assistant : l'appliquer écarterait des documents sans
+    // rien mettre à la place.
+    if (length === 0) {
+      setError('Une fiche vide ne change rien. Pour revenir aux règles habituelles, utilisez « Retirer la méthode ».')
+      return
+    }
     setError('')
     // Ce qui sort du contexte de l'assistant, ce sont les documents que la fiche a vraiment résumés,
     // jamais la liste du moment.
@@ -2476,10 +2497,20 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
     setPending(false)
   }
 
+  // Retirer un document de la liste le rend au contexte : son identifiant doit donc quitter aussi
+  // ce que la fiche déclare avoir résumé, sinon il reste écarté sans plus apparaître nulle part.
   async function unclassify(id: number) {
     await save((base) => ({
-      method: { ...base.method, document_ids: (base.method?.document_ids ?? []).filter((d) => d !== id) },
+      method: {
+        ...base.method,
+        document_ids: (base.method?.document_ids ?? []).filter((d) => d !== id),
+        applied_document_ids: (base.method?.applied_document_ids ?? []).filter((d) => d !== id),
+      },
     }))
+  }
+
+  async function deleteDocument(id: number) {
+    if (await remove(id)) await unclassify(id)
   }
 
   async function addDocument(file: File) {
@@ -2496,7 +2527,6 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
       />
       <CardBody className="space-y-4">
         <div className="space-y-2">
-          <DocumentQuota quota={quota} />
           {mine.length === 0 ? (
             <EmptyState title="Aucun document de méthode" description="Vos scripts, vos réponses aux objections, vos exemples d'échange." />
           ) : (
@@ -2505,9 +2535,11 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
                 <DocumentRow
                   key={doc.id}
                   doc={doc}
+                  share={shares.get(doc.id)}
+                  summarised={appliedIds.includes(doc.id)}
                   moveLabel="Vers mon contexte"
                   onMove={() => unclassify(doc.id)}
-                  onRemove={() => remove(doc.id)}
+                  onRemove={() => deleteDocument(doc.id)}
                 />
               ))}
             </div>
@@ -2517,11 +2549,12 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
             <Button type="button" size="sm" variant="secondary" disabled={reading || chosen.length === 0} onClick={read}>
               {reading ? 'Lecture en cours, environ une minute…' : sheet ? 'Relire mes documents' : 'Lire mes documents'}
             </Button>
+            {atQuota && quota && quota.max > 0 ? (
+              <span className="text-xs text-muted">Limite de {quota.max} documents atteinte, les deux listes comprises.</span>
+            ) : null}
           </div>
           {staleSince ? (
-            <FieldHint>
-              Vos documents ont changé depuis la dernière lecture. Relisez-les, sinon la fiche reste celle d’avant.
-            </FieldHint>
+            <FieldHint>Vos documents ont changé depuis la dernière lecture. Relisez-les pour pouvoir appliquer la fiche.</FieldHint>
           ) : null}
         </div>
 
@@ -2571,7 +2604,9 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
             <p className={`text-xs tabular-nums ${length > MAX_METHOD_CHARS ? 'text-amber-700' : 'text-muted'}`}>
               {length} / {MAX_METHOD_CHARS} caractères
               {lastReadInfo
-                ? ` · tirés de ${lastReadInfo.documents} document${lastReadInfo.documents > 1 ? 's' : ''} lus en entier, ${lastReadInfo.characters.toLocaleString('fr-FR')} caractères`
+                ? ` · tirés de ${lastReadInfo.documents} document${lastReadInfo.documents > 1 ? 's' : ''}, ${lastReadInfo.characters.toLocaleString('fr-FR')} caractères lus${
+                    lastReadInfo.source > lastReadInfo.characters ? ` sur ${lastReadInfo.source.toLocaleString('fr-FR')}` : ''
+                  }`
                 : ''}
             </p>
             {refused.length > 0 ? (
@@ -2606,7 +2641,14 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
         onConfirm={async () => {
           setConfirmRemove(false)
           await save((base) => ({
-            method: { ...base.method, applied: null, applied_document_ids: [], draft: sheet, draft_document_ids: chosen, refused },
+            method: {
+              ...base.method,
+              applied: null,
+              applied_document_ids: [],
+              draft: sheet,
+              draft_document_ids: base.method?.applied_document_ids ?? chosen,
+              refused,
+            },
           }))
           setPending(true)
         }}
