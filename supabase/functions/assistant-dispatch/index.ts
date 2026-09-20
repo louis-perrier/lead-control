@@ -169,7 +169,7 @@ async function activeMethod(userId: string, method: MethodSettings | undefined) 
   if (!text) return { text: '', documentIds: [] as number[] }
   const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: 'sales_method' })
   if (data !== true) return { text: '', documentIds: [] as number[] }
-  return { text, documentIds: method?.document_ids ?? [] }
+  return { text, documentIds: method?.applied_document_ids ?? [] }
 }
 
 async function hasActiveBooking(convId: number) {
@@ -502,7 +502,8 @@ async function handleConversation(due: DueConversation) {
   // le lien du formulaire, qui peut encore pointer vers une ancienne page.
   const goalLink = agenda ? '' : taggedLink(prepared.link || settings.stop_condition?.link || '', convId)
 
-  // Les documents résumés dans la fiche de méthode ne sont pas recollés en entier : la fiche suffit.
+  // Seuls les documents que la fiche a vraiment résumés sortent d'ici. Un document rangé dans la
+  // méthode mais pas encore lu reste collé en entier, sinon il disparaîtrait sans rien laisser.
   const method = await activeMethod(due.user_id, settings.method)
   let context = settings.context ?? ''
   const { data: allDocs } = await admin

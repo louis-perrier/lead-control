@@ -18,7 +18,7 @@ import {
 } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import { formatDateTime, storageSafeName } from '@/lib/utils'
-import { readShares } from '@/supabase/functions/_shared/context-budget'
+import { readShares, type DocReadShare } from '@/supabase/functions/_shared/context-budget'
 import { ACCEPTED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_BYTES, documentKind } from '@/supabase/functions/_shared/document-text'
 import { triggerKind } from '@/supabase/functions/_shared/canned-match'
 import {
@@ -345,6 +345,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
           </div>
           <div>
             <Label htmlFor="context">Présentation de l'offre</Label>
+            <FieldHint>Plus c'est précis, plus les réponses sont justes.</FieldHint>
             <Textarea
               id="context"
               rows={6}
@@ -352,7 +353,6 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
               onChange={(e) => setContext(e.target.value)}
               placeholder="Votre méthode, vos clients types, vos prix, vos arguments, ce que l'assistant doit savoir."
             />
-            <FieldHint>Plus c'est précis, plus les réponses sont justes.</FieldHint>
           </div>
           <div>
             <Label htmlFor="qualification">Questions de qualification (optionnel)</Label>
@@ -2186,12 +2186,13 @@ function documentUploadError(message: string) {
   return 'Envoi impossible pour le moment : réessayez dans un instant.'
 }
 
-function ContextDocumentsSection() {
+// Partagé par les deux cartes de documents : elles piochent dans la même liste et le même quota,
+// seul le classement dans la méthode les sépare.
+function useContextDocuments() {
   const toast = useToast()
   const invalidate = useInvalidate()
   const effectiveUserId = useEffectiveUserId()
   const [uploading, setUploading] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: docs, isLoading } = useQuery({
     queryKey: ['context-documents', effectiveUserId],
@@ -2211,14 +2212,15 @@ function ContextDocumentsSection() {
     queryFn: () => callFunction<{ max: number; used: number }>('context-documents/quota', { method: 'GET' }),
   })
 
-  async function upload(file: File) {
+  // Renvoie l'identifiant du document créé pour que la carte méthode puisse le ranger chez elle.
+  async function upload(file: File): Promise<number | null> {
     if (!documentKind(file.name)) {
       toast(documentFormatError(file.name), 'error')
-      return
+      return null
     }
     if (file.size > MAX_DOCUMENT_BYTES) {
       toast(`Fichier trop lourd (${(file.size / 1024 / 1024).toFixed(1).replace('.', ',')} Mo) : 5 Mo maximum.`, 'error')
-      return
+      return null
     }
     setUploading(true)
     const supabase = createClient()
@@ -2230,12 +2232,14 @@ function ContextDocumentsSection() {
     if (uploadError) {
       toast(documentUploadError(uploadError.message), 'error')
       setUploading(false)
-      return
+      return null
     }
+    let created: number | null = null
     try {
-      const res = await callFunction<{ status: string; message?: string }>('context-documents/register', {
+      const res = await callFunction<{ id: number; status: string; message?: string }>('context-documents/register', {
         body: { storage_path: path, title: file.name, mime_type: file.type },
       })
+      created = res.id ?? null
       toast(
         res.status === 'ready' ? 'Document ajouté.' : res.message ?? 'Aucun texte lisible dans ce fichier.',
         res.status === 'ready' ? 'success' : 'error',
@@ -2250,6 +2254,7 @@ function ContextDocumentsSection() {
     }
     setUploading(false)
     invalidate('context-documents', 'context-documents-quota')
+    return created
   }
 
   async function remove(id: number) {
@@ -2262,84 +2267,157 @@ function ContextDocumentsSection() {
     }
   }
 
-  const atQuota = quota ? quota.used >= quota.max : false
-  // Même partage que l'assistant : seuls les documents prêts se répartissent la place.
+  return {
+    docs: docs ?? [],
+    isLoading,
+    quota,
+    atQuota: quota ? quota.used >= quota.max : false,
+    uploading,
+    upload,
+    remove,
+  }
+}
+
+function DocumentQuota({ quota }: { quota?: { max: number; used: number } }) {
+  if (!quota) return null
+  return (
+    <p className="text-xs text-muted">
+      {quota.used} / {quota.max} document{quota.max > 1 ? 's' : ''} utilisé{quota.used > 1 ? 's' : ''}
+      {quota.max === 0 ? ', nécessite un abonnement actif' : ' · .txt, .md, .pdf, .docx · 5 Mo max'}
+    </p>
+  )
+}
+
+function DocumentRow({
+  doc,
+  share,
+  moveLabel,
+  onMove,
+  onRemove,
+}: {
+  doc: ContextDocument
+  share?: DocReadShare
+  moveLabel?: string
+  onMove?: () => void
+  onRemove: () => void
+}) {
+  const failed = doc.status === 'error' || Date.now() - Date.parse(doc.created_at) > STALE_IMPORT_MS
+  return (
+    <div className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+      <span className="truncate">{doc.title}</span>
+      <div className="flex items-center gap-2">
+        {doc.status === 'ready' ? (
+          share && !share.complete ? (
+            <Badge tone="warning">Lu en partie · {share.percent} %</Badge>
+          ) : (
+            <Badge tone="success">Lu en entier</Badge>
+          )
+        ) : failed ? (
+          <span className="inline-flex items-center gap-1">
+            <Badge tone="danger">Erreur</Badge>
+            <InfoTip
+              text={
+                doc.status === 'error' && doc.error_message
+                  ? doc.error_message
+                  : 'Import interrompu : supprimez ce document et réimportez-le.'
+              }
+            />
+          </span>
+        ) : (
+          <Badge tone="muted">Traitement…</Badge>
+        )}
+        {onMove && moveLabel ? (
+          <Button size="sm" variant="ghost" onClick={onMove}>
+            {moveLabel}
+          </Button>
+        ) : null}
+        <Button size="sm" variant="ghost" onClick={onRemove}>
+          Supprimer
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function DocumentUploadButton({
+  uploading,
+  disabled,
+  label,
+  onFile,
+}: {
+  uploading: boolean
+  disabled: boolean
+  label: string
+  onFile: (file: File) => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  return (
+    <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept={ACCEPTED_DOCUMENT_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) onFile(f)
+          e.target.value = ''
+        }}
+      />
+      <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading || disabled}>
+        {uploading ? 'Envoi…' : label}
+      </Button>
+    </>
+  )
+}
+
+function ContextDocumentsSection({ assistant, allowMethod }: { assistant: Assistant; allowMethod: boolean }) {
+  const { save } = useSaveSettings(assistant)
+  const { docs, isLoading, quota, atQuota, uploading, upload, remove } = useContextDocuments()
+  const methodIds = assistant.settings.method?.document_ids ?? []
+  const mine = docs.filter((d) => !methodIds.includes(d.id))
+
+  // Même partage que l'assistant : seuls les documents prêts de cette liste se répartissent la place.
   const shares = useMemo(() => {
-    const ready = (docs ?? []).filter((d) => d.status === 'ready')
+    const ready = mine.filter((d) => d.status === 'ready')
     const computed = readShares(ready.map((d) => ({ length: d.char_count ?? 0, sourceLength: d.source_char_count })))
     return new Map(ready.map((d, i) => [d.id, computed[i]]))
-  }, [docs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docs, methodIds.join(',')])
   const somePartial = [...shares.values()].some((share) => !share.complete)
 
   return (
     <Card>
-      <CardHeader
-        title="Documents de contexte"
-        description="Vos textes longs sur l'offre, lus par l'assistant."
-      />
+      <CardHeader title="Documents de contexte" description="Vos textes longs sur l'offre, lus par l'assistant." />
       <CardBody className="space-y-3">
-        {quota ? (
-          <p className="text-xs text-muted">
-            {quota.used} / {quota.max} document{quota.max > 1 ? 's' : ''} utilisé{quota.used > 1 ? 's' : ''}
-            {quota.max === 0 ? ', nécessite un abonnement actif' : ' · .txt, .md, .pdf, .docx · 5 Mo max'}
-          </p>
-        ) : null}
+        <DocumentQuota quota={quota} />
         {isLoading ? (
           <Skeleton className="h-16 w-full" />
-        ) : (docs?.length ?? 0) === 0 ? (
-          <EmptyState title="Aucun document" description="Ajoutez un document pour enrichir le contexte de l'assistant." />
+        ) : mine.length === 0 ? (
+          <EmptyState title="Aucun document" description="Vos documents sur l'offre, le produit, vous." />
         ) : (
           <div className="divide-y divide-border/60 rounded-[10px] border border-border">
-            {docs!.map((d) => (
-              <div key={d.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                <span className="truncate">{d.title}</span>
-                <div className="flex items-center gap-2">
-                  {d.status === 'ready' ? (
-                    shares.get(d.id)?.complete === false ? (
-                      <Badge tone="warning">Lu en partie · {shares.get(d.id)!.percent} %</Badge>
-                    ) : (
-                      <Badge tone="success">Lu en entier</Badge>
-                    )
-                  ) : d.status === 'error' || Date.now() - Date.parse(d.created_at) > STALE_IMPORT_MS ? (
-                    <span className="inline-flex items-center gap-1">
-                      <Badge tone="danger">Erreur</Badge>
-                      <InfoTip
-                        text={
-                          d.status === 'error' && d.error_message
-                            ? d.error_message
-                            : 'Import interrompu : supprimez ce document et réimportez-le.'
-                        }
-                      />
-                    </span>
-                  ) : (
-                    <Badge tone="muted">Traitement…</Badge>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => remove(d.id)}>
-                    Supprimer
-                  </Button>
-                </div>
-              </div>
+            {mine.map((d) => (
+              <DocumentRow
+                key={d.id}
+                doc={d}
+                share={shares.get(d.id)}
+                moveLabel={allowMethod && d.status === 'ready' ? 'Vers ma méthode' : undefined}
+                onMove={
+                  allowMethod && d.status === 'ready'
+                    ? () => save((base) => ({ method: { ...base.method, document_ids: [...(base.method?.document_ids ?? []), d.id] } }))
+                    : undefined
+                }
+                onRemove={() => remove(d.id)}
+              />
             ))}
           </div>
         )}
         {somePartial ? (
           <FieldHint>Vos documents dépassent la place disponible. Raccourcissez le plus long pour qu'il soit lu en entier.</FieldHint>
         ) : null}
-        <input
-          ref={fileRef}
-          type="file"
-          accept={ACCEPTED_DOCUMENT_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) upload(f)
-            e.target.value = ''
-          }}
-        />
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading || atQuota}>
-            {uploading ? 'Envoi…' : 'Ajouter un document'}
-          </Button>
+          <DocumentUploadButton uploading={uploading} disabled={atQuota} label="Ajouter un document" onFile={upload} />
           {atQuota && quota && quota.max > 0 ? (
             <span className="text-xs text-muted">Limite atteinte : supprimez un document pour en ajouter.</span>
           ) : null}
@@ -2350,17 +2428,19 @@ function ContextDocumentsSection() {
 }
 
 const METHOD_ERRORS: Record<string, string> = {
-  no_documents: 'Aucun des documents cochés n’a pu être lu.',
+  no_documents: 'Aucun de ces documents n’a pu être lu.',
   no_api_key: 'Ajoutez d’abord votre clé Anthropic dans Réglages.',
   nothing_found: 'Aucune consigne de vente n’a été trouvée dans ces documents.',
   not_available: 'Ce module n’est pas encore ouvert sur votre compte.',
+  too_long: 'Vos documents sont trop longs pour une seule lecture. Retirez-en un et réessayez.',
 }
+
+type DistillResponse = { sheet: MethodSheet; refused: string[]; read: { documents: number; characters: number } }
 
 function MethodSection({ assistant }: { assistant: Assistant }) {
   const { save, saving } = useSaveSettings(assistant)
-  const effectiveUserId = useEffectiveUserId()
+  const { docs, quota, atQuota, uploading, upload, remove } = useContextDocuments()
   const stored = assistant.settings.method
-  const [picked, setPicked] = useState<number[]>(stored?.draft_document_ids ?? stored?.document_ids ?? [])
   const [sheet, setSheet] = useState<MethodSheet | null>(stored?.draft ?? stored?.applied ?? null)
   const [refused, setRefused] = useState<string[]>(stored?.refused ?? [])
   const [pending, setPending] = useState(Boolean(stored?.draft))
@@ -2368,31 +2448,25 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
   const [reading, setReading] = useState(false)
   const [error, setError] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [lastReadInfo, setLastReadInfo] = useState<{ documents: number; characters: number } | null>(null)
 
-  const { data: docs } = useQuery({
-    queryKey: ['context-documents', effectiveUserId],
-    enabled: effectiveUserId !== null,
-    queryFn: async (): Promise<ContextDocument[]> => {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('context_documents')
-        .select('id, title, status, char_count, source_char_count, error_message, created_at')
-        .eq('user_id', effectiveUserId!)
-        .order('created_at', { ascending: true })
-      return (data ?? []) as ContextDocument[]
-    },
-  })
-  const ready = (docs ?? []).filter((d) => d.status === 'ready')
-  const chosen = picked.filter((id) => ready.some((d) => d.id === id))
+  const methodIds = stored?.document_ids ?? []
+  const mine = docs.filter((d) => methodIds.includes(d.id))
+  const chosen = mine.filter((d) => d.status === 'ready').map((d) => d.id)
+  const lastRead = pending ? stored?.draft_document_ids : stored?.applied_document_ids
+  // Un document ajouté ou retiré depuis la dernière lecture ne se voit nulle part dans la fiche :
+  // c'est ce silence qui a fait croire à un client que tous ses documents étaient lus.
+  const staleSince = sheet && lastRead ? [...chosen].sort().join(',') !== [...lastRead].sort().join(',') : false
   const length = methodLength(sheet)
 
   async function read() {
     setError('')
     setReading(true)
     try {
-      const res = await callFunction<{ sheet: MethodSheet; refused: string[] }>('method-distill', { body: { document_ids: chosen } })
+      const res = await callFunction<DistillResponse>('method-distill', { body: { document_ids: chosen } })
       setSheet(res.sheet)
       setRefused(res.refused)
+      setLastReadInfo(res.read ?? null)
       setPending(true)
       setOpenKey(null)
       await save((base) => ({ method: { ...base.method, draft: res.sheet, draft_document_ids: chosen, refused: res.refused } }))
@@ -2408,10 +2482,31 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
       return
     }
     setError('')
-    await save({
-      method: { document_ids: chosen, applied: sheet, draft: null, refused, applied_at: new Date().toISOString() },
-    })
+    // Ce qui sort du contexte de l'assistant, ce sont les documents que la fiche a vraiment résumés,
+    // jamais la liste du moment.
+    await save((base) => ({
+      method: {
+        ...base.method,
+        applied: sheet,
+        applied_document_ids: base.method?.draft_document_ids ?? chosen,
+        draft: null,
+        refused,
+        applied_at: new Date().toISOString(),
+      },
+    }))
     setPending(false)
+  }
+
+  async function unclassify(id: number) {
+    await save((base) => ({
+      method: { ...base.method, document_ids: (base.method?.document_ids ?? []).filter((d) => d !== id) },
+    }))
+  }
+
+  async function addDocument(file: File) {
+    const id = await upload(file)
+    if (id === null) return
+    await save((base) => ({ method: { ...base.method, document_ids: [...(base.method?.document_ids ?? []), id] } }))
   }
 
   return (
@@ -2421,26 +2516,35 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
         description="Vos documents de méthode, résumés en une fiche courte. L’assistant la suit avant ses propres habitudes."
       />
       <CardBody className="space-y-4">
-        {ready.length === 0 ? (
-          <FieldHint>Ajoutez d’abord vos documents dans la carte ci-dessus.</FieldHint>
-        ) : (
-          <div className="space-y-2">
-            <Label className="mb-0">Documents qui décrivent votre méthode</Label>
-            {ready.map((doc) => (
-              <label key={doc.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={picked.includes(doc.id)}
-                  onChange={(e) => setPicked((list) => (e.target.checked ? [...list, doc.id] : list.filter((id) => id !== doc.id)))}
+        <div className="space-y-2">
+          <DocumentQuota quota={quota} />
+          {mine.length === 0 ? (
+            <EmptyState title="Aucun document de méthode" description="Vos scripts, vos réponses aux objections, vos exemples d'échange." />
+          ) : (
+            <div className="divide-y divide-border/60 rounded-[10px] border border-border">
+              {mine.map((doc) => (
+                <DocumentRow
+                  key={doc.id}
+                  doc={doc}
+                  moveLabel="Vers mon contexte"
+                  onMove={() => unclassify(doc.id)}
+                  onRemove={() => remove(doc.id)}
                 />
-                <span className="truncate">{doc.title}</span>
-              </label>
-            ))}
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <DocumentUploadButton uploading={uploading} disabled={atQuota} label="Ajouter un document" onFile={addDocument} />
             <Button type="button" size="sm" variant="secondary" disabled={reading || chosen.length === 0} onClick={read}>
               {reading ? 'Lecture en cours, environ une minute…' : sheet ? 'Relire mes documents' : 'Lire mes documents'}
             </Button>
           </div>
-        )}
+          {staleSince ? (
+            <FieldHint>
+              Vos documents ont changé depuis la dernière lecture. Relisez-les, sinon la fiche reste celle d’avant.
+            </FieldHint>
+          ) : null}
+        </div>
 
         {sheet ? (
           <div className="space-y-2 border-t border-border pt-3">
@@ -2487,10 +2591,13 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
             })}
             <p className={`text-xs tabular-nums ${length > MAX_METHOD_CHARS ? 'text-amber-700' : 'text-muted'}`}>
               {length} / {MAX_METHOD_CHARS} caractères
+              {lastReadInfo
+                ? ` · tirés de ${lastReadInfo.documents} document${lastReadInfo.documents > 1 ? 's' : ''} lus en entier, ${lastReadInfo.characters.toLocaleString('fr-FR')} caractères`
+                : ''}
             </p>
             {refused.length > 0 ? (
               <details className="text-sm">
-                <summary className="cursor-pointer text-muted">Non repris de vos documents ({refused.length})</summary>
+                <summary className="cursor-pointer text-muted">Ce que l’assistant ne peut pas suivre ({refused.length})</summary>
                 <ul className="mt-1 list-disc space-y-1 pl-5 text-muted">
                   {refused.map((r, i) => (
                     <li key={i}>{r}</li>
@@ -2509,7 +2616,7 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
               Retirer la méthode
             </Button>
           ) : null}
-          <Button type="button" disabled={saving || !pending} onClick={apply}>
+          <Button type="button" disabled={saving || !pending || staleSince} onClick={apply}>
             {saving ? 'Enregistrement…' : pending ? 'Appliquer à mon assistant' : 'Appliquée'}
           </Button>
         </div>
@@ -2519,7 +2626,9 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
         onClose={() => setConfirmRemove(false)}
         onConfirm={async () => {
           setConfirmRemove(false)
-          await save({ method: { document_ids: [], applied: null, draft: sheet, draft_document_ids: chosen, refused } })
+          await save((base) => ({
+            method: { ...base.method, applied: null, applied_document_ids: [], draft: sheet, draft_document_ids: chosen, refused },
+          }))
           setPending(true)
         }}
         title="Retirer votre méthode"
@@ -3409,7 +3518,7 @@ function AssistantContent() {
       </div>
       {allowContextDocuments ? (
         <div className="xl:col-span-2">
-          <ContextDocumentsSection />
+          <ContextDocumentsSection assistant={assistant} allowMethod={allowMethod} />
         </div>
       ) : null}
       {allowMethod ? (

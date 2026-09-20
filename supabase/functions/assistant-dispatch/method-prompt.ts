@@ -13,9 +13,12 @@ export const METHOD_RUBRICS = [
 
 export type MethodRubric = (typeof METHOD_RUBRICS)[number]['key']
 export type MethodSheet = Partial<Record<MethodRubric, string>>
+// document_ids range les documents dans la carte méthode, applied_document_ids dit lesquels la
+// fiche appliquée a réellement résumés. Seuls ces derniers sortent du contexte de l'assistant.
 export type MethodSettings = {
   document_ids?: number[]
   draft_document_ids?: number[]
+  applied_document_ids?: number[]
   draft?: MethodSheet | null
   applied?: MethodSheet | null
   refused?: string[]
