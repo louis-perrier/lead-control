@@ -14,7 +14,8 @@ Rubriques, chacune facultative :
 ${METHOD_RUBRICS.map((r) => `- ${r.key} : ${r.title}`).join('\n')}
 
 Règles :
-- Garde les consignes concrètes, les critères de tri, les enchaînements et les formulations exactes qui reviennent. Supprime les répétitions, les justifications et tout ce qui ne change pas ce que l'assistant écrit.
+- L'assistant sait déjà vendre : il pose des questions ouvertes, reformule, s'adapte au ton, ne relance pas quelqu'un qui refuse. Ne retiens que ce qui change ce qu'il écrirait de lui-même : une règle propre à ce vendeur, un critère de tri, un enchaînement imposé, une formulation qui lui appartient, une chose à ne jamais dire. Un conseil de vente valable pour n'importe qui n'entre pas dans la fiche.
+- Garde les consignes concrètes et les formulations exactes qui reviennent. Supprime les répétitions, les justifications et tout ce qui ne change pas ce que l'assistant écrit.
 - N'invente rien. Un point absent des documents reste absent de la fiche.
 - ${MAX_METHOD_CHARS} caractères au plus pour toute la fiche. Des phrases courtes, pas de titres, pas de gras, pas de listes imbriquées.
 - Dans examples, deux ou trois courts extraits d'échange au plus, choisis pour le ton et les transitions.
