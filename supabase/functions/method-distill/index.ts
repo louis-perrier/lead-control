@@ -68,8 +68,10 @@ Deno.serve(async (req) => {
   const prompt = readable.map((d, i) => `### ${d.title}\n${pieces[i]}`).join('\n\n')
 
   try {
-    const res = await generateText({ apiKey: resolved.key, model: AI_MODEL_REPLY, system: SYSTEM, prompt, maxTokens: 4000 })
+    const res = await generateText({ apiKey: resolved.key, model: AI_MODEL_REPLY, system: SYSTEM, prompt, maxTokens: 6000 })
     await recordUsage({ userId: user.id, conversationId: null, model: AI_MODEL_REPLY, usage: res.usage, source: resolved.source })
+    // Une fiche pleine coûte environ 3 500 tokens de sortie, le JSON échappé comptant près de deux
+    // caractères par token en français. En dessous de 6 000, un vrai jeu de documents se fait couper.
     // Une sortie coupée rend un JSON incomplet : le client doit le savoir plutôt que d'appliquer
     // une fiche amputée en croyant qu'elle résume tout.
     if (res.stopReason === 'max_tokens') return json(req, { error: 'too_long' }, 422)
