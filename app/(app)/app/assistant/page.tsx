@@ -323,10 +323,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
 
   return (
     <Card>
-      <CardHeader
-        title="Ce que vous vendez"
-        description="Ce que l'assistant sait de votre offre."
-      />
+      <CardHeader title="Ce que vous vendez" />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
           <div>
@@ -340,7 +337,6 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
           </div>
           <div>
             <Label htmlFor="context">Présentation de l'offre</Label>
-            <FieldHint>Plus c'est précis, plus les réponses sont justes.</FieldHint>
             <Textarea
               id="context"
               rows={6}
@@ -797,10 +793,7 @@ function IcloseWebhookStep({ account }: { account: ChannelAccount }) {
         <Label className="mb-0">Une dernière étape, dans iClose</Label>
         <Badge tone="warning">à faire</Badge>
       </div>
-      <FieldHint>
-        iClose ne sait pas enregistrer cette adresse tout seul. Sans elle, un rendez-vous pris depuis votre lien ne
-        remonte pas ici et la conversation reste ouverte pour rien.
-      </FieldHint>
+      <FieldHint>Sans elle, un rendez-vous pris depuis votre lien ne remonte pas ici.</FieldHint>
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <Input
           readOnly
@@ -835,10 +828,7 @@ function IcloseWebhookStep({ account }: { account: ChannelAccount }) {
           </li>
         ))}
       </ol>
-      <FieldHint>
-        Si vous ne trouvez pas la section des webhooks dans votre compte, dites-le-nous plutôt que de chercher : elle
-        n’est pas au même endroit selon les forfaits.
-      </FieldHint>
+      <FieldHint>Elle n’est pas au même endroit selon les forfaits : dites-le-nous si vous ne la trouvez pas.</FieldHint>
     </div>
   )
 }
@@ -1083,10 +1073,7 @@ function IcloseBookingFields({
         onFields={(extra_fields) => onPatch({ extra_fields })}
       />
 
-      <FieldHint>
-        Durée, jours, heures, horizon et règles de qualification viennent de votre iClose. Le nom du
-        profil Instagram du prospect sert de nom de contact, et l'assistant lui demande son e-mail.
-      </FieldHint>
+      <FieldHint>Durée, jours, heures, horizon et règles de qualification viennent de votre iClose.</FieldHint>
 
       {preview && preview.bookable ? (
         <StepsPreview title="Ce que fait l'assistant, d'après vos vraies disponibilités" steps={preview.steps} />
@@ -1247,10 +1234,7 @@ function CalendlyBookingFields({
       />
 
       <FieldHint>
-        Durée, jours, heures et horizon viennent de votre Calendly. Le nom du profil Instagram du prospect
-        sert de nom d'invité, et l'assistant lui demande son e-mail, que Calendly exige.
-      </FieldHint>
-      <FieldHint>
+        Durée, jours, heures et horizon viennent de votre Calendly, qui exige aussi l'e-mail du prospect.{' '}
         <strong className="font-semibold">La réservation par l'assistant demande un forfait Calendly payant.</strong>
       </FieldHint>
 
@@ -2045,7 +2029,7 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
 
   return (
     <Card>
-      <CardHeader title="Ton de l'assistant" description="Comment l'assistant formule ses réponses." />
+      <CardHeader title="Ton de l'assistant" />
       <CardBody className="space-y-4">
         <div className="flex flex-wrap gap-2">
           {options.map((p) => (
