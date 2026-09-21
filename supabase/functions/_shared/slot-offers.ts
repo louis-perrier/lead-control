@@ -3,6 +3,7 @@
 // tampon : on ne recalcule aucune disponibilité, on regroupe seulement ses créneaux.
 import {
   chooseOffers,
+  closestMoments,
   keepOrder,
   localIso,
   momentLabel,
@@ -235,17 +236,11 @@ export type BookingCheck =
   | { ok: false; reason: BookingRefusal; alternatives: { debut: string; label: string }[] }
 
 // Deux propositions de repli, assez espacées pour ne pas se ressembler.
-function nearbySlots(target: number, slots: number[], tz: string, now: number) {
-  const sorted = [...slots].sort((a, b) => Math.abs(a - target) - Math.abs(b - target))
-  const out: number[] = []
-  for (const s of sorted) {
-    if (out.length >= 2) break
-    if (out.some((k) => Math.abs(k - s) < 90 * MINUTE)) continue
-    out.push(s)
-  }
-  return out
-    .sort((a, b) => a - b)
-    .map((s) => ({ debut: localIso(s, tz), label: momentLabel(s, tz, now) }))
+function nearbySlots(target: number, minutes: number, slots: number[], tz: string, now: number) {
+  return closestMoments(target, minutes, slots, tz).map((s) => ({
+    debut: localIso(s, tz),
+    label: momentLabel(s, tz, now),
+  }))
 }
 
 export function checkBookingSlot(opts: {
@@ -263,8 +258,10 @@ export function checkBookingSlot(opts: {
   const start = zonedToUtc(parsed.year, parsed.month, parsed.day, parsed.minutes, tz)
   if (start == null) {
     const approx = Date.UTC(parsed.year, parsed.month - 1, parsed.day, Math.floor(parsed.minutes / 60), parsed.minutes % 60)
-    return { ok: false, reason: 'nonexistent', alternatives: nearbySlots(approx, slots, tz, opts.now) }
+    return { ok: false, reason: 'nonexistent', alternatives: nearbySlots(approx, parsed.minutes, slots, tz, opts.now) }
   }
-  if (!slots.includes(start)) return { ok: false, reason: 'unavailable', alternatives: nearbySlots(start, slots, tz, opts.now) }
+  if (!slots.includes(start)) {
+    return { ok: false, reason: 'unavailable', alternatives: nearbySlots(start, parsed.minutes, slots, tz, opts.now) }
+  }
   return { ok: true, start, end: start + opts.durationMin * MINUTE, label: momentLabel(start, tz, opts.now) }
 }

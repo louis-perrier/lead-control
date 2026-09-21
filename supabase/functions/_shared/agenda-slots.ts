@@ -441,42 +441,56 @@ function slotFits(start: number, s: AgendaSettings, tz: string) {
 export function checkSlot(opts: { value: string; now: number; tz: string; settings: AgendaSettings; busy: Interval[] }): SlotCheck {
   const { now, tz, settings: s, busy } = opts
   const parsed = parseLocalIso(opts.value)
-  const refuse = (reason: SlotRefusal, from: number): SlotCheck => ({
+  if (!parsed) return { ok: false, reason: 'format', alternatives: [] }
+  const start = zonedToUtc(parsed.year, parsed.month, parsed.day, parsed.minutes, tz)
+  const target = start ?? Date.UTC(parsed.year, parsed.month - 1, parsed.day, Math.floor(parsed.minutes / 60), parsed.minutes % 60)
+  const refuse = (reason: SlotRefusal): SlotCheck => ({
     ok: false,
     reason,
-    alternatives: reason === 'format' ? [] : nearbySlots(Math.max(from, now), now, tz, s, busy),
+    alternatives: reason === 'format' ? [] : nearbySlots(target, parsed.minutes, now, tz, s, busy),
   })
-  if (!parsed) return refuse('format', now)
-  const start = zonedToUtc(parsed.year, parsed.month, parsed.day, parsed.minutes, tz)
-  if (start == null) {
-    const approx = Date.UTC(parsed.year, parsed.month - 1, parsed.day, Math.floor(parsed.minutes / 60), parsed.minutes % 60)
-    return refuse('nonexistent', approx)
-  }
+  if (start == null) return refuse('nonexistent')
   const end = start + s.duration_min * 60_000
-  if (parsed.minutes % STEP_MIN !== 0) return refuse('format', start)
-  if (start < now + noticeMs(s)) return refuse('too_soon', now)
-  if (start > now + horizonMs(s)) return refuse('too_far', now)
-  if (!slotFits(start, s, tz)) return refuse('outside_hours', start)
-  if (overlaps(start, end, busy)) return refuse('busy', start)
+  if (parsed.minutes % STEP_MIN !== 0) return refuse('format')
+  if (start < now + noticeMs(s)) return refuse('too_soon')
+  if (start > now + horizonMs(s)) return refuse('too_far')
+  if (!slotFits(start, s, tz)) return refuse('outside_hours')
+  if (overlaps(start, end, busy)) return refuse('busy')
   return { ok: true, start, end, label: momentLabel(start, tz, now) }
 }
 
-// Les deux premiers moments libres à partir de l'heure demandée, par pas de 30 minutes.
-function nearbySlots(from: number, now: number, tz: string, s: AgendaSettings, busy: Interval[]) {
-  const out: { debut: string; label: string }[] = []
-  const earliest = now + noticeMs(s)
-  const limit = now + horizonMs(s)
-  let t = Math.ceil(Math.max(from, earliest) / 1_800_000) * 1_800_000
-  while (out.length < 2 && t <= limit) {
-    const end = t + s.duration_min * 60_000
-    if (slotFits(t, s, tz) && !overlaps(t, end, busy)) {
-      out.push({ debut: localIso(t, tz), label: momentLabel(t, tz, now) })
-      t += 3 * 3_600_000
-    } else {
-      t += 1_800_000
+// Repli quand le moment demandé n'est pas libre : une heure d'écart dans la journée pèse autant
+// qu'une demi-journée d'attente. Qui demande un soir retrouve un soir un autre jour plutôt que le
+// matin le plus proche, et qui demande 16 h se voit proposer 17 h le même jour. Trois heures les
+// séparent quand c'est possible, 16 h 30 et 18 h se liraient comme une seule offre ; une heure et
+// demie sinon.
+export function closestMoments(target: number, minutes: number, free: number[], tz: string) {
+  const score = new Map<number, number>()
+  for (const f of free) {
+    const p = zonedParts(f, tz)
+    score.set(f, 12 * Math.abs(p.hour * 60 + p.minute - minutes) + Math.abs(f - target) / 60_000)
+  }
+  const ranked = [...free].sort((a, b) => score.get(a)! - score.get(b)!)
+  const out: number[] = []
+  for (const gap of [3 * 3_600_000, 90 * 60_000]) {
+    for (const f of ranked) {
+      if (out.length >= 2) break
+      if (!out.some((k) => Math.abs(k - f) < gap)) out.push(f)
     }
   }
-  return out
+  return out.sort((a, b) => a - b)
+}
+
+function nearbySlots(target: number, minutes: number, now: number, tz: string, s: AgendaSettings, busy: Interval[]) {
+  const free: number[] = []
+  const limit = now + horizonMs(s)
+  for (let t = Math.ceil((now + noticeMs(s)) / 1_800_000) * 1_800_000; t <= limit; t += 1_800_000) {
+    if (slotFits(t, s, tz) && !overlaps(t, t + s.duration_min * 60_000, busy)) free.push(t)
+  }
+  return closestMoments(target, minutes, free, tz).map((t) => ({
+    debut: localIso(t, tz),
+    label: momentLabel(t, tz, now),
+  }))
 }
 
 // Clé des plages mémorisées : un changement de réglage ou de fuseau les recalcule.

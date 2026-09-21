@@ -244,6 +244,14 @@ describe('checkBookingSlot', () => {
     }
   })
 
+  it('répond à un soir demandé par des soirs, même plus loin que le matin libre', () => {
+    // Le cas vu en vrai : le prospect veut un soir, le délai de 24 h ferme le mardi soir.
+    const week = [...day(9, 23, 9, 19, 45), ...day(9, 24, 9, 19, 45)]
+    const check = checkBookingSlot({ value: '2026-09-22T19:00', slots: week, durationMin: 45, tz: TZ, now: paris(9, 21, 19, 35), noticeHours: 24 })
+    expect(check.ok).toBe(false)
+    if (!check.ok) expect(check.alternatives.map((a) => a.label)).toEqual(['mercredi 23 à 18 h', 'jeudi 24 à 18 h'])
+  })
+
   it('refuse une heure locale qui n’existe pas', () => {
     // Dimanche 29 mars 2026 : 2 h 30 locales n'existent pas.
     const check = checkBookingSlot({ value: '2026-03-29T02:30', slots, durationMin: 30, tz: TZ, now: NOW, noticeHours: 0 })

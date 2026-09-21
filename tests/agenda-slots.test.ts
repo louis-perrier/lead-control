@@ -184,21 +184,27 @@ describe('checkSlot', () => {
     expect(!res.ok && res.alternatives[0]).toEqual({ debut: '2026-09-17T17:00', label: 'jeudi 17 à 17 h' })
   })
 
-  it('refuse un week-end et propose le jour ouvré suivant', () => {
+  it('refuse un week-end et propose la même heure les jours ouvrés voisins', () => {
     const res = checkSlot({ ...base, value: '2026-09-19T10:00' })
     expect(res).toMatchObject({ ok: false, reason: 'outside_hours' })
-    expect(!res.ok && res.alternatives.map((a) => a.debut)).toEqual(['2026-09-21T09:00', '2026-09-21T12:00'])
+    expect(!res.ok && res.alternatives.map((a) => a.debut)).toEqual(['2026-09-18T10:00', '2026-09-21T10:00'])
+  })
+
+  it('répond à un soir demandé par des soirs, pas par le matin le plus proche', () => {
+    const res = checkSlot({ ...base, value: '2026-09-18T19:00' })
+    expect(res).toMatchObject({ ok: false, reason: 'outside_hours' })
+    expect(!res.ok && res.alternatives.map((a) => a.debut)).toEqual(['2026-09-17T18:00', '2026-09-18T18:00'])
   })
 
   it('refuse un appel qui déborde de la fin de journée', () => {
     expect(checkSlot({ ...base, value: '2026-09-18T18:30' })).toMatchObject({ ok: false, reason: 'outside_hours' })
   })
 
-  it('refuse un moment pris et propose le prochain libre', () => {
+  it('refuse un moment pris et propose le libre juste avant et juste après', () => {
     const busy = [{ start: paris(9, 18, 14), end: paris(9, 18, 16) }]
     const res = checkSlot({ ...base, busy, value: '2026-09-18T14:30' })
     expect(res).toMatchObject({ ok: false, reason: 'busy' })
-    expect(!res.ok && res.alternatives[0].debut).toBe('2026-09-18T16:00')
+    expect(!res.ok && res.alternatives.map((a) => a.debut)).toEqual(['2026-09-18T13:00', '2026-09-18T16:00'])
   })
 
   it('refuse un moment au-delà de l’horizon', () => {
