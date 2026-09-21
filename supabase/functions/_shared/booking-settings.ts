@@ -46,6 +46,17 @@ export function hasUnnamedField(fields: BookingField[]) {
   return fields.some((f) => !f.label.trim())
 }
 
+// L'e-mail est déjà demandé à chaque réservation. Un champ « Email » en plus le faisait demander
+// deux fois, avec un tour de conversation perdu pendant que le créneau n'est pas encore pris.
+export function isEmailField(f: BookingField) {
+  const label = f.label.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return f.kind === 'text' && /(^|[^a-z])(e-?mail|mail|courriel)([^a-z]|$)/.test(label)
+}
+
+export function hasEmailField(fields: BookingField[]) {
+  return fields.some(isEmailField)
+}
+
 export function clampInt(value: unknown, min: number, max: number, fallback: number) {
   const n = Math.round(Number(value))
   if (!Number.isFinite(n)) return fallback
@@ -68,6 +79,7 @@ export function normalizeFields(value: unknown): BookingField[] {
     const label = text(f?.label).slice(0, 60)
     if (!label) continue
     const kind: BookingFieldKind = f?.kind === 'phone' ? 'phone' : 'text'
+    if (isEmailField({ label, kind })) continue
     if (out.some((o) => o.label.toLowerCase() === label.toLowerCase())) continue
     out.push({ label, kind })
     if (out.length >= MAX_EXTRA_FIELDS) break

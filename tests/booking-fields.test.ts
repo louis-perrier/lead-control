@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildAsks, collectAnswers } from '../supabase/functions/_shared/booking-fields'
 import { normalizeCalendly } from '../supabase/functions/_shared/calendly-settings'
-import { hasUnnamedField, KIND_DEFAULT_LABEL } from '../supabase/functions/_shared/booking-settings'
+import { hasEmailField, hasUnnamedField, KIND_DEFAULT_LABEL, normalizeFields } from '../supabase/functions/_shared/booking-settings'
+import { normalizeIclose } from '../supabase/functions/_shared/iclose-settings'
 import type { EventQuestion } from '../supabase/functions/_shared/calendly-event-type'
 
 const question = (over: Partial<EventQuestion>): EventQuestion => ({
@@ -120,5 +121,29 @@ describe('hasUnnamedField', () => {
   it('propose un nom pour le type téléphone, aucun pour la réponse libre', () => {
     expect(KIND_DEFAULT_LABEL.phone).toBe('Numéro de téléphone')
     expect(KIND_DEFAULT_LABEL.text).toBe('')
+  })
+})
+
+describe('hasEmailField', () => {
+  it('repère un champ qui redemande l’e-mail, déjà demandé à chaque réservation', () => {
+    for (const label of ['Email', 'E-mail', 'Adresse mail', 'Ton e-mail', 'Courriel']) {
+      expect(hasEmailField([{ label, kind: 'text' }])).toBe(true)
+    }
+    expect(hasEmailField([{ label: 'Prénom - Nom', kind: 'text' }])).toBe(false)
+    expect(hasEmailField([{ label: 'Numéro de téléphone', kind: 'phone' }])).toBe(false)
+    expect(hasEmailField([{ label: 'Gmail pro ou perso', kind: 'text' }])).toBe(false)
+  })
+
+  it('écarte ce champ à la lecture, comme sur le compte qui l’avait ajouté', () => {
+    const fields: { kind: 'phone' | 'text'; label: string }[] = [
+      { kind: 'phone', label: 'Numéro de téléphone' },
+      { kind: 'text', label: 'Email' },
+      { kind: 'text', label: 'Prénom - Nom' },
+    ]
+    expect(normalizeFields(fields).map((f) => f.label)).toEqual(['Numéro de téléphone', 'Prénom - Nom'])
+    expect(buildAsks(normalizeIclose({ extra_fields: fields }).extra_fields, []).map((a) => a.label)).toEqual([
+      'Numéro de téléphone',
+      'Prénom - Nom',
+    ])
   })
 })

@@ -45,6 +45,7 @@ import {
   BOOKING_NOTICE_OPTIONS,
   FIELD_KINDS,
   KIND_DEFAULT_LABEL,
+  hasEmailField,
   hasUnnamedField,
   MAX_EXTRA_FIELDS,
   OFFER_STYLES,
@@ -681,7 +682,13 @@ function ExtraFieldsBlock({
           votre page de réservation. Sinon la réponse reste ici, sur la fiche du prospect et dans le message Slack.
         </FieldHint>
       ) : null}
-      <FieldError>{hasUnnamedField(fields) ? 'Donnez un nom à chaque information à demander.' : ''}</FieldError>
+      <FieldError>
+        {hasUnnamedField(fields)
+          ? 'Donnez un nom à chaque information à demander.'
+          : hasEmailField(fields)
+            ? 'L’e-mail est déjà demandé à chaque réservation : retirez ce champ.'
+            : ''}
+      </FieldError>
       {fields.length < MAX_EXTRA_FIELDS ? (
         <Button
           type="button"
@@ -1310,11 +1317,12 @@ function GoalSection({
   const iclosePageError =
     mode === 'iclose' && icloseConnected && !icloseSettings.link_prefix ? 'Choisissez une page de réservation.' : null
   const icloseBlocked = Boolean(iclosePageError) || (mode === 'iclose' && icloseConnected && pageMissing)
-  // Un champ sans nom est écarté à la lecture : le laisser enregistrer, c'est promettre une
-  // question que l'assistant ne posera jamais.
+  // Un champ sans nom ou un second e-mail est écarté à la lecture : le laisser enregistrer, c'est
+  // promettre une question que l'assistant ne posera jamais.
+  const badFields = (fields: BookingField[]) => hasUnnamedField(fields) || hasEmailField(fields)
   const fieldsBlocked =
-    (mode === 'calendly' && hasUnnamedField(calendlySettings.extra_fields)) ||
-    (mode === 'iclose' && hasUnnamedField(icloseSettings.extra_fields))
+    (mode === 'calendly' && badFields(calendlySettings.extra_fields)) ||
+    (mode === 'iclose' && badFields(icloseSettings.extra_fields))
   const preview = useMemo(() => agendaPreview(agenda), [agenda])
 
   const modeVisible = (m: string) =>
