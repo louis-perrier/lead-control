@@ -1,60 +1,15 @@
 // Message Slack quand un appel est réservé. Appelée seulement par le déclencheur posé sur
 // bookings, avec le jeton machine : jamais depuis le navigateur.
 import { admin, handleOptions, isCronCall, json, logEvent } from '../_shared/core.ts'
-
-type BookingRow = {
-  id: string
-  user_id: string
-  conversation_id: number | null
-  provider: string
-  event_type_name: string | null
-  invitee_name: string | null
-  invitee_email: string | null
-  event_start_at: string | null
-  meet_link: string | null
-  raw_payload: Record<string, unknown> | null
-}
-
-const TOOLS: Record<string, string> = { calendly: 'Calendly', iclose: 'iClose', google: 'Google Agenda' }
-
-function momentLabel(iso: string | null, tz: string) {
-  if (!iso) return 'date inconnue'
-  const ms = Date.parse(iso)
-  if (!Number.isFinite(ms)) return 'date inconnue'
-  return new Intl.DateTimeFormat('fr-FR', {
-    timeZone: tz,
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(ms))
-}
-
-function lines(booking: BookingRow, tz: string, handle: string | null) {
-  const who = booking.invitee_name || handle || 'Prospect Instagram'
-  const out = [`Appel réservé avec ${who}`, `Quand : ${momentLabel(booking.event_start_at, tz)} (${tz})`]
-  if (booking.event_type_name) out.push(`Page : ${booking.event_type_name}`)
-  out.push(`Outil : ${TOOLS[booking.provider] ?? booking.provider}`)
-  if (booking.invitee_email) out.push(`E-mail : ${booking.invitee_email}`)
-
-  const answers = booking.raw_payload?.answers
-  if (Array.isArray(answers)) {
-    for (const a of answers as { label?: unknown; value?: unknown }[]) {
-      if (typeof a?.label === 'string' && typeof a?.value === 'string') out.push(`${a.label} : ${a.value}`)
-    }
-  }
-  if (booking.meet_link) out.push(`Visio : ${booking.meet_link}`)
-  return out
-}
+import { slackBookingText, type SlackBooking, type SlackConversation } from './message.ts'
 
 async function notify(bookingId: string) {
   const { data } = await admin
     .from('bookings')
-    .select('id, user_id, conversation_id, provider, event_type_name, invitee_name, invitee_email, event_start_at, meet_link, raw_payload')
+    .select('user_id, conversation_id, invitee_name, invitee_email, event_start_at, raw_payload')
     .eq('id', bookingId)
     .maybeSingle()
-  const booking = data as BookingRow | null
+  const booking = data as (SlackBooking & { user_id: string }) | null
   if (!booking) return
 
   const { data: account } = await admin
@@ -79,20 +34,20 @@ async function notify(bookingId: string) {
   const { data: profile } = await admin.from('profiles').select('timezone').eq('user_id', booking.user_id).maybeSingle()
   const tz = profile?.timezone || 'Europe/Paris'
 
-  let handle: string | null = null
+  let conv: SlackConversation | null = null
   if (booking.conversation_id) {
-    const { data: conv } = await admin
+    const { data } = await admin
       .from('conversations')
-      .select('contact_handle')
+      .select('provider, contact_name, contact_handle, summary')
       .eq('id', booking.conversation_id)
       .maybeSingle()
-    handle = conv?.contact_handle ? `@${conv.contact_handle}` : null
+    conv = data as SlackConversation | null
   }
 
   const res = await fetch(hookUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text: lines(booking, tz, handle).join('\n') }),
+    body: JSON.stringify({ text: slackBookingText(booking, conv, tz) }),
     signal: AbortSignal.timeout(8000),
   })
   if (res.ok) return
