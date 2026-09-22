@@ -18,6 +18,16 @@ export type SlackConversation = {
 
 const SITE = 'https://leadcontrol.fr'
 
+// Envoyé à la connexion et par « Envoyer un message d'essai » : sans lui, rien n'arrive dans le
+// canal avant le premier appel réservé, et le client croit que la connexion a échoué.
+export const SLACK_HELLO =
+  'LeadControl est relié à ce canal. Un message arrivera ici à chaque appel réservé, avec le prospect, la date, ses coordonnées et le résumé de la conversation.'
+
+// Slack répond « no_service » quand le client a retiré l'application : le compte est clos.
+export function slackGone(status: number, detail: string) {
+  return status === 404 || detail.includes('no_service') || detail.includes('no_team')
+}
+
 function escape(text: string) {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }

@@ -1,7 +1,7 @@
 // Message Slack quand un appel est réservé. Appelée seulement par le déclencheur posé sur
 // bookings, avec le jeton machine : jamais depuis le navigateur.
 import { admin, handleOptions, isCronCall, json, logEvent } from '../_shared/core.ts'
-import { slackBookingText, type SlackBooking, type SlackConversation } from './message.ts'
+import { slackBookingText, slackGone, type SlackBooking, type SlackConversation } from './message.ts'
 
 async function notify(bookingId: string) {
   const { data } = await admin
@@ -54,8 +54,7 @@ async function notify(bookingId: string) {
 
   const detail = (await res.text().catch(() => '')).slice(0, 120)
   await logEvent('warn', 'slack-notify', `message Slack refusé (${res.status}) : ${detail}`, { user_id: booking.user_id })
-  // Slack répond « no_service » quand le client a retiré l'application : le compte est clos.
-  if (detail.includes('no_service') || detail.includes('no_team') || res.status === 404) {
+  if (slackGone(res.status, detail)) {
     await admin
       .from('channel_accounts')
       .update({ status: 'expired', last_error: detail })

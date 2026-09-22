@@ -1,7 +1,8 @@
 // Connexion d'un espace Slack : /start (URL d'autorisation), /callback (échange du code),
-// /disconnect. La portée demandée est incoming-webhook : Slack fait choisir le canal au client
-// et nous rend une URL liée à ce canal, qui vit dans secrets.channel_tokens.
+// /disconnect, /test (message d'essai). La portée demandée est incoming-webhook : Slack fait
+// choisir le canal au client et nous rend une URL liée à ce canal, qui vit dans secrets.channel_tokens.
 import { admin, getUser, handleOptions, json, logEvent } from '../_shared/core.ts'
+import { SLACK_HELLO, slackGone } from '../slack-notify/message.ts'
 
 const SLACK_CLIENT_ID = Deno.env.get('SLACK_CLIENT_ID') ?? ''
 const SLACK_CLIENT_SECRET = Deno.env.get('SLACK_CLIENT_SECRET') ?? ''
@@ -64,6 +65,21 @@ async function exchangeCode(code: string) {
     signal: AbortSignal.timeout(8000),
   })
   return (await res.json().catch(() => ({}))) as Record<string, unknown>
+}
+
+async function hello(hookUrl: string) {
+  try {
+    const res = await fetch(hookUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: SLACK_HELLO }),
+      signal: AbortSignal.timeout(8000),
+    })
+    if (res.ok) return { ok: true, status: res.status, detail: '' }
+    return { ok: false, status: res.status, detail: (await res.text().catch(() => '')).slice(0, 120) }
+  } catch (e) {
+    return { ok: false, status: 0, detail: String(e).slice(0, 120) }
+  }
 }
 
 async function callback(req: Request) {
@@ -130,7 +146,13 @@ async function callback(req: Request) {
       )
     if (stored.error) throw new Error(stored.error.message)
 
-    return redirectTo(row.return_to ?? '/app/settings', { slack_connected: '1' })
+    const sent = await hello(hookUrl)
+    if (!sent.ok) {
+      await logEvent('warn', 'slack-oauth', `message d'accueil refusé (${sent.status}) : ${sent.detail}`, {
+        user_id: row.user_id,
+      })
+    }
+    return redirectTo(row.return_to ?? '/app/settings', { slack_connected: sent.ok ? '1' : 'silent' })
   } catch (e) {
     await logEvent('error', 'slack-oauth', `connexion échouée: ${String(e).slice(0, 200)}`)
     return redirectTo('/app/settings', { slack_error: 'unavailable' })
@@ -163,6 +185,33 @@ async function disconnect(req: Request) {
   return json(req, { ok: true })
 }
 
+async function test(req: Request) {
+  const user = await getUser(req)
+  if (!user) return json(req, { error: 'Unauthorized' }, 401)
+  const { data: account } = await admin
+    .from('channel_accounts')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('provider', 'slack')
+    .eq('status', 'connected')
+    .limit(1)
+    .maybeSingle()
+  const { data: token } = account
+    ? await admin.schema('secrets').from('channel_tokens').select('access_token').eq('channel_account_id', account.id).maybeSingle()
+    : { data: null }
+  const hookUrl = (token as { access_token: string | null } | null)?.access_token ?? ''
+  if (!account || !hookUrl) return json(req, { error: 'not_connected' }, 404)
+
+  const sent = await hello(hookUrl)
+  if (sent.ok) return json(req, { ok: true })
+  await logEvent('warn', 'slack-oauth', `message d'essai refusé (${sent.status}) : ${sent.detail}`, { user_id: user.id })
+  if (slackGone(sent.status, sent.detail)) {
+    await admin.from('channel_accounts').update({ status: 'expired', last_error: sent.detail }).eq('id', account.id)
+    return json(req, { error: 'slack_gone' }, 410)
+  }
+  return json(req, { error: 'slack_refused' }, 502)
+}
+
 Deno.serve(async (req) => {
   const opt = handleOptions(req)
   if (opt) return opt
@@ -170,5 +219,6 @@ Deno.serve(async (req) => {
   if (req.method === 'POST' && path.endsWith('/start')) return start(req)
   if (req.method === 'GET' && path.endsWith('/callback')) return callback(req)
   if (req.method === 'POST' && path.endsWith('/disconnect')) return disconnect(req)
+  if (req.method === 'POST' && path.endsWith('/test')) return test(req)
   return json(req, { error: 'Not found' }, 404)
 })

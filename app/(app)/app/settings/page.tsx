@@ -508,13 +508,19 @@ function SlackCard() {
   const invalidate = useInvalidate()
   const toast = useToast()
   const [busy, setBusy] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const slack = channels?.find((c) => c.provider === 'slack')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('slack_connected')) {
-      toast('Slack relié.')
+      toast(
+        params.get('slack_connected') === '1'
+          ? 'Slack relié : un premier message vient d’arriver dans votre canal.'
+          : 'Slack relié, mais le premier message n’est pas passé. Essayez « Envoyer un message d’essai ».',
+        params.get('slack_connected') === '1' ? 'success' : 'error',
+      )
       invalidate('channel-accounts')
     } else if (params.get('slack_error')) {
       toast(
@@ -546,6 +552,22 @@ function SlackCard() {
       toast('Impossible de démarrer la connexion Slack.', 'error')
       setBusy(false)
     }
+  }
+
+  async function sendTest() {
+    setTesting(true)
+    try {
+      await callFunction('slack-oauth/test', { body: {} })
+      toast(`Message envoyé dans ${slack?.label ?? 'votre canal'}.`)
+    } catch (e) {
+      if ((e as Error).message === 'slack_gone') {
+        toast('L’application a été retirée de votre espace Slack. Reconnectez Slack.', 'error')
+        invalidate('channel-accounts')
+      } else {
+        toast('Le message n’est pas passé. Réessayez dans un instant.', 'error')
+      }
+    }
+    setTesting(false)
   }
 
   async function disconnect() {
@@ -581,11 +603,21 @@ function SlackCard() {
                 <Button onClick={connect} disabled={busy}>
                   Reconnecter
                 </Button>
-              ) : null}
+              ) : (
+                <Button variant="secondary" onClick={sendTest} disabled={busy || testing}>
+                  {testing ? 'Envoi…' : 'Envoyer un message d’essai'}
+                </Button>
+              )}
               <Button variant="secondary" onClick={() => setConfirmOpen(true)} disabled={busy}>
                 Déconnecter
               </Button>
             </div>
+            {slack.status === 'connected' ? (
+              <p className="w-full text-muted">
+                Un message arrivera dans {slack.label ?? 'votre canal'} à chaque appel réservé, avec le prospect, la date
+                et le résumé de la conversation.
+              </p>
+            ) : null}
           </>
         ) : (
           <>

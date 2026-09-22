@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { slackBookingText } from '../supabase/functions/slack-notify/message'
+import { slackBookingText, slackGone } from '../supabase/functions/slack-notify/message'
 
 const booking = {
   conversation_id: 42,
@@ -64,5 +64,14 @@ describe('slackBookingText', () => {
   it('reste lisible sans conversation ni nom', () => {
     const out = slackBookingText({ ...booking, conversation_id: null, invitee_name: null, invitee_email: null }, null, 'Europe/Paris')
     expect(out).toBe('Appel réservé avec un prospect\nQuand : mercredi 23 septembre à 14:30')
+  })
+})
+
+describe('slackGone', () => {
+  it('reconnaît une application retirée, pas une panne passagère', () => {
+    expect(slackGone(403, 'no_service')).toBe(true)
+    expect(slackGone(404, '')).toBe(true)
+    expect(slackGone(500, 'internal_error')).toBe(false)
+    expect(slackGone(0, 'TimeoutError')).toBe(false)
   })
 })
