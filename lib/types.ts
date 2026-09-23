@@ -65,10 +65,14 @@ export type AssistantSettings = {
   canned_responses?: CannedResponse[]
   booking?: {
     mode?: BookingMode
+    /** Qui mène l'appel quand l'assistant le réserve : le compte, ou une autre personne nommée. */
+    host?: { who?: 'me' | 'other'; label?: string }
     calendar?: Partial<AgendaSettings>
     calendly?: Partial<CalendlySettings>
     iclose?: Partial<IcloseSettings>
   }
+  /** Ressources que l'assistant peut envoyer en phase de découverte (module discovery_flow). */
+  resources?: { id: string; title: string; url: string; when: string }[]
 }
 
 export type FollowupItem = {

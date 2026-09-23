@@ -35,6 +35,8 @@ import { normalizeCalendly, type CalendlySettings } from '@/supabase/functions/_
 import { normalizeIclose, type IcloseSettings } from '@/supabase/functions/_shared/iclose-settings'
 import {
   BOOKING_NOTICE_OPTIONS,
+  MAX_HOST_LABEL,
+  bookingHost,
   FIELD_KINDS,
   KIND_DEFAULT_LABEL,
   hasEmailField,
@@ -43,6 +45,7 @@ import {
   OFFER_STYLES,
   RANGE_HOUR_OPTIONS,
   type BookingField,
+  type BookingHost,
   type OfferStyle,
 } from '@/supabase/functions/_shared/booking-settings'
 import type {
@@ -54,6 +57,7 @@ import type {
 } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
 import { FollowupsCard } from '@/components/assistant/followups-card'
+import { ResourcesCard } from '@/components/assistant/resources-card'
 import { pillClass } from '@/components/assistant/followup-fields'
 import { useSaveSettings } from '@/components/assistant/use-save-settings'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -1261,6 +1265,8 @@ function GoalSection({
   const [agenda, setAgenda] = useState<AgendaSettings>(normalizeAgenda(s.booking?.calendar))
   const [calendlySettings, setCalendly] = useState<CalendlySettings>(normalizeCalendly(s.booking?.calendly))
   const [icloseSettings, setIclose] = useState<IcloseSettings>(normalizeIclose(s.booking?.iclose))
+  const [host, setHost] = useState<BookingHost>(() => bookingHost(s.booking?.host))
+  const [hostError, setHostError] = useState('')
   const [linkError, setLinkError] = useState('')
   const [pageMissing, setPageMissing] = useState(false)
   const agendaError = mode === 'calendar' ? agendaSettingsError(agenda) : null
@@ -1304,6 +1310,11 @@ function GoalSection({
       setLinkError('Le lien doit commencer par http:// ou https://')
       return
     }
+    setHostError('')
+    if (mode !== 'link' && host.who === 'other' && !host.label.trim()) {
+      setHostError('Indiquez qui prend l’appel, par exemple « Marceau, mon associé ».')
+      return
+    }
     if (agendaError || calendlyBlocked || icloseBlocked || fieldsBlocked) return
     save((fresh) => ({
       stop_condition: { ...fresh.stop_condition, text: stopText.trim(), link: stopLink.trim() },
@@ -1311,6 +1322,7 @@ function GoalSection({
       booking: {
         ...fresh.booking,
         mode: modeVisible(fresh.booking?.mode ?? 'link') ? mode : fresh.booking?.mode ?? 'link',
+        host: { who: host.who, label: host.who === 'other' ? host.label.trim() : '' },
         calendar: agenda,
         calendly: calendlySettings,
         iclose: icloseSettings,
@@ -1393,6 +1405,50 @@ function GoalSection({
                 ))}
               </div>
               <FieldHint>Plusieurs outils sont reliés. Déconnectez celui dont vous ne vous servez plus.</FieldHint>
+            </div>
+          ) : null}
+
+          {mode !== 'link' ? (
+            <div>
+              <Label id="bookingHostLabel">Qui prend l’appel</Label>
+              <div role="radiogroup" aria-labelledby="bookingHostLabel" className="inline-flex rounded-[10px] border border-border bg-bg p-1">
+                {(
+                  [
+                    { value: 'me', label: 'Moi' },
+                    { value: 'other', label: 'Une autre personne' },
+                  ] as { value: BookingHost['who']; label: string }[]
+                ).map((h) => (
+                  <button
+                    key={h.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={host.who === h.value}
+                    onClick={() => setHost((current) => ({ ...current, who: h.value }))}
+                    className={
+                      host.who === h.value
+                        ? 'rounded-[8px] bg-surface px-3 py-1.5 text-sm font-medium text-ink shadow-soft'
+                        : 'rounded-[8px] px-3 py-1.5 text-sm font-medium text-muted hover:text-ink'
+                    }
+                  >
+                    {h.label}
+                  </button>
+                ))}
+              </div>
+              {host.who === 'other' ? (
+                <div className="mt-2">
+                  <Input
+                    aria-label="Prénom ou rôle de la personne qui prend l’appel"
+                    value={host.label}
+                    maxLength={MAX_HOST_LABEL}
+                    placeholder="Ex. : Marceau, mon associé"
+                    onChange={(e) => setHost((current) => ({ ...current, label: e.target.value }))}
+                  />
+                  <FieldHint>L’assistant le dira en proposant l’appel, et ne laissera jamais croire qu’il y sera lui-même.</FieldHint>
+                </div>
+              ) : (
+                <FieldHint>L’assistant parle en votre nom : il propose un appel avec vous.</FieldHint>
+              )}
+              <FieldError>{hostError}</FieldError>
             </div>
           ) : null}
 
@@ -2889,6 +2945,7 @@ function AssistantContent() {
   const allowCalendar = hasFeature('google_calendar', flags, profile, overrides)
   const allowCalendlyBooking = hasFeature('calendly_booking', flags, profile, overrides)
   const allowIclose = hasFeature('iclose_booking', flags, profile, overrides)
+  const allowDiscovery = hasFeature('discovery_flow', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -3011,6 +3068,7 @@ function AssistantContent() {
           <MethodSection assistant={assistant} />
         </div>
       ) : null}
+      {allowDiscovery ? <ResourcesCard assistant={assistant} /> : null}
       <div className="xl:col-span-2">
         <GoalSection
           assistant={assistant}

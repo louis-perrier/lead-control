@@ -195,3 +195,4 @@ tests/agenda-prompt.test.ts
 tests/system-blocks.test.ts
 tests/calendly-prompt.test.ts
 tests/method-prompt-golden.test.ts
+tests/discovery-prompt-golden.test.ts

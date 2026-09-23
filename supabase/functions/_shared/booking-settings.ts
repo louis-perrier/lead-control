@@ -92,3 +92,16 @@ export function normalizeFields(value: unknown): BookingField[] {
 export function fieldKey(index: number) {
   return `champ${index + 1}`
 }
+
+// Qui mène l'appel réservé par l'assistant : le compte lui-même, ou quelqu'un d'autre (un
+// associé, un closer). L'assistant parle toujours au nom du compte, il doit donc le savoir.
+export type BookingHost = { who: 'me' | 'other'; label: string }
+
+export const MAX_HOST_LABEL = 40
+
+export function bookingHost(raw: unknown): BookingHost {
+  const value = (raw ?? {}) as { who?: unknown; label?: unknown }
+  const label = text(value.label).slice(0, MAX_HOST_LABEL)
+  if (value.who === 'other' && label) return { who: 'other', label }
+  return { who: 'me', label: '' }
+}
