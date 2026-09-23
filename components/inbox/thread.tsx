@@ -270,6 +270,7 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
   }, [conversation.id, conversation.automation_state, notificationsEnabled])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const [pauseOpen, setPauseOpen] = useState(false)
   const [closeOpen, setCloseOpen] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -388,19 +389,24 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
     const text = draft.trim()
     if (!text || sending) return
     setSending(true)
+    setSendError('')
     setDraft('')
     try {
       await callFunction('messages-send', { body: { conversation_id: conversation.id, text } })
       invalidate('messages', 'conversations')
     } catch (err) {
       setDraft(text)
-      if (err instanceof Error && err.message === 'window_expired') {
-        toast('Envoi impossible : plus de 24 h depuis le dernier message du prospect (règle Instagram).', 'error')
-      } else if (err instanceof Error && err.message === 'window_closed') {
-        toast('Envoi impossible : le prospect doit vous réécrire pour rouvrir la conversation (règle Instagram).', 'error')
-      } else {
-        toast('L’envoi a échoué. Réessayez.', 'error')
-      }
+      const code = err instanceof Error ? err.message : ''
+      const message =
+        code === 'window_expired'
+          ? 'Envoi impossible : plus de 24 h depuis le dernier message du prospect (règle Instagram).'
+          : code === 'window_closed'
+            ? 'Envoi impossible : le prospect doit vous réécrire pour rouvrir la conversation (règle Instagram).'
+            : code === 'human_agent_refused'
+              ? 'Instagram a refusé cet envoi hors de la fenêtre de 24 h : la fonctionnalité Human Agent n’est pas encore validée par Meta pour cette application.'
+              : 'L’envoi a échoué. Réessayez.'
+      setSendError(message)
+      toast(message, 'error')
     }
     setSending(false)
   }
@@ -492,6 +498,9 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
                 ? 'Plus de 7 jours depuis le dernier message du prospect : Instagram n’autorise plus l’envoi tant qu’il n’a pas réécrit.'
                 : 'Plus de 24 h depuis le dernier message du prospect : Instagram n’autorise plus l’envoi.'}
             </p>
+          ) : null}
+          {sendError ? (
+            <p className="mb-2 rounded-[8px] border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-xs text-danger">{sendError}</p>
           ) : null}
           <div className="flex items-end gap-2">
             <textarea

@@ -89,11 +89,15 @@ Deno.serve(async (req) => {
       .update({ external_message_id: mid ?? provisional, send_state: 'sent' })
       .eq('id', inserted.data.id)
   } catch (e) {
+    const detail = String(e).slice(0, 200)
     await admin
       .from('conversation_messages')
-      .update({ send_state: 'failed', error_message: String(e).slice(0, 200) })
+      .update({ send_state: 'failed', error_message: detail })
       .eq('id', inserted.data.id)
-    return json(req, { error: 'send_failed' }, 502)
+    // Hors fenêtre de 24 h, le seul refus possible vient du tag : le dire, sinon l'écran laisse
+    // croire à une panne de LeadControl.
+    if (mode === 'human_agent') return json(req, { error: 'human_agent_refused', detail }, 502)
+    return json(req, { error: 'send_failed', detail }, 502)
   }
 
   await admin.rpc('bump_conversation_human_sent', {
