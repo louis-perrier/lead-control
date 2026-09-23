@@ -89,7 +89,7 @@ export function FollowupStepEditor({
           <Label className="mb-0">Étape {index + 1}</Label>
           <DelaySelect
             value={Number(step.at_minutes) || 0}
-            maxHours={step.kind === 'notify' ? 167 : 23}
+            maxHours={step.kind === 'notify' ? 168 : 23}
             onChange={(minutes) => onChange({ at_minutes: minutes })}
           />
           <span className="text-sm text-muted">après votre dernier message</span>
@@ -197,7 +197,7 @@ export function FollowupStepEditor({
                   onChange={(text) => editVariant(variant.id, { text })}
                 />
               )}
-              <VariantStats step={step} variant={variant} stats={stats} />
+              {step.kind === 'message' ? <VariantStats step={step} variant={variant} stats={stats} /> : null}
             </div>
           ))}
           <div className="flex flex-wrap items-center gap-3">

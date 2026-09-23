@@ -596,7 +596,7 @@ async function handleConversation(due: DueConversation) {
       // Réservé pendant le premier essai : le second doit le savoir pour confirmer, pas reproposer.
       const bookedFirst = agenda?.result.bookedThisTurn ? agenda.result.booking : null
       const retrySystem =
-        agendaCtx && bookedFirst
+        agenda && agendaCtx && bookedFirst
           ? splitSystemForCache(
               withAgendaSection(baseSystem, {
                 ...agendaCtx,

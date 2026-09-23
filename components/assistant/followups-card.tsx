@@ -186,7 +186,7 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
             <>
               {converted ? (
                 <p className="rounded-[10px] border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-ink">
-                  Vos réglages ont été convertis en séquence d’étapes. Relisez-les, puis enregistrez.
+                  Vos réglages ont été convertis en séquence d’étapes. Un message de réserve qui n’était rattaché à aucune relance n’est pas repris : ajoutez-le en variante si vous y tenez. Relisez, puis enregistrez.
                 </p>
               ) : null}
 

@@ -518,7 +518,11 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
                   Ouvrir la conversation dans Instagram
                 </a>
               ) : null}
-              <span className="text-xs text-muted">Plus de 24 h : Instagram n’autorise plus l’envoi depuis LeadControl. Votre envoi apparaîtra ici de lui-même.</span>
+              <span className="text-xs text-muted">
+                {sendMode === 'human_agent'
+                  ? 'Plus de 24 h : envoyez-la depuis Instagram, ou depuis la boîte ci-dessous grâce à Human Agent. Votre envoi apparaîtra ici de lui-même.'
+                  : 'Plus de 24 h : Instagram n’autorise plus l’envoi depuis LeadControl. Votre envoi apparaîtra ici de lui-même.'}
+              </span>
             </div>
           </div>
         ) : null}

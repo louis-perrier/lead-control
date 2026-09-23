@@ -50,7 +50,6 @@ import {
 } from '@/supabase/functions/_shared/booking-settings'
 import type {
   Assistant,
-  AssistantSettings,
   CannedResponse,
   ChannelAccount,
   ContextDocument,
