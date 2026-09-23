@@ -161,6 +161,28 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
   }
 }
 
+// Sans cet abonnement, le compte est relié mais aucun message privé n'arrive jamais. L'échec
+// était avalé en silence : deux essais, puis une trace, sinon la panne reste invisible.
+async function subscribeToMessages(token: string, userId: string) {
+  let detail = ''
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const res = await fetch(
+        `${GRAPH}/v25.0/me/subscribed_apps?subscribed_fields=messages&access_token=${encodeURIComponent(token)}`,
+        { method: 'POST', signal: AbortSignal.timeout(8000) },
+      )
+      const body = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } }
+      if (res.ok && body.success !== false) return true
+      detail = body.error?.message ?? `HTTP ${res.status}`
+    } catch (e) {
+      detail = String(e).slice(0, 120)
+    }
+    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+  await logEvent('error', 'instagram-oauth', `abonnement aux messages refusé: ${detail.slice(0, 200)}`, { user_id: userId })
+  return false
+}
+
 async function callback(req: Request) {
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
@@ -261,10 +283,7 @@ async function callback(req: Request) {
       assistantId = linked.data?.id ?? null
     }
 
-    await fetch(
-      `${GRAPH}/v25.0/me/subscribed_apps?subscribed_fields=messages&access_token=${encodeURIComponent(token)}`,
-      { method: 'POST' },
-    ).catch(() => {})
+    await subscribeToMessages(token, st.user_id)
 
     // @ts-ignore fourni par le runtime Edge
     EdgeRuntime.waitUntil(syncRecentHistory(account.data.id, igUserId, token, st.user_id, assistantId))
