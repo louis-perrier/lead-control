@@ -40,3 +40,26 @@ export async function notifyAccount(userId: string, dedupeKey: string, body: str
     // idem : une notification perdue ne bloque rien
   }
 }
+
+// Relance que le coach doit envoyer lui-même depuis Instagram, la fenêtre Meta étant fermée.
+// Clé distincte de conv:<id> pour ne pas écraser une demande d'aide encore ouverte.
+export async function notifyFollowupToSend(userId: string, conversationId: number, body: string) {
+  const key = `conv:${conversationId}:followup`
+  try {
+    await admin
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('dedupe_key', key)
+      .is('read_at', null)
+    await admin.from('notifications').insert({
+      user_id: userId,
+      conversation_id: conversationId,
+      kind: 'followup',
+      body: body.slice(0, 120),
+      dedupe_key: key,
+    })
+  } catch (_) {
+    // la relance reste visible dans la boîte même sans notification
+  }
+}

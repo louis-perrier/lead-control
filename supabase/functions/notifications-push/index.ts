@@ -100,7 +100,12 @@ Deno.serve(async (req) => {
   const contact = notification.conversations as unknown as { contact_name: string | null; contact_handle: string | null } | null
   const who = contact?.contact_name || (contact?.contact_handle ? `@${contact.contact_handle}` : 'Un prospect')
   const delivered = await sendToUser(notification.user_id, {
-    title: notification.kind === 'needs_you' ? `${who} a besoin de vous` : 'Assistant bloqué',
+    title:
+      notification.kind === 'followup'
+        ? `Relance à envoyer à ${who}`
+        : notification.kind === 'needs_you'
+          ? `${who} a besoin de vous`
+          : 'Assistant bloqué',
     body: notification.body,
     url: notification.conversation_id ? `/app/inbox?c=${notification.conversation_id}` : '/app/inbox',
     tag: `notification-${notification.id}`,

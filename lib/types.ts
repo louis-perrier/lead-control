@@ -94,9 +94,34 @@ export type AssistedFollowup = {
 
 export type FollowupMessage = { id: string; text: string }
 
+export type FollowupVariantKind = 'text' | 'audio' | 'image'
+export type FollowupStepKind = 'like' | 'message' | 'notify'
+
+export type FollowupVariant = {
+  id: string
+  kind: FollowupVariantKind
+  text?: string
+  media_path?: string
+  media_mime?: string
+  media_duration_ms?: number
+  /** Vocal : transcription. Image : ce que montre l'image, lue par l'assistant. */
+  transcript?: string
+}
+
+/** Une étape de la séquence. `at_minutes` se compte depuis le dernier message du compte. */
+export type FollowupStep = {
+  id: string
+  at_minutes: number
+  kind: FollowupStepKind
+  variants: FollowupVariant[]
+}
+
 export type FollowupSettings = {
   enabled?: boolean
   after_own_message?: boolean
+  version?: number
+  steps?: FollowupStep[]
+  /** Réglages d'avant la séquence, encore lus tant qu'ils n'ont pas été réenregistrés. */
   messages?: FollowupMessage[]
   items?: FollowupItem[]
   assisted?: AssistedFollowup[]
@@ -119,7 +144,7 @@ export type Followup = {
   conversation_id: number
   slot_index: number
   scheduled_at: string
-  status: 'pending' | 'sending' | 'sent' | 'skipped' | 'cancelled'
+  status: 'pending' | 'sending' | 'sent' | 'notified' | 'skipped' | 'cancelled'
 }
 
 export type Assistant = {
@@ -242,7 +267,7 @@ export type AppNotification = {
   id: number
   user_id: string
   conversation_id: number | null
-  kind: 'needs_you' | 'blocked'
+  kind: 'needs_you' | 'blocked' | 'followup'
   body: string
   created_at: string
   read_at: string | null

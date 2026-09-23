@@ -117,7 +117,7 @@ function renderMessage(m: WindowMessage) {
     if (m.transcript_status === 'processing') return '[Vocal en cours de transcription]'
     return '[Vocal non transcrit]'
   }
-  if (m.message_type === 'image') return '[Photo]'
+  if (m.message_type === 'image') return m.transcript?.trim() ? `[Image] ${m.transcript.trim()}` : '[Photo]'
   return m.body_text?.trim() ?? ''
 }
 

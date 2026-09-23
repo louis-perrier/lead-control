@@ -61,6 +61,28 @@ export async function sendInstagramAudio(
   return body.message_id ?? null
 }
 
+// Même mécanique que le vocal : Meta télécharge l'image à l'URL signée. jpg, png et gif, 8 Mo au plus.
+export async function sendInstagramImage(
+  token: string,
+  igUserId: string,
+  recipientId: string,
+  imageUrl: string,
+  opts?: SendOptions,
+): Promise<string | null> {
+  const res = await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      recipient: { id: recipientId },
+      message: { attachment: { type: 'image', payload: { url: imageUrl, is_reusable: false } } },
+      ...humanAgentFields(opts),
+    }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(`graph_send_image_${res.status}:${JSON.stringify(body).slice(0, 300)}`)
+  return body.message_id ?? null
+}
+
 export async function markSeen(token: string, igUserId: string, recipientId: string) {
   try {
     await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
