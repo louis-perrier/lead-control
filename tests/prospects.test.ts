@@ -61,3 +61,18 @@ describe('nextAction', () => {
     expect(nextAction({ ...base, automation_state: 'stopped', automation_reason: 'imported_history' }, opts)).toBeNull()
   })
 })
+
+describe('relance à envoyer par le coach', () => {
+  const opts = { followupAt: null, humanAgent: false, now }
+
+  it('passe avant la relance prévue et avant le module Human Agent', () => {
+    const silent = { ...base, last_customer_message_at: hoursAgo(40), last_message_at: hoursAgo(39) }
+    expect(nextAction(silent, { ...opts, toSendAt: hoursAgo(1) })).toEqual({ key: 'followup_to_send', at: hoursAgo(1), needsCoach: true })
+    expect(nextAction(silent, { ...opts, toSendAt: hoursAgo(1), followupAt: hoursAgo(-3), humanAgent: true })?.key).toBe('followup_to_send')
+  })
+
+  it('cède la place à une erreur ou à une conversation clôturée', () => {
+    expect(nextAction({ ...base, automation_state: 'error' }, { ...opts, toSendAt: hoursAgo(1) })?.key).toBe('error')
+    expect(nextAction({ ...base, outcome: 'lost' }, { ...opts, toSendAt: hoursAgo(1) })).toBeNull()
+  })
+})

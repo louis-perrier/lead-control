@@ -6,6 +6,8 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  Copy,
+  ExternalLink,
   Handshake,
   Image as ImageIcon,
   Info,
@@ -17,7 +19,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
-import { useAssistants, useFlags, useInvalidate, useMyOverrides, usePendingFollowup, useProfile } from '@/lib/queries'
+import { useAssistants, useFlags, useFollowupToSend, useInvalidate, useMyOverrides, usePendingFollowup, useProfile } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import { useAvatarUrls } from '@/lib/avatars'
 import { markConversationNotificationsRead, useNotificationsEnabled } from '@/lib/notifications'
@@ -30,6 +32,7 @@ import {
   needsManualFollowup,
 } from '@/supabase/functions/_shared/messaging-window'
 import { renderFollowupText, usableDisplayName } from '@/supabase/functions/_shared/followup-text'
+import { followupSteps, notifyTemplates } from '@/supabase/functions/_shared/followup-plan'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, ConfirmDialog } from '@/components/ui/dialog'
@@ -79,17 +82,19 @@ function MediaBubble({ message }: { message: ConversationMessage }) {
   }
 
   if (message.message_type === 'image') {
+    const sent = message.direction === 'out'
     return (
       <div className="space-y-1.5">
         {url ? (
-          <img src={url} alt="Photo reçue" className="max-h-64 rounded-lg" />
+          <img src={url} alt={sent ? 'Image envoyée' : 'Photo reçue'} className="max-h-64 rounded-lg" />
         ) : (
           <button onClick={load} className="flex items-center gap-1.5 text-sm underline" disabled={loading}>
             <ImageIcon size={15} />
-            {loading ? 'Chargement…' : 'Voir la photo'}
+            {loading ? 'Chargement…' : sent ? 'Voir l’image envoyée' : 'Voir la photo'}
           </button>
         )}
-        {error ? <p className="text-xs text-danger">Photo indisponible.</p> : null}
+        {sent && message.transcript ? <p className="text-xs opacity-80">{message.transcript}</p> : null}
+        {error ? <p className="text-xs text-danger">{sent ? 'Image indisponible.' : 'Photo indisponible.'}</p> : null}
       </div>
     )
   }
@@ -317,8 +322,9 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
   const followupDue = humanAgent && needsManualFollowup(conversation, now)
   const assistant = assistants?.find((a) => a.id === conversation.assistant_id)
   const suggestion = followupDue
-    ? assistedSuggestion(assistant?.settings.followups?.assisted, conversation.last_message_at, now)
+    ? assistedSuggestion(notifyTemplates(followupSteps(assistant?.settings.followups)), conversation.last_message_at, now)
     : null
+  const { data: toSend } = useFollowupToSend(conversation.id)
 
   useEffect(() => {
     if (!suggestion || prefilledFor.current === conversation.id) return
@@ -341,6 +347,32 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
     setDraft('')
     toast('Ce prospect ne vous sera plus proposé, sauf s’il vous réécrit.')
     invalidate('conversations')
+  }
+
+  async function copyToSend() {
+    if (!toSend?.message_body) return
+    try {
+      await navigator.clipboard.writeText(toSend.message_body)
+      toast('Texte copié. Collez-le dans Instagram.')
+    } catch {
+      toast('Impossible de copier : sélectionnez le texte à la main.', 'error')
+    }
+  }
+
+  // Écarte ce prospect des relances : la suite de la séquence est annulée et l'encart disparaît.
+  async function dismissToSend() {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('conversations')
+      .update({ metadata: { ...(conversation.metadata ?? {}), assisted_dismissed_at: new Date().toISOString() } })
+      .eq('id', conversation.id)
+    if (error) {
+      toast('Impossible d’écarter cette relance.', 'error')
+      return
+    }
+    await supabase.rpc('cancel_conversation_followups', { p_conversation_id: conversation.id })
+    toast('Relance écartée. Ce prospect ne sera plus relancé, sauf s’il vous réécrit.')
+    invalidate('conversations', 'followup', 'followup-to-send', 'followups-to-send')
   }
 
   async function togglePause() {
@@ -461,7 +493,36 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
             </button>
           </div>
         ) : null}
-        {followupDue ? (
+        {toSend?.message_body ? (
+          <div className="space-y-2 border-b border-border bg-primary/5 px-3 py-2.5 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <span className="font-medium text-ink">Relance à envoyer depuis Instagram</span>
+              <button type="button" onClick={dismissToSend} className="text-muted hover:text-ink hover:underline">
+                Ne pas relancer
+              </button>
+            </div>
+            <p className="whitespace-pre-wrap rounded-[8px] border border-border bg-surface px-2.5 py-2 text-ink">{toSend.message_body}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={copyToSend}>
+                <Copy size={14} />
+                Copier le texte
+              </Button>
+              {conversation.contact_handle ? (
+                <a
+                  href={`https://ig.me/m/${conversation.contact_handle}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                >
+                  <ExternalLink size={14} />
+                  Ouvrir la conversation dans Instagram
+                </a>
+              ) : null}
+              <span className="text-xs text-muted">Plus de 24 h : Instagram n’autorise plus l’envoi depuis LeadControl. Votre envoi apparaîtra ici de lui-même.</span>
+            </div>
+          </div>
+        ) : null}
+        {followupDue && !toSend ? (
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border bg-primary/5 px-3 py-2 text-sm">
             <span className="text-ink">
               Plus de réponse depuis {formatRemaining(now - Date.parse(conversation.last_message_at!))}.

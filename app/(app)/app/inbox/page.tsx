@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Inbox as InboxIcon, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useEffectiveUserId, useFlags, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
+import { useEffectiveUserId, useFlags, useFollowupsToSend, useInvalidate, useMyOverrides, useProfile } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
 import { useAvatarUrls } from '@/lib/avatars'
 import { useNotificationsEnabled } from '@/lib/notifications'
@@ -29,12 +29,12 @@ const FILTERS = [
 
 type FilterKey = (typeof FILTERS)[number]['key']
 
-function matchesFilter(conv: Conversation, filter: FilterKey, now: number) {
+function matchesFilter(conv: Conversation, filter: FilterKey, now: number, toSend: Set<number>, humanAgent: boolean) {
   switch (filter) {
     case 'unread':
       return conv.unread_count > 0
     case 'followup':
-      return needsManualFollowup(conv, now)
+      return toSend.has(conv.id) || (humanAgent && needsManualFollowup(conv, now))
     case 'hot':
       return conv.heat_tag === 'hot'
     case 'paused':
@@ -79,7 +79,10 @@ function InboxContent() {
   const { data: overrides } = useMyOverrides()
   const humanAgent = hasFeature('human_agent', flags, profile, overrides)
   const notificationsEnabled = useNotificationsEnabled()
-  const filters = FILTERS.filter((f) => f.key !== 'followup' || humanAgent)
+  const followupsOpen = hasFeature('followups', flags, profile, overrides)
+  const { data: toSendRows } = useFollowupsToSend()
+  const toSend = useMemo(() => new Set((toSendRows ?? []).map((r) => r.conversation_id)), [toSendRows])
+  const filters = FILTERS.filter((f) => f.key !== 'followup' || humanAgent || followupsOpen)
 
   const selectedId = Number(searchParams.get('c')) || null
   const selected = conversations?.find((c) => c.id === selectedId) ?? null
@@ -99,7 +102,7 @@ function InboxContent() {
         'postgres_changes',
         // Mises à jour comprises : une réaction ou un accusé de lecture s'affiche sans recharger.
         { event: '*', schema: 'public', table: 'conversation_messages' },
-        () => invalidate('conversations', 'messages', 'followup'),
+        () => invalidate('conversations', 'messages', 'followup', 'followups-to-send', 'followup-to-send'),
       )
       .subscribe()
     return () => {
@@ -113,18 +116,18 @@ function InboxContent() {
   const list = useMemo(() => {
     const term = search.trim().toLowerCase()
     return (conversations ?? [])
-      .filter((c) => matchesFilter(c, filter, Date.now()))
+      .filter((c) => matchesFilter(c, filter, Date.now(), toSend, humanAgent))
       .filter(
         (c) =>
           !term ||
           (c.contact_name ?? '').toLowerCase().includes(term) ||
           (c.contact_handle ?? '').toLowerCase().includes(term),
       )
-  }, [conversations, filter, search])
+  }, [conversations, filter, search, toSend, humanAgent])
 
   const followupCount = useMemo(
-    () => (humanAgent ? (conversations ?? []).filter((c) => needsManualFollowup(c, Date.now())).length : 0),
-    [conversations, humanAgent],
+    () => (conversations ?? []).filter((c) => matchesFilter(c, 'followup', Date.now(), toSend, humanAgent)).length,
+    [conversations, humanAgent, toSend],
   )
 
   function open(conv: Conversation) {

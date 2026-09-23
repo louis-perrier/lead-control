@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { callFunction } from '@/lib/api'
 import { useViewAsTargetId } from '@/lib/view-as/state'
-import type { Assistant, BillingInfo, ChannelAccount, FeatureFlag, Followup, Profile } from '@/lib/types'
+import type { Assistant, BillingInfo, ChannelAccount, FeatureFlag, Followup, FollowupToSend, FollowupVariantStat, Profile } from '@/lib/types'
 
 function useAuthUserId() {
   return useQuery({
@@ -143,6 +143,54 @@ export function usePendingFollowup(conversationId: number) {
         .order('scheduled_at', { ascending: true })
         .limit(1)
       return (data?.[0] ?? null) as Followup | null
+    },
+  })
+}
+
+export function useFollowupToSend(conversationId: number) {
+  return useQuery({
+    queryKey: ['followup-to-send', conversationId],
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<FollowupToSend | null> => {
+      const { data } = await createClient()
+        .from('v_followups_to_send')
+        .select('id, conversation_id, assistant_id, item_id, variant_id, message_body, sent_at')
+        .eq('conversation_id', conversationId)
+        .order('sent_at', { ascending: false })
+        .limit(1)
+      return (data?.[0] ?? null) as FollowupToSend | null
+    },
+  })
+}
+
+// Toutes les relances à envoyer du compte, pour le filtre « À relancer » et Prospects.
+export function useFollowupsToSend() {
+  const effectiveUserId = useEffectiveUserId()
+  return useQuery({
+    queryKey: ['followups-to-send', effectiveUserId],
+    enabled: effectiveUserId !== null,
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<FollowupToSend[]> => {
+      const { data } = await createClient()
+        .from('v_followups_to_send')
+        .select('id, conversation_id, assistant_id, item_id, variant_id, message_body, sent_at')
+        .eq('user_id', effectiveUserId!)
+        .order('sent_at', { ascending: false })
+      return (data ?? []) as FollowupToSend[]
+    },
+  })
+}
+
+// Indisponible en mode « voir comme » : le client bloque les RPC, la requête tombe en erreur.
+export function useFollowupVariantStats(assistantId: string | undefined, days: number) {
+  return useQuery({
+    queryKey: ['followup-variant-stats', assistantId, days],
+    enabled: Boolean(assistantId),
+    queryFn: async (): Promise<FollowupVariantStat[]> => {
+      const since = new Date(Date.now() - days * 86_400_000).toISOString()
+      const { data, error } = await createClient().rpc('followup_variant_stats', { p_assistant_id: assistantId!, p_since: since })
+      if (error) throw error
+      return (data ?? []) as FollowupVariantStat[]
     },
   })
 }

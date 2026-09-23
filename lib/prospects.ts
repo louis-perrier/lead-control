@@ -35,6 +35,7 @@ export type NextAction =
   | { key: 'error'; needsCoach: true }
   | { key: 'awaiting_reply'; needsCoach: true }
   | { key: 'manual_followup'; needsCoach: true }
+  | { key: 'followup_to_send'; at: string; needsCoach: true }
   | { key: 'followup_planned'; at: string; needsCoach: false }
   | { key: 'assistant_replying'; needsCoach: false }
   | { key: 'goal_reached'; needsCoach: false }
@@ -48,7 +49,7 @@ type ActionInput = StageInput &
 
 export function nextAction(
   conv: ActionInput,
-  opts: { followupAt: string | null; humanAgent: boolean; now: number },
+  opts: { followupAt: string | null; toSendAt?: string | null; humanAgent: boolean; now: number },
 ): NextAction | null {
   if (conv.outcome) return null
   if (conv.automation_state === 'error') return { key: 'error', needsCoach: true }
@@ -63,6 +64,8 @@ export function nextAction(
   ) {
     return { key: 'awaiting_reply', needsCoach: true }
   }
+  // Une relance proposée au coach attend son geste, même si l'assistant en a une autre de prévue.
+  if (opts.toSendAt) return { key: 'followup_to_send', at: opts.toSendAt, needsCoach: true }
   if (opts.followupAt) return { key: 'followup_planned', at: opts.followupAt, needsCoach: false }
   if (opts.humanAgent && needsManualFollowup(conv, opts.now)) return { key: 'manual_followup', needsCoach: true }
   if (conv.automation_state === 'scheduled' && conv.automation_reason === 'human_active') {

@@ -45,6 +45,8 @@ function actionText(action: NextAction | null) {
       return 'Attend votre réponse'
     case 'manual_followup':
       return 'À relancer'
+    case 'followup_to_send':
+      return 'Relance à envoyer depuis Instagram'
     case 'followup_planned':
       return `Relance prévue ${formatDateTime(action.at)}`
     case 'assistant_replying':
@@ -88,7 +90,7 @@ function useProspects() {
     enabled: effectiveUserId !== null,
     queryFn: async () => {
       const supabase = createClient()
-      const [convs, bookings, followups] = await Promise.all([
+      const [convs, bookings, followups, toSend] = await Promise.all([
         supabase
           .from('conversations')
           .select('*')
@@ -103,6 +105,7 @@ function useProspects() {
           .eq('user_id', effectiveUserId!)
           .eq('status', 'pending')
           .order('scheduled_at', { ascending: true }),
+        supabase.from('v_followups_to_send').select('conversation_id, sent_at').eq('user_id', effectiveUserId!),
       ])
       if (convs.error) throw convs.error
       const booked = new Set((bookings.data ?? []).map((b) => b.conversation_id as number))
@@ -110,7 +113,13 @@ function useProspects() {
       for (const f of followups.data ?? []) {
         if (!followupAt.has(f.conversation_id)) followupAt.set(f.conversation_id, f.scheduled_at)
       }
-      return { conversations: (convs.data ?? []) as Conversation[], booked, followupAt }
+      const toSendAt = new Map<number, string>()
+      for (const f of toSend.data ?? []) {
+        const at = f.sent_at as string
+        const known = toSendAt.get(f.conversation_id as number)
+        if (!known || at > known) toSendAt.set(f.conversation_id as number, at)
+      }
+      return { conversations: (convs.data ?? []) as Conversation[], booked, followupAt, toSendAt }
     },
   })
 }
@@ -240,7 +249,12 @@ export default function ProspectsPage() {
       (data?.conversations ?? []).map((conv) => ({
         conv,
         stage: prospectStage(conv, data!.booked.has(conv.id)),
-        action: nextAction(conv, { followupAt: data!.followupAt.get(conv.id) ?? null, humanAgent, now }),
+        action: nextAction(conv, {
+          followupAt: data!.followupAt.get(conv.id) ?? null,
+          toSendAt: data!.toSendAt.get(conv.id) ?? null,
+          humanAgent,
+          now,
+        }),
       })),
     [data, humanAgent, now],
   )

@@ -75,6 +75,7 @@ export function notificationTitle(n: AppNotification) {
   if (n.kind === 'blocked') return 'Assistant bloqué'
   const contact = n.conversations
   const who = contact?.contact_name || (contact?.contact_handle ? `@${contact.contact_handle}` : 'Un prospect')
+  if (n.kind === 'followup') return `Relance à envoyer à ${who}`
   return `${who} a besoin de vous`
 }
 

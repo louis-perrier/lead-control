@@ -147,6 +147,19 @@ export type Followup = {
   status: 'pending' | 'sending' | 'sent' | 'notified' | 'skipped' | 'cancelled'
 }
 
+/** Relance proposée au coach et pas encore envoyée depuis Instagram (vue v_followups_to_send). */
+export type FollowupToSend = {
+  id: string
+  conversation_id: number
+  assistant_id: string | null
+  item_id: string | null
+  variant_id: string | null
+  message_body: string | null
+  sent_at: string
+}
+
+export type FollowupVariantStat = { step_id: string | null; variant_id: string | null; sent: number; replied: number }
+
 export type Assistant = {
   id: string
   user_id: string
