@@ -168,7 +168,8 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
 
 // Une reconnexion remet le compte dans l'état d'avant la coupure : assistant réactivé s'il n'a
 // été mis en pause que par la déconnexion, relances annulées par cette pause rétablies tant que
-// leur heure n'est pas passée, conversations arrêtées faute de jeton reprises là où elles étaient.
+// leur heure n'est pas passée. Les conversations arrêtées faute de jeton reprennent à part, une
+// fois l'historique importé, sinon l'assistant répondrait sans les messages manqués.
 async function resumeAfterReconnect(channelAccountId: string, disconnectedAt: string | null) {
   const paused = await admin
     .from('assistants')
@@ -188,6 +189,9 @@ async function resumeAfterReconnect(channelAccountId: string, disconnectedAt: st
       .gte('updated_at', disconnectedAt)
       .gt('scheduled_at', new Date().toISOString())
   }
+}
+
+async function resumeStoppedConversations(channelAccountId: string) {
   const stopped = await admin
     .from('conversations')
     .select('id')
@@ -333,7 +337,11 @@ async function callback(req: Request) {
     await resumeAfterReconnect(account.data.id, prior.data?.disconnected_at ?? null)
 
     // @ts-ignore fourni par le runtime Edge
-    EdgeRuntime.waitUntil(syncRecentHistory(account.data.id, igUserId, token, st.user_id, assistantId))
+    EdgeRuntime.waitUntil(
+      syncRecentHistory(account.data.id, igUserId, token, st.user_id, assistantId).then(() =>
+        resumeStoppedConversations(account.data.id),
+      ),
+    )
 
     return redirectTo(returnTo, { ig_connected: '1' })
   } catch (e) {
