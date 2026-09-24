@@ -13,10 +13,18 @@ import type { PushState } from '@/lib/notifications'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input, Label, FieldError, FieldHint } from '@/components/ui/input'
+import { Input, Label, FieldError } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { InfoTip } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/toast'
+
+const COMPANY_SIZES: { value: string; label: string }[] = [
+  { value: '1', label: 'Solo' },
+  { value: '2-10', label: '2 à 10' },
+  { value: '11-50', label: '11 à 50' },
+  { value: '51-200', label: '51 à 200' },
+  { value: '200+', label: '200 et plus' },
+]
 
 function ProfileCard() {
   const { data: profile } = useProfile()
@@ -24,12 +32,18 @@ function ProfileCard() {
   const toast = useToast()
   const [fullName, setFullName] = useState('')
   const [timezone, setTimezone] = useState('Europe/Paris')
+  const [city, setCity] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [companySize, setCompanySize] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name ?? '')
       setTimezone(profile.timezone ?? 'Europe/Paris')
+      setCity(profile.city ?? '')
+      setCompanyName(profile.company_name ?? '')
+      setCompanySize(profile.company_size ?? null)
     }
   }, [profile])
 
@@ -39,7 +53,13 @@ function ProfileCard() {
     setSaving(true)
     const { error } = await createClient()
       .from('profiles')
-      .update({ full_name: fullName.trim() || null, timezone })
+      .update({
+        full_name: fullName.trim() || null,
+        timezone,
+        city: city.trim() || null,
+        company_name: companyName.trim() || null,
+        company_size: companySize,
+      })
       .eq('user_id', profile.user_id)
     setSaving(false)
     if (error) {
@@ -65,81 +85,18 @@ function ProfileCard() {
               <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="timezone">Fuseau horaire</Label>
+              <Label htmlFor="timezone" className="inline-flex items-center gap-1.5">
+                Fuseau horaire
+                <InfoTip text="Sert aux horaires de réponse de l’assistant." />
+              </Label>
               <Input
                 id="timezone"
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
                 placeholder="Europe/Paris"
               />
-              <FieldHint>Utilisé pour les horaires de réponse de l'assistant.</FieldHint>
             </div>
           </div>
-        </CardBody>
-        <div className="flex justify-end border-t border-border px-5 py-3.5">
-          <Button type="submit" disabled={saving}>
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
-          </Button>
-        </div>
-      </form>
-    </Card>
-  )
-}
-
-const COMPANY_SIZES: { value: string; label: string }[] = [
-  { value: '1', label: 'Solo' },
-  { value: '2-10', label: '2 à 10' },
-  { value: '11-50', label: '11 à 50' },
-  { value: '51-200', label: '51 à 200' },
-  { value: '200+', label: '200 et plus' },
-]
-
-function AboutCard() {
-  const { data: profile } = useProfile()
-  const invalidate = useInvalidate()
-  const toast = useToast()
-  const [city, setCity] = useState('')
-  const [companyName, setCompanyName] = useState('')
-  const [companySize, setCompanySize] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    if (profile) {
-      setCity(profile.city ?? '')
-      setCompanyName(profile.company_name ?? '')
-      setCompanySize(profile.company_size ?? null)
-    }
-  }, [profile])
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
-    if (!profile) return
-    setSaving(true)
-    const { error } = await createClient()
-      .from('profiles')
-      .update({
-        city: city.trim() || null,
-        company_name: companyName.trim() || null,
-        company_size: companySize,
-      })
-      .eq('user_id', profile.user_id)
-    setSaving(false)
-    if (error) {
-      toast('Impossible d’enregistrer ces informations.', 'error')
-      return
-    }
-    toast('Informations enregistrées.')
-    invalidate('profile')
-  }
-
-  return (
-    <Card>
-      <CardHeader
-        title="Quelques détails sur vous"
-        description="Facultatif : ça nous aide à mieux vous accompagner, rien n'est obligatoire."
-      />
-      <form onSubmit={save}>
-        <CardBody className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="city">Ville</Label>
@@ -158,18 +115,18 @@ function AboutCard() {
           <div>
             <Label>Taille de l'entreprise</Label>
             <div className="flex flex-wrap gap-2">
-              {COMPANY_SIZES.map((s) => (
+              {COMPANY_SIZES.map((c) => (
                 <button
-                  key={s.value}
+                  key={c.value}
                   type="button"
-                  onClick={() => setCompanySize(companySize === s.value ? null : s.value)}
+                  onClick={() => setCompanySize(companySize === c.value ? null : c.value)}
                   className={
-                    companySize === s.value
+                    companySize === c.value
                       ? 'rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white'
                       : 'rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted'
                   }
                 >
-                  {s.label}
+                  {c.label}
                 </button>
               ))}
             </div>
@@ -184,6 +141,7 @@ function AboutCard() {
     </Card>
   )
 }
+
 
 function PasswordCard() {
   const toast = useToast()
@@ -216,10 +174,10 @@ function PasswordCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Mot de passe" />
-      <form onSubmit={save}>
-        <CardBody className="grid gap-4 sm:grid-cols-2">
+    <form onSubmit={save}>
+      <CardBody className="space-y-3">
+        <h3 className="text-sm font-semibold">Mot de passe</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="newPassword">Nouveau mot de passe</Label>
             <Input
@@ -241,18 +199,18 @@ function PasswordCard() {
             />
             <FieldError>{error}</FieldError>
           </div>
-        </CardBody>
-        <div className="flex justify-end border-t border-border px-5 py-3.5">
-          <Button type="submit" disabled={saving || !password}>
+        </div>
+        <div className="flex justify-end">
+          <Button type="submit" size="sm" variant="secondary" disabled={saving || !password}>
             {saving ? 'Mise à jour…' : 'Mettre à jour'}
           </Button>
         </div>
-      </form>
-    </Card>
+      </CardBody>
+    </form>
   )
 }
 
-function ByokCard() {
+function ByokBlock() {
   const { data: profile } = useProfile()
   const toast = useToast()
   const [key, setKey] = useState('')
@@ -302,12 +260,12 @@ function ByokCard() {
   const current = keyState.data
 
   return (
-    <Card>
-      <CardHeader
-        title="Clé API Anthropic"
-        description="En tant que bêta-testeur, vos réponses IA passent par votre propre clé."
-      />
-      <CardBody className="space-y-4">
+    <CardBody className="space-y-3 border-t border-border">
+      <div>
+        <h3 className="text-sm font-semibold">Clé API Anthropic</h3>
+        <p className="text-sm text-muted">En tant que bêta-testeur, vos réponses IA passent par votre propre clé.</p>
+      </div>
+      <div className="space-y-4">
         {current ? (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span>Clé enregistrée se terminant par {current.key_hint}</span>
@@ -344,12 +302,22 @@ function ByokCard() {
             {busy ? 'Vérification…' : 'Tester et enregistrer'}
           </Button>
         </form>
-      </CardBody>
+      </div>
+    </CardBody>
+  )
+}
+
+function SecurityCard() {
+  return (
+    <Card>
+      <CardHeader title="Sécurité" />
+      <PasswordCard />
+      <ByokBlock />
     </Card>
   )
 }
 
-function NotificationsCard() {
+function NotificationsBlock() {
   const enabled = useNotificationsEnabled()
   const toast = useToast()
   const [state, setState] = usePushState({ resave: true })
@@ -390,17 +358,13 @@ function NotificationsCard() {
   )
 
   return (
-    <Card>
+    <CardBody className="space-y-3 text-sm">
       <div id="notifications" className="scroll-mt-16" />
-      <CardHeader
-        title={
-          <span className="inline-flex items-center gap-1.5">
-            Notifications
-            <InfoTip text="Une alerte sur cet appareil quand l’assistant a besoin de vous." />
-          </span>
-        }
-      />
-      <CardBody className="text-sm">
+      <h3 className="inline-flex items-center gap-1.5 font-semibold">
+        Sur cet appareil
+        <InfoTip text="Une alerte sur cet appareil quand l’assistant a besoin de vous." />
+      </h3>
+      <div>
         {state === 'loading' ? (
           <span className="text-muted">Vérification…</span>
         ) : state === 'unsupported' ? (
@@ -440,8 +404,8 @@ function NotificationsCard() {
             </Button>
           </div>
         )}
-      </CardBody>
-    </Card>
+      </div>
+    </CardBody>
   )
 }
 
@@ -500,7 +464,7 @@ function DangerCard() {
 
 // Un message dans le canal Slack choisi dès qu'un appel est réservé, quel que soit l'outil de
 // réservation. Le canal se choisit dans l'écran de Slack au moment de l'installation.
-function SlackCard() {
+function SlackBlock({ divided }: { divided: boolean }) {
   const { data: flags } = useFlags()
   const { data: profile } = useProfile()
   const { data: overrides } = useMyOverrides()
@@ -584,9 +548,12 @@ function SlackCard() {
   }
 
   return (
-    <Card>
-      <CardHeader title="Slack" description="Un message dans votre canal dès qu’un appel est réservé." />
-      <CardBody className="flex flex-wrap items-center gap-3 text-sm">
+    <CardBody className={divided ? 'space-y-3 border-t border-border text-sm' : 'space-y-3 text-sm'}>
+      <div>
+        <h3 className="font-semibold">Slack</h3>
+        <p className="text-muted">Un message dans votre canal dès qu’un appel est réservé.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
         {slack ? (
           <>
             <span className="min-w-0 truncate">
@@ -627,7 +594,7 @@ function SlackCard() {
             </Button>
           </>
         )}
-      </CardBody>
+      </div>
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
@@ -638,6 +605,22 @@ function SlackCard() {
         danger
         loading={busy}
       />
+    </CardBody>
+  )
+}
+
+function NotifyCard() {
+  const push = useNotificationsEnabled()
+  const { data: flags } = useFlags()
+  const { data: profile } = useProfile()
+  const { data: overrides } = useMyOverrides()
+  const slack = hasFeature('slack_notifications', flags, profile, overrides)
+  if (!push && !slack) return null
+  return (
+    <Card>
+      <CardHeader title="Où vous prévenir" />
+      {push ? <NotificationsBlock /> : null}
+      {slack ? <SlackBlock divided={push} /> : null}
     </Card>
   )
 }
@@ -645,16 +628,10 @@ function SlackCard() {
 export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
-      <div>
-        <h1 className="text-xl font-semibold">Réglages</h1>
-        <p className="mt-1 text-sm text-muted">Votre compte et vos préférences.</p>
-      </div>
+      <h1 className="text-xl font-semibold">Réglages</h1>
       <ProfileCard />
-      <NotificationsCard />
-      <SlackCard />
-      <AboutCard />
-      <PasswordCard />
-      <ByokCard />
+      <NotifyCard />
+      <SecurityCard />
       <DangerCard />
     </div>
   )
