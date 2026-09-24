@@ -142,6 +142,11 @@ function ChannelSection({ assistant }: { assistant: Assistant }) {
                 Déconnecter
               </Button>
             </div>
+            {channel.status !== 'connected' ? (
+              <p className="w-full text-sm text-danger">
+                Instagram a coupé la connexion. L’assistant ne lit ni n’envoie plus rien tant que le compte n’est pas reconnecté.
+              </p>
+            ) : null}
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
 import { useAvatarUrls } from '@/lib/avatars'
 import { useInvalidate, useProfile } from '@/lib/queries'
-import { markNotificationsRead, notificationTitle, useNotifications, usePushState } from '@/lib/notifications'
+import { markNotificationsRead, notificationHref, notificationTitle, useNotifications, usePushState } from '@/lib/notifications'
 import type { AppNotification } from '@/lib/types'
 import { cn, formatRelative } from '@/lib/utils'
 import { Avatar, Skeleton } from '@/components/ui/misc'
@@ -42,7 +42,7 @@ export function NotificationBell({ className }: { className?: string }) {
       await markNotificationsRead([n.id])
       invalidate('notifications')
     }
-    router.push(n.conversation_id ? `/app/inbox?c=${n.conversation_id}` : '/app/inbox')
+    router.push(notificationHref(n))
   }
 
   async function markAllRead() {

@@ -29,7 +29,8 @@ export function activationBlockers({
 }): Blocker[] {
   const s = assistant.settings
   const out: Blocker[] = []
-  if (!channel || channel.status !== 'connected') out.push({ text: 'relier un compte Instagram connecté', tab: 'operation' })
+  if (!channel) out.push({ text: 'relier un compte Instagram', tab: 'operation' })
+  else if (channel.status !== 'connected') out.push({ text: 'reconnecter Instagram', tab: 'operation' })
   if (!s.product?.name?.trim()) out.push({ text: 'renseigner le produit ou service', tab: 'offer' })
   if (!s.context?.trim()) out.push({ text: 'renseigner le contexte de vente', tab: 'offer' })
   if (!s.stop_condition?.text?.trim()) out.push({ text: "définir l'objectif de la conversation", tab: 'booking' })

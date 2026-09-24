@@ -72,11 +72,20 @@ export async function markConversationNotificationsRead(conversationId: number) 
 }
 
 export function notificationTitle(n: AppNotification) {
+  if (!n.conversation_id) return 'Votre compte'
   if (n.kind === 'blocked') return 'Assistant bloqué'
   const contact = n.conversations
   const who = contact?.contact_name || (contact?.contact_handle ? `@${contact.contact_handle}` : 'Un prospect')
   if (n.kind === 'followup') return `Relance à envoyer à ${who}`
   return `${who} a besoin de vous`
+}
+
+// Une alerte sans conversation se règle sur la page qui porte le réglage en cause.
+export function notificationHref(n: AppNotification) {
+  if (n.conversation_id) return `/app/inbox?c=${n.conversation_id}`
+  if (/^(Crédits|Abonnement)/.test(n.body)) return '/app/billing'
+  if (/^Clé API/.test(n.body)) return '/app/settings'
+  return '/app/assistant'
 }
 
 export type PushState = 'loading' | 'unsupported' | 'ios_install' | 'denied' | 'off' | 'on'

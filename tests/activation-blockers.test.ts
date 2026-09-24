@@ -30,15 +30,15 @@ describe('activationBlockers', () => {
       ...flags,
     })
     expect(out.map((b) => [b.text, b.tab])).toEqual([
-      ['relier un compte Instagram connecté', 'operation'],
+      ['relier un compte Instagram', 'operation'],
       ['renseigner le produit ou service', 'offer'],
       ['renseigner le contexte de vente', 'offer'],
       ["définir l'objectif de la conversation", 'booking'],
     ])
   })
 
-  it('bloque un compte Instagram expiré', () => {
-    expect(run({ channel: { status: 'expired' } }).map((b) => b.tab)).toEqual(['operation'])
+  it('demande de reconnecter un compte Instagram expiré', () => {
+    expect(run({ channel: { status: 'expired' } })).toEqual([{ text: 'reconnecter Instagram', tab: 'operation' }])
   })
 
   it('ne bloque pas un mode agenda sans compte relié', () => {

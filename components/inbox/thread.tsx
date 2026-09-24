@@ -436,7 +436,9 @@ export function Thread({ conversation, onBack }: { conversation: Conversation; o
             ? 'Envoi impossible : le prospect doit vous réécrire pour rouvrir la conversation (règle Instagram).'
             : code === 'human_agent_refused'
               ? 'Instagram a refusé cet envoi hors de la fenêtre de 24 h : la fonctionnalité Human Agent n’est pas encore validée par Meta pour cette application.'
-              : 'L’envoi a échoué. Réessayez.'
+              : code === 'channel_expired' || code === 'channel_token_missing'
+                ? 'Instagram a coupé la connexion. Reconnectez le compte depuis la page Assistant.'
+                : 'L’envoi a échoué. Réessayez.'
       setSendError(message)
       toast(message, 'error')
     }
