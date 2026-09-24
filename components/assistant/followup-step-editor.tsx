@@ -12,7 +12,8 @@ import type { Assistant, FollowupVariantStat } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
 import { ImageField } from '@/components/ui/image-field'
 import { Button } from '@/components/ui/button'
-import { Input, Label, FieldHint } from '@/components/ui/input'
+import { Input, Label } from '@/components/ui/input'
+import { InfoTip } from '@/components/ui/misc'
 import { DelaySelect, VariantField, pillClass } from './followup-fields'
 
 export type StatsState = { status: 'loading' | 'ready' | 'unavailable'; byVariant: Map<string, FollowupVariantStat> }
@@ -99,28 +100,20 @@ export function FollowupStepEditor({
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {KIND_LABELS.map((k) => (
           <button key={k.key} type="button" className={pillClass(step.kind === k.key)} onClick={() => onKindChange(k.key)}>
             {k.label}
           </button>
         ))}
+        <InfoTip
+          text={
+            humanAgent
+              ? 'Vous prévenir : passé 24 h, vous recevez le texte prêt, à envoyer depuis Instagram ou la boîte.'
+              : 'Vous prévenir : passé 24 h, Instagram interdit l’envoi automatique, vous recevez le texte prêt.'
+          }
+        />
       </div>
-
-      {step.kind === 'like' ? (
-        <FieldHint>
-          L’assistant pose un cœur sur le dernier message du prospect, sans rien écrire. La conversation remonte dans sa boîte
-          Instagram.
-        </FieldHint>
-      ) : null}
-
-      {step.kind === 'notify' ? (
-        <FieldHint>
-          {humanAgent
-            ? 'Passé 24 h, vous recevez une notification avec le texte prêt. Vous l’envoyez depuis Instagram, ou depuis la boîte grâce à Human Agent.'
-            : 'Passé 24 h, Instagram interdit l’envoi automatique : vous recevez une notification avec le texte prêt, à envoyer depuis Instagram.'}
-        </FieldHint>
-      ) : null}
 
       {step.kind !== 'like' ? (
         <div className="space-y-3">
@@ -187,7 +180,6 @@ export function FollowupStepEditor({
                       placeholder="Ex. : un mème « toujours là ? »"
                       onChange={(e) => editVariant(variant.id, { transcript: e.target.value })}
                     />
-                    <FieldHint>Facultatif. L’assistant sait ainsi ce qu’il a envoyé quand le prospect y réagit.</FieldHint>
                   </div>
                 </div>
               ) : (
@@ -200,7 +192,7 @@ export function FollowupStepEditor({
               {step.kind === 'message' ? <VariantStats step={step} variant={variant} stats={stats} /> : null}
             </div>
           ))}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
               size="sm"
@@ -211,9 +203,7 @@ export function FollowupStepEditor({
               <Plus size={14} className="mr-1" />
               {variants.length >= MAX_VARIANTS ? 'Maximum atteint' : 'Ajouter une variante'}
             </Button>
-            {variants.length > 1 ? (
-              <FieldHint>Tirée au hasard à parts égales. Un prospect ne reçoit jamais deux fois la même variante.</FieldHint>
-            ) : null}
+            <InfoTip text="Tirée au hasard à parts égales, jamais deux fois au même prospect." />
           </div>
         </div>
       ) : null}

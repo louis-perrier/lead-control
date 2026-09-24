@@ -11,12 +11,14 @@ export function Dialog({
   title,
   children,
   footer,
+  size = 'md',
 }: {
   open: boolean
   onClose: () => void
   title: string
   children: React.ReactNode
   footer?: React.ReactNode
+  size?: 'md' | 'full'
 }) {
   useEffect(() => {
     if (!open) return
@@ -38,7 +40,11 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="animate-in relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-[14px] bg-surface shadow-soft sm:max-w-lg sm:rounded-[14px]"
+        className={
+          size === 'full'
+            ? 'animate-in relative z-10 flex h-[90dvh] w-full flex-col overflow-hidden rounded-t-[14px] bg-surface shadow-soft sm:max-w-4xl sm:rounded-[14px]'
+            : 'animate-in relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-[14px] bg-surface shadow-soft sm:max-w-lg sm:rounded-[14px]'
+        }
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
           <h2 className="text-base font-semibold">{title}</h2>
@@ -50,7 +56,7 @@ export function Dialog({
             <X size={18} />
           </button>
         </div>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
+        <div className={size === 'full' ? 'flex min-h-0 flex-1 flex-col px-5 py-4' : 'overflow-y-auto px-5 py-4'}>{children}</div>
         {footer ? (
           <div className="flex justify-end gap-2 border-t border-border px-5 py-3.5">{footer}</div>
         ) : null}

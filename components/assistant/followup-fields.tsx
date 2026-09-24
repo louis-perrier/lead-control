@@ -4,7 +4,7 @@ import { useRef } from 'react'
 import { Bell, Heart, MessageCircle } from 'lucide-react'
 import { MAX_NOTIFY_MINUTES, MESSAGING_WINDOW_MINUTES, type FollowupStep } from '@/supabase/functions/_shared/followup-plan'
 import { NAME_VARIABLE_TEMPLATE, hasNameVariable, renderFollowupText } from '@/supabase/functions/_shared/followup-text'
-import { Textarea, FieldHint } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 export const pillClass = (active: boolean) =>
@@ -130,9 +130,7 @@ export function StepTimeline({ steps }: { steps: FollowupStep[] }) {
         <p className="text-xs text-amber-700">
           Une étape tomberait plus de 24 h après votre message : Instagram ne la laissera pas partir. Passez-la en « Vous prévenir ».
         </p>
-      ) : (
-        <FieldHint>Compté depuis votre dernier message. Si l’assistant a répondu tard, la limite de 24 h arrive plus tôt.</FieldHint>
-      )}
+      ) : null}
     </div>
   )
 }

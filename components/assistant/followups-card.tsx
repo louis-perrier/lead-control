@@ -22,9 +22,9 @@ import type { Assistant, FollowupVariantStat } from '@/lib/types'
 import { formatDuration } from '@/lib/audio'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Label, FieldHint, FieldError } from '@/components/ui/input'
+import { Label, FieldError } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
-import { Switch } from '@/components/ui/misc'
+import { InfoTip, Switch } from '@/components/ui/misc'
 import { useSaveSettings } from './use-save-settings'
 import { StepTimeline, formatDelay, stepIcon } from './followup-fields'
 import { FollowupStepEditor, newVariant, type StatsState } from './followup-step-editor'
@@ -69,8 +69,7 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
   const [deleteStep, setDeleteStep] = useState<FollowupStep | null>(null)
   const [deleteVariant, setDeleteVariant] = useState<{ step: FollowupStep; variant: FollowupVariant } | null>(null)
   const [confirmDefault, setConfirmDefault] = useState(false)
-  const [statsDays, setStatsDays] = useState(30)
-  const statsQuery = useFollowupVariantStats(assistant.id, statsDays)
+  const statsQuery = useFollowupVariantStats(assistant.id, 30)
 
   const stats = useMemo<StatsState>(() => {
     const byVariant = new Map<string, FollowupVariantStat>()
@@ -159,21 +158,13 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
   return (
     <Card>
       <CardHeader
-        title="Relances"
-        description="Une séquence d’étapes quand le prospect ne répond plus : un like, un message, puis une notification pour vous au-delà des 24 h permises par Instagram."
-        action={
-          enabled && ordered.some((s) => s.kind !== 'like') ? (
-            <select
-              aria-label="Période des statistiques"
-              value={statsDays}
-              onChange={(e) => setStatsDays(Number(e.target.value))}
-              className="h-9 rounded-[10px] border border-border bg-surface px-2 text-sm text-ink"
-            >
-              <option value={30}>30 jours</option>
-              <option value={90}>90 jours</option>
-            </select>
-          ) : null
+        title={
+          <span className="inline-flex items-center gap-1.5">
+            Relances
+            <InfoTip text="Jamais après une pause, une clôture, un appel réservé ou un message de votre main." />
+          </span>
         }
+        description="Quand le prospect ne répond plus : un like, un message, puis une notification pour vous."
       />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
@@ -186,7 +177,7 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
             <>
               {converted ? (
                 <p className="rounded-[10px] border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-ink">
-                  Vos réglages ont été convertis en séquence d’étapes. Un message de réserve qui n’était rattaché à aucune relance n’est pas repris : ajoutez-le en variante si vous y tenez. Relisez, puis enregistrez.
+                  Réglages convertis en séquence : relisez, puis enregistrez.
                 </p>
               ) : null}
 
@@ -198,7 +189,6 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
                   <Button type="button" size="sm" onClick={applyDefault}>
                     Utiliser la séquence conseillée
                   </Button>
-                  <FieldHint>Like après 13 h, « prénom ? » après 23 h, puis deux relances à envoyer vous-même à 36 h et 60 h.</FieldHint>
                 </div>
               ) : null}
 
@@ -254,14 +244,11 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
                 </div>
               ) : null}
 
-              <FieldHint>Une conversation en pause, clôturée, jugée froide ou avec un appel réservé n’est jamais relancée.</FieldHint>
-
               <div className="border-t border-border pt-3">
                 <div className="flex items-center justify-between gap-3">
                   <Label className="mb-0">Relancer aussi après un message que j’ai écrit moi-même</Label>
                   <Switch checked={afterOwn} onChange={setAfterOwn} label="Relancer après mes propres messages" />
                 </div>
-                <FieldHint>Jamais après une prise de main de votre part.</FieldHint>
               </div>
             </>
           ) : null}

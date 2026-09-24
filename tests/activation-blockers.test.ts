@@ -6,7 +6,7 @@ const ready = {
     product: { name: 'Coaching' },
     context: 'Je vends du coaching.',
     stop_condition: { text: 'Réserver un appel' },
-    booking: { mode: 'link' },
+    booking: { mode: 'link' as const },
   },
 } as Parameters<typeof activationBlockers>[0]['assistant']
 
@@ -42,28 +42,28 @@ describe('activationBlockers', () => {
   })
 
   it('ne bloque pas un mode agenda sans compte relié', () => {
-    const assistant = { settings: { ...ready.settings, booking: { mode: 'calendly' } } }
+    const assistant = { settings: { ...ready.settings, booking: { mode: 'calendly' as const } } }
     expect(run({ assistant })).toEqual([])
   })
 
   it('demande de reconnecter un outil expiré, puis de choisir une page', () => {
-    const assistant = { settings: { ...ready.settings, booking: { mode: 'calendly' } } }
+    const assistant = { settings: { ...ready.settings, booking: { mode: 'calendly' as const } } }
     expect(run({ assistant, accounts: [{ provider: 'calendly', status: 'expired' }] })[0].text).toBe('reconnecter Calendly')
     expect(run({ assistant, accounts: [{ provider: 'calendly', status: 'connected' }] })[0]).toEqual({
       text: 'choisir une page de réservation Calendly',
       tab: 'booking',
     })
-    const iclose = { settings: { ...ready.settings, booking: { mode: 'iclose' } } }
+    const iclose = { settings: { ...ready.settings, booking: { mode: 'iclose' as const } } }
     expect(run({ assistant: iclose, accounts: [{ provider: 'iclose', status: 'error' }] })[0].text).toBe('refaire la clé iClose')
     expect(run({ assistant: iclose, accounts: [{ provider: 'iclose', status: 'connected' }] })[0].text).toBe(
       'choisir une page de réservation iClose',
     )
-    const google = { settings: { ...ready.settings, booking: { mode: 'calendar' } } }
+    const google = { settings: { ...ready.settings, booking: { mode: 'calendar' as const } } }
     expect(run({ assistant: google, accounts: [{ provider: 'google', status: 'expired' }] })[0].text).toBe('reconnecter Google Agenda')
   })
 
   it('ignore un outil dont le module est fermé', () => {
-    const assistant = { settings: { ...ready.settings, booking: { mode: 'iclose' } } }
+    const assistant = { settings: { ...ready.settings, booking: { mode: 'iclose' as const } } }
     expect(run({ assistant, accounts: [{ provider: 'iclose', status: 'error' }], allowIclose: false })).toEqual([])
   })
 })

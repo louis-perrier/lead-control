@@ -64,6 +64,7 @@ import { useSaveSettings } from '@/components/assistant/use-save-settings'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input, Label, Textarea, FieldHint, FieldError } from '@/components/ui/input'
+import { ExpandableTextarea } from '@/components/ui/expand-textarea'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { InfoTip, Skeleton, Switch } from '@/components/ui/misc'
@@ -300,8 +301,9 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
           </div>
           <div>
             <Label htmlFor="context">Présentation de l'offre</Label>
-            <Textarea
+            <ExpandableTextarea
               id="context"
+              title="Présentation de l'offre"
               rows={6}
               value={context}
               onChange={(e) => setContext(e.target.value)}
@@ -310,8 +312,9 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
           </div>
           <div>
             <Label htmlFor="qualification">Questions de qualification (optionnel)</Label>
-            <Textarea
+            <ExpandableTextarea
               id="qualification"
+              title="Questions de qualification"
               rows={3}
               value={qualification}
               onChange={(e) => setQualification(e.target.value)}
@@ -562,13 +565,6 @@ function OfferStyleFields({
         </div>
       </div>
 
-      <FieldHint>
-        {exact
-          ? 'L’assistant propose des heures exactes, deux le même jour quand la journée offre deux moments différents, sinon sur deux jours. '
-          : "Quand vos disponibilités sont plus courtes, l'assistant propose une plage plus courte, jamais plus brève que la durée de l'appel. "}
-        Le délai minimum s’ajoute à celui de votre page : en dessous, l’assistant ne propose rien et refuse aussi une
-        heure demandée par le prospect.
-      </FieldHint>
     </>
   )
 }
@@ -600,10 +596,10 @@ function ExtraFieldsBlock({
 
   return (
     <div className="rounded-[10px] border border-border p-3">
-      <Label className="mb-0">Informations à demander avant de réserver</Label>
-      <FieldHint>
-        L'e-mail est toujours demandé, {toolName} l'exige. Chaque information en plus rallonge la conversation.
-      </FieldHint>
+      <Label className="mb-0 inline-flex items-center gap-1.5">
+        Informations à demander avant de réserver
+        <InfoTip text={`L'e-mail est toujours demandé, ${toolName} l'exige. Chaque information en plus rallonge la conversation.`} />
+      </Label>
       <div className="mt-2.5 space-y-2">
         {imposed.map((q) => (
           <div key={q} className="flex flex-wrap items-center gap-2 text-sm">
@@ -638,12 +634,6 @@ function ExtraFieldsBlock({
           </div>
         ))}
       </div>
-      {fields.length > 0 ? (
-        <FieldHint>
-          Le nom sert à demander l’information, et à la rattacher au bon champ chez {toolName} : écrivez-le comme sur
-          votre page de réservation. Sinon la réponse reste ici, sur la fiche du prospect et dans le message Slack.
-        </FieldHint>
-      ) : null}
       <FieldError>
         {hasUnnamedField(fields)
           ? 'Donnez un nom à chaque information à demander.'
@@ -1042,7 +1032,6 @@ function IcloseBookingFields({
         onFields={(extra_fields) => onPatch({ extra_fields })}
       />
 
-      <FieldHint>Durée, jours, heures, horizon et règles de qualification viennent de votre iClose.</FieldHint>
 
       {preview && preview.bookable ? (
         <StepsPreview title="Ce que fait l'assistant, d'après vos vraies disponibilités" steps={preview.steps} />
@@ -1202,11 +1191,6 @@ function CalendlyBookingFields({
         onFields={(extra_fields) => onPatch({ extra_fields })}
       />
 
-      <FieldHint>
-        Durée, jours, heures et horizon viennent de votre Calendly, qui exige aussi l'e-mail du prospect.{' '}
-        <strong className="font-semibold">La réservation par l'assistant demande un forfait Calendly payant.</strong>
-      </FieldHint>
-
       {preview && preview.bookable ? (
         <StepsPreview title="Ce que fait l'assistant, d'après vos vraies disponibilités" steps={preview.steps} />
       ) : null}
@@ -1313,7 +1297,7 @@ function GoalSection({
     }
     setHostError('')
     if (mode !== 'link' && host.who === 'other' && !host.label.trim()) {
-      setHostError('Indiquez qui prend l’appel, par exemple « Marceau, mon associé ».')
+      setHostError('Indiquez qui prend l’appel.')
       return
     }
     if (agendaError || calendlyBlocked || icloseBlocked || fieldsBlocked) return
@@ -1437,18 +1421,16 @@ function GoalSection({
               </div>
               {host.who === 'other' ? (
                 <div className="mt-2">
+                  <Label htmlFor="bookingHostName">Prénom, ou prénom et rôle, de la personne qui prend l’appel</Label>
                   <Input
-                    aria-label="Prénom ou rôle de la personne qui prend l’appel"
+                    id="bookingHostName"
                     value={host.label}
                     maxLength={MAX_HOST_LABEL}
-                    placeholder="Ex. : Marceau, mon associé"
+                    placeholder="Prénom"
                     onChange={(e) => setHost((current) => ({ ...current, label: e.target.value }))}
                   />
-                  <FieldHint>L’assistant le dira en proposant l’appel, et ne laissera jamais croire qu’il y sera lui-même.</FieldHint>
                 </div>
-              ) : (
-                <FieldHint>L’assistant parle en votre nom : il propose un appel avec vous.</FieldHint>
-              )}
+              ) : null}
               <FieldError>{hostError}</FieldError>
             </div>
           ) : null}
@@ -1643,7 +1625,10 @@ function GoalSection({
                 </div>
               </div>
               <div>
-                <Label id="callHoursLabel">Quand vous prenez des appels</Label>
+                <Label id="callHoursLabel" className="inline-flex items-center gap-1.5">
+                  Quand vous prenez des appels
+                  <InfoTip text="Votre agenda principal est lu. Un événement marqué Disponible ne bloque pas le créneau." />
+                </Label>
                 <DaysHoursField
                   labelledBy="callHoursLabel"
                   days={agenda.days}
@@ -1653,10 +1638,6 @@ function GoalSection({
                   end={agenda.end}
                   onEnd={(end) => patchAgenda({ end })}
                 />
-                <FieldHint>
-                  Votre agenda principal est lu. Un événement marqué « Disponible » ne bloque pas. Le délai minimum et
-                  « jamais au-delà » encadrent aussi une heure proposée par le prospect.
-                </FieldHint>
               </div>
               <StepsPreview
                 title="Ce que fait l'assistant, par exemple"
@@ -1899,18 +1880,17 @@ function AudienceSection({ assistant, allowSolicitors }: { assistant: Assistant;
                 onChange={(e) => setHandlesText(e.target.value)}
                 placeholder={'un compte par ligne, par exemple\nmon_compte_test'}
               />
-              <FieldHint>Sans le @, un compte par ligne.</FieldHint>
             </div>
           ) : null}
           {allowSolicitors ? (
             <div className="border-t border-border pt-3">
               <div className="flex items-center justify-between gap-3">
-                <Label className="mb-0">Ne pas répondre aux personnes qui me démarchent</Label>
+                <Label className="mb-0 inline-flex items-center gap-1.5">
+                  Ne pas répondre aux personnes qui me démarchent
+                  <InfoTip text="La conversation reste dans votre boîte, sans réponse, à reprendre si vous le voulez." />
+                </Label>
                 <Switch checked={ignoreSolicitors} onChange={setIgnoreSolicitors} label="Ne pas répondre aux démarcheurs" />
               </div>
-              <FieldHint>
-                Quelqu’un qui écrit pour vous vendre son offre ne reçoit rien. La conversation reste dans votre boîte, à reprendre si vous le voulez.
-              </FieldHint>
             </div>
           ) : null}
           <FieldError>{error}</FieldError>
@@ -2071,9 +2051,6 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
         </div>
         {preset === 'custom' && allowCustom ? (
           <div className="space-y-3 border-t border-border pt-4">
-            <p className="text-sm text-muted">
-              Répondez avec vos mots, 200 caractères minimum. Seul votre style est repris, et tout s'enregistre au fil de la saisie.
-            </p>
             {!assistant.custom_tone ? (
               <Badge tone="muted">Pas encore généré</Badge>
             ) : touchedSinceGenerate ? (
@@ -2091,8 +2068,9 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
               return (
                 <div key={q.key}>
                   <Label htmlFor={q.key}>{q.question}</Label>
-                  <Textarea
+                  <ExpandableTextarea
                     id={q.key}
+                    title={q.question}
                     rows={3}
                     value={answers[q.key] ?? ''}
                     onChange={(e) => setAnswers((a) => ({ ...a, [q.key]: e.target.value }))}
@@ -2120,7 +2098,8 @@ function ToneSection({ assistant, allowCustom }: { assistant: Assistant; allowCu
                       Supprimer
                     </Button>
                   </div>
-                  <Textarea
+                  <ExpandableTextarea
+                    title={q.question.trim() || 'Votre réponse'}
                     rows={3}
                     value={answers[q.id] ?? ''}
                     onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
@@ -2390,6 +2369,24 @@ function DocumentUploadButton({
   )
 }
 
+const VISIBLE_DOCUMENTS = 5
+
+function DocumentList<T extends { id: number }>({ docs, render }: { docs: T[]; render: (doc: T) => React.ReactNode }) {
+  const [showAll, setShowAll] = useState(false)
+  const shown = showAll ? docs : docs.slice(0, VISIBLE_DOCUMENTS)
+  const hidden = docs.length - shown.length
+  return (
+    <div className="space-y-2">
+      <div className="divide-y divide-border/60 rounded-[10px] border border-border">{shown.map(render)}</div>
+      {hidden > 0 ? (
+        <button type="button" className="text-sm text-primary hover:underline" onClick={() => setShowAll(true)}>
+          Voir les {hidden} autres
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 function ContextDocumentsSection({ assistant, allowMethod }: { assistant: Assistant; allowMethod: boolean }) {
   const { save } = useSaveSettings(assistant)
   const { docs, isLoading, quota, atQuota, uploading, upload, remove } = useContextDocuments()
@@ -2410,8 +2407,9 @@ function ContextDocumentsSection({ assistant, allowMethod }: { assistant: Assist
         ) : mine.length === 0 ? (
           <EmptyState title="Aucun document" description="Vos documents sur l'offre, le produit, vous." />
         ) : (
-          <div className="divide-y divide-border/60 rounded-[10px] border border-border">
-            {mine.map((d) => (
+          <DocumentList
+            docs={mine}
+            render={(d) => (
               <DocumentRow
                 key={d.id}
                 doc={d}
@@ -2424,8 +2422,8 @@ function ContextDocumentsSection({ assistant, allowMethod }: { assistant: Assist
                 }
                 onRemove={() => remove(d.id)}
               />
-            ))}
-          </div>
+            )}
+          />
         )}
         {somePartial ? (
           <FieldHint>Vos documents dépassent la place disponible. Raccourcissez le plus long pour qu'il soit lu en entier.</FieldHint>
@@ -2545,15 +2543,16 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
     <Card>
       <CardHeader
         title="Votre méthode de vente"
-        description="Vos documents de méthode, résumés en une fiche courte. L’assistant la suit avant ses propres habitudes."
+        description="Vos documents de méthode, résumés en une fiche que l’assistant suit."
       />
       <CardBody className="space-y-4">
         <div className="space-y-2">
           {mine.length === 0 ? (
             <EmptyState title="Aucun document de méthode" description="Vos scripts, vos réponses aux objections, vos exemples d'échange." />
           ) : (
-            <div className="divide-y divide-border/60 rounded-[10px] border border-border">
-              {mine.map((doc) => (
+            <DocumentList
+              docs={mine}
+              render={(doc) => (
                 <DocumentRow
                   key={doc.id}
                   doc={doc}
@@ -2563,8 +2562,8 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
                   onMove={() => unclassify(doc.id)}
                   onRemove={() => deleteDocument(doc.id)}
                 />
-              ))}
-            </div>
+              )}
+            />
           )}
           <div className="flex flex-wrap items-center gap-2">
             <DocumentUploadButton uploading={uploading} disabled={atQuota} label="Ajouter un document" onFile={addDocument} />
@@ -2611,8 +2610,9 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
               return (
                 <div key={rubric.key} className="space-y-1 rounded-[10px] border border-border p-3">
                   <Label htmlFor={`method-${rubric.key}`}>{rubric.title}</Label>
-                  <Textarea
+                  <ExpandableTextarea
                     id={`method-${rubric.key}`}
+                    title={rubric.title}
                     rows={8}
                     value={text}
                     onChange={(e) => {
@@ -2781,7 +2781,8 @@ function CannedResponsesSection({ assistant }: { assistant: Assistant }) {
                   folder={`${assistant.user_id}/${assistant.id}/canned-${entry.id}`}
                 />
               ) : (
-                <Textarea
+                <ExpandableTextarea
+                  title="Réponse préenregistrée"
                   rows={3}
                   value={entry.text ?? ''}
                   placeholder="La réponse envoyée mot pour mot"
