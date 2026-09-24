@@ -45,6 +45,11 @@ export function formatRelative(value: string | Date | null | undefined) {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
 }
 
+export function daysSince(value: string | Date, now: Date = new Date()) {
+  const d = typeof value === 'string' ? new Date(value) : value
+  return Math.max(0, Math.floor((now.getTime() - d.getTime()) / 86_400_000))
+}
+
 export function formatCurrency(value: number | null | undefined) {
   return (value ?? 0).toLocaleString('fr-FR', {
     style: 'currency',

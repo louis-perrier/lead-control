@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState, Skeleton } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/toast'
-import { formatRelative } from '@/lib/utils'
+import { daysSince, formatRelative } from '@/lib/utils'
 
 type UsageRow = {
   id: number
@@ -126,7 +126,10 @@ export default function AdminUserDetailPage() {
                     : 'Plan standard'}
               </Badge>
               {profile.plan_override && profile.plan_override_since ? (
-                <p className="mt-0.5 text-xs text-muted">depuis {formatRelative(profile.plan_override_since)}</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  depuis le {new Date(profile.plan_override_since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} ·{' '}
+                  {daysSince(profile.plan_override_since)} jour{daysSince(profile.plan_override_since) > 1 ? 's' : ''}
+                </p>
               ) : null}
             </div>
             {profile.role === 'user' ? (

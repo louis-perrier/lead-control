@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/types'
+import { daysSince } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState, Skeleton } from '@/components/ui/misc'
@@ -20,7 +21,9 @@ const ROLE_LABEL: Record<Profile['role'], string> = {
 function planLabel(profile: Profile, sub: SubRow | undefined) {
   if (sub) return `Basic x${sub.agents_settings_qty}`
   if (profile.plan_override === 'free_unlimited') return 'Accès libre'
-  if (profile.plan_override === 'beta_byok') return 'Bêta BYOK'
+  if (profile.plan_override === 'beta_byok') {
+    return profile.plan_override_since ? `Bêta BYOK · ${daysSince(profile.plan_override_since)} j` : 'Bêta BYOK'
+  }
   return 'Aucun'
 }
 
