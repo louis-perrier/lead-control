@@ -57,6 +57,8 @@ import type {
 import { AudioField } from '@/components/ui/audio-field'
 import { FollowupsCard } from '@/components/assistant/followups-card'
 import { ResourcesCard } from '@/components/assistant/resources-card'
+import { AssistantTabs, TabPanel, useAssistantTab } from '@/components/assistant/assistant-tabs'
+import { activationBlockers, type AssistantTab, type Blocker } from '@/lib/activation-blockers'
 import { pillClass } from '@/components/assistant/followup-fields'
 import { useSaveSettings } from '@/components/assistant/use-save-settings'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
@@ -2833,45 +2835,16 @@ const PAUSE_REASONS: Record<string, string> = {
 
 function ActivationSection({
   assistant,
-  allowCalendar,
-  allowCalendlyBooking,
-  allowIclose,
+  blockers,
+  onOpenTab,
 }: {
   assistant: Assistant
-  allowCalendar: boolean
-  allowCalendlyBooking: boolean
-  allowIclose: boolean
+  blockers: Blocker[]
+  onOpenTab: (tab: AssistantTab) => void
 }) {
-  const { data: channels } = useChannelAccounts()
   const toast = useToast()
   const invalidate = useInvalidate()
   const [busy, setBusy] = useState(false)
-  const channel = channels?.find((c) => c.id === assistant.channel_account_id)
-
-  const blockers: string[] = []
-  if (!channel || channel.status !== 'connected') blockers.push('relier un compte Instagram connecté')
-  if (!assistant.settings.product?.name?.trim()) blockers.push('renseigner le produit ou service')
-  if (!assistant.settings.context?.trim()) blockers.push('renseigner le contexte de vente')
-  if (!assistant.settings.stop_condition?.text?.trim()) blockers.push("définir l'objectif de la conversation")
-  const google = channels?.find((c) => c.provider === 'google')
-  // Sans compte relié, l'assistant envoie le lien : seul un compte expiré bloque le mode agenda.
-  if (allowCalendar && assistant.settings.booking?.mode === 'calendar' && google && google.status !== 'connected') {
-    blockers.push('reconnecter Google Agenda')
-  }
-  const calendly = channels?.find((c) => c.provider === 'calendly')
-  const iclose = channels?.find((c) => c.provider === 'iclose')
-  if (allowCalendlyBooking && assistant.settings.booking?.mode === 'calendly') {
-    if (calendly && calendly.status !== 'connected') blockers.push('reconnecter Calendly')
-    else if (calendly && !assistant.settings.booking?.calendly?.event_type_uri) {
-      blockers.push('choisir une page de réservation Calendly')
-    }
-  }
-  if (allowIclose && assistant.settings.booking?.mode === 'iclose') {
-    if (iclose && iclose.status !== 'connected') blockers.push('refaire la clé iClose')
-    else if (iclose && !assistant.settings.booking?.iclose?.link_prefix) {
-      blockers.push('choisir une page de réservation iClose')
-    }
-  }
 
   async function toggle(value: boolean) {
     setBusy(true)
@@ -2903,7 +2876,16 @@ function ActivationSection({
           ) : null}
           {blockers.length > 0 ? (
             <p className="mt-0.5 text-sm text-muted">
-              {assistant.is_active ? 'À régler' : "Avant d'activer"} : {blockers.join(', ')}.
+              {assistant.is_active ? 'À régler' : "Avant d'activer"} :{' '}
+              {blockers.map((b, i) => (
+                <span key={b.text}>
+                  {i > 0 ? ', ' : ''}
+                  <button type="button" className="underline decoration-dotted underline-offset-2 hover:text-ink" onClick={() => onOpenTab(b.tab)}>
+                    {b.text}
+                  </button>
+                </span>
+              ))}
+              .
             </p>
           ) : assistant.is_active ? (
             <p className="mt-0.5 text-sm text-muted">
@@ -2932,8 +2914,10 @@ function AssistantContent() {
   const { data: flags } = useFlags()
   const { data: overrides } = useMyOverrides()
   const { data: assistants, isLoading } = useAssistants()
+  const { data: channels } = useChannelAccounts()
   const [creating, setCreating] = useState(false)
   const assistant = assistants?.[0]
+  const [tab, setTab] = useAssistantTab(assistant?.id)
   const allowCustomTone = hasFeature('custom_tone', flags, profile, overrides)
   const allowContextDocuments = hasFeature('context_documents', flags, profile, overrides)
   const allowCalendly = hasFeature('calendly', flags, profile, overrides)
@@ -2948,22 +2932,27 @@ function AssistantContent() {
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
+      setTab('operation')
       toast('Compte Instagram connecté.')
       invalidate('channel-accounts', 'assistants')
       window.history.replaceState(null, '', window.location.pathname)
     } else if (searchParams.get('ig_error')) {
+      setTab('operation')
       toast('La connexion Instagram a échoué. Réessayez.', 'error')
       window.history.replaceState(null, '', window.location.pathname)
     } else if (searchParams.get('calendly_connected') === '1') {
+      setTab('booking')
       toast('Compte Calendly connecté.')
       invalidate('channel-accounts')
       window.history.replaceState(null, '', window.location.pathname)
     } else if (searchParams.get('calendly_error')) {
+      setTab('booking')
       toast('La connexion Calendly a échoué. Réessayez.', 'error')
       window.history.replaceState(null, '', window.location.pathname)
     } else if (searchParams.get('google_code') && searchParams.get('google_state')) {
       const code = searchParams.get('google_code')
       const state = searchParams.get('google_state')
+      setTab('booking')
       // Le code ne doit pas rester dans l'adresse ni être rejoué au rechargement.
       window.history.replaceState(null, '', window.location.pathname)
       toast('Connexion de Google Agenda…')
@@ -2981,6 +2970,7 @@ function AssistantContent() {
           ),
         )
     } else if (searchParams.get('google_error')) {
+      setTab('booking')
       toast(
         searchParams.get('google_error') === 'denied'
           ? 'Connexion Google annulée.'
@@ -3040,35 +3030,26 @@ function AssistantContent() {
     )
   }
 
-  // Une carte seule sur sa rangée (module masqué) prend toute la largeur.
-  const soloAutomation = allowFollowups !== allowCannedResponses
+  const blockers = activationBlockers({
+    assistant,
+    channel: channels?.find((c) => c.id === assistant.channel_account_id),
+    accounts: channels ?? [],
+    allowCalendar,
+    allowCalendlyBooking,
+    allowIclose,
+  })
+  const flagged = new Set(blockers.map((b) => b.tab))
   return (
-    <div className="grid items-start gap-3 xl:grid-cols-2">
-      <div className="xl:col-span-2">
-        <ActivationSection
-          assistant={assistant}
-          allowCalendar={allowCalendar}
-          allowCalendlyBooking={allowCalendlyBooking}
-          allowIclose={allowIclose}
-        />
-      </div>
-      <ChannelSection assistant={assistant} />
-      <ScheduleSection assistant={assistant} />
-      <div className="xl:col-span-2">
+    <div className="space-y-4">
+      <ActivationSection assistant={assistant} blockers={blockers} onOpenTab={setTab} />
+      <AssistantTabs value={tab} onChange={setTab} flagged={flagged} />
+      <TabPanel tab="offer" active={tab === 'offer'}>
         <ProfileSection assistant={assistant} />
-      </div>
-      {allowContextDocuments ? (
-        <div className="xl:col-span-2">
-          <ContextDocumentsSection assistant={assistant} allowMethod={allowMethod} />
-        </div>
-      ) : null}
-      {allowMethod ? (
-        <div className="xl:col-span-2">
-          <MethodSection assistant={assistant} />
-        </div>
-      ) : null}
-      {allowDiscovery ? <ResourcesCard assistant={assistant} /> : null}
-      <div className="xl:col-span-2">
+        {allowContextDocuments ? <ContextDocumentsSection assistant={assistant} allowMethod={allowMethod} /> : null}
+        {allowMethod ? <MethodSection assistant={assistant} /> : null}
+        <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
+      </TabPanel>
+      <TabPanel tab="booking" active={tab === 'booking'}>
         <GoalSection
           assistant={assistant}
           allowCalendly={allowCalendly}
@@ -3076,28 +3057,23 @@ function AssistantContent() {
           allowIclose={allowIclose}
           allowCalendar={allowCalendar}
         />
-      </div>
-      <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
-      <AudienceSection assistant={assistant} allowSolicitors={hasFeature('ignore_solicitors', flags, profile, overrides)} />
-      {allowFollowups ? (
-        <div className={soloAutomation ? 'xl:col-span-2' : undefined}>
-          <FollowupsCard assistant={assistant} humanAgent={allowHumanAgent} />
-        </div>
-      ) : null}
-      {allowCannedResponses ? (
-        <div className={soloAutomation ? 'xl:col-span-2' : undefined}>
-          <CannedResponsesSection assistant={assistant} />
-        </div>
-      ) : null}
+        {allowDiscovery ? <ResourcesCard assistant={assistant} /> : null}
+      </TabPanel>
+      <TabPanel tab="operation" active={tab === 'operation'}>
+        <ChannelSection assistant={assistant} />
+        <AudienceSection assistant={assistant} allowSolicitors={hasFeature('ignore_solicitors', flags, profile, overrides)} />
+        <ScheduleSection assistant={assistant} />
+        {allowFollowups ? <FollowupsCard assistant={assistant} humanAgent={allowHumanAgent} /> : null}
+        {allowCannedResponses ? <CannedResponsesSection assistant={assistant} /> : null}
+      </TabPanel>
     </div>
   )
 }
 
 export default function AssistantPage() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
-      <h1 className="text-xl font-semibold">Assistant</h1>
-      <p className="mb-5 mt-1 text-sm text-muted">Le réglage de votre assistant Instagram.</p>
+    <div className="mx-auto max-w-4xl px-4 py-6">
+      <h1 className="mb-4 text-xl font-semibold">Assistant</h1>
       <Suspense>
         <AssistantContent />
       </Suspense>
