@@ -56,7 +56,7 @@ import type {
 } from '@/lib/types'
 import { AudioField } from '@/components/ui/audio-field'
 import { FollowupsCard } from '@/components/assistant/followups-card'
-import { ResourcesCard } from '@/components/assistant/resources-card'
+import { LinksCard } from '@/components/assistant/links-card'
 import { AssistantTabs, TabPanel, useAssistantTab } from '@/components/assistant/assistant-tabs'
 import { activationBlockers, type AssistantTab, type Blocker } from '@/lib/activation-blockers'
 import { pillClass } from '@/components/assistant/followup-fields'
@@ -332,98 +332,6 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
   )
 }
 
-const MAX_SECONDARY_LINKS = 4
-
-function SecondaryLinksField({ assistant }: { assistant: Assistant }) {
-  const { save } = useSaveSettings(assistant)
-  const [links, setLinks] = useState(assistant.settings.stop_condition?.secondary_links ?? [])
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
-  const [linkErrors, setLinkErrors] = useState<Record<string, string>>({})
-
-  async function persist(next: typeof links) {
-    setLinks(next)
-    await save((fresh) => ({ stop_condition: { ...fresh.stop_condition, secondary_links: next } }))
-  }
-
-  function validateAndPersist(next: typeof links) {
-    const errors: Record<string, string> = {}
-    for (const l of next) {
-      if (l.link.trim() && !/^https?:\/\/\S+$/.test(l.link.trim())) {
-        errors[l.id] = 'Le lien doit commencer par http:// ou https://'
-      }
-    }
-    setLinkErrors(errors)
-    if (Object.keys(errors).length === 0) persist(next)
-  }
-
-  function addLink() {
-    if (links.length >= MAX_SECONDARY_LINKS) return
-    setLinks((l) => [...l, { id: crypto.randomUUID(), condition: '', link: '' }])
-  }
-
-  function editLink(id: string, patch: Partial<{ condition: string; link: string }>) {
-    setLinks((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)))
-  }
-
-  async function confirmRemove() {
-    if (!deleteTarget) return
-    const id = deleteTarget
-    setDeleteTarget(null)
-    await persist(links.filter((x) => x.id !== id))
-  }
-
-  return (
-    <div className="space-y-3 border-t border-border pt-4">
-      <div>
-        <Label className="mb-0">Liens secondaires (optionnel)</Label>
-        <FieldHint>Proposés à la place du lien ou de l'appel quand leur condition correspond mieux.</FieldHint>
-      </div>
-      {links.map((l) => (
-        <div key={l.id} className="space-y-1.5 rounded-[10px] border border-border p-3">
-          <div className="flex items-center gap-2">
-            <Input
-              value={l.condition}
-              placeholder="Condition : quand proposer ce lien"
-              onChange={(e) => editLink(l.id, { condition: e.target.value })}
-              onBlur={() => validateAndPersist(links)}
-              className="flex-1"
-            />
-            <Button type="button" size="sm" variant="ghost" onClick={() => setDeleteTarget(l.id)}>
-              Supprimer
-            </Button>
-          </div>
-          <Input
-            value={l.link}
-            placeholder="https://..."
-            onChange={(e) => editLink(l.id, { link: e.target.value })}
-            onBlur={() => validateAndPersist(links)}
-          />
-          <FieldError>{linkErrors[l.id]}</FieldError>
-        </div>
-      ))}
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        onClick={addLink}
-        disabled={links.length >= MAX_SECONDARY_LINKS}
-      >
-        <Plus size={14} className="mr-1" />
-        {links.length >= MAX_SECONDARY_LINKS ? 'Maximum atteint' : 'Ajouter un lien'}
-      </Button>
-      <ConfirmDialog
-        open={deleteTarget != null}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={confirmRemove}
-        title="Supprimer ce lien"
-        message="Il ne sera plus proposé par l'assistant."
-        confirmLabel="Supprimer"
-        danger
-      />
-    </div>
-  )
-}
-
 const selectClass =
   'h-10 w-full rounded-[10px] border border-border bg-surface px-2 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary'
 
@@ -571,6 +479,11 @@ function OfferStyleFields({
 
 // Ce que l'assistant demande au prospect avant de réserver. `imposed` vient de la page de
 // réservation elle-même : ces lignes se lisent, elles ne se règlent pas ici.
+// Un type qui porte un nom proposé (le téléphone) l'obtient à l'enregistrement s'il est resté vide.
+function withDefaultLabels(fields: BookingField[]): BookingField[] {
+  return fields.map((f) => (f.label.trim() ? f : { ...f, label: KIND_DEFAULT_LABEL[f.kind] }))
+}
+
 function ExtraFieldsBlock({
   toolName,
   imposed,
@@ -582,16 +495,9 @@ function ExtraFieldsBlock({
   fields: BookingField[]
   onFields: (next: BookingField[]) => void
 }) {
-  // Changer le type remplace le nom tant qu'il est resté celui proposé : sinon un nom choisi à la
-  // main serait écrasé.
+  // Le nom proposé reste en placeholder : il n'est écrit qu'à l'enregistrement (withDefaultLabels).
   function changeKind(index: number, kind: BookingField['kind']) {
-    onFields(
-      fields.map((f, k) => {
-        if (k !== index) return f
-        const proposed = !f.label.trim() || f.label === KIND_DEFAULT_LABEL[f.kind]
-        return { kind, label: proposed ? KIND_DEFAULT_LABEL[kind] : f.label }
-      }),
-    )
+    onFields(fields.map((f, k) => (k === index ? { kind, label: f.label === KIND_DEFAULT_LABEL[f.kind] ? '' : f.label } : f)))
   }
 
   return (
@@ -607,11 +513,17 @@ function ExtraFieldsBlock({
             <Badge tone="muted">imposé par cette page {toolName}</Badge>
           </div>
         ))}
+        {fields.length > 0 ? (
+          <div className="flex gap-2 text-xs text-muted">
+            <span className="w-40">Type</span>
+            <span>Nom sur votre page de réservation</span>
+          </div>
+        ) : null}
         {fields.map((f, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2">
             <select
-              className={`${selectClass} w-auto`}
-              aria-label="Information à demander"
+              className={`${selectClass} w-40`}
+              aria-label="Type d'information"
               value={f.kind}
               onChange={(e) => changeKind(i, e.target.value as BookingField['kind'])}
             >
@@ -624,7 +536,7 @@ function ExtraFieldsBlock({
             <Input
               value={f.label}
               aria-label={`Nom du champ chez ${toolName}`}
-              placeholder={`Nom du champ chez ${toolName}`}
+              placeholder={KIND_DEFAULT_LABEL[f.kind] || `Nom du champ chez ${toolName}`}
               onChange={(e) => onFields(fields.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)))}
               className="min-w-[12rem] flex-1"
             />
@@ -635,7 +547,7 @@ function ExtraFieldsBlock({
         ))}
       </div>
       <FieldError>
-        {hasUnnamedField(fields)
+        {hasUnnamedField(withDefaultLabels(fields))
           ? 'Donnez un nom à chaque information à demander.'
           : hasEmailField(fields)
             ? 'L’e-mail est déjà demandé à chaque réservation : retirez ce champ.'
@@ -647,7 +559,7 @@ function ExtraFieldsBlock({
           size="sm"
           variant="secondary"
           className="mt-2.5"
-          onClick={() => onFields([...fields, { label: KIND_DEFAULT_LABEL.phone, kind: 'phone' }])}
+          onClick={() => onFields([...fields, { label: '', kind: 'phone' }])}
         >
           <Plus size={14} />
           Ajouter une information
@@ -1267,7 +1179,7 @@ function GoalSection({
   const icloseBlocked = Boolean(iclosePageError) || (mode === 'iclose' && icloseConnected && pageMissing)
   // Un champ sans nom ou un second e-mail est écarté à la lecture : le laisser enregistrer, c'est
   // promettre une question que l'assistant ne posera jamais.
-  const badFields = (fields: BookingField[]) => hasUnnamedField(fields) || hasEmailField(fields)
+  const badFields = (fields: BookingField[]) => hasUnnamedField(withDefaultLabels(fields)) || hasEmailField(fields)
   const fieldsBlocked =
     (mode === 'calendly' && badFields(calendlySettings.extra_fields)) ||
     (mode === 'iclose' && badFields(icloseSettings.extra_fields))
@@ -1309,8 +1221,8 @@ function GoalSection({
         mode: modeVisible(fresh.booking?.mode ?? 'link') ? mode : fresh.booking?.mode ?? 'link',
         host: { who: host.who, label: host.who === 'other' ? host.label.trim() : '' },
         calendar: agenda,
-        calendly: calendlySettings,
-        iclose: icloseSettings,
+        calendly: { ...calendlySettings, extra_fields: withDefaultLabels(calendlySettings.extra_fields) },
+        iclose: { ...icloseSettings, extra_fields: withDefaultLabels(icloseSettings.extra_fields) },
       },
     }))
   }
@@ -1650,8 +1562,6 @@ function GoalSection({
               <FieldError>{agendaError ?? ''}</FieldError>
             </div>
           )}
-
-          <SecondaryLinksField assistant={assistant} />
         </CardBody>
         <div className="flex justify-end border-t border-border px-5 py-3.5">
           <Button type="submit" disabled={saving || Boolean(agendaError) || calendlyBlocked || icloseBlocked || fieldsBlocked}>
@@ -3058,7 +2968,7 @@ function AssistantContent() {
           allowIclose={allowIclose}
           allowCalendar={allowCalendar}
         />
-        {allowDiscovery ? <ResourcesCard assistant={assistant} /> : null}
+        <LinksCard assistant={assistant} allowDiscovery={allowDiscovery} />
       </TabPanel>
       <TabPanel tab="operation" active={tab === 'operation'}>
         <ChannelSection assistant={assistant} />
