@@ -1,4 +1,5 @@
 import { admin, logEvent } from './core.ts'
+import { notifyAccount } from './notify.ts'
 
 export const GRAPH = 'https://graph.instagram.com/v25.0'
 
@@ -11,6 +12,25 @@ export async function getChannelToken(channelAccountId: string): Promise<string 
     .maybeSingle()
   if (error) throw new Error(`channel_tokens: ${error.message}`)
   return data?.long_lived_token ?? data?.access_token ?? null
+}
+
+// Le compte ne passe « expiré » qu'une fois : la notification ne part qu'au changement d'état,
+// sinon le rafraîchissement nocturne relancerait chaque nuit les comptes déjà morts.
+export async function markChannelExpired(channelAccountId: string, reason: string) {
+  const detail = reason.slice(0, 200)
+  const changed = await admin
+    .from('channel_accounts')
+    .update({ status: 'expired', last_error: detail })
+    .eq('id', channelAccountId)
+    .eq('status', 'connected')
+    .select('user_id')
+    .maybeSingle()
+  if (changed.data?.user_id) {
+    await notifyAccount(changed.data.user_id, 'code:channel', 'Instagram à reconnecter')
+    return true
+  }
+  await admin.from('channel_accounts').update({ last_error: detail }).eq('id', channelAccountId).eq('status', 'expired')
+  return false
 }
 
 export type SendOptions = { humanAgent?: boolean }

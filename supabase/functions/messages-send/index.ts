@@ -1,7 +1,8 @@
 // Envoi manuel depuis la boîte de réception. Respecte les fenêtres Meta (24 h, 7 jours avec
 // Human Agent) et peut mettre l'assistant en pause sur la conversation (prise de main).
 import { admin, getUser, handleOptions, json } from '../_shared/core.ts'
-import { getChannelToken, sendInstagramText } from '../_shared/instagram.ts'
+import { getChannelToken, markChannelExpired, sendInstagramText } from '../_shared/instagram.ts'
+import { isTokenRejected } from '../_shared/instagram-errors.ts'
 import { STANDARD_WINDOW_MS, manualSendMode } from '../_shared/messaging-window.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import type { FollowupSettings } from '../_shared/followups.ts'
@@ -96,6 +97,10 @@ Deno.serve(async (req) => {
       .eq('id', inserted.data.id)
     // Hors fenêtre de 24 h, le seul refus possible vient du tag : le dire, sinon l'écran laisse
     // croire à une panne de LeadControl.
+    if (isTokenRejected(e)) {
+      await markChannelExpired(conv.channel_account_id, `envoi manuel refusé : ${detail.slice(0, 160)}`)
+      return json(req, { error: 'channel_expired', detail }, 502)
+    }
     if (mode === 'human_agent') return json(req, { error: 'human_agent_refused', detail }, 502)
     return json(req, { error: 'send_failed', detail }, 502)
   }

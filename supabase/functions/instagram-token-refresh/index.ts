@@ -1,8 +1,8 @@
 // Rafraîchit chaque nuit les tokens Instagram longue durée qui expirent
-// sous 10 jours. Un échec marque le compte expired, visible dans l'app.
+// sous 10 jours. Un échec marque le compte expired et prévient le client.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
 import { AVATAR_REFRESH_MS, refreshContactAvatar } from '../_shared/avatars.ts'
-import { getChannelToken } from '../_shared/instagram.ts'
+import { getChannelToken, markChannelExpired } from '../_shared/instagram.ts'
 
 const AVATAR_BATCH = 50
 const AVATAR_PARALLEL = 5
@@ -88,10 +88,7 @@ Deno.serve(async (req) => {
       refreshed += 1
     } catch (e) {
       failed += 1
-      await admin
-        .from('channel_accounts')
-        .update({ status: 'expired', last_error: `refresh: ${String(e).slice(0, 160)}` })
-        .eq('id', account.id)
+      await markChannelExpired(account.id, `refresh: ${String(e).slice(0, 160)}`)
     }
   }
 

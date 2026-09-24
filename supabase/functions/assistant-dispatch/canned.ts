@@ -11,7 +11,8 @@ import {
   triggerKind,
 } from '../_shared/canned-match.ts'
 import { AI_MODEL_SUMMARY, generateText, recordUsage } from '../_shared/ai.ts'
-import { sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
+import { markChannelExpired, sendInstagramAudio, sendInstagramText } from '../_shared/instagram.ts'
+import { isTokenRejected } from '../_shared/instagram-errors.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import { finalizeConversation } from './finalize.ts'
 
@@ -106,6 +107,8 @@ export type CannedOutcome = {
   continueWithAgent: boolean
   metadata: Record<string, unknown>
   messageId: number | null
+  // Jeton refusé par Meta : l'agent principal échouerait pareil, inutile de l'appeler.
+  blocked?: 'token'
 }
 
 export async function tryCannedResponse(params: {
@@ -122,6 +125,7 @@ export async function tryCannedResponse(params: {
   token: string
   igUserId: string
   recipientId: string
+  channelAccountId: string
 }): Promise<CannedOutcome> {
   const none: CannedOutcome = { sent: false, continueWithAgent: false, metadata: params.metadata, messageId: null }
   const all = usableCannedResponses(params.settings.canned_responses as CannedResponse[] | undefined)
@@ -204,6 +208,10 @@ export async function tryCannedResponse(params: {
       user_id: params.userId,
       conversation_id: params.convId,
     })
+    if (isTokenRejected(e)) {
+      await markChannelExpired(params.channelAccountId, `envoi refusé : ${String(e).slice(0, 160)}`)
+      return { ...none, blocked: 'token' }
+    }
     return none
   }
 

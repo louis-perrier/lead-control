@@ -5,11 +5,13 @@
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
 import {
   getChannelToken,
+  markChannelExpired,
   sendInstagramAudio,
   sendInstagramImage,
   sendInstagramReaction,
   sendInstagramText,
 } from '../_shared/instagram.ts'
+import { isTokenRejected } from '../_shared/instagram-errors.ts'
 import {
   conversationHasBooking,
   findStep,
@@ -26,6 +28,8 @@ import { AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_
 
 const MEDIA_URL_TTL_SECONDS = 3600
 const MAX_ATTEMPTS = 3
+// Jeton refusé ou absent : on réessaie plus tard, la reconnexion du compte suffit à débloquer.
+const TOKEN_RETRY_MS = 30 * 60 * 1000
 // Sans ce décalage, toutes les relances reportées la nuit partiraient à la seconde
 // d'ouverture des horaires, sur le même compte Instagram.
 const MAX_JITTER_MS = 20 * 60 * 1000
@@ -255,6 +259,10 @@ async function handleLike(due: DueFollowup, row: FollowupRow, conv: Conv, channe
       user_id: conv.user_id,
       conversation_id: conv.id,
     })
+    if (isTokenRejected(e)) {
+      await markChannelExpired(conv.channel_account_id!, `like refusé : ${String(e).slice(0, 160)}`)
+      return postpone(due, Date.now() + TOKEN_RETRY_MS)
+    }
     return skipAndChain(due, row, 'react_failed', String(e).slice(0, 200))
   }
   const now = new Date().toISOString()
@@ -342,14 +350,20 @@ async function sendVariant(
           ? await sendInstagramImage(channel.token, channel.igUserId, conv.contact_external_id!, mediaUrl!)
           : await sendInstagramText(channel.token, channel.igUserId, conv.contact_external_id!, text!)
   } catch (e) {
-    await admin
-      .from('conversation_messages')
-      .update({ send_state: 'failed', error_message: String(e).slice(0, 200) })
-      .eq('id', inserted.data.id)
     await logEvent('error', 'followups-dispatch', `relance non envoyée conv=${conv.id}: ${String(e).slice(0, 300)}`, {
       user_id: conv.user_id,
       conversation_id: conv.id,
     })
+    if (isTokenRejected(e)) {
+      // Rien n'est parti : la bulle en attente disparaît et la relance repartira après reconnexion.
+      await admin.from('conversation_messages').delete().eq('id', inserted.data.id)
+      await markChannelExpired(conv.channel_account_id!, `relance refusée : ${String(e).slice(0, 160)}`)
+      return postpone(due, Date.now() + TOKEN_RETRY_MS)
+    }
+    await admin
+      .from('conversation_messages')
+      .update({ send_state: 'failed', error_message: String(e).slice(0, 200) })
+      .eq('id', inserted.data.id)
     return skip(due.id, 'send_failed', String(e).slice(0, 200))
   }
 
@@ -450,7 +464,7 @@ async function handleFollowup(due: DueFollowup) {
     .maybeSingle()
   const token = await getChannelToken(conv.channel_account_id)
   const channel: Channel | null = token && channelRow.data?.external_id ? { token, igUserId: channelRow.data.external_id } : null
-  if (!channel && step.kind !== 'notify') return skip(due.id, 'channel_token_missing')
+  if (!channel && step.kind !== 'notify') return postpone(due, Date.now() + TOKEN_RETRY_MS)
 
   if (step.kind === 'like') return handleLike(due, row, conv, channel!)
 

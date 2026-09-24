@@ -2,7 +2,8 @@
 // appelle Anthropic (clé plateforme ou clé du bêta-testeur), envoie la réponse
 // sur Instagram et consomme le crédit. Déclenché chaque minute par pg_cron.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
-import { getChannelToken, markSeen, sendInstagramReaction, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
+import { getChannelToken, markChannelExpired, markSeen, sendInstagramReaction, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
+import { isTokenRejected } from '../_shared/instagram-errors.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
 import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
@@ -74,6 +75,7 @@ async function retryLater(convId: number, reason: string, delayMs: number) {
   })
 }
 
+// Un envoi échoué est exclu : montré au modèle, il croirait avoir déjà répondu et se tairait.
 async function fetchWindow(convId: number, cursor: string | null): Promise<WindowMessage[]> {
   const fields = 'id, direction, author_type, body_text, message_type, transcript, transcript_status, transcript_error, sent_at, send_state'
   if (!cursor) {
@@ -81,6 +83,7 @@ async function fetchWindow(convId: number, cursor: string | null): Promise<Windo
       .from('conversation_messages')
       .select(fields)
       .eq('conversation_id', convId)
+      .neq('send_state', 'failed')
       .order('sent_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(MAX_WINDOW)
@@ -91,6 +94,7 @@ async function fetchWindow(convId: number, cursor: string | null): Promise<Windo
     .from('conversation_messages')
     .select(fields)
     .eq('conversation_id', convId)
+    .neq('send_state', 'failed')
     .gte('sent_at', cursor)
     .order('sent_at', { ascending: true })
     .order('id', { ascending: true })
@@ -102,6 +106,7 @@ async function fetchWindow(convId: number, cursor: string | null): Promise<Windo
     .from('conversation_messages')
     .select(fields)
     .eq('conversation_id', convId)
+    .neq('send_state', 'failed')
     .lt('sent_at', cursor)
     .order('sent_at', { ascending: false })
     .order('id', { ascending: false })
@@ -480,7 +485,12 @@ async function handleConversation(due: DueConversation) {
     token,
     igUserId,
     recipientId: conv.contact_external_id,
+    channelAccountId: due.channel_account_id,
   })
+  if (canned.blocked === 'token') {
+    await stopWith(convId, 'channel_token_missing', 'Le compte Instagram doit être reconnecté.')
+    return
+  }
   if (canned.sent && !canned.continueWithAgent) return
   const creditAlreadyConsumed = canned.sent
   if (canned.sent) {
@@ -774,7 +784,12 @@ async function handleConversation(due: DueConversation) {
           .from('conversation_messages')
           .update({ send_state: 'failed', error_message: String(e).slice(0, 200) })
           .eq('id', inserted.data!.id)
-        await stopWith(convId, 'send_failed', `L’envoi Instagram a échoué : ${String(e).slice(0, 160)}`)
+        if (isTokenRejected(e)) {
+          await markChannelExpired(due.channel_account_id, `envoi refusé : ${String(e).slice(0, 160)}`)
+          await stopWith(convId, 'channel_token_missing', 'Le compte Instagram doit être reconnecté.')
+        } else {
+          await stopWith(convId, 'send_failed', `L’envoi Instagram a échoué : ${String(e).slice(0, 160)}`)
+        }
         await logEvent('error', 'assistant-dispatch', `envoi échoué conv=${convId}: ${String(e).slice(0, 300)}`, {
           user_id: due.user_id,
           conversation_id: convId,
