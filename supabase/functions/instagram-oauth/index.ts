@@ -84,11 +84,16 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
       const threadKey = `ig:${igUserId}:${other.id}`
       const existing = await admin
         .from('conversations')
-        .select('id')
+        .select('id, last_message_at')
         .eq('channel_account_id', channelAccountId)
         .eq('external_thread_id', threadKey)
         .maybeSingle()
-      const last = messages[0]
+      // Sur un fil déjà suivi, seuls les messages manqués entrent : un ancien envoi sans texte
+      // (un like, un document) inséré après le message du prospect passerait pour une réponse.
+      const knownUntil = existing.data?.last_message_at ? Date.parse(existing.data.last_message_at) : 0
+      const missing = knownUntil ? messages.filter((m: { created_time: string }) => Date.parse(m.created_time) > knownUntil) : messages
+      if (!missing.length) continue
+      const last = missing[0]
       // Dernier mot au prospect et fenêtre Meta de 24h encore ouverte : laissé actif au lieu d'être marqué en pause.
       const resumable =
         !existing.data && last.from?.id === other.id && Date.now() - Date.parse(last.created_time) < 24 * 3600 * 1000
@@ -112,7 +117,7 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
         .select('id')
         .single()
       if (convRes.error) continue
-      for (const m of [...messages].reverse()) {
+      for (const m of [...missing].reverse()) {
         const fromContact = m.from?.id === other.id
         await admin
           .from('conversation_messages')
@@ -158,6 +163,39 @@ async function syncRecentHistory(channelAccountId: string, igUserId: string, tok
     await logEvent('warn', 'instagram-oauth', `import historique échoué: ${String(e).slice(0, 200)}`, {
       user_id: userId,
     })
+  }
+}
+
+// Une reconnexion remet le compte dans l'état d'avant la coupure : assistant réactivé s'il n'a
+// été mis en pause que par la déconnexion, relances annulées par cette pause rétablies tant que
+// leur heure n'est pas passée, conversations arrêtées faute de jeton reprises là où elles étaient.
+async function resumeAfterReconnect(channelAccountId: string, disconnectedAt: string | null) {
+  const paused = await admin
+    .from('assistants')
+    .update({ is_active: true, paused_reason: null, updated_at: new Date().toISOString() })
+    .eq('channel_account_id', channelAccountId)
+    .eq('is_active', false)
+    .eq('paused_reason', 'channel_disconnected')
+    .select('id')
+  const assistantIds = (paused.data ?? []).map((a) => a.id)
+  if (assistantIds.length && disconnectedAt) {
+    await admin
+      .from('followups')
+      .update({ status: 'pending', skip_reason: null })
+      .in('assistant_id', assistantIds)
+      .eq('status', 'cancelled')
+      .eq('skip_reason', 'agent_inactive')
+      .gte('updated_at', disconnectedAt)
+      .gt('scheduled_at', new Date().toISOString())
+  }
+  const stopped = await admin
+    .from('conversations')
+    .select('id')
+    .eq('channel_account_id', channelAccountId)
+    .eq('automation_state', 'error')
+    .eq('automation_reason', 'channel_token_missing')
+  for (const conv of stopped.data ?? []) {
+    await admin.rpc('resume_conversation', { p_conversation_id: conv.id })
   }
 }
 
@@ -236,6 +274,14 @@ async function callback(req: Request) {
     const igUserId = String(me.user_id ?? short.user_id)
     if (!igUserId) throw new Error('missing_ig_user_id')
 
+    const prior = await admin
+      .from('channel_accounts')
+      .select('disconnected_at')
+      .eq('user_id', st.user_id)
+      .eq('provider', 'instagram')
+      .eq('external_id', igUserId)
+      .maybeSingle()
+
     const account = await admin
       .from('channel_accounts')
       .upsert(
@@ -284,6 +330,7 @@ async function callback(req: Request) {
     }
 
     await subscribeToMessages(token, st.user_id)
+    await resumeAfterReconnect(account.data.id, prior.data?.disconnected_at ?? null)
 
     // @ts-ignore fourni par le runtime Edge
     EdgeRuntime.waitUntil(syncRecentHistory(account.data.id, igUserId, token, st.user_id, assistantId))
