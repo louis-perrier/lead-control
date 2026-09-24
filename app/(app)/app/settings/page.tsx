@@ -142,7 +142,6 @@ function ProfileCard() {
   )
 }
 
-
 function PasswordCard() {
   const toast = useToast()
   const [password, setPassword] = useState('')

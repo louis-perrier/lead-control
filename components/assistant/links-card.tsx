@@ -50,7 +50,10 @@ export function LinksCard({ assistant, allowDiscovery }: { assistant: Assistant;
   const [error, setError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null)
 
+  // Sans le module découverte, les ressources restent en base mais ne s'affichent pas.
+  const visible = allowDiscovery ? rows : rows.filter((r) => r.role === 'link')
   const count = (role: Role) => rows.filter((r) => r.role === role).length
+  const nextRole: Role = count('link') < MAX_SECONDARY_LINKS || !allowDiscovery ? 'link' : 'resource'
   const full = count('link') >= MAX_SECONDARY_LINKS && (!allowDiscovery || count('resource') >= MAX_RESOURCES)
 
   function edit(id: string, patch: Partial<Row>) {
@@ -58,8 +61,7 @@ export function LinksCard({ assistant, allowDiscovery }: { assistant: Assistant;
   }
 
   function add() {
-    const role: Role = count('link') < MAX_SECONDARY_LINKS || !allowDiscovery ? 'link' : 'resource'
-    setRows((list) => [...list, { id: crypto.randomUUID(), role, title: '', url: '', when: '' }])
+    setRows((list) => [...list, { id: crypto.randomUUID(), role: nextRole, title: '', url: '', when: '' }])
   }
 
   function remove(r: Row) {
@@ -70,7 +72,9 @@ export function LinksCard({ assistant, allowDiscovery }: { assistant: Assistant;
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     const cleaned = rows.map((r) => ({ ...r, title: r.title.trim(), url: r.url.trim(), when: r.when.trim() })).filter(hasContent)
-    for (const [index, r] of cleaned.entries()) {
+    for (const r of cleaned) {
+      const index = visible.findIndex((x) => x.id === r.id)
+      if (index < 0) continue
       const label = `Ligne ${index + 1}`
       if (!isResourceUrl(r.url)) return setError(`${label} : le lien doit commencer par http:// ou https://`)
       if (r.role === 'resource' && !r.title) return setError(`${label} : donnez un titre à cette ressource.`)
@@ -96,8 +100,8 @@ export function LinksCard({ assistant, allowDiscovery }: { assistant: Assistant;
       <CardHeader title="Liens et ressources" description="Ce que l’assistant peut envoyer en plus de votre lien principal." />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
-          {rows.length === 0 ? <p className="text-sm text-muted">Aucun lien pour l’instant.</p> : null}
-          {rows.map((r, index) => (
+          {visible.length === 0 ? <p className="text-sm text-muted">Aucun lien pour l’instant.</p> : null}
+          {visible.map((r, index) => (
             <div key={r.id} className="space-y-2 rounded-[10px] border border-border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-medium">Ligne {index + 1}</span>
@@ -145,7 +149,7 @@ export function LinksCard({ assistant, allowDiscovery }: { assistant: Assistant;
           ))}
           <Button type="button" size="sm" variant="secondary" disabled={full} onClick={add}>
             <Plus size={14} className="mr-1" />
-            {full ? 'Maximum atteint' : 'Ajouter un lien'}
+            {full ? 'Maximum atteint' : nextRole === 'resource' ? 'Ajouter une ressource' : 'Ajouter un lien'}
           </Button>
           <FieldError>{error}</FieldError>
         </CardBody>

@@ -23,7 +23,7 @@ export function ExpandableTextarea({ title, className, ...props }: React.Compone
         <Maximize2 size={14} />
       </button>
       <Dialog open={open} onClose={close} title={title} size="full" footer={<Button onClick={close}>Fermer</Button>}>
-        <Textarea {...props} id={undefined} className="min-h-0 flex-1 resize-none" autoFocus />
+        <Textarea {...props} id={undefined} aria-label={title} className="min-h-0 flex-1 resize-none" autoFocus />
       </Dialog>
     </div>
   )

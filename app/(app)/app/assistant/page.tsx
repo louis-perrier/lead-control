@@ -502,10 +502,10 @@ function ExtraFieldsBlock({
 
   return (
     <div className="rounded-[10px] border border-border p-3">
-      <Label className="mb-0 inline-flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
         Informations à demander avant de réserver
         <InfoTip text={`L'e-mail est toujours demandé, ${toolName} l'exige. Chaque information en plus rallonge la conversation.`} />
-      </Label>
+      </span>
       <div className="mt-2.5 space-y-2">
         {imposed.map((q) => (
           <div key={q} className="flex flex-wrap items-center gap-2 text-sm">
@@ -1537,10 +1537,10 @@ function GoalSection({
                 </div>
               </div>
               <div>
-                <Label id="callHoursLabel" className="inline-flex items-center gap-1.5">
+                <span id="callHoursLabel" className="mb-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-ink">
                   Quand vous prenez des appels
                   <InfoTip text="Votre agenda principal est lu. Un événement marqué Disponible ne bloque pas le créneau." />
-                </Label>
+                </span>
                 <DaysHoursField
                   labelledBy="callHoursLabel"
                   days={agenda.days}
@@ -1795,10 +1795,10 @@ function AudienceSection({ assistant, allowSolicitors }: { assistant: Assistant;
           {allowSolicitors ? (
             <div className="border-t border-border pt-3">
               <div className="flex items-center justify-between gap-3">
-                <Label className="mb-0 inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
                   Ne pas répondre aux personnes qui me démarchent
                   <InfoTip text="La conversation reste dans votre boîte, sans réponse, à reprendre si vous le voulez." />
-                </Label>
+                </span>
                 <Switch checked={ignoreSolicitors} onChange={setIgnoreSolicitors} label="Ne pas répondre aux démarcheurs" />
               </div>
             </div>

@@ -25,7 +25,8 @@ export function Textarea({ className, ...props }: React.ComponentProps<'textarea
 }
 
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className={cn('mb-1.5 block text-sm font-medium text-ink', className)} {...props} />
+  const margin = /\bmb-/.test(className ?? '') ? '' : 'mb-1.5'
+  return <label className={cn(margin, 'block text-sm font-medium text-ink', className)} {...props} />
 }
 
 export function FieldHint({ children, className }: { children: React.ReactNode; className?: string }) {

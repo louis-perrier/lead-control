@@ -28,6 +28,12 @@ type UsageRow = {
 
 type OverrideRow = { key: string; enabled: boolean }
 
+function planSinceLabel(since: string) {
+  const days = daysSince(since)
+  const date = new Date(since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  return `depuis le ${date} · ${days} jour${days > 1 ? 's' : ''}`
+}
+
 const CHANNEL_STATUS: Record<ChannelAccount['status'], { label: string; tone: 'success' | 'warning' | 'danger' | 'muted' }> = {
   connected: { label: 'Connecté', tone: 'success' },
   expired: { label: 'Expiré', tone: 'warning' },
@@ -126,10 +132,7 @@ export default function AdminUserDetailPage() {
                     : 'Plan standard'}
               </Badge>
               {profile.plan_override && profile.plan_override_since ? (
-                <p className="mt-0.5 text-xs text-muted">
-                  depuis le {new Date(profile.plan_override_since).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} ·{' '}
-                  {daysSince(profile.plan_override_since)} jour{daysSince(profile.plan_override_since) > 1 ? 's' : ''}
-                </p>
+                <p className="mt-0.5 text-xs text-muted">{planSinceLabel(profile.plan_override_since)}</p>
               ) : null}
             </div>
             {profile.role === 'user' ? (
