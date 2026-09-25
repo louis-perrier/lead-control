@@ -70,7 +70,7 @@ export default function AdminUserDetailPage() {
     queryKey: ['admin-user', userId],
     queryFn: async () => {
       const supabase = createClient()
-      const [profile, channels, assistants, usage, overrides] = await Promise.all([
+      const [profile, channels, assistants, usage, overrides, bookings] = await Promise.all([
         supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
         supabase.from('channel_accounts').select('*').eq('user_id', userId),
         supabase.from('assistants').select('*').eq('user_id', userId),
@@ -81,6 +81,7 @@ export default function AdminUserDetailPage() {
           .order('created_at', { ascending: false })
           .limit(5),
         supabase.from('user_feature_overrides').select('key, enabled').eq('user_id', userId),
+        supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       ])
       return {
         profile: profile.data as Profile | null,
@@ -88,6 +89,7 @@ export default function AdminUserDetailPage() {
         assistants: (assistants.data ?? []) as Assistant[],
         usage: (usage.data ?? []) as UsageRow[],
         overrides: (overrides.data ?? []) as OverrideRow[],
+        bookings: bookings.count ?? 0,
       }
     },
   })
@@ -119,7 +121,7 @@ export default function AdminUserDetailPage() {
             <p className="text-base font-semibold">{profile.email}</p>
             <p className="mt-0.5 text-sm text-muted">
               Inscrit le {new Date(profile.created_at).toLocaleDateString('fr-FR')} · rôle {profile.role} ·{' '}
-              {profile.credits_consumed_in_period} crédits consommés
+              {profile.credits_consumed_in_period} crédits consommés · {data.bookings} appels réservés
             </p>
           </div>
           <div className="flex items-center gap-2">

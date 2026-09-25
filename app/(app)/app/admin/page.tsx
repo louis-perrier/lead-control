@@ -17,6 +17,8 @@ type AdminStats = {
   errors_24h: number
   ai_cost_month_usd: number
   expired_channels: number
+  bookings_total: number
+  bookings_30d: number
 }
 
 function StatCard({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
@@ -44,7 +46,7 @@ export default function AdminOverviewPage() {
   if (isLoading || !data) {
     return (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {Array.from({ length: 9 }).map((_, i) => (
+        {Array.from({ length: 12 }).map((_, i) => (
           <Skeleton key={i} className="h-20 w-full" />
         ))}
       </div>
@@ -58,6 +60,8 @@ export default function AdminOverviewPage() {
       <StatCard label="MRR" value={formatCurrency(data.mrr_eur)} />
       <StatCard label="Assistants actifs" value={String(data.assistants_active)} />
       <StatCard label="Conversations" value={String(data.conversations)} />
+      <StatCard label="Appels réservés" value={String(data.bookings_total)} />
+      <StatCard label="Appels réservés sur 30 jours" value={String(data.bookings_30d)} />
       <StatCard label="Messages sur 24 h" value={String(data.messages_24h)} />
       <StatCard label="Réponses IA sur 24 h" value={String(data.agent_replies_24h)} />
       <StatCard label="Coût IA du mois" value={`${Number(data.ai_cost_month_usd).toFixed(2)} $`} />
