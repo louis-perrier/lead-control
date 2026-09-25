@@ -45,6 +45,8 @@ type DealRow = {
   closed_at: string | null
 }
 
+type BookingRow = { created_at: string }
+
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <Card>
@@ -105,7 +107,23 @@ export function StatsContent() {
     },
   })
 
-  const loading = loadingConvs || loadingDaily || loadingDeals
+  // Une ligne par appel réservé, quel que soit l'outil. Une annulation change le statut
+  // sans retirer la ligne : le compteur ne redescend jamais.
+  const { data: bookings, isLoading: loadingBookings } = useQuery({
+    queryKey: ['stats-bookings', effectiveUserId],
+    enabled: effectiveUserId !== null,
+    queryFn: async (): Promise<BookingRow[]> => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('bookings')
+        .select('created_at')
+        .eq('user_id', effectiveUserId!)
+        .limit(5000)
+      return (data ?? []) as BookingRow[]
+    },
+  })
+
+  const loading = loadingConvs || loadingDaily || loadingDeals || loadingBookings
 
   const stats = useMemo(() => {
     const sinceMs = since.getTime()
@@ -124,8 +142,10 @@ export function StatsContent() {
     const wonCount = closedConvs.filter((c) => c.outcome === 'won').length
     const lostCount = closedConvs.filter((c) => c.outcome === 'lost').length
     const closeRate = wonCount + lostCount > 0 ? (wonCount / (wonCount + lostCount)) * 100 : 0
-    return { active, hot, inbound, replies, revenue, closeRate }
-  }, [conversations, daily, deals, since])
+    const booked = bookings?.length ?? 0
+    const bookedInWindow = (bookings ?? []).filter((b) => Date.parse(b.created_at) >= sinceMs).length
+    return { active, hot, inbound, replies, revenue, closeRate, booked, bookedInWindow }
+  }, [conversations, daily, deals, bookings, since])
 
   const chartData = useMemo(
     () =>
@@ -140,7 +160,8 @@ export function StatsContent() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
         </div>
@@ -182,9 +203,15 @@ export function StatsContent() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <RoiKpiCard label="Taux de close" value={stats.closeRate} format="percent" percentDecimals={1} hint={`sur ${days} jours`} />
         <RoiKpiCard label="CA généré" value={stats.revenue} format="currency" highlight hint={`sur ${days} jours`} />
+        <RoiKpiCard
+          label="Appels réservés"
+          value={stats.booked}
+          format="number"
+          hint={`depuis le début, dont ${stats.bookedInWindow} sur ${days} jours`}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
