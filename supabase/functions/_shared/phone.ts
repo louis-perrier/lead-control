@@ -11,7 +11,8 @@ const DIAL_BY_TZ: Record<string, string> = {
 
 // Format international sans espace (+33612345678), ou null si le numéro ne s'y ramène pas sûrement.
 export function toE164(raw: string | null | undefined, timezone: string): string | null {
-  const text = (raw ?? '').trim()
+  // « +33 (0)6… » : le 0 entre parenthèses ne se compose pas depuis l'étranger.
+  const text = (raw ?? '').replace(/\(\s*0\s*\)/g, '').trim()
   if (!text) return null
   const digits = text.replace(/\D/g, '')
   let out: string | null = null

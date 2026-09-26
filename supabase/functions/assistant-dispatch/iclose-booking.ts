@@ -263,11 +263,11 @@ export async function prepareIcloseTurn(opts: {
 
     let created: Awaited<ReturnType<typeof createEventCall>>
     let contactId = ''
+    // iClose refuse tout numéro hors format international, et la réservation entière avec :
+    // un numéro qu'on ne sait pas convertir reste dans les réponses, pas sur le contact.
+    const phoneNumber = toE164(collected.phone, tz)
     try {
       const { firstName, lastName } = splitName(who)
-      // iClose refuse tout numéro hors format international, et la réservation entière avec :
-      // un numéro qu'on ne sait pas convertir reste dans les réponses, pas sur le contact.
-      const phoneNumber = toE164(collected.phone, tz)
       try {
         contactId = await upsertContact(key, { firstName, lastName, email, ...(phoneNumber ? { phoneNumber } : {}) }, account)
       } catch (e) {
@@ -367,8 +367,7 @@ export async function prepareIcloseTurn(opts: {
       meet_link: created.joinUrl,
     }
     result.bookedThisTurn = true
-    const savedPhone = toE164(collected.phone, tz)
-    if (savedPhone) await saveContactPhone(convId, savedPhone)
+    if (phoneNumber) await saveContactPhone(convId, phoneNumber)
     const where = created.joinUrl ? 'Le lien de la visio part aussi en message.' : 'Les détails sont dans l’invitation.'
     return { content: `Réservé : ${check.label}. Invitation envoyée à ${email}. ${where}` }
   }

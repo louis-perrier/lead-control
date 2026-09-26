@@ -12,6 +12,7 @@ describe('toE164', () => {
     expect(toE164('+33 6 51 46 80 62', 'Europe/Paris')).toBe('+33651468062')
     expect(toE164('0033651468062', 'Europe/Paris')).toBe('+33651468062')
     expect(toE164('+237 677 12 34 56', 'Europe/Paris')).toBe('+237677123456')
+    expect(toE164('+33 (0)6 51 46 80 62', 'Europe/Paris')).toBe('+33651468062')
   })
 
   it('suit le fuseau du compte pour l’indicatif', () => {
