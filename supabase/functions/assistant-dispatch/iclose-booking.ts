@@ -5,6 +5,7 @@ import { admin, logEvent } from '../_shared/core.ts'
 import { checkBookingSlot, planBookingOffers, type BookingCheck } from '../_shared/slot-offers.ts'
 import { normalizeIclose, type IcloseSettings } from '../_shared/iclose-settings.ts'
 import { buildAsks, collectAnswers, type Ask } from '../_shared/booking-fields.ts'
+import { toE164 } from '../_shared/phone.ts'
 import {
   isValidTimezone,
   momentLabel,
@@ -264,11 +265,19 @@ export async function prepareIcloseTurn(opts: {
     let contactId = ''
     try {
       const { firstName, lastName } = splitName(who)
-      contactId = await upsertContact(
-        key,
-        { firstName, lastName, email, ...(collected.phone ? { phoneNumber: collected.phone } : {}) },
-        account,
-      )
+      // iClose refuse tout numéro hors format international, et la réservation entière avec :
+      // un numéro qu'on ne sait pas convertir reste dans les réponses, pas sur le contact.
+      const phoneNumber = toE164(collected.phone, tz)
+      try {
+        contactId = await upsertContact(key, { firstName, lastName, email, ...(phoneNumber ? { phoneNumber } : {}) }, account)
+      } catch (e) {
+        if (!phoneNumber || !(e instanceof IcloseError) || e.code !== 'bad_request' || !String(e).includes('phoneNumber')) throw e
+        await logEvent('warn', 'assistant-dispatch', `numéro refusé par iClose conv=${convId}, contact créé sans: ${String(e).slice(0, 200)}`, {
+          user_id: userId,
+          conversation_id: convId,
+        })
+        contactId = await upsertContact(key, { firstName, lastName, email }, account)
+      }
       let answered = { disqualified: false, conditionalUsers: '' }
       try {
         answered = await sendInviteeAnswers(
@@ -358,7 +367,8 @@ export async function prepareIcloseTurn(opts: {
       meet_link: created.joinUrl,
     }
     result.bookedThisTurn = true
-    if (collected.phone) await saveContactPhone(convId, collected.phone)
+    const savedPhone = toE164(collected.phone, tz)
+    if (savedPhone) await saveContactPhone(convId, savedPhone)
     const where = created.joinUrl ? 'Le lien de la visio part aussi en message.' : 'Les détails sont dans l’invitation.'
     return { content: `Réservé : ${check.label}. Invitation envoyée à ${email}. ${where}` }
   }
