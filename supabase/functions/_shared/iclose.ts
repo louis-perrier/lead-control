@@ -2,7 +2,7 @@
 // L'accès passe par une clé d'API que le client colle lui-même : elle ne se rafraîchit pas, elle
 // est valable ou révoquée. L'API iClose demande un forfait Business ou Enterprise.
 import { admin, logEvent } from './core.ts'
-import { contactIdOf, describeIcloseEvent, eventCallOf, listOf, numericId, parseAvailabilities, type IcloseEvent } from './iclose-event.ts'
+import { contactIdByEmail, contactIdOf, describeIcloseEvent, eventCallOf, listOf, numericId, parseAvailabilities, type IcloseEvent } from './iclose-event.ts'
 
 const API = 'https://public.api.iclosed.io'
 const TIMEOUT_MS = 8000
@@ -149,7 +149,17 @@ export async function upsertContact(
   contact: { firstName: string; lastName: string; email: string; phoneNumber?: string },
   account?: IcloseAccount,
 ): Promise<string> {
-  const payload = await call(key, '/v1/contacts', { method: 'POST', body: JSON.stringify(contact) }, account)
+  let payload: Record<string, unknown>
+  try {
+    payload = await call(key, '/v1/contacts', { method: 'POST', body: JSON.stringify(contact) }, account)
+  } catch (e) {
+    // Malgré sa documentation, POST ne met pas à jour un contact existant : il le refuse.
+    if (!(e instanceof IcloseError) || e.code !== 'bad_request' || !/already exists/i.test(e.message)) throw e
+    const found = await call(key, `/v1/contacts?search=${encodeURIComponent(contact.email)}&limit=100`, {}, account)
+    const existing = contactIdByEmail(found, contact.email)
+    if (!existing) throw e
+    return existing
+  }
   const id = contactIdOf(payload)
   if (!id) throw new IcloseError('unavailable', `contact iClose sans identifiant : ${JSON.stringify(payload).slice(0, 160)}`)
   return id

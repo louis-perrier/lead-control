@@ -145,6 +145,16 @@ export function eventCallOf(payload: unknown): { id: string; joinUrl: string | n
   return { id, joinUrl: typeof join === 'string' && join.startsWith('http') ? join : null }
 }
 
+// GET /v1/contacts?search= : data.contacts[], recherche large (nom, e-mail, téléphone), on garde
+// seulement l'e-mail exact.
+export function contactIdByEmail(payload: unknown, email: string): string {
+  const list = pick(payload, [['data', 'contacts'], ['contacts'], ['data']])
+  if (!Array.isArray(list)) return ''
+  const wanted = email.trim().toLowerCase()
+  const match = list.find((c) => typeof c?.email === 'string' && c.email.trim().toLowerCase() === wanted)
+  return match ? idText(match.id) : ''
+}
+
 // iClose attend des entiers pour contactId et eventId ; nos identifiants circulent en texte.
 export function numericId(value: string): number | string {
   return /^\d+$/.test(value) ? Number(value) : value

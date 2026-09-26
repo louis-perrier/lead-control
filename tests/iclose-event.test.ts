@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contactIdOf, describeIcloseEvent, eventCallOf, listOf, numericId, parseAvailabilities } from '../supabase/functions/_shared/iclose-event'
+import { contactIdByEmail, contactIdOf, describeIcloseEvent, eventCallOf, listOf, numericId, parseAvailabilities } from '../supabase/functions/_shared/iclose-event'
 import { ICLOSE_DEFAULTS, normalizeIclose } from '../supabase/functions/_shared/iclose-settings'
 import { zonedToUtc } from '../supabase/functions/_shared/agenda-slots'
 
@@ -136,5 +136,14 @@ describe('réponses de création iClose', () => {
   it('passe les identifiants numériques en entiers', () => {
     expect(numericId('49753')).toBe(49753)
     expect(numericId('abc')).toBe('abc')
+  })
+})
+
+describe('contact existant retrouvé par e-mail', () => {
+  it('garde seulement l’e-mail exact, sans tenir compte de la casse', () => {
+    const payload = { data: { count: 2, contacts: [{ id: 7, email: 'medou@gmail.com' }, { id: 8, email: 'Medoumaiky@gmail.com' }] } }
+    expect(contactIdByEmail(payload, 'medoumaiky@gmail.com')).toBe('8')
+    expect(contactIdByEmail(payload, 'autre@gmail.com')).toBe('')
+    expect(contactIdByEmail({ data: {} }, 'a@b.fr')).toBe('')
   })
 })
