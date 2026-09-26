@@ -48,7 +48,7 @@ const THANKS_OR_BYE = new Set([
 
 const POSITIVE_EMOJI = new Set([
   '🙏', '👍', '❤', '♥', '😊', '🙂', '😁', '😄', '😀', '🔥', '💪', '👌', '🤝', '🥰', '😍', '🫶', '✅', '💯', '🙌',
-  '👏', '😉', '🤗', '💙', '🧡', '💛', '💚', '💜', '🖤', '🤍',
+  '👏', '😉', '🤗', '💙', '🧡', '💛', '💚', '💜', '🖤', '🤍', '🫡', '🤙', '😎',
 ])
 
 export type ClosingCheck = {
@@ -64,6 +64,15 @@ export function isFarewell(text: string | null | undefined) {
   const normalized = ` ${normalizeWords(text).join(' ')} `
   const has = (markers: string[]) => markers.some((marker) => normalized.includes(` ${marker} `))
   return has(FAREWELLS) || (has(THANKS_REPLIES) && !/https?:\/\//i.test(text))
+}
+
+function politeOnly(text: string) {
+  if (text.includes('?') || text.length > CLOSING_MAX_CHARS) return null
+  const words = normalizeWords(text)
+  const emojis = text.match(/\p{Extended_Pictographic}/gu) ?? []
+  if (words.length === 0 && emojis.length === 0) return null
+  if (!words.every((w) => CLOSING_WORDS.has(w)) || !emojis.every((e) => POSITIVE_EMOJI.has(e))) return null
+  return { warm: words.some((w) => THANKS_OR_BYE.has(w)) || emojis.length > 0 }
 }
 
 // 'like' : politesse pure, sans appel IA. 'ask' : court mais à confirmer. null : on répond.
@@ -87,9 +96,16 @@ export function closingCheck(messages: Message[]): ClosingCheck | null {
   const words = normalizeWords(prospectReply)
   const emojis = prospectReply.match(/\p{Extended_Pictographic}/gu) ?? []
   if (words.length === 0 && emojis.length === 0) return null
-  const pure =
-    words.every((w) => CLOSING_WORDS.has(w)) &&
-    emojis.every((e) => POSITIVE_EMOJI.has(e)) &&
-    (words.some((w) => THANKS_OR_BYE.has(w)) || emojis.length > 0)
+  const polite = politeOnly(prospectReply)
+  // Un « ok » seul peut annoncer la suite, sauf s'il suit déjà un premier accusé de réception :
+  // deux de suite, l'échange est fini et un nouvel au revoir de l'agent sonnerait faux.
+  let before = start
+  while (before > 0 && sorted[before - 1].author_type === 'customer') before--
+  const previous = sorted.slice(before, start)
+  const repeated =
+    previous.length > 0 &&
+    previous.every((m) => m.message_type === 'text' && m.body_text?.trim()) &&
+    politeOnly(previous.map((m) => m.body_text!.trim()).join('\n')) !== null
+  const pure = polite !== null && (polite.warm || repeated)
   return { verdict: pure ? 'like' : 'ask', accountTurn, prospectReply, targetId: tail[tail.length - 1].id }
 }

@@ -72,6 +72,25 @@ describe('closingCheck, l’agent doit répondre', () => {
     expect(r?.verdict).toBe('like')
   })
 
+  it('un second accusé de réception d’affilée clôt l’échange : like sans appel IA', () => {
+    const r = closingCheck([
+      agent('Nickel, c’est la bonne méthode, prends bien le temps d’assimiler chaque vidéo 💪'),
+      prospect('Compris 🫡'),
+      agent('Nickel 💪 je reste dispo si t’as des questions en avançant.'),
+      prospect('Ok'),
+    ])
+    expect(r?.verdict).toBe('like')
+  })
+
+  it('un premier « ok » après une invitation à parler reste à confirmer', () => {
+    const r = closingCheck([
+      prospect('Je vois pas trop par où commencer'),
+      agent('N’hésite pas à me dire ce qui te bloque le plus.'),
+      prospect('ok'),
+    ])
+    expect(r?.verdict).toBe('ask')
+  })
+
   it('le compte n’avait pas conclu, la qualification continue', () => {
     expect(closingCheck([agent("Ok ça se comprend, c'est normal en démarrage."), prospect('merci')])).toBeNull()
     expect(closingCheck([agent('Il y a plus de monde qui regarde des vidéos courtes aujourd’hui.'), prospect('ok')])).toBeNull()
