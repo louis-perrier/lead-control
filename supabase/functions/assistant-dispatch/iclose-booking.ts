@@ -266,6 +266,7 @@ export async function prepareIcloseTurn(opts: {
     // iClose refuse tout numéro hors format international, et la réservation entière avec :
     // un numéro qu'on ne sait pas convertir reste dans les réponses, pas sur le contact.
     const phoneNumber = toE164(collected.phone, tz)
+    const answers = collected.saved.map((a) => ({ identifier: a.label, answer: a.value }))
     try {
       const { firstName, lastName } = splitName(who)
       try {
@@ -284,10 +285,10 @@ export async function prepareIcloseTurn(opts: {
           key,
           {
             contactId,
-            eventId: event.id,
+            linkPrefix: event.linkPrefix,
             email,
             name: who,
-            answers: collected.saved.map((a) => ({ identifier: a.label, answer: a.value })),
+            answers,
           },
           account,
         )

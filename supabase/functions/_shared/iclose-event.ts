@@ -119,3 +119,34 @@ export function parseAvailabilities(payload: unknown, tz: string): number[] {
 
   return [...new Set(out)].sort((a, b) => a - b)
 }
+
+// Réponses de POST /v1/contacts (data.contact.id) et POST /v1/eventCalls (data.eventCall.data.id),
+// lues dans la documentation développeur le 2026-09-26. Les formes plates restent acceptées.
+function pick(payload: unknown, paths: string[][]): unknown {
+  for (const path of paths) {
+    let node: unknown = payload
+    for (const key of path) node = node && typeof node === 'object' ? (node as Raw)[key] : undefined
+    if (node !== undefined && node !== null && node !== '') return node
+  }
+  return undefined
+}
+
+function idText(value: unknown) {
+  return typeof value === 'number' || (typeof value === 'string' && value.trim()) ? String(value).trim() : ''
+}
+
+export function contactIdOf(payload: unknown): string {
+  return idText(pick(payload, [['data', 'contact', 'id'], ['data', 'id'], ['contact', 'id'], ['id']]))
+}
+
+export function eventCallOf(payload: unknown): { id: string; joinUrl: string | null } {
+  const id = idText(pick(payload, [['data', 'eventCall', 'data', 'id'], ['data', 'eventCall', 'id'], ['data', 'id'], ['eventCall', 'id'], ['id']]))
+  const join = pick(payload, [['data', 'eventCall', 'data', 'location'], ['data', 'eventCall', 'data', 'joinUrl'], ['data', 'location'], ['location'], ['joinUrl']])
+  return { id, joinUrl: typeof join === 'string' && join.startsWith('http') ? join : null }
+}
+
+// iClose attend des entiers pour contactId et eventId ; nos identifiants circulent en texte.
+export function numericId(value: string): number | string {
+  return /^\d+$/.test(value) ? Number(value) : value
+}
+

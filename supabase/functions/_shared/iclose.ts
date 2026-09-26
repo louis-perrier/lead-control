@@ -2,7 +2,7 @@
 // L'accès passe par une clé d'API que le client colle lui-même : elle ne se rafraîchit pas, elle
 // est valable ou révoquée. L'API iClose demande un forfait Business ou Enterprise.
 import { admin, logEvent } from './core.ts'
-import { describeIcloseEvent, listOf, parseAvailabilities, type IcloseEvent } from './iclose-event.ts'
+import { contactIdOf, describeIcloseEvent, eventCallOf, listOf, numericId, parseAvailabilities, type IcloseEvent } from './iclose-event.ts'
 
 const API = 'https://public.api.iclosed.io'
 const TIMEOUT_MS = 8000
@@ -150,9 +150,8 @@ export async function upsertContact(
   account?: IcloseAccount,
 ): Promise<string> {
   const payload = await call(key, '/v1/contacts', { method: 'POST', body: JSON.stringify(contact) }, account)
-  const root = (payload.data ?? payload.contact ?? payload) as Record<string, unknown>
-  const id = typeof root.id === 'string' ? root.id : String(root.id ?? '')
-  if (!id || id === 'undefined') throw new IcloseError('unavailable', 'contact iClose sans identifiant')
+  const id = contactIdOf(payload)
+  if (!id) throw new IcloseError('unavailable', `contact iClose sans identifiant : ${JSON.stringify(payload).slice(0, 160)}`)
   return id
 }
 
@@ -164,7 +163,7 @@ export async function sendInviteeAnswers(
   key: string,
   opts: {
     contactId: string
-    eventId: string
+    linkPrefix: string
     email: string
     name: string
     answers: { identifier: string; answer: string }[]
@@ -172,15 +171,13 @@ export async function sendInviteeAnswers(
   account?: IcloseAccount,
 ): Promise<{ disqualified: boolean; conditionalUsers: string }> {
   const body = {
-    contactId: opts.contactId,
-    eventId: opts.eventId,
+    contactId: numericId(opts.contactId),
+    linkPrefix: opts.linkPrefix,
     inviteeQuestionAnswers: [
       { type: 'EMAIL', answer: opts.email },
       { type: 'NAME', answer: opts.name },
     ],
-    ...(opts.answers.length > 0
-      ? { secondaryQuestionsAnswer: opts.answers.map((a) => ({ identifier: a.identifier, answer: [a.answer] })) }
-      : {}),
+    secondaryQuestionsAnswer: secondaryAnswers(opts.answers),
   }
   const payload = await call(key, '/v1/fields/inviteeAnswers', { method: 'POST', body: JSON.stringify(body) }, account)
   const root = (payload.data ?? payload) as Record<string, unknown>
@@ -192,6 +189,10 @@ export async function sendInviteeAnswers(
 }
 
 export type CreatedCall = { id: string; joinUrl: string | null }
+
+function secondaryAnswers(answers: { identifier: string; answer: string }[]) {
+  return answers.map((a) => ({ identifier: a.identifier, answer: [a.answer] }))
+}
 
 export async function createEventCall(
   key: string,
@@ -208,20 +209,21 @@ export async function createEventCall(
   // Rien d'inventé ici : la réservation faite par l'assistant est déjà rattachée à sa
   // conversation par la ligne `bookings` qu'il écrit juste après.
   const body: Record<string, unknown> = {
-    eventId: opts.eventId,
+    eventId: numericId(opts.eventId),
     linkPrefix: opts.linkPrefix,
-    contactId: opts.contactId,
+    contactId: numericId(opts.contactId),
     dateTime: new Date(opts.start).toISOString(),
     timeZone: opts.timezone,
+    // Obligatoire, mais vide : un libellé inconnu d'iClose ferait refuser la réservation entière,
+    // et les réponses sont déjà passées par inviteeAnswers.
+    secondaryQuestionsAnswer: [],
   }
   if (opts.conditionalUsers) body.conditionalUsers = opts.conditionalUsers
 
   const payload = await call(key, '/v1/eventCalls', { method: 'POST', body: JSON.stringify(body) }, account)
-  const root = (payload.data ?? payload.eventCall ?? payload) as Record<string, unknown>
-  const id = typeof root.id === 'string' ? root.id : String(root.id ?? '')
-  if (!id || id === 'undefined') throw new IcloseError('unavailable', 'réservation iClose sans identifiant')
-  const join = root.location ?? root.eventLink ?? root.joinUrl
-  return { id, joinUrl: typeof join === 'string' && join.startsWith('http') ? join : null }
+  const created = eventCallOf(payload)
+  if (!created.id) throw new IcloseError('unavailable', `réservation iClose sans identifiant : ${JSON.stringify(payload).slice(0, 160)}`)
+  return created
 }
 
 // Enregistrement du webhook au moment de la connexion. iClose ne documente pas cet appel

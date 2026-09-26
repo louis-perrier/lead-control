@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeIcloseEvent, listOf, parseAvailabilities } from '../supabase/functions/_shared/iclose-event'
+import { contactIdOf, describeIcloseEvent, eventCallOf, listOf, numericId, parseAvailabilities } from '../supabase/functions/_shared/iclose-event'
 import { ICLOSE_DEFAULTS, normalizeIclose } from '../supabase/functions/_shared/iclose-settings'
 import { zonedToUtc } from '../supabase/functions/_shared/agenda-slots'
 
@@ -118,5 +118,23 @@ describe('normalizeIclose', () => {
       { label: 'Deux', kind: 'text' },
       { label: 'Trois', kind: 'text' },
     ])
+  })
+})
+
+describe('réponses de création iClose', () => {
+  it('lit l’identifiant du contact dans data.contact.id', () => {
+    expect(contactIdOf({ data: { contact: { id: 48213, email: 'a@b.fr' } } })).toBe('48213')
+    expect(contactIdOf({ data: { id: '12' } })).toBe('12')
+    expect(contactIdOf({ data: { contact: null } })).toBe('')
+  })
+
+  it('lit l’identifiant de l’appel dans data.eventCall.data.id', () => {
+    expect(eventCallOf({ data: { eventCall: { data: { id: 991 }, confirmationLink: 'https://x' } } })).toEqual({ id: '991', joinUrl: null })
+    expect(eventCallOf({ data: {} }).id).toBe('')
+  })
+
+  it('passe les identifiants numériques en entiers', () => {
+    expect(numericId('49753')).toBe(49753)
+    expect(numericId('abc')).toBe('abc')
   })
 })
