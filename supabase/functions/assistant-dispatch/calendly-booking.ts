@@ -5,6 +5,7 @@ import { admin, logEvent } from '../_shared/core.ts'
 import { checkBookingSlot, planBookingOffers, type BookingCheck } from '../_shared/slot-offers.ts'
 import { normalizeCalendly, type CalendlySettings } from '../_shared/calendly-settings.ts'
 import { buildAsks, collectAnswers, type Ask } from '../_shared/booking-fields.ts'
+import { toE164 } from '../_shared/phone.ts'
 import {
   isValidTimezone,
   momentLabel,
@@ -278,7 +279,9 @@ export async function prepareCalendlyTurn(opts: {
         email,
         timezone: tz,
         location: info.location,
-        answers: collected.answers,
+        answers: collected.answers.map((a) =>
+          asks.some((k) => k.kind === 'phone' && k.position === a.position) ? { ...a, answer: toE164(a.answer, tz) ?? a.answer } : a,
+        ),
         conversationId: convId,
       })
     } catch (e) {
@@ -329,7 +332,8 @@ export async function prepareCalendlyTurn(opts: {
     // Le rendez-vous existe chez Calendly même si la ligne n'a pas pu être écrite : on confirme.
     result.booking = saved ?? { id: '', event_start_at: new Date(check.start).toISOString(), meet_link: join }
     result.bookedThisTurn = true
-    if (collected.phone) await saveContactPhone(convId, collected.phone)
+    const phoneNumber = toE164(collected.phone, tz)
+    if (phoneNumber) await saveContactPhone(convId, phoneNumber)
     if (info.isVideo && !join) {
       await notifyNeedsYou(userId, convId, 'Appel réservé sans lien de visio : envoyez-le au prospect.', { renew: true })
     }
@@ -362,9 +366,9 @@ export async function prepareCalendlyTurn(opts: {
         venue,
         venueText,
         offerStyle: settings.offer_style,
-        asks: asks.map((a) => ({ key: a.key, label: a.label })),
+        asks: asks.map((a) => ({ key: a.key, label: a.label, kind: a.kind })),
       },
-      tools: calendlyTools(asks.map((a) => ({ key: a.key, label: a.label }))),
+      tools: calendlyTools(asks.map((a) => ({ key: a.key, label: a.label, kind: a.kind }))),
       runTool,
       storedOffers: planned?.stored ?? null,
       step,
