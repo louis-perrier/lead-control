@@ -19,10 +19,14 @@ describe('toE164', () => {
     expect(toE164('0470123456', 'Europe/Brussels')).toBe('+32470123456')
   })
 
-  it('renonce plutôt que deviner', () => {
-    expect(toE164('677123456', 'Europe/Paris')).toBeNull()
-    expect(toE164('0651468062', 'Asia/Tokyo')).toBeNull()
+  it('prend un numéro sans indicatif pour un numéro français', () => {
+    expect(toE164('651468062', 'Europe/Paris')).toBe('+33651468062')
+    expect(toE164('0651468062', 'Asia/Tokyo')).toBe('+33651468062')
+  })
+
+  it('renonce seulement devant ce qui n’est pas un numéro', () => {
     expect(toE164('06', 'Europe/Paris')).toBeNull()
+    expect(toE164('pas de numéro', 'Europe/Paris')).toBeNull()
     expect(toE164('', 'Europe/Paris')).toBeNull()
     expect(toE164(null, 'Europe/Paris')).toBeNull()
   })
