@@ -62,6 +62,7 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
   const initial = assistant.settings.followups
   const [enabled, setEnabled] = useState(initial?.enabled ?? false)
   const [afterOwn, setAfterOwn] = useState(initial?.after_own_message ?? false)
+  const [onlyEngaged, setOnlyEngaged] = useState(initial?.only_engaged ?? false)
   const [steps, setSteps] = useState<FollowupStep[]>(() => cloneSequence(followupSteps(initial)))
   const [converted] = useState(() => Boolean(initial) && initial?.version !== SETTINGS_VERSION && followupSteps(initial).length > 0)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -152,7 +153,7 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
       }
     }
     setError('')
-    await save({ followups: { enabled, after_own_message: afterOwn, version: SETTINGS_VERSION, steps: cleaned } })
+    await save({ followups: { enabled, after_own_message: afterOwn, only_engaged: onlyEngaged, version: SETTINGS_VERSION, steps: cleaned } })
   }
 
   return (
@@ -244,10 +245,17 @@ export function FollowupsCard({ assistant, humanAgent }: { assistant: Assistant;
                 </div>
               ) : null}
 
-              <div className="border-t border-border pt-3">
+              <div className="space-y-3 border-t border-border pt-3">
                 <div className="flex items-center justify-between gap-3">
                   <Label className="mb-0">Relancer aussi après un message que j’ai écrit moi-même</Label>
                   <Switch checked={afterOwn} onChange={setAfterOwn} label="Relancer après mes propres messages" />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+                    Relancer seulement les personnes qui m’ont déjà écrit
+                    <InfoTip text="Un premier message resté sans aucune réponse n’est jamais relancé." />
+                  </span>
+                  <Switch checked={onlyEngaged} onChange={setOnlyEngaged} label="Relancer seulement les personnes qui m’ont déjà écrit" />
                 </div>
               </div>
             </>

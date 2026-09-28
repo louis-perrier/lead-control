@@ -41,6 +41,9 @@ export type AssistedFollowup = { id: string; days: number; text: string }
 export type FollowupSettings = {
   enabled?: boolean
   after_own_message?: boolean
+  // Aucune relance tant que le prospect n'a jamais écrit : un premier message resté sans réponse
+  // ne se relance pas.
+  only_engaged?: boolean
   version?: number
   steps?: FollowupStep[]
   // Réglages d'avant la séquence, jamais réécrits par l'écran mais toujours lus.

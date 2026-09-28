@@ -123,6 +123,8 @@ export type FollowupStep = {
 export type FollowupSettings = {
   enabled?: boolean
   after_own_message?: boolean
+  /** Relancer seulement les conversations où le prospect a déjà écrit. */
+  only_engaged?: boolean
   version?: number
   steps?: FollowupStep[]
   /** Réglages d'avant la séquence, encore lus tant qu'ils n'ont pas été réenregistrés. */

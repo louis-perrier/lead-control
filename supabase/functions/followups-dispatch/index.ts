@@ -222,6 +222,7 @@ type Conv = {
   metadata: Record<string, unknown> | null
   automation_state: string
   heat_tag: string | null
+  last_customer_message_at: string | null
 }
 
 type Channel = { token: string; igUserId: string }
@@ -406,7 +407,7 @@ async function handleFollowup(due: DueFollowup) {
 
   const convRes = await admin
     .from('conversations')
-    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, contact_name, contact_handle, metadata, automation_state, heat_tag')
+    .select('id, user_id, assistant_id, channel_account_id, contact_external_id, contact_name, contact_handle, metadata, automation_state, heat_tag, last_customer_message_at')
     .eq('id', due.conversation_id)
     .maybeSingle()
   const conv = convRes.data as Conv | null
@@ -430,6 +431,8 @@ async function handleFollowup(due: DueFollowup) {
   if (audienceBlocks(agent.settings, conv.contact_handle)) return skip(due.id, 'audience_blocked')
 
   const settings = (agent.settings ?? {}) as { followups?: FollowupSettings }
+  // Revérifié à l'envoi : les relances programmées avant que le client coche la case partent sinon.
+  if (settings.followups?.only_engaged && !conv.last_customer_message_at) return skip(due.id, 'not_engaged')
   const steps = usableSteps(settings.followups)
   const step: FollowupStep | null = findStep(steps, row.item_id, due.slot_index)
   if (!step) return skip(due.id, 'followup_removed')

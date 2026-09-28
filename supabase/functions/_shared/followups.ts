@@ -46,6 +46,11 @@ export async function conversationHasBooking(conversationId: number) {
   return (data?.length ?? 0) > 0
 }
 
+export async function prospectHasWritten(conversationId: number) {
+  const { data } = await admin.from('conversations').select('last_customer_message_at').eq('id', conversationId).maybeSingle()
+  return Boolean((data as { last_customer_message_at: string | null } | null)?.last_customer_message_at)
+}
+
 // Seule la première étape est planifiée : la suivante l'est au moment où celle-ci part
 // vraiment, sinon deux étapes reportées hors horaires partaient à la même ouverture.
 // Le filtre d'audience se vérifie ici, un message écrit à la main à un compte exclu en programmait une.
@@ -60,8 +65,10 @@ export async function planFollowups(params: {
   const settings = params.assistantSettings ?? null
   if (audienceBlocks(settings, params.contactHandle ?? null)) return
   if (isFarewell(params.anchorText)) return
-  const [first] = usableSteps((settings as { followups?: FollowupSettings } | null)?.followups)
+  const followups = (settings as { followups?: FollowupSettings } | null)?.followups
+  const [first] = usableSteps(followups)
   if (!first || !params.assistantId || !params.anchorMessageId) return
+  if (followups?.only_engaged && !(await prospectHasWritten(params.conversationId))) return
   if (await conversationHasBooking(params.conversationId)) return
   await planFollowupSlot({
     conversationId: params.conversationId,
