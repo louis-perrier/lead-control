@@ -14,6 +14,22 @@ export async function getChannelToken(channelAccountId: string): Promise<string 
   return data?.long_lived_token ?? data?.access_token ?? null
 }
 
+// Nombre d'abonnés d'une personne qui nous a écrit. Un échec ne bloque jamais la réponse.
+export async function getFollowerCount(token: string, igScopedId: string): Promise<number | null | undefined> {
+  try {
+    const res = await fetch(`${GRAPH}/${encodeURIComponent(igScopedId)}?fields=follower_count`, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(3000),
+    })
+    if (!res.ok) return null
+    const body = (await res.json()) as { follower_count?: unknown }
+    // undefined : Meta a répondu sans le champ, à distinguer d'un appel raté.
+    return typeof body.follower_count === 'number' ? body.follower_count : undefined
+  } catch {
+    return null
+  }
+}
+
 // Le compte ne passe « expiré » qu'une fois : la notification ne part qu'au changement d'état,
 // sinon le rafraîchissement nocturne relancerait chaque nuit les comptes déjà morts.
 export async function markChannelExpired(channelAccountId: string, reason: string) {

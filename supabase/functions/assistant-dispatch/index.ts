@@ -2,7 +2,7 @@
 // appelle Anthropic (clé plateforme ou clé du bêta-testeur), envoie la réponse
 // sur Instagram et consomme le crédit. Déclenché chaque minute par pg_cron.
 import { admin, isCronCall, json, logEvent } from '../_shared/core.ts'
-import { getChannelToken, markChannelExpired, markSeen, sendInstagramReaction, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
+import { getChannelToken, getFollowerCount, markChannelExpired, markSeen, sendInstagramReaction, sendInstagramText, sendTypingOn } from '../_shared/instagram.ts'
 import { isTokenRejected } from '../_shared/instagram-errors.ts'
 import { planFollowups } from '../_shared/followups.ts'
 import { AI_MODEL_REPLY, AI_MODEL_SUMMARY, generateText, recordUsage, resolveApiKey } from '../_shared/ai.ts'
@@ -24,6 +24,7 @@ import { withAgendaSection } from './agenda-prompt.ts'
 import { momentLabel } from '../_shared/agenda-slots.ts'
 import { methodText, withMethodSection, type MethodSettings } from './method-prompt.ts'
 import { discoveryText, normalizeResources, withDiscoverySection } from './discovery-prompt.ts'
+import { profileNote } from './profile-prompt.ts'
 import { bookingHost } from '../_shared/booking-settings.ts'
 import { SOLICITOR_SYSTEM, readSolicitorVerdict, shouldCheckSolicitor, solicitorInput } from './solicitor.ts'
 
@@ -184,6 +185,20 @@ async function activeDiscovery(userId: string, resources: unknown) {
   const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: 'discovery_flow' })
   if (data !== true) return ''
   return discoveryText(normalizeResources(resources))
+}
+
+// Lu à chaque réponse plutôt que stocké : le chiffre bouge et l'appel ne coûte qu'un GET.
+async function activeProfileNote(userId: string, convId: number, token: string, contactId: string) {
+  const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: 'prospect_profile' })
+  if (data !== true) return ''
+  const followers = await getFollowerCount(token, contactId)
+  if (followers === undefined) {
+    await logEvent('warn', 'assistant-dispatch', `follower_count absent de la réponse Meta conv=${convId}`, {
+      user_id: userId,
+      conversation_id: convId,
+    })
+  }
+  return profileNote(followers)
 }
 
 async function hasActiveBooking(convId: number) {
@@ -525,6 +540,7 @@ async function handleConversation(due: DueConversation) {
   // méthode mais pas encore lu reste collé en entier, sinon il disparaîtrait sans rien laisser.
   const method = await activeMethod(due.user_id, settings.method)
   const discovery = await activeDiscovery(due.user_id, settings.resources)
+  const profile = await activeProfileNote(due.user_id, convId, token, conv.contact_external_id)
   // Sans hôte, le contexte agenda est inchangé : la section produite reste identique à l'octet.
   const host = bookingHost(settings.booking?.host)
   const agendaCtx = agenda ? { ...agenda.prompt, host: host.who === 'other' ? host.label : null } : null
@@ -581,7 +597,8 @@ async function handleConversation(due: DueConversation) {
   const baseSystem = withMethodSection(withDiscoverySection(fixedPrompt, discovery), method.text)
   const system = agendaCtx ? withAgendaSection(baseSystem, agendaCtx) : baseSystem
   const transcriptLines = messages.map((m) => `${speaker(m)} : ${renderMessage(m)}`)
-  const prompt = `Conversation (du plus ancien au plus récent) :\n${transcriptLines.join('\n')}\n\nRéponds au dernier message du prospect en respectant le format de sortie JSON.`
+  // Dans le message utilisateur, pas dans le système : le cache et les empreintes du prompt ne bougent pas.
+  const prompt = `${profile ? `${profile}\n\n` : ''}Conversation (du plus ancien au plus récent) :\n${transcriptLines.join('\n')}\n\nRéponds au dernier message du prospect en respectant le format de sortie JSON.`
 
   const systemBlocks = splitSystemForCache(system)
   const automationStart = new Date().toISOString()
