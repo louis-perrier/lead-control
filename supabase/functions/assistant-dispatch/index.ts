@@ -24,7 +24,7 @@ import { withAgendaSection } from './agenda-prompt.ts'
 import { momentLabel } from '../_shared/agenda-slots.ts'
 import { methodText, withMethodSection, type MethodSettings } from './method-prompt.ts'
 import { discoveryText, normalizeResources, withDiscoverySection } from './discovery-prompt.ts'
-import { profileNote } from './profile-prompt.ts'
+import { CONTENT_FLOW, asksName, profileNote } from './profile-prompt.ts'
 import { bookingHost } from '../_shared/booking-settings.ts'
 import { SOLICITOR_SYSTEM, readSolicitorVerdict, shouldCheckSolicitor, solicitorInput } from './solicitor.ts'
 
@@ -187,10 +187,13 @@ async function activeDiscovery(userId: string, resources: unknown) {
   return discoveryText(normalizeResources(resources))
 }
 
-// Lu à chaque réponse plutôt que stocké : le chiffre bouge et l'appel ne coûte qu'un GET.
-async function activeProfileNote(userId: string, convId: number, token: string, contactId: string) {
+async function profileEnabled(userId: string) {
   const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: 'prospect_profile' })
-  if (data !== true) return ''
+  return data === true
+}
+
+// Lu à chaque réponse plutôt que stocké : le chiffre bouge et l'appel ne coûte qu'un GET.
+async function readFollowers(userId: string, convId: number, token: string, contactId: string) {
   const followers = await getFollowerCount(token, contactId)
   if (followers === undefined) {
     await logEvent('warn', 'assistant-dispatch', `follower_count absent de la réponse Meta conv=${convId}`, {
@@ -198,7 +201,7 @@ async function activeProfileNote(userId: string, convId: number, token: string, 
       conversation_id: convId,
     })
   }
-  return profileNote(followers)
+  return followers
 }
 
 async function hasActiveBooking(convId: number) {
@@ -540,10 +543,16 @@ async function handleConversation(due: DueConversation) {
   // méthode mais pas encore lu reste collé en entier, sinon il disparaîtrait sans rien laisser.
   const method = await activeMethod(due.user_id, settings.method)
   const discovery = await activeDiscovery(due.user_id, settings.resources)
-  const profile = await activeProfileNote(due.user_id, convId, token, conv.contact_external_id)
+  const profileOn = await profileEnabled(due.user_id)
+  const followers = profileOn ? await readFollowers(due.user_id, convId, token, conv.contact_external_id) : null
   // Sans hôte, le contexte agenda est inchangé : la section produite reste identique à l'octet.
   const host = bookingHost(settings.booking?.host)
   const agendaCtx = agenda ? { ...agenda.prompt, host: host.who === 'other' ? host.label : null } : null
+  // Le nom Instagram ne sert qu'à éviter de le redemander : inutile hors d'une réservation qui le réclame.
+  const wantsName = profileOn && !agendaCtx?.booked && asksName((agendaCtx?.asks ?? []).map((a) => a.label))
+  const profile = profileOn
+    ? profileNote({ followers, ...(wantsName ? { name: conv.contact_name, handle: conv.contact_handle } : {}) })
+    : ''
   let context = settings.context ?? ''
   const { data: allDocs } = await admin
     .from('context_documents')
@@ -594,7 +603,8 @@ async function handleConversation(due: DueConversation) {
     summary,
   })
   // Le déroulé général d'abord, la fiche du client ensuite : la plus spécifique arrive en dernier.
-  const baseSystem = withMethodSection(withDiscoverySection(fixedPrompt, discovery), method.text)
+  const flows = [discovery, profileOn ? CONTENT_FLOW : ''].filter(Boolean).join('\n')
+  const baseSystem = withMethodSection(withDiscoverySection(fixedPrompt, flows), method.text)
   const system = agendaCtx ? withAgendaSection(baseSystem, agendaCtx) : baseSystem
   const transcriptLines = messages.map((m) => `${speaker(m)} : ${renderMessage(m)}`)
   // Dans le message utilisateur, pas dans le système : le cache et les empreintes du prompt ne bougent pas.
