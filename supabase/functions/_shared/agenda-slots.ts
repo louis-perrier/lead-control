@@ -147,11 +147,14 @@ function hourLabel(minutes: number) {
   return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`
 }
 
-// Dans le mois en cours on dit « samedi 20 », comme à l'oral. Le mois revient dès qu'on en change.
-function dayLabel(a: { weekday: number; day: number; month: number; year: number }, withDate: boolean, ref?: { month: number; year: number }) {
+// « Le 12 » dit le 19 désigne le 12 qui arrive : à moins d'un mois, le mois ne se dit pas.
+// Au-delà, le même numéro existe deux fois dans la fenêtre et le mois lève le doute.
+function dayLabel(a: { weekday: number; day: number; month: number; year: number }, withDate: boolean, ref?: { day: number; month: number; year: number }) {
   if (!withDate) return WEEKDAYS[a.weekday]
   const date = `${WEEKDAYS[a.weekday]} ${a.day === 1 ? '1er' : a.day}`
-  return ref && ref.month === a.month && ref.year === a.year ? date : `${date} ${MONTHS[a.month - 1]}`
+  const months = ref ? (a.year - ref.year) * 12 + a.month - ref.month : -1
+  const near = months === 0 || (months === 1 && a.day < ref!.day)
+  return near ? date : `${date} ${MONTHS[a.month - 1]}`
 }
 
 export function rangeLabel(start: number, end: number, tz: string, withDate = true, now = Date.now()) {

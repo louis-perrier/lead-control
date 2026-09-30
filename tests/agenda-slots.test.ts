@@ -139,7 +139,7 @@ describe('planOffers et recordSentOffers', () => {
 
   it('reconnaît le premier du mois sans confondre les heures et les dates', () => {
     const offer = { start: paris(10, 1, 12), end: paris(10, 1, 15), label: '' }
-    expect(rangeLabel(offer.start, offer.end, TZ, true, NOW)).toBe('jeudi 1er octobre entre 12 h et 15 h')
+    expect(rangeLabel(offer.start, offer.end, TZ, true, NOW)).toBe('jeudi 1er entre 12 h et 15 h')
     expect(offerMentioned(offer, ['Jeudi 1er de 12h à 15h, ça te va ?'], TZ)).toBe(true)
     expect(offerMentioned(offer, ['Jeudi 1er octobre de 12h à 15h, ça te va ?'], TZ)).toBe(true)
     expect(offerMentioned(offer, ['Jeudi 11 octobre de 12h à 15h ?'], TZ)).toBe(false)
@@ -258,10 +258,18 @@ describe('réglages', () => {
 })
 
 describe('mois dans les libellés', () => {
-  it('se tait dans le mois en cours et revient dès le mois suivant', () => {
+  it('se tait à moins d’un mois et revient au-delà', () => {
     expect(momentLabel(paris(9, 30, 14), TZ, NOW)).toBe('mercredi 30 à 14 h')
-    expect(momentLabel(paris(10, 2, 14), TZ, NOW)).toBe('vendredi 2 octobre à 14 h')
-    expect(momentLabel(paris(10, 1, 14), TZ, paris(10, 1, 8))).toBe('jeudi 1er à 14 h')
+    expect(momentLabel(paris(10, 2, 14), TZ, NOW)).toBe('vendredi 2 à 14 h')
+    expect(momentLabel(paris(10, 16, 14), TZ, NOW)).toBe('vendredi 16 à 14 h')
+    expect(momentLabel(paris(10, 17, 14), TZ, NOW)).toBe('samedi 17 octobre à 14 h')
+    expect(momentLabel(paris(11, 2, 14), TZ, NOW)).toBe('lundi 2 novembre à 14 h')
+    expect(momentLabel(paris(10, 1, 14), TZ, paris(9, 30, 8))).toBe('jeudi 1er à 14 h')
+  })
+
+  it('passe l’année sans dire le mois', () => {
+    const january = zonedToUtc(2027, 1, 4, 14 * 60, TZ)!
+    expect(momentLabel(january, TZ, paris(12, 28, 9))).toBe('lundi 4 à 14 h')
   })
 
   it('ne confond pas septembre et septembre de l’année suivante', () => {
@@ -272,7 +280,7 @@ describe('mois dans les libellés', () => {
   it('lit le mois dans le fuseau de l’agenda, pas en UTC', () => {
     // 30 septembre 23 h 30 à Paris : déjà octobre à Auckland.
     const now = paris(9, 30, 23, 30)
-    expect(momentLabel(paris(10, 1, 10), TZ, now)).toBe('jeudi 1er octobre à 10 h')
-    expect(momentLabel(paris(10, 1, 10), 'Pacific/Auckland', now)).toBe('jeudi 1er à 21 h')
+    expect(momentLabel(paris(10, 30, 10), TZ, now)).toBe('vendredi 30 octobre à 10 h')
+    expect(momentLabel(paris(10, 30, 10), 'Pacific/Auckland', now)).toBe('vendredi 30 à 22 h')
   })
 })
