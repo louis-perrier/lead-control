@@ -11,7 +11,7 @@ import { tryCannedResponse } from './canned.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { allocateBudget, cutAtBoundary } from '../_shared/context-budget.ts'
 import { agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed, taggedLink } from './decision.ts'
-import { splitReply, typingPauses } from './bubbles.ts'
+import { splitReplyPieces, typingPauses } from './bubbles.ts'
 import { closingCheck } from './closing.ts'
 import { firstJsonObject } from '../_shared/canned-match.ts'
 import { finalizeConversation } from './finalize.ts'
@@ -25,6 +25,7 @@ import { momentLabel } from '../_shared/agenda-slots.ts'
 import { methodText, withMethodSection, type MethodSettings } from './method-prompt.ts'
 import { discoveryText, normalizeResources, withDiscoverySection } from './discovery-prompt.ts'
 import { CONTENT_FLOW, asksName, profileNote } from './profile-prompt.ts'
+import { CITE_RULE, LIKE_RULE, burstNumbers, burstOf, citeTargets, likeTarget } from './gestures.ts'
 import { bookingHost } from '../_shared/booking-settings.ts'
 import { SOLICITOR_SYSTEM, readSolicitorVerdict, shouldCheckSolicitor, solicitorInput } from './solicitor.ts'
 
@@ -187,8 +188,8 @@ async function activeDiscovery(userId: string, resources: unknown) {
   return discoveryText(normalizeResources(resources))
 }
 
-async function profileEnabled(userId: string) {
-  const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: 'prospect_profile' })
+async function hasFeature(userId: string, key: string) {
+  const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: key })
   return data === true
 }
 
@@ -543,7 +544,8 @@ async function handleConversation(due: DueConversation) {
   // méthode mais pas encore lu reste collé en entier, sinon il disparaîtrait sans rien laisser.
   const method = await activeMethod(due.user_id, settings.method)
   const discovery = await activeDiscovery(due.user_id, settings.resources)
-  const profileOn = await profileEnabled(due.user_id)
+  const profileOn = await hasFeature(due.user_id, 'prospect_profile')
+  const citeOn = await hasFeature(due.user_id, 'quoted_replies')
   const followers = profileOn ? await readFollowers(due.user_id, convId, token, conv.contact_external_id) : null
   // Sans hôte, le contexte agenda est inchangé : la section produite reste identique à l'octet.
   const host = bookingHost(settings.booking?.host)
@@ -603,10 +605,22 @@ async function handleConversation(due: DueConversation) {
     summary,
   })
   // Le déroulé général d'abord, la fiche du client ensuite : la plus spécifique arrive en dernier.
-  const flows = [discovery, profileOn ? CONTENT_FLOW : ''].filter(Boolean).join('\n')
-  const baseSystem = withMethodSection(withDiscoverySection(fixedPrompt, flows), method.text)
+  const flows = [discovery, profileOn ? CONTENT_FLOW : '', LIKE_RULE, citeOn ? CITE_RULE : ''].filter(Boolean).join('\n')
+  // La règle du like vaut pour tous les comptes : un repère introuvable ne doit pas coûter la réponse.
+  let withFlows = fixedPrompt
+  try {
+    withFlows = withDiscoverySection(fixedPrompt, flows)
+  } catch (e) {
+    await logEvent('error', 'assistant-dispatch', `consignes non insérées conv=${convId}: ${String(e).slice(0, 120)}`, {
+      user_id: due.user_id,
+      conversation_id: convId,
+    })
+  }
+  const baseSystem = withMethodSection(withFlows, method.text)
   const system = agendaCtx ? withAgendaSection(baseSystem, agendaCtx) : baseSystem
-  const transcriptLines = messages.map((m) => `${speaker(m)} : ${renderMessage(m)}`)
+  // Seuls les messages restés sans réponse portent un numéro : c'est par lui que le modèle désigne un geste.
+  const numbers = burstNumbers(messages)
+  const transcriptLines = messages.map((m) => `${speaker(m)}${numbers.has(m.id) ? ` [${numbers.get(m.id)}]` : ''} : ${renderMessage(m)}`)
   // Dans le message utilisateur, pas dans le système : le cache et les empreintes du prompt ne bougent pas.
   const prompt = `${profile ? `${profile}\n\n` : ''}Conversation (du plus ancien au plus récent) :\n${transcriptLines.join('\n')}\n\nRéponds au dernier message du prospect en respectant le format de sortie JSON.`
 
@@ -739,7 +753,8 @@ async function handleConversation(due: DueConversation) {
 
   // Le prompt ne laisse plus le choix de se taire : une réponse écrite part toujours, même si
   // should_response dit le contraire.
-  const blocks = splitReply(decision.reply_text ?? '')
+  const pieces = splitReplyPieces(decision.reply_text ?? '')
+  const blocks = pieces.map((p) => p.text)
   if (blocks.length === 0 && !canned.sent) {
     await finalizeConversation(
       convId,
@@ -762,6 +777,33 @@ async function handleConversation(due: DueConversation) {
   // Le lien de la visio part toujours en message, en plus de l'invitation par e-mail.
   const meetLink = agenda?.result.booking?.meet_link
   if (meetLink && blocks.length > 0 && !(await meetLinkSent(convId, meetLink))) blocks.push(meetLink)
+
+  const burst = burstOf(messages)
+  const likeId = blocks.length > 0 ? likeTarget(burst, decision.like) : null
+  const cites = citeOn ? citeTargets(burst, decision.cite, pieces.map((p) => p.origin)) : []
+  const gestureIds = [likeId, ...cites].filter((id): id is number => id !== null)
+  const targets = new Map<number, { mid: string; liked: boolean }>()
+  if (gestureIds.length > 0) {
+    const { data } = await admin.from('conversation_messages').select('id, external_message_id, reaction').in('id', gestureIds)
+    for (const row of data ?? []) {
+      if (row.external_message_id && !row.external_message_id.startsWith('local:')) {
+        targets.set(row.id, { mid: row.external_message_id, liked: Boolean(row.reaction) })
+      }
+    }
+  }
+  // Le like part avant la réponse, comme quand on réagit puis qu'on écrit.
+  const liked = likeId !== null ? targets.get(likeId) : undefined
+  if (liked && !liked.liked) {
+    try {
+      await sendInstagramReaction(token, igUserId, conv.contact_external_id, liked.mid)
+      await admin.from('conversation_messages').update({ reaction: '❤️' }).eq('id', likeId)
+    } catch (e) {
+      await logEvent('warn', 'assistant-dispatch', `like impossible conv=${convId}: ${String(e).slice(0, 200)}`, {
+        user_id: due.user_id,
+        conversation_id: convId,
+      })
+    }
+  }
 
   const pauses = typingPauses(blocks)
   let sentCount = 0
@@ -791,7 +833,20 @@ async function handleConversation(due: DueConversation) {
         .select('id')
         .single()
       try {
-        const mid = await sendInstagramText(token, igUserId, conv.contact_external_id, block)
+        const cited = cites[i] ?? null
+        const replyTo = cited !== null ? targets.get(cited)?.mid ?? null : null
+        let mid: string | null
+        try {
+          mid = await sendInstagramText(token, igUserId, conv.contact_external_id, block, { replyTo })
+        } catch (e) {
+          // Une citation refusée ne doit jamais coûter la réponse : elle repart sans.
+          if (!replyTo || isTokenRejected(e)) throw e
+          await logEvent('warn', 'assistant-dispatch', `citation refusée conv=${convId}: ${String(e).slice(0, 200)}`, {
+            user_id: due.user_id,
+            conversation_id: convId,
+          })
+          mid = await sendInstagramText(token, igUserId, conv.contact_external_id, block)
+        }
         await admin
           .from('conversation_messages')
           .update({

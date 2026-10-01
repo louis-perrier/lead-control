@@ -49,7 +49,8 @@ export async function markChannelExpired(channelAccountId: string, reason: strin
   return false
 }
 
-export type SendOptions = { humanAgent?: boolean }
+// replyTo : identifiant Meta du message cité (« Vous avez répondu »).
+export type SendOptions = { humanAgent?: boolean; replyTo?: string | null }
 
 // Le tag n'est admis par Meta que sur un message écrit ou validé par un humain, entre 24 h et
 // 7 jours après le dernier message du prospect. Seul l'envoi manuel de la boîte le passe.
@@ -67,7 +68,12 @@ export async function sendInstagramText(
   const res = await fetch(`${GRAPH}/${encodeURIComponent(igUserId)}/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ recipient: { id: recipientId }, message: { text }, ...humanAgentFields(opts) }),
+    body: JSON.stringify({
+      recipient: { id: recipientId },
+      message: { text },
+      ...(opts?.replyTo ? { reply_to: { mid: opts.replyTo } } : {}),
+      ...humanAgentFields(opts),
+    }),
   })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(`graph_send_${res.status}:${JSON.stringify(body).slice(0, 300)}`)

@@ -8,7 +8,9 @@ export const QUESTION_SPLIT_RATE = 0.8
 const FIRST_TYPING_MS = 1500
 const MAX_TOTAL_TYPING_MS = 10_000
 
-export type Piece = { text: string; sep: string }
+// `origin` : rang de la bulle écrite par le modèle. Seul le début d'une bulle le garde, pour
+// qu'une citation ne se pose jamais sur une suite de phrase ou sur une bulle fusionnée.
+export type Piece = { text: string; sep: string; origin?: number }
 type Cut = { at: number; end: number }
 
 const HAS_LETTER = /\p{L}/u
@@ -36,7 +38,7 @@ function usable(text: string, cut: Cut) {
 
 function cutPiece(piece: Piece, cut: Cut): [Piece, Piece] {
   return [
-    { text: piece.text.slice(0, cut.at), sep: piece.sep },
+    { text: piece.text.slice(0, cut.at), sep: piece.sep, origin: piece.origin },
     { text: piece.text.slice(cut.end), sep: piece.text.slice(cut.at, cut.end) },
   ]
 }
@@ -69,7 +71,7 @@ function mergeShortest(pieces: Piece[]): Piece[] {
       if (result[i - 1].text.length + result[i].text.length < result[best - 1].text.length + result[best].text.length) best = i
     }
     const [a, b] = [result[best - 1], result[best]]
-    result.splice(best - 1, 2, { text: a.text + b.sep + b.text, sep: a.sep })
+    result.splice(best - 1, 2, { text: a.text + b.sep + b.text, sep: a.sep, origin: a.origin })
   }
   return result
 }
@@ -80,7 +82,7 @@ export function splitReplyPieces(text: string, random: () => number = Math.rando
   const parts = trimmed.split(/(\s*\n[ \t]*\n\s*)/)
   let pieces: Piece[] = []
   for (let i = 0; i < parts.length; i += 2) {
-    pieces.push({ text: parts[i], sep: i === 0 ? '' : parts[i - 1] })
+    pieces.push({ text: parts[i], sep: i === 0 ? '' : parts[i - 1], origin: i / 2 })
   }
   if (random() < QUESTION_SPLIT_RATE) {
     pieces = [...pieces.slice(0, -1), ...splitQuestion(pieces[pieces.length - 1])]

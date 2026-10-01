@@ -10,6 +10,9 @@ export type AgentDecision = {
   heat_reason: string
   summary: string | null
   reason: string | null
+  // Gestes facultatifs : numéro du message à liker, et message cité par chaque bulle.
+  like?: number | null
+  cite?: (number | null)[]
 }
 
 export type ParsedDecision = { decision: AgentDecision; readable: boolean }
@@ -66,6 +69,8 @@ export function parseDecision(text: string): ParsedDecision {
         heat_reason: typeof parsed.heat_reason === 'string' ? parsed.heat_reason : '',
         summary: typeof parsed.summary === 'string' ? parsed.summary : null,
         reason: typeof parsed.reason === 'string' ? parsed.reason : null,
+        like: parsed.like === true ? 1 : Number.isInteger(parsed.like) ? parsed.like : null,
+        cite: Array.isArray(parsed.cite) ? parsed.cite.map((n: unknown) => (Number.isInteger(n) ? (n as number) : null)) : [],
       },
     }
   } catch {
