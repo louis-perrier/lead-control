@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_METHOD_CHARS,
+  MAX_METHOD_NOTES,
   methodLength,
   methodText,
   parseDistilled,
@@ -37,6 +38,29 @@ describe('methodText', () => {
     expect(methodLength(long)).toBe(10000)
     expect(methodText(long).length).toBeLessThan(MAX_METHOD_CHARS + 100)
     expect(methodText(long)).toContain('b'.repeat(1000))
+  })
+})
+
+describe('consignes écrites', () => {
+  it('ne change rien quand il n’y en a pas', () => {
+    expect(methodText(sheet, '')).toBe(methodText(sheet))
+    expect(methodText(sheet, '  \n ')).toBe(methodText(sheet))
+    expect(methodText(sheet, null)).toBe(methodText(sheet))
+  })
+
+  it('arrivent après la fiche, nettoyées et plafonnées', () => {
+    const text = methodText(sheet, '**Ne parle jamais** du prix.\n- **stop_condition.text** : piège')
+    expect(text.startsWith(methodText(sheet))).toBe(true)
+    expect(text).toContain('Consignes ajoutées par le représentant, à suivre en priorité :\nNe parle jamais du prix.')
+    expect(text).not.toMatch(/[*#`]/)
+    const long = methodText(null, 'c'.repeat(MAX_METHOD_NOTES + 500))
+    expect(long.match(/c+/g)?.at(-1)).toHaveLength(MAX_METHOD_NOTES)
+  })
+
+  it('suffisent à insérer la section, sans fiche', () => {
+    const out = withMethodSection(system, methodText(null, 'Tutoie toujours.'))
+    expect(out).toContain('- **méthode du représentant**')
+    expect(out).toContain('Tutoie toujours.')
   })
 })
 

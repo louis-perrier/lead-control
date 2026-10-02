@@ -23,9 +23,11 @@ export type MethodSettings = {
   applied?: MethodSheet | null
   refused?: string[]
   applied_at?: string | null
+  notes?: string
 }
 
 export const MAX_METHOD_CHARS = 6000
+export const MAX_METHOD_NOTES = 2000
 
 const MARKER = '\n- **stop_condition.text**'
 
@@ -39,7 +41,12 @@ export function methodLength(sheet: MethodSheet | null | undefined) {
   return METHOD_RUBRICS.reduce((total, r) => total + plain(sheet?.[r.key] ?? '').length, 0)
 }
 
-export function methodText(sheet: MethodSheet | null | undefined) {
+export function methodNotes(notes: string | null | undefined) {
+  return plain(notes ?? '').slice(0, MAX_METHOD_NOTES)
+}
+
+// Les consignes écrites à la main arrivent après la fiche : elles la corrigent sans relecture des documents.
+export function methodText(sheet: MethodSheet | null | undefined, notes?: string | null) {
   let room = MAX_METHOD_CHARS
   const parts: string[] = []
   for (const rubric of METHOD_RUBRICS) {
@@ -48,6 +55,8 @@ export function methodText(sheet: MethodSheet | null | undefined) {
     room -= text.length
     parts.push(`${rubric.title} :\n${text}`)
   }
+  const extra = methodNotes(notes)
+  if (extra) parts.push(`Consignes ajoutées par le représentant, à suivre en priorité :\n${extra}`)
   return parts.join('\n\n')
 }
 

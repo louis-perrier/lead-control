@@ -24,6 +24,7 @@ import { withAgendaSection } from './agenda-prompt.ts'
 import { momentLabel } from '../_shared/agenda-slots.ts'
 import { methodText, withMethodSection, type MethodSettings } from './method-prompt.ts'
 import { BUDGET_RULE, discoveryText, normalizeResources, withDiscoverySection } from './discovery-prompt.ts'
+import { aboutText } from './about-prompt.ts'
 import { CONTENT_FLOW, asksName, profileNote } from './profile-prompt.ts'
 import { CITE_RULE, LIKE_RULE, burstNumbers, burstOf, citeTargets, likeTarget } from './gestures.ts'
 import { bookingHost } from '../_shared/booking-settings.ts'
@@ -172,9 +173,9 @@ async function isSolicitor(userId: string, convId: number, messages: WindowMessa
   }
 }
 
-// La fiche validée par le client, tant que le module lui est ouvert.
+// La fiche validée par le client et ses consignes écrites, tant que le module lui est ouvert.
 async function activeMethod(userId: string, method: MethodSettings | undefined) {
-  const text = methodText(method?.applied)
+  const text = methodText(method?.applied, method?.notes)
   if (!text) return { text: '', documentIds: [] as number[] }
   const { data } = await admin.rpc('user_has_feature', { p_user: userId, p_key: 'sales_method' })
   if (data !== true) return { text: '', documentIds: [] as number[] }
@@ -367,7 +368,7 @@ async function handleConversation(due: DueConversation) {
 
   const profileRes = await admin
     .from('profiles')
-    .select('plan_override, timezone')
+    .select('plan_override, timezone, about')
     .eq('user_id', due.user_id)
     .single()
   const planOverride = profileRes.data?.plan_override ?? null
@@ -546,6 +547,8 @@ async function handleConversation(due: DueConversation) {
   const discovery = await activeDiscovery(due.user_id, settings.resources)
   const profileOn = await hasFeature(due.user_id, 'prospect_profile')
   const citeOn = await hasFeature(due.user_id, 'quoted_replies')
+  const aboutDraft = aboutText(profileRes.data?.about)
+  const about = aboutDraft && (await hasFeature(due.user_id, 'seller_profile')) ? aboutDraft : ''
   const followers = profileOn ? await readFollowers(due.user_id, convId, token, conv.contact_external_id) : null
   // Sans hôte, le contexte agenda est inchangé : la section produite reste identique à l'octet.
   const host = bookingHost(settings.booking?.host)
@@ -605,7 +608,7 @@ async function handleConversation(due: DueConversation) {
     summary,
   })
   // Le déroulé général d'abord, la fiche du client ensuite : la plus spécifique arrive en dernier.
-  const flows = [discovery, BUDGET_RULE, profileOn ? CONTENT_FLOW : '', LIKE_RULE, citeOn ? CITE_RULE : '']
+  const flows = [about, discovery, BUDGET_RULE, profileOn ? CONTENT_FLOW : '', LIKE_RULE, citeOn ? CITE_RULE : '']
     .filter(Boolean)
     .join('\n')
   // Les règles du budget et du like valent pour tous les comptes : un repère introuvable ne doit pas coûter la réponse.

@@ -22,6 +22,7 @@ export type Profile = {
   city: string | null
   company_name: string | null
   company_size: CompanySize | null
+  about?: import('@/supabase/functions/assistant-dispatch/about-prompt').SellerAbout | null
   onboarding_completed_at: string | null
   credits_consumed_in_period: number
   created_at: string

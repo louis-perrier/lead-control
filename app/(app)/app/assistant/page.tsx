@@ -57,6 +57,7 @@ import type {
 import { AudioField } from '@/components/ui/audio-field'
 import { FollowupsCard } from '@/components/assistant/followups-card'
 import { LinksCard } from '@/components/assistant/links-card'
+import { AboutCard } from '@/components/assistant/about-card'
 import { AssistantTabs, TabPanel, useAssistantTab } from '@/components/assistant/assistant-tabs'
 import { activationBlockers, type AssistantTab, type Blocker } from '@/lib/activation-blockers'
 import { pillClass } from '@/components/assistant/followup-fields'
@@ -73,6 +74,7 @@ import { useToast } from '@/components/ui/toast'
 import { bookingChoice, TOOL_NAMES, type BookingMode } from '@/lib/booking-mode'
 import {
   MAX_METHOD_CHARS,
+  MAX_METHOD_NOTES,
   METHOD_RUBRICS,
   methodLength,
   type MethodSheet,
@@ -274,7 +276,15 @@ function AccountRow({
   )
 }
 
-function ProfileSection({ assistant }: { assistant: Assistant }) {
+function ProfileSection({
+  assistant,
+  allowDocuments,
+  allowMethod,
+}: {
+  assistant: Assistant
+  allowDocuments: boolean
+  allowMethod: boolean
+}) {
   const { save, saving } = useSaveSettings(assistant)
   const s = assistant.settings
   const [productName, setProductName] = useState(s.product?.name ?? '')
@@ -292,7 +302,10 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
 
   return (
     <Card>
-      <CardHeader title="Ce que vous vendez" />
+      <CardHeader
+        title="Ce que vous vendez"
+        description={allowDocuments ? "Écrivez votre présentation, ajoutez vos documents : l'assistant lit les deux." : undefined}
+      />
       <form onSubmit={submit}>
         <CardBody className="space-y-4">
           <div>
@@ -315,6 +328,7 @@ function ProfileSection({ assistant }: { assistant: Assistant }) {
               placeholder="Votre méthode, vos clients types, vos prix, vos arguments, ce que l'assistant doit savoir."
             />
           </div>
+          {allowDocuments ? <OfferDocuments assistant={assistant} allowMethod={allowMethod} /> : null}
           <div>
             <Label htmlFor="qualification">Questions de qualification (optionnel)</Label>
             <ExpandableTextarea
@@ -2240,11 +2254,11 @@ function DocumentRow({
           <Badge tone="muted">Traitement…</Badge>
         )}
         {onMove && moveLabel ? (
-          <Button size="sm" variant="ghost" onClick={onMove}>
+          <Button type="button" size="sm" variant="ghost" onClick={onMove}>
             {moveLabel}
           </Button>
         ) : null}
-        <Button size="sm" variant="ghost" onClick={onRemove}>
+        <Button type="button" size="sm" variant="ghost" onClick={onRemove}>
           Supprimer
         </Button>
       </div>
@@ -2277,7 +2291,7 @@ function DocumentUploadButton({
           e.target.value = ''
         }}
       />
-      <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading || disabled}>
+      <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading || disabled}>
         {uploading ? 'Envoi…' : label}
       </Button>
     </>
@@ -2302,7 +2316,7 @@ function DocumentList<T extends { id: number }>({ docs, render }: { docs: T[]; r
   )
 }
 
-function ContextDocumentsSection({ assistant, allowMethod }: { assistant: Assistant; allowMethod: boolean }) {
+function OfferDocuments({ assistant, allowMethod }: { assistant: Assistant; allowMethod: boolean }) {
   const { save } = useSaveSettings(assistant)
   const { docs, isLoading, quota, atQuota, uploading, upload, remove } = useContextDocuments()
   // Module fermé : l'agent lit tout, l'écran montre donc tout, sans quoi un document rangé dans
@@ -2313,44 +2327,42 @@ function ContextDocumentsSection({ assistant, allowMethod }: { assistant: Assist
   const somePartial = mine.some((d) => shares.get(d.id)?.complete === false)
 
   return (
-    <Card>
-      <CardHeader title="Documents de contexte" description="Vos textes longs sur l'offre, lus par l'assistant." />
-      <CardBody className="space-y-3">
-        <DocumentQuota quota={quota} />
-        {isLoading ? (
-          <Skeleton className="h-16 w-full" />
-        ) : mine.length === 0 ? (
-          <EmptyState title="Aucun document" description="Vos documents sur l'offre, le produit, vous." />
-        ) : (
-          <DocumentList
-            docs={mine}
-            render={(d) => (
-              <DocumentRow
-                key={d.id}
-                doc={d}
-                share={shares.get(d.id)}
-                moveLabel={allowMethod && d.status === 'ready' ? 'Vers ma méthode' : undefined}
-                onMove={
-                  allowMethod && d.status === 'ready'
-                    ? () => save((base) => ({ method: { ...base.method, document_ids: [...(base.method?.document_ids ?? []), d.id] } }))
-                    : undefined
-                }
-                onRemove={() => remove(d.id)}
-              />
-            )}
-          />
-        )}
-        {somePartial ? (
-          <FieldHint>Vos documents dépassent la place disponible. Raccourcissez le plus long pour qu'il soit lu en entier.</FieldHint>
+    <div className="space-y-3">
+      <Label className="mb-0">Documents de présentation de l'offre</Label>
+      <DocumentQuota quota={quota} />
+      {isLoading ? (
+        <Skeleton className="h-16 w-full" />
+      ) : mine.length === 0 ? (
+        <EmptyState title="Aucun document" description="Vos textes longs sur l'offre et le produit." />
+      ) : (
+        <DocumentList
+          docs={mine}
+          render={(d) => (
+            <DocumentRow
+              key={d.id}
+              doc={d}
+              share={shares.get(d.id)}
+              moveLabel={allowMethod && d.status === 'ready' ? 'Vers ma méthode' : undefined}
+              onMove={
+                allowMethod && d.status === 'ready'
+                  ? () => save((base) => ({ method: { ...base.method, document_ids: [...(base.method?.document_ids ?? []), d.id] } }))
+                  : undefined
+              }
+              onRemove={() => remove(d.id)}
+            />
+          )}
+        />
+      )}
+      {somePartial ? (
+        <FieldHint>Vos documents dépassent la place disponible. Raccourcissez le plus long pour qu'il soit lu en entier.</FieldHint>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <DocumentUploadButton uploading={uploading} disabled={atQuota} label="Ajouter un document" onFile={upload} />
+        {atQuota && quota && quota.max > 0 ? (
+          <span className="text-xs text-muted">Limite atteinte : supprimez un document pour en ajouter.</span>
         ) : null}
-        <div className="flex flex-wrap items-center gap-2">
-          <DocumentUploadButton uploading={uploading} disabled={atQuota} label="Ajouter un document" onFile={upload} />
-          {atQuota && quota && quota.max > 0 ? (
-            <span className="text-xs text-muted">Limite atteinte : supprimez un document pour en ajouter.</span>
-          ) : null}
-        </div>
-      </CardBody>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -2376,6 +2388,8 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
   const [error, setError] = useState('')
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [lastReadInfo, setLastReadInfo] = useState<DistillResponse['read'] | null>(null)
+  const [notes, setNotes] = useState(stored?.notes ?? '')
+  const notesChanged = notes.trim() !== (stored?.notes ?? '')
 
   const methodIds = stored?.document_ids ?? []
   const appliedIds = stored?.applied_document_ids ?? []
@@ -2458,7 +2472,7 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
     <Card>
       <CardHeader
         title="Votre méthode de vente"
-        description="Vos documents de méthode, résumés en une fiche que l’assistant suit."
+        description="Vos documents, résumés en une fiche que l’assistant suit, et vos consignes écrites."
       />
       <CardBody className="space-y-4">
         <div className="space-y-2">
@@ -2473,7 +2487,7 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
                   doc={doc}
                   share={shares.get(doc.id)}
                   summarised={appliedIds.includes(doc.id)}
-                  moveLabel="Vers mon contexte"
+                  moveLabel="Vers mon offre"
                   onMove={() => unclassify(doc.id)}
                   onRemove={() => deleteDocument(doc.id)}
                 />
@@ -2558,6 +2572,35 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
             ) : null}
           </div>
         ) : null}
+        <div className="space-y-2 border-t border-border pt-3">
+          <Label htmlFor="method-notes" className="mb-0 inline-flex items-center gap-1.5">
+            Vos consignes
+            <InfoTip text="Prises en compte dès l’enregistrement, sans relire vos documents." />
+          </Label>
+          <ExpandableTextarea
+            id="method-notes"
+            title="Vos consignes"
+            rows={4}
+            maxLength={MAX_METHOD_NOTES}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Une règle à ajouter ou à corriger, écrite comme vous la diriez à un vendeur."
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs tabular-nums text-muted">
+              {notes.length} / {MAX_METHOD_NOTES} caractères
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={saving || !notesChanged}
+              onClick={() => save((base) => ({ method: { ...base.method, notes: notes.trim() } }))}
+            >
+              {saving ? 'Enregistrement…' : notesChanged ? 'Enregistrer mes consignes' : 'Consignes enregistrées'}
+            </Button>
+          </div>
+        </div>
         <FieldError>{error}</FieldError>
       </CardBody>
       {sheet ? (
@@ -2845,6 +2888,7 @@ function AssistantContent() {
   const allowCalendlyBooking = hasFeature('calendly_booking', flags, profile, overrides)
   const allowIclose = hasFeature('iclose_booking', flags, profile, overrides)
   const allowDiscovery = hasFeature('discovery_flow', flags, profile, overrides)
+  const allowAbout = hasFeature('seller_profile', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -2960,8 +3004,8 @@ function AssistantContent() {
       <ActivationSection assistant={assistant} blockers={blockers} onOpenTab={setTab} />
       <AssistantTabs value={tab} onChange={setTab} flagged={flagged} />
       <TabPanel tab="offer" active={tab === 'offer'}>
-        <ProfileSection assistant={assistant} />
-        {allowContextDocuments ? <ContextDocumentsSection assistant={assistant} allowMethod={allowMethod} /> : null}
+        <ProfileSection assistant={assistant} allowDocuments={allowContextDocuments} allowMethod={allowMethod} />
+        {allowAbout ? <AboutCard /> : null}
         {allowMethod ? <MethodSection assistant={assistant} /> : null}
         <ToneSection assistant={assistant} allowCustom={allowCustomTone} />
       </TabPanel>
