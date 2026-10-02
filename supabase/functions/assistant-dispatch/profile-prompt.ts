@@ -46,8 +46,10 @@ export function profileNote(p: ProspectProfile) {
   if (name || handle) {
     const shown = [name && `nom affiché « ${name} »`, handle && `pseudo « ${handle} »`].filter(Boolean).join(', ')
     lines.push(
-      `Sur son Instagram : ${shown}. Pour son prénom et son nom, si tu y lis un vrai prénom ou un vrai nom, propose-le ` +
-        'et fais-le confirmer dans le même message que tes autres demandes, puis ne demande que ce qui manque. ' +
+      `Sur son Instagram : ${shown}. Si tu y lis un vrai prénom ou un vrai nom, ne le redemande pas : suppose-le, sans ` +
+        "jamais dire où tu l'as lu ni parler de son profil, sur le modèle « ton prénom c'est … j'imagine ? » ou « je suppose " +
+        "que ton prénom c'est bien …, c'est ça ? ». Fais-le dans le même message que tes autres demandes, et demande dans ce " +
+        "même message ce que son Instagram ne donne pas, son nom de famille s'il n'y est pas. " +
         "S'il ne le corrige pas, c'est sa réponse : passe-le tel quel à la réservation. Ne dis jamais que tu ne peux pas voir son profil.",
     )
   }
