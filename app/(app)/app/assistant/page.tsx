@@ -2633,7 +2633,11 @@ function MethodSection({ assistant }: { assistant: Assistant }) {
           setPending(true)
         }}
         title="Retirer votre méthode"
-        message="L’assistant reprend ses règles habituelles dès le prochain message. La fiche reste ici, à réappliquer quand vous voulez."
+        message={
+          stored?.notes
+            ? 'L’assistant ne suit plus la fiche dès le prochain message, mais garde vos consignes écrites. La fiche reste ici, à réappliquer quand vous voulez.'
+            : 'L’assistant reprend ses règles habituelles dès le prochain message. La fiche reste ici, à réappliquer quand vous voulez.'
+        }
         confirmLabel="Retirer"
         danger
       />
