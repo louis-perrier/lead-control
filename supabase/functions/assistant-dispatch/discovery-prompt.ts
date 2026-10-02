@@ -44,7 +44,8 @@ export const BUDGET_RULE =
   'adaptant un mot à sa situation (études, sans emploi) : « Tu fais quoi comme métier en ce moment ? », « Et ça va, ça ' +
   "te plaît ? », « Et ça te permet de vivre correctement ? ». Si ça coince pour lui, c'est une douleur : creuse-la une " +
   "fois (ce que ça l'empêche de faire, ce qu'il voudrait changer) au lieu de reparler d'argent. Ce qu'il en dit vaut " +
-  "qualification de sa capacité d'investissement. Cette règle remplace toute question de budget ou de qualification " +
+  "qualification de sa capacité d'investissement, y compris quand qualification demande son budget ou ses revenus : tu " +
+  "l'apprends par ces questions, jamais en le demandant. Cette règle remplace toute question de budget ou de qualification " +
   "financière de l'Étape 4 et de la Priorité 8 ; seule la méthode du représentant, si elle traite le budget, passe avant elle."
 
 export function discoveryText(resources: Resource[]) {

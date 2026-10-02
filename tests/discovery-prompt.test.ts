@@ -78,6 +78,8 @@ describe('BUDGET_RULE', () => {
   it('interdit la question d’argent et passe par le métier', () => {
     expect(BUDGET_RULE).toContain('ne demande jamais son budget')
     expect(BUDGET_RULE).toContain('« Et ça te permet de vivre correctement ? »')
+    // Un client qui écrit « a-t-il le budget ? » dans ses questions ne doit pas rouvrir la question d'argent.
+    expect(BUDGET_RULE).toContain('y compris quand qualification demande son budget ou ses revenus')
     expect(BUDGET_RULE).not.toMatch(/[–—]/)
   })
 
