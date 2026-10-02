@@ -23,7 +23,7 @@ import { FAILURE_MESSAGES, prepareBooking, type BookingTurn } from './booking.ts
 import { withAgendaSection } from './agenda-prompt.ts'
 import { momentLabel } from '../_shared/agenda-slots.ts'
 import { methodText, withMethodSection, type MethodSettings } from './method-prompt.ts'
-import { discoveryText, normalizeResources, withDiscoverySection } from './discovery-prompt.ts'
+import { BUDGET_RULE, discoveryText, normalizeResources, withDiscoverySection } from './discovery-prompt.ts'
 import { CONTENT_FLOW, asksName, profileNote } from './profile-prompt.ts'
 import { CITE_RULE, LIKE_RULE, burstNumbers, burstOf, citeTargets, likeTarget } from './gestures.ts'
 import { bookingHost } from '../_shared/booking-settings.ts'
@@ -605,8 +605,10 @@ async function handleConversation(due: DueConversation) {
     summary,
   })
   // Le déroulé général d'abord, la fiche du client ensuite : la plus spécifique arrive en dernier.
-  const flows = [discovery, profileOn ? CONTENT_FLOW : '', LIKE_RULE, citeOn ? CITE_RULE : ''].filter(Boolean).join('\n')
-  // La règle du like vaut pour tous les comptes : un repère introuvable ne doit pas coûter la réponse.
+  const flows = [discovery, BUDGET_RULE, profileOn ? CONTENT_FLOW : '', LIKE_RULE, citeOn ? CITE_RULE : '']
+    .filter(Boolean)
+    .join('\n')
+  // Les règles du budget et du like valent pour tous les comptes : un repère introuvable ne doit pas coûter la réponse.
   let withFlows = fixedPrompt
   try {
     withFlows = withDiscoverySection(fixedPrompt, flows)

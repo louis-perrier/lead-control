@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BUDGET_RULE,
   discoveryText,
   normalizeResources,
   withDiscoverySection,
@@ -70,5 +71,19 @@ describe('withDiscoverySection', () => {
   it('refuse un prompt dont le repère a bougé', () => {
     expect(() => withDiscoverySection('sans repère', 'texte')).toThrow('discovery_prompt_marker')
     expect(() => withDiscoverySection(`${system}\n${system}`, 'texte')).toThrow('discovery_prompt_marker')
+  })
+})
+
+describe('BUDGET_RULE', () => {
+  it('interdit la question d’argent et passe par le métier', () => {
+    expect(BUDGET_RULE).toContain('ne demande jamais son budget')
+    expect(BUDGET_RULE).toContain('« Et ça te permet de vivre correctement ? »')
+    expect(BUDGET_RULE).not.toMatch(/[–—]/)
+  })
+
+  it('s’insère sans imiter le repère et laisse le dernier mot à la fiche du client', () => {
+    const out = withMethodSection(withDiscoverySection(system, BUDGET_RULE), methodText({ budget: 'Jamais de prix.' }))
+    expect(out.split('- **stop_condition.text**')).toHaveLength(2)
+    expect(out.indexOf('- **budget**')).toBeLessThan(out.indexOf('méthode du représentant'))
   })
 })
