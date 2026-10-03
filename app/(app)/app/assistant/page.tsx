@@ -1772,12 +1772,12 @@ function HumanHoldSection({ assistant }: { assistant: Assistant }) {
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
               Répondre tout de suite quand j'ai ouvert la conversation
-              <InfoTip text="Vous écrivez en premier à un prospect : l'assistant répond dès qu'il vous répond." />
+              <InfoTip text="Quand vous écrivez en premier, l'assistant répond dès que le prospect envoie un message." />
             </span>
             <Switch checked={skipOpener} onChange={setSkipOpener} label="Répondre tout de suite quand j'ai ouvert la conversation" />
           </div>
           <div className="border-t border-border pt-3 sm:max-w-xs">
-            <Label htmlFor="humanHoldMinutes">{skipOpener ? "Sinon, l'assistant reprend après" : "L'assistant reprend après"}</Label>
+            <Label htmlFor="humanHoldMinutes">De manière générale, l'assistant reprend après</Label>
             <select
               id="humanHoldMinutes"
               className={selectClass}
