@@ -17,6 +17,7 @@ import {
   useProfile,
 } from '@/lib/queries'
 import { hasFeature } from '@/lib/features'
+import { HUMAN_HOLD_MINUTES, humanHoldMs } from '@/supabase/functions/assistant-dispatch/decision'
 import { formatDateTime, storageSafeName } from '@/lib/utils'
 import { readShares, type DocReadShare } from '@/supabase/functions/_shared/context-budget'
 import { ACCEPTED_DOCUMENT_EXTENSIONS, MAX_DOCUMENT_BYTES, documentKind } from '@/supabase/functions/_shared/document-text'
@@ -1747,6 +1748,60 @@ function ScheduleSection({ assistant }: { assistant: Assistant }) {
   )
 }
 
+const HOLD_LABELS: Record<number, string> = { 15: '15 minutes', 30: '30 minutes', 60: '1 heure', 120: '2 heures', 240: '4 heures' }
+
+function HumanHoldSection({ assistant }: { assistant: Assistant }) {
+  const { save, saving } = useSaveSettings(assistant)
+  const stored = assistant.settings.human_hold
+  const [skipOpener, setSkipOpener] = useState(stored?.skip_opener ?? false)
+  const [minutes, setMinutes] = useState(humanHoldMs(stored) / 60000)
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    save({ human_hold: { minutes, skip_opener: skipOpener } })
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Quand vous écrivez vous-même"
+        description="Après un message écrit à la main, l'assistant vous laisse la conversation un moment."
+      />
+      <form onSubmit={submit}>
+        <CardBody className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink">
+              Répondre tout de suite quand j'ai ouvert la conversation
+              <InfoTip text="Vous écrivez en premier à un prospect : l'assistant répond dès qu'il vous répond." />
+            </span>
+            <Switch checked={skipOpener} onChange={setSkipOpener} label="Répondre tout de suite quand j'ai ouvert la conversation" />
+          </div>
+          <div className="border-t border-border pt-3 sm:max-w-xs">
+            <Label htmlFor="humanHoldMinutes">{skipOpener ? "Sinon, l'assistant reprend après" : "L'assistant reprend après"}</Label>
+            <select
+              id="humanHoldMinutes"
+              className={selectClass}
+              value={minutes}
+              onChange={(e) => setMinutes(Number(e.target.value))}
+            >
+              {HUMAN_HOLD_MINUTES.map((m) => (
+                <option key={m} value={m}>
+                  {HOLD_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </CardBody>
+        <div className="flex justify-end border-t border-border px-5 py-3.5">
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
 function AudienceSection({ assistant, allowSolicitors }: { assistant: Assistant; allowSolicitors: boolean }) {
   const { save, saving } = useSaveSettings(assistant)
   const audience = assistant.settings.audience ?? {}
@@ -2893,6 +2948,7 @@ function AssistantContent() {
   const allowIclose = hasFeature('iclose_booking', flags, profile, overrides)
   const allowDiscovery = hasFeature('discovery_flow', flags, profile, overrides)
   const allowAbout = hasFeature('seller_profile', flags, profile, overrides)
+  const allowHumanHold = hasFeature('human_hold', flags, profile, overrides)
 
   useEffect(() => {
     if (searchParams.get('ig_connected') === '1') {
@@ -3027,6 +3083,7 @@ function AssistantContent() {
         <ChannelSection assistant={assistant} />
         <AudienceSection assistant={assistant} allowSolicitors={hasFeature('ignore_solicitors', flags, profile, overrides)} />
         <ScheduleSection assistant={assistant} />
+        {allowHumanHold ? <HumanHoldSection assistant={assistant} /> : null}
         {allowFollowups ? <FollowupsCard assistant={assistant} humanAgent={allowHumanAgent} /> : null}
         {allowCannedResponses ? <CannedResponsesSection assistant={assistant} /> : null}
       </TabPanel>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HUMAN_ACTIVE_MS, agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed, taggedLink } from '../supabase/functions/assistant-dispatch/decision'
+import { HUMAN_ACTIVE_MS, agendaStopReached, alreadyAnswered, humanActiveUntil, humanHoldMs, linkBase, parseDecision, stopConfirmed, taggedLink } from '../supabase/functions/assistant-dispatch/decision'
 
 describe('parseDecision', () => {
   it('lit un JSON complet', () => {
@@ -95,6 +95,15 @@ describe('humanActiveUntil', () => {
   it('reprend au-delà d’une heure', () => {
     expect(humanActiveUntil(new Date(now - HUMAN_ACTIVE_MS - 1).toISOString(), now)).toBeNull()
     expect(humanActiveUntil(null, now)).toBeNull()
+  })
+
+  it('suit le délai réglé, et garde une heure pour une valeur inconnue', () => {
+    expect(humanHoldMs({ minutes: 15 })).toBe(15 * 60 * 1000)
+    expect(humanHoldMs({ minutes: 0 })).toBe(HUMAN_ACTIVE_MS)
+    expect(humanHoldMs({ minutes: 7 })).toBe(HUMAN_ACTIVE_MS)
+    expect(humanHoldMs(null)).toBe(HUMAN_ACTIVE_MS)
+    expect(humanActiveUntil('2026-09-14T11:30:00Z', now, humanHoldMs({ minutes: 15 }))).toBeNull()
+    expect(humanActiveUntil('2026-09-14T11:30:00Z', now, humanHoldMs({ minutes: 240 }))?.toISOString()).toBe('2026-09-14T15:30:00.000Z')
   })
 })
 

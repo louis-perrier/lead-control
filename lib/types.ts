@@ -63,6 +63,7 @@ export type AssistantSettings = {
   followups?: FollowupSettings
   method?: import('@/supabase/functions/assistant-dispatch/method-prompt').MethodSettings
   ignore_solicitors?: boolean
+  human_hold?: import('@/supabase/functions/assistant-dispatch/decision').HumanHold
   canned_responses?: CannedResponse[]
   booking?: {
     mode?: BookingMode

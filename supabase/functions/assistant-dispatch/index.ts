@@ -10,7 +10,8 @@ import { buildSummaryPrompt, buildSystemPrompt } from './prompt.ts'
 import { tryCannedResponse } from './canned.ts'
 import { audienceBlocks } from '../_shared/audience.ts'
 import { allocateBudget, cutAtBoundary } from '../_shared/context-budget.ts'
-import { agendaStopReached, alreadyAnswered, humanActiveUntil, linkBase, parseDecision, stopConfirmed, taggedLink } from './decision.ts'
+import type { HumanHold } from './decision.ts'
+import { agendaStopReached, alreadyAnswered, humanActiveUntil, humanHoldMs, linkBase, parseDecision, stopConfirmed, taggedLink } from './decision.ts'
 import { splitReplyPieces, typingPauses } from './bubbles.ts'
 import { closingCheck } from './closing.ts'
 import { firstJsonObject } from '../_shared/canned-match.ts'
@@ -355,7 +356,20 @@ async function handleConversation(due: DueConversation) {
     .order('sent_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  const waitForHuman = humanActiveUntil(lastHuman.data?.sent_at, Date.now())
+  const holdSetting = (assistant.settings as { human_hold?: HumanHold } | null)?.human_hold
+  const hold = holdSetting && (await hasFeature(due.user_id, 'human_hold')) ? holdSetting : null
+  let waitForHuman = humanActiveUntil(lastHuman.data?.sent_at, Date.now(), humanHoldMs(hold))
+  // Le compte a ouvert la conversation lui-même : la première réponse du prospect n'attend pas.
+  if (waitForHuman && hold?.skip_opener && lastHuman.data?.sent_at) {
+    const earlier = await admin
+      .from('conversation_messages')
+      .select('id')
+      .eq('conversation_id', convId)
+      .eq('author_type', 'customer')
+      .lt('sent_at', lastHuman.data.sent_at)
+      .limit(1)
+    if (!earlier.error && (earlier.data?.length ?? 0) === 0) waitForHuman = null
+  }
   if (waitForHuman) {
     await releaseLock(convId, {
       automation_state: 'scheduled',

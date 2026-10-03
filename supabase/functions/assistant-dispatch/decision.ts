@@ -125,11 +125,18 @@ export function alreadyAnswered(messages: { id: number; author_type: string; sen
 }
 
 export const HUMAN_ACTIVE_MS = 60 * 60 * 1000
+export const HUMAN_HOLD_MINUTES = [15, 30, 60, 120, 240] as const
+export type HumanHold = { minutes?: number; skip_opener?: boolean }
 
-// Un message écrit à la main il y a moins d'une heure : l'agent laisse la personne répondre.
-export function humanActiveUntil(lastHumanSentAt: string | null | undefined, now: number) {
+export function humanHoldMs(hold: HumanHold | null | undefined) {
+  const minutes = Number(hold?.minutes)
+  return (HUMAN_HOLD_MINUTES as readonly number[]).includes(minutes) ? minutes * 60 * 1000 : HUMAN_ACTIVE_MS
+}
+
+// Un message écrit à la main il y a moins d'une heure (ou du délai réglé) : l'agent laisse la personne répondre.
+export function humanActiveUntil(lastHumanSentAt: string | null | undefined, now: number, holdMs = HUMAN_ACTIVE_MS) {
   if (!lastHumanSentAt) return null
-  const until = Date.parse(lastHumanSentAt) + HUMAN_ACTIVE_MS
+  const until = Date.parse(lastHumanSentAt) + holdMs
   return until > now ? new Date(until) : null
 }
 
